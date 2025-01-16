@@ -48,8 +48,13 @@ const LoginScreen = () => {
                 <TextInput
                     placeholder='Enter your password'
                     placeholderTextColor={'#fff'}
-                    style={{ fontFamily: "Oswald-Regular", fontSize: 14 }}
+                    style={{ 
+                      fontFamily: "Oswald-Regular",
+                      fontSize: 14,
+                      color: '#fff',
+                    }}
                     className='mt-5 border-b-2 border-gray-300 w-full'
+                    secureTextEntry // Hide password
                 />
             </View>
 
