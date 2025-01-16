@@ -4,7 +4,7 @@ import { useAuth } from '../utils/auth';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import images from '@/constants/images'
 import icons from '@/constants/icons'
-
+import { StatusBar } from 'expo-status-bar';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -20,29 +20,34 @@ const LoginScreen = () => {
   };
 
   return (
-    <SafeAreaView className='bg-white h-full'>
+    <SafeAreaView className='bg-black h-full'>
+      <StatusBar translucent backgroundColor="transparent" style="light" />
     <ScrollView contentContainerClassName='h-full'>
         {/*Login screen image*/}
         <Image source={images.onboarding} className='w-full h-3/6' resizeMode='contain' />
         <View className='px-10'>
-            <Text className='text-base text-center uppercase font-rubik text-black-200'>
+            <Text className='text-center uppercase font-bebas text-2xl text-white mt-0'>
                 Welcome To RISE
             </Text>
-            <Text className='text-3xl text-center uppercase font-rubik-bold text-black-300 mt-2'>
+            <Text className='text-4xl text-center uppercase font-protest text-white mt-2'>
                 Where we help you RISE{"\n"}
                 <Text className='text-primary-300'>to the top</Text>
             </Text>
             <View>
                 <TextInput
                     placeholder='Enter your email'
+                    placeholderTextColor={'#fff'}
+                    style={{ fontFamily: "Oswald-Regular", fontSize: 14 }}
                     className='mt-5 border-b-2 border-gray-300 w-full'
                 />
                 <TextInput
                     placeholder='Enter your password'
+                    placeholderTextColor={'#fff'}
+                    style={{ fontFamily: "Oswald-Regular", fontSize: 14 }}
                     className='mt-5 border-b-2 border-gray-300 w-full'
                 />
             </View>
-            <Text className='text-lg font-rubik-light text-black-200 mt-12 text-center'>
+            <Text className='text-2xl font-bebas text-white mt-12 text-center'>
                 Login with Others!
             </Text>
 

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "RiseMobile",
+    "name": "RISE",
     "slug": "RiseMobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -32,7 +32,16 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      [
+      "expo-font",
+      {
+        "fonts":
+        [
+          "./assets/fonts/BebasNeue-Regular.ttf"
+        ]
+      }
+    ]
     ],
     "experiments": {
       "typedRoutes": true
