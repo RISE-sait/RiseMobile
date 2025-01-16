@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Image } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform } from 'react-native'
 import { useAuth } from '../utils/auth';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import images from '@/constants/images'
@@ -20,24 +20,29 @@ const LoginScreen = () => {
   };
 
   return (
-    <SafeAreaView className='bg-black h-full'>
+    <SafeAreaView className='bg-black-100 h-full'>
       <StatusBar translucent backgroundColor="transparent" style="light" />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
     <ScrollView contentContainerClassName='h-full'>
         {/*Login screen image*/}
         <Image source={images.onboarding} className='w-full h-3/6' resizeMode='contain' />
         <View className='px-10'>
-            <Text className='text-center uppercase font-bebas text-2xl text-white mt-0'>
+            <Text className='text-center uppercase font-bebas text-3xl text-gold-100 mt-0'>
                 Welcome To RISE
             </Text>
-            <Text className='text-4xl text-center uppercase font-protest text-white mt-2'>
+            <Text className='text-4xl text-center uppercase font-protest text-white-100 mt-2'>
                 Where we help you RISE{"\n"}
-                <Text className='text-primary-300'>to the top</Text>
+                <Text className='text-gold-100'>to the top</Text>
             </Text>
             <View>
                 <TextInput
                     placeholder='Enter your email'
                     placeholderTextColor={'#fff'}
-                    style={{ fontFamily: "Oswald-Regular", fontSize: 14 }}
+                    style={{ 
+                      fontFamily: "Oswald-Regular",
+                      fontSize: 14,
+                      color: '#fff',
+                    }}
                     className='mt-5 border-b-2 border-gray-300 w-full'
                 />
                 <TextInput
@@ -47,6 +52,19 @@ const LoginScreen = () => {
                     className='mt-5 border-b-2 border-gray-300 w-full'
                 />
             </View>
+
+            <TouchableOpacity
+    onPress={handleLogin}
+    className="mt-8 bg-gold-100 rounded-full py-4"
+    style={{
+      backgroundColor: "#FFD700", // Gold color
+      borderRadius: 25,
+    }}
+  >
+    <Text className="text-center text-white font-bebas text-lg">
+      Log In
+    </Text>
+  </TouchableOpacity>
             <Text className='text-2xl font-bebas text-white mt-12 text-center'>
                 Login with Others!
             </Text>
@@ -65,6 +83,7 @@ const LoginScreen = () => {
             </View>
         </View>
     </ScrollView>
+    </KeyboardAvoidingView>
 </SafeAreaView>
 
   );

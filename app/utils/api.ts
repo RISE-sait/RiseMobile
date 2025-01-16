@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'YOUR_BACKEND_API_URL'; // Replace with your backend URL
+const API_URL = 'http://10.0.2.2:8080/api/auth/email/login'; // Replace with your backend URL
 
 type User = {
   id: string;
@@ -10,9 +10,21 @@ type User = {
 };
 
 // Login API
-export const loginUser = async (email: string, password: string): Promise<User> => {
-  const response = await axios.post(`${API_URL}/login`, { email, password });
-  return response.data;
+export const loginUser = async (email: string, password: string): Promise<void> => {
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: "klintlee1@gmail.com", password: "lolol" }),
+    });
+    
+  }
+  catch (error) {
+    console.log(error);
+    throw error
+  }
 };
 
 // Register API
