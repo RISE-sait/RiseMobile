@@ -5,19 +5,38 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import images from '@/constants/images'
 import icons from '@/constants/icons'
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login } = useAuth();
+  const navigation = useNavigation();
+
 
   const handleLogin = async () => {
     try {
-      await login(email, password);
+      const user = await login(email, password);
+
+      console.log("User logged in:", user);
+
+      // Navigate based on role
+      if (user.role === "athlete") {
+        navigation.navigate("(athlete)/home");
+      } else if (user.role === "coach") {
+        navigation.navigate("(coach)/dashboard");
+      } else if (user.role === "super-admin") {
+        navigation.navigate("(admin)/dashboard");
+      } else {
+        alert("Unknown role. Please contact support.");
+      }
     } catch (error) {
-      alert('Login failed. Please check your credentials.');
+      console.error("Login failed:", error);
+      alert("Login failed. Please check your credentials.");
     }
   };
+
+  
 
   return (
     <SafeAreaView className='bg-black-100 h-full'>
@@ -27,7 +46,7 @@ const LoginScreen = () => {
         {/*Login screen image*/}
         <Image source={images.onboarding} className='w-full h-3/6' resizeMode='contain' />
         <View className='px-10'>
-            <Text className='text-center uppercase font-bebas text-3xl text-gold-100 mt-0'>
+            <Text className='text-center uppercase font-bebas text-3xl text-gold-100 -mt-10'>
                 Welcome To RISE
             </Text>
             <Text className='text-4xl text-center uppercase font-protest text-white-100 mt-2'>
@@ -35,28 +54,33 @@ const LoginScreen = () => {
                 <Text className='text-gold-100'>to the top</Text>
             </Text>
             <View>
-                <TextInput
-                    placeholder='Enter your email'
-                    placeholderTextColor={'#fff'}
-                    style={{ 
-                      fontFamily: "Oswald-Regular",
-                      fontSize: 14,
-                      color: '#fff',
-                    }}
-                    className='mt-5 border-b-2 border-gray-300 w-full'
-                />
-                <TextInput
-                    placeholder='Enter your password'
-                    placeholderTextColor={'#fff'}
-                    style={{ 
-                      fontFamily: "Oswald-Regular",
-                      fontSize: 14,
-                      color: '#fff',
-                    }}
-                    className='mt-5 border-b-2 border-gray-300 w-full'
-                    secureTextEntry // Hide password
-                />
-            </View>
+  <TextInput
+    placeholder="Enter your email"
+    placeholderTextColor="#fff"
+    style={{
+      fontFamily: "Oswald-Regular",
+      fontSize: 14,
+      color: "#fff",
+    }}
+    className="mt-5 border-b-2 border-gray-300 w-full"
+    value={email} // Bind the state
+    onChangeText={setEmail} // Update the state
+  />
+  <TextInput
+    placeholder="Enter your password"
+    placeholderTextColor="#fff"
+    style={{
+      fontFamily: "Oswald-Regular",
+      fontSize: 14,
+      color: "#fff",
+    }}
+    className="mt-8 border-b-2 border-gray-300 w-full"
+    secureTextEntry // Hide password
+    value={password} // Bind the state
+    onChangeText={setPassword} // Update the state
+  />
+</View>
+
 
             <TouchableOpacity
     onPress={handleLogin}
@@ -70,22 +94,52 @@ const LoginScreen = () => {
       Log In
     </Text>
   </TouchableOpacity>
-            <Text className='text-2xl font-bebas text-white mt-12 text-center'>
+            <Text className='text-2xl font-bebas text-white-100 mt-10 text-center'>
                 Login with Others!
             </Text>
 
-            {/*Login buttons*/}
-            <View className='flex flex-row items-center justify-center gap-12'>
-                <TouchableOpacity className="bg-white shadow-md shadow-zinc-300 rounded-full w-16 h-16 items-center justify-center mt-5">
-                    <Image source={icons.google} className='w-5 h-5' resizeMode='contain' />
-                </TouchableOpacity>
-                <TouchableOpacity className="bg-white shadow-md shadow-zinc-300 rounded-full w-16 h-16 items-center justify-center mt-5">
-                    <Image source={icons.facebook} className='w-5 h-5' resizeMode='contain' />
-                </TouchableOpacity>
-                <TouchableOpacity className="bg-white shadow-md shadow-zinc-300 rounded-full w-16 h-16 items-center justify-center mt-5">
-                    <Image source={icons.apple} className='w-5 h-5' resizeMode='contain' />
-                </TouchableOpacity>
-            </View>
+            <View className="flex flex-row items-center justify-center gap-12">
+  <TouchableOpacity
+    className="rounded-full w-16 h-16 items-center justify-center mt-5"
+    style={{
+      backgroundColor: "#fff", // Explicitly set white background
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 5, // For Android shadow
+    }}
+  >
+    <Image source={icons.google} style={{ width: 20, height: 20 }} resizeMode="contain" />
+  </TouchableOpacity>
+  <TouchableOpacity
+    className="rounded-full w-16 h-16 items-center justify-center mt-5"
+    style={{
+      backgroundColor: "#fff", // Explicitly set white background
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 5, // For Android shadow
+    }}
+  >
+    <Image source={icons.facebook} style={{ width: 20, height: 20 }} resizeMode="contain" />
+  </TouchableOpacity>
+  <TouchableOpacity
+    className="rounded-full w-16 h-16 items-center justify-center mt-5"
+    style={{
+      backgroundColor: "#fff", // Explicitly set white background
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 5, // For Android shadow
+    }}
+  >
+    <Image source={icons.apple} style={{ width: 20, height: 20 }} resizeMode="contain" />
+  </TouchableOpacity>
+</View>
+
         </View>
     </ScrollView>
     </KeyboardAvoidingView>
