@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser, registerUser } from "./api"; // Import API functions
 
 type User = {
@@ -12,20 +13,56 @@ type User = {
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false); // Loading state
+  const [isAuthLoaded, setIsAuthLoaded] = useState(false); // For initial auth check
 
+  // Persist user data in AsyncStorage
+  const saveUserToStorage = async (userData: User) => {
+    try {
+      await AsyncStorage.setItem("user", JSON.stringify(userData));
+    } catch (error) {
+      console.error("Failed to save user data:", error);
+    }
+  };
+
+  // Load user data from AsyncStorage
+  const loadUserFromStorage = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem("user");
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+
+        // Redirect based on role
+        if (parsedUser.role === "athlete") {
+          router.replace("/(athlete)/home");
+        } else if (parsedUser.role === "instructor") {
+          router.replace("/(instructor)/instructorHome");
+        } else if (parsedUser.role === "coach") {
+          router.replace("/(coach)/coachHome");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load user data:", error);
+    } finally {
+      setIsAuthLoaded(true); // Ensure app knows auth check is complete
+    }
+  };
+
+  // Login function
   const login = async (email: string, password: string) => {
     setIsLoading(true); // Start loading
     try {
       const userData = await loginUser(email, password); // Call API
       setUser(userData);
+      await saveUserToStorage(userData); // Persist login data
 
       // Redirect based on role
       if (userData.role === "athlete") {
         router.replace("/(athlete)/home");
       } else if (userData.role === "instructor") {
-        router.replace("/(instructor)/home");
+        router.replace("/(instructor)/instructorHome");
       } else if (userData.role === "coach") {
-        router.replace("/(coach)/home");
+        router.replace("/(coach)/coachHome");
       }
     } catch (error) {
       console.error("Login failed:", error);
@@ -35,6 +72,7 @@ export const useAuth = () => {
     }
   };
 
+  // Register function
   const register = async (email: string, password: string, role: string) => {
     setIsLoading(true); // Start loading
     try {
@@ -49,10 +87,21 @@ export const useAuth = () => {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    router.replace("/(auth)/login"); // Redirect to login after logout
+  // Logout function
+  const logout = async () => {
+    try {
+      await AsyncStorage.removeItem("user"); // Clear stored user data
+      setUser(null);
+      router.replace("/(auth)/login"); // Redirect to login
+    } catch (error) {
+      console.error("Failed to log out:", error);
+    }
   };
 
-  return { user, isLoading, login, register, logout }; // Expose `isLoading`
+  // Load auth state on app load
+  useEffect(() => {
+    loadUserFromStorage();
+  }, []);
+
+  return { user, isLoading, isAuthLoaded, login, register, logout };
 };

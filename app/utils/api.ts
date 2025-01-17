@@ -1,11 +1,11 @@
 import axios from "axios";
 
-const API_URL = "http://10.0.2.2:8080/api/auth/email/login"; // Replace with your backend URL
+const API_URL = "http://10.0.2.2:8080/api/auth/traditional/login"; // Replace with your backend URL
 
 type User = {
   id: string;
   email: string;
-  role: "athlete" | "super-admin" | "coach";
+  role: "athlete" | "instructor" | "coach";
   token: string;
 };
 
@@ -37,9 +37,9 @@ const decodeRoleFromToken = (token: string): User["role"] => {
     switch (decoded.role) {
       case 0:
         return "athlete";
-      case 1:
-        return "super-admin";
-      case 2:
+      case 4:
+        return "instructor";
+      case 3:
         return "coach";
       default:
         throw new Error("Invalid role value in token");
