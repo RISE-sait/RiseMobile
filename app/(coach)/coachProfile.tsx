@@ -2,28 +2,19 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
+import { useRouter } from "expo-router"; // Import the useRouter hook
 import images from "@/constants/images"; // Import centralized images
-import ProfileHeader from "../components/ProfileHeader"; // Reusing the ProfileHeader component
+import ProfileHeader from "../components/ProfileHeader"; // Reuse the ProfileHeader component
+import AsyncStorage from "@react-native-async-storage/async-storage"; // Import AsyncStorage for storing user data
 
-const AthleteHomeScreen = () => {
+const CoachProfile = () => {
   const router = useRouter();
 
   const handleLogout = async () => {
-    console.log("Logout button pressed");
+  await AsyncStorage.removeItem("user");
+  router.replace("/(auth)/login");
+};
 
-    // Clear any stored authentication data
-    try {
-      // Replace AsyncStorage.clear() with your auth clearing logic if applicable
-      // import AsyncStorage from '@react-native-async-storage/async-storage';
-      // await AsyncStorage.clear();
-
-      // Navigate to the login screen
-      router.push("/(auth)/login");
-    } catch (error) {
-      console.error("Error during logout:", error);
-    }
-  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-900 px-6">
@@ -34,19 +25,19 @@ const AthleteHomeScreen = () => {
       <ProfileHeader
         firstName="John"
         lastName="Doe"
-        role="Athlete - Soccer"
-        number="10"
-        profileImage={images.headshot} // Replace with the athlete's headshot
-        logo={images.canada} // Replace with an appropriate logo
+        role="Coach - Basketball"
+        number="23"
+        profileImage={images.coachHeadshot} // Replace with the coach's headshot
+        logo={images.teamLogo} // Replace with the team logo
       />
 
-      {/* Upcoming Match Button */}
+      {/* Manage Account Button */}
       <TouchableOpacity
-        onPress={() => console.log("Upcoming Matches pressed")}
+        onPress={() => console.log("Manage Account pressed")}
         className="bg-gray-800 mt-8 py-4 rounded-lg shadow-lg"
       >
         <Text className="text-center text-white font-bold text-xl">
-          View Upcoming Matches
+          Manage Account
         </Text>
       </TouchableOpacity>
 
@@ -61,4 +52,4 @@ const AthleteHomeScreen = () => {
   );
 };
 
-export default AthleteHomeScreen;
+export default CoachProfile;
