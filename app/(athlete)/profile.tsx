@@ -5,24 +5,14 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import images from "@/constants/images"; // Import centralized images
 import ProfileHeader from "../components/ProfileHeader"; // Reusing the ProfileHeader component
+import AsyncStorage from "@react-native-async-storage/async-storage"; // Import AsyncStorage for storing user data
 
 const AthleteHomeScreen = () => {
   const router = useRouter();
 
   const handleLogout = async () => {
-    console.log("Logout button pressed");
-
-    // Clear any stored authentication data
-    try {
-      // Replace AsyncStorage.clear() with your auth clearing logic if applicable
-      // import AsyncStorage from '@react-native-async-storage/async-storage';
-      // await AsyncStorage.clear();
-
-      // Navigate to the login screen
-      router.push("/(auth)/login");
-    } catch (error) {
-      console.error("Error during logout:", error);
-    }
+    await AsyncStorage.removeItem("user");
+    router.replace("/(auth)/login");
   };
 
   return (
