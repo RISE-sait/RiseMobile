@@ -2,11 +2,19 @@ import { Text, View, Image, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import images from "@/constants/images"; 
 import { StatusBar } from "expo-status-bar";
+import GoToCards from "../components/GoToCards";
 
 export default function InstructorHomeScreen() {
   const handleNavigate = (route) => {
     console.log(`Navigating to ${route}`);
   };
+
+  const navigationOptions = [
+    { label: "Class List", route: "/classList" },
+    { label: "Course List", route: "/courseList" },
+    { label: "Attendance", route: "/attendance" },
+    { label: "Grades", route: "/grades" },
+  ];
 
   return (
     <SafeAreaView className="bg-gray-800 flex-1">
@@ -79,53 +87,7 @@ export default function InstructorHomeScreen() {
         </View>
 
         {/* Navigation Buttons Section */}
-        <View className="w-full px-10 mt-10">
-          <Text className="text-white-100 font-Oswald-Bold text-2xl">GO TO</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="mt-4"
-          >
-            <View className="flex flex-row space-x-4 gap-5">
-              {/* Class List Button */}
-              <TouchableOpacity
-                onPress={() => handleNavigate("/classlist")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white-100 font-semibold text-base">
-                  Class List
-                </Text>
-              </TouchableOpacity>
-              {/* Course List Button */}
-              <TouchableOpacity
-                onPress={() => handleNavigate("/courselist")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white-100 font-semibold text-base">
-                  Course List
-                </Text>
-              </TouchableOpacity>
-              {/* Attendance Button */}
-              <TouchableOpacity
-                onPress={() => handleNavigate("/attendance")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white-100 font-semibold text-base">
-                  Attendance
-                </Text>
-              </TouchableOpacity>
-              {/* Grades Button */}
-              <TouchableOpacity
-                onPress={() => handleNavigate("/grades")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white-100 font-semibold text-base">
-                  Grades
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
+        <GoToCards options={navigationOptions} handleNavigate={handleNavigate} />
       </ScrollView>
     </SafeAreaView>
   );
