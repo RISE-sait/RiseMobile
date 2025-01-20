@@ -32,21 +32,24 @@ const decodeJWT = (token: string): any => {
 
 // Function to extract role from decoded JWT
 const decodeRoleFromToken = (token: string): User["role"] => {
-  const decoded = decodeJWT(token);
-  if (decoded.role !== undefined) {
-    switch (decoded.role) {
-      case 0:
+  const decoded = decodeJWT(token); // Decode the token payload
+
+  if (decoded.role) {
+    switch (decoded.role.toLowerCase()) {
+      case "athlete":
         return "athlete";
-      case 4:
+      case "instructor":
         return "instructor";
-      case 3:
+      case "coach":
         return "coach";
       default:
-        throw new Error("Invalid role value in token");
+        throw new Error(`Invalid role value in token: ${decoded.role}`);
     }
   }
+
   throw new Error("Role is missing in the token payload");
 };
+
 
 // Login API
 export const loginUser = async (email: string, password: string): Promise<User> => {
