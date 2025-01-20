@@ -28,7 +28,7 @@ export default function Index() {
   } else if (user.role === "instructor") {
     return <Redirect href="/(instructor)/instructorHome" />;
   } else if (user.role === "coach") {
-    return <Redirect href="/(coach)/home" />;
+    return <Redirect href="/(coach)/coachHome" />;
   }
 
   return null;
