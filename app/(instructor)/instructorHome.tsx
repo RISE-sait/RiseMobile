@@ -83,6 +83,8 @@ export default function InstructorHomeScreen() {
 
         {/* Navigation Buttons Section */}
         <GoToCards options={navigationOptions} handleNavigate={handleNavigate} />
+        <View className="h-20">
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
