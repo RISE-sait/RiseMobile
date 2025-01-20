@@ -1,8 +1,10 @@
+import React, { useState } from "react";
 import { Text, View, Image, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import images from "@/constants/images";
 import { StatusBar } from "expo-status-bar";
 import GoToCards from "../components/GoToCards";
+import SlideUpModal from "../components/SlideUpModal";
 
 export default function CoachHomeScreen() {
   const handleNavigate = (route) => {
@@ -15,16 +17,21 @@ export default function CoachHomeScreen() {
     { label: "Match History", route: "/matchHistory" },
     { label: "Player Stats", route: "/playerStats" },
   ];
+  const [isModalVisible, setModalVisible] = useState(false);
+  const toggleModal = () => {
+    setModalVisible(!isModalVisible);
+  };
+
 
   return (
     <SafeAreaView className="bg-gray-800 flex-1">
-      <StatusBar translucent backgroundColor="transparent" style="light" />
+        <StatusBar translucent backgroundColor="transparent" style="light" />
       <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
 
         {/* QR Code Button */}
         <View className="absolute top-8 left-10 z-50">
           <TouchableOpacity
-            onPress={() => console.log("QR Code Button Pressed")}
+            onPress={toggleModal}
             className="w-12 h-12 bg-gray-900 rounded-full flex justify-center items-center shadow-md"
           >
             <Image
@@ -34,6 +41,14 @@ export default function CoachHomeScreen() {
             />
           </TouchableOpacity>
         </View>
+
+        {/* Modal */}
+        <SlideUpModal visible={isModalVisible} onClose={toggleModal}>
+          <Text className="text-gray-800 text-lg font-bold">QR Code Modal</Text>
+          <Text className="text-gray-600 mt-2">
+            This is where you can display information or actions related to the QR code.
+          </Text>
+        </SlideUpModal>
 
         {/* Header Section */}
         <View className="w-full px-10 mt-28">
