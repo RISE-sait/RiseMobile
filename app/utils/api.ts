@@ -117,4 +117,14 @@ export const fetchAthleteMatches = async (token: string) => {
   return response.data;
 };
 
+// utils/api.ts
+export const fetchQRCode = async (): Promise<string> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve("https://example.com/qrcode.png"); // Simulated QR code URL
+    }, 2000); // Simulate a 2-second delay
+  });
+};
+
+
 // Add more API calls as needed
