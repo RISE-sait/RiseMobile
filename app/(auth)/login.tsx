@@ -19,20 +19,8 @@ const LoginScreen = () => {
       const user = await login(email, password);
 
       console.log("User logged in:", user);
-
-      // Navigate based on role
-      if (user.role === "athlete") {
-        navigation.navigate("(athlete)/home");
-      } else if (user.role === "coach") {
-        navigation.navigate("(coach)/dashboard");
-      } else if (user.role === "super-admin") {
-        navigation.navigate("(admin)/dashboard");
-      } else {
-        alert("Unknown role. Please contact support.");
-      }
     } catch (error) {
-      console.error("Login failed:", error);
-      alert("Login failed. Please check your credentials.");
+      console.error("Failed to login:", error);
     }
   };
 
@@ -147,5 +135,6 @@ const LoginScreen = () => {
 
   );
 };
+
 
 export default LoginScreen;
