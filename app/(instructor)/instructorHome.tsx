@@ -3,6 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import images from "@/constants/images"; 
 import { StatusBar } from "expo-status-bar";
 import GoToCards from "../components/GoToCards";
+import UpcomingCard from "../components/UpcomingCard";
 
 export default function InstructorHomeScreen() {
   const handleNavigate = (route) => {
@@ -73,18 +74,12 @@ export default function InstructorHomeScreen() {
           </View>
         </View>
 
-        {/* Upcoming Class Section */}
-        <View className="w-full px-10 mt-10">
-          <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING CLASS</Text>
-          <View className="bg-[#444444] h-28 rounded-xl overflow-hidden mt-3 flex justify-center items-center">
-            <Image
-              source={images.classImage} 
-              className="w-full h-full absolute"
-              style={{ resizeMode: "cover", opacity: 0.6 }}
-            />
-            <Text className="text-white-100 font-rubik-bold text-xl">CS101 - Intro to Programming</Text>
-          </View>
-        </View>
+        {/* Upcoming Card Section */}
+        <UpcomingCard
+          title="UPCOMING CLASS"
+          subtitle="CS101- Intro To Coaching"
+          image={images.classImage}
+        />
 
         {/* Navigation Buttons Section */}
         <GoToCards options={navigationOptions} handleNavigate={handleNavigate} />
