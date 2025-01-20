@@ -30,7 +30,7 @@ const ProfileHeader = ({
   
           {/* Large Number */}
           <Text
-            className="text-white font-bold text-[170px] absolute right-4 bottom-2 opacity-25"
+            className="text-white-100 font-bold text-[170px] absolute right-4 bottom-2 opacity-25"
             style={{ zIndex: 1 }}
           >
             {number}
@@ -45,13 +45,13 @@ const ProfileHeader = ({
   
           {/* Name and Role */}
           <View className="absolute bottom-4 left-4">
-            <Text className="text-white font-bold text-4xl uppercase">
+            <Text className="text-white-100 font-Oswald-Bold text-4xl uppercase">
               {firstName}
             </Text>
-            <Text className="text-white font-bold text-4xl uppercase">
+            <Text className="text-white-100 font-Oswald-Bold text-4xl uppercase">
               {lastName}
             </Text>
-            <Text className="text-black font-bold text-base">{role}</Text>
+            <Text className="text-black font-protest text-base">{role}</Text>
           </View>
         </View>
       </View>

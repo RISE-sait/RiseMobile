@@ -17,7 +17,14 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ title, subtitle, image }) =
           className="w-full h-full absolute"
           style={{ resizeMode: "cover", opacity: 0.6 }}
         />
-        <Text className="text-white-100 font-rubik-bold text-xl">{subtitle}</Text>
+        {/* Overlay to enhance contrast*/}
+        <View
+          className="absolute inset-0"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent black
+          }}
+        />
+        <Text className="text-white-100 font-Oswald-Bold text-xl">{subtitle}</Text>
       </View>
     </View>
   );

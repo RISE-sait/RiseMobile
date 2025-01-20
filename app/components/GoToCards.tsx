@@ -17,7 +17,7 @@ const GoToCards: React.FC<NavigationButtonsProps> = ({
 }) => {
   return (
     <View className="w-full px-10 mt-10">
-      <Text className="text-white-100 font-rubik-bold text-2xl">GO TO</Text>
+      <Text className="text-white-100 font-Oswald-Bold text-2xl">GO TO</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -30,7 +30,7 @@ const GoToCards: React.FC<NavigationButtonsProps> = ({
               onPress={() => handleNavigate(option.route)}
               className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
             >
-              <Text className="text-white-100 font-semibold text-base">
+              <Text className="text-white-100 font-protest text-base">
                 {option.label}
               </Text>
             </TouchableOpacity>

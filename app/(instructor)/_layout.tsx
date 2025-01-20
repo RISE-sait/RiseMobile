@@ -14,15 +14,15 @@ const TabIcon = ({
   <View className="flex-1 mt-3 flex flex-col items-center">
     <Image
       source={icon}
-      style={{ tintColor: focused ? "#876A1D" : "#666876" }}
+      style={{ tintColor: focused ? "#876A1D" : "#ffffff" }}
       resizeMode="contain"
       className="w-6 h-6"
     />
     <Text
       className={`${
         focused
-          ? "text-gold-100 font-rubik-medium"
-          : "text-black-200 font-rubik"
+          ? "text-gold-100 font-protest"
+          : "text-white-100 font-protest"
       } text-xs w-full text-center mt-1`}
     >
       {title}
