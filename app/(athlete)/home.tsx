@@ -2,11 +2,19 @@ import { Text, View, Image, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import images from "@/constants/images"; 
 import { StatusBar } from "expo-status-bar";
+import GoToCards from "../components/GoToCards";
 
 export default function AthleteHome() {
   const handleNavigate = (route) => {
     console.log(`Navigating to ${route}`);
   };
+
+  const navigationOptions = [
+    { label: "Schedule", route: "/calendar" },
+    { label: "Events", route: "/events" },
+    { label: "Membership", route: "/membership" },
+    { label: "Store", route: "/store" },
+  ];
 
   return (
     <SafeAreaView className="bg-gray-800 flex-1">
@@ -80,50 +88,7 @@ export default function AthleteHome() {
         </View>
 
         {/* Navigation Buttons Section */}
-        <View className="w-full px-10 mt-10">
-          <Text className="text-white-100 font-rubik-bold text-2xl">GO TO</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="mt-4"
-          >
-            <View className="flex flex-row space-x-4 gap-5">
-              {/* Placeholder for Navigation Buttons */}
-              <TouchableOpacity
-                onPress={() => handleNavigate("/calendar")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white-100 font-semibold text-base">
-                  Schedule
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleNavigate("/events")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white-100 font-semibold text-base">
-                  Events
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleNavigate("/membership")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white-100 font-semibold text-base">
-                  Membership
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleNavigate("/store")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white-100 font-semibold text-base">
-                  Store
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
+        <GoToCards options={navigationOptions} handleNavigate={handleNavigate} />
       </ScrollView>
     </SafeAreaView>
   );
