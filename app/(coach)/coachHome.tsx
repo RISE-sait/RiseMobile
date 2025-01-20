@@ -2,11 +2,19 @@ import { Text, View, Image, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import images from "@/constants/images";
 import { StatusBar } from "expo-status-bar";
+import GoToCards from "../components/GoToCards";
 
 export default function CoachHomeScreen() {
   const handleNavigate = (route) => {
     console.log(`Navigating to ${route}`);
   };
+
+  const navigationOptions = [
+    { label: "Team Roster", route: "/teamRoster" },
+    { label: "Training Schedule", route: "/trainingSchedule" },
+    { label: "Match History", route: "/matchHistory" },
+    { label: "Player Stats", route: "/playerStats" },
+  ];
 
   return (
     <SafeAreaView className="bg-gray-800 flex-1">
@@ -80,53 +88,8 @@ export default function CoachHomeScreen() {
         </View>
 
         {/* Navigation Buttons Section */}
-        <View className="w-full px-10 mt-10">
-          <Text className="text-white-100 font-Oswald-Bold text-2xl">GO TO</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="mt-4"
-          >
-            <View className="flex flex-row space-x-4 gap-5">
-              {/* Team Roster Button */}
-              <TouchableOpacity
-                onPress={() => handleNavigate("/teamRoster")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white font-semibold text-base">
-                  Team Roster
-                </Text>
-              </TouchableOpacity>
-              {/* Training Schedule Button */}
-              <TouchableOpacity
-                onPress={() => handleNavigate("/trainingSchedule")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white font-semibold text-base">
-                  Training Schedule
-                </Text>
-              </TouchableOpacity>
-              {/* Match History Button */}
-              <TouchableOpacity
-                onPress={() => handleNavigate("/matchHistory")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white font-semibold text-base">
-                  Match History
-                </Text>
-              </TouchableOpacity>
-              {/* Player Stats Button */}
-              <TouchableOpacity
-                onPress={() => handleNavigate("/playerStats")}
-                className="w-48 h-48 bg-[#444444] rounded-lg flex justify-center items-center"
-              >
-                <Text className="text-white font-semibold text-base">
-                  Player Stats
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
+        <GoToCards options={navigationOptions} handleNavigate={handleNavigate} />
+
       </ScrollView>
     </SafeAreaView>
   );
