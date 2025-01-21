@@ -38,11 +38,7 @@ export default function InstructorHomeScreen() {
         </View>
 
         {/* Modal */}
-        <SlideUpModal visible={isModalVisible} onClose={toggleModal}>
-          <Text className="text-white-100 text-center text-2xl font-Oswald-Bold uppercase">QR Code Modal</Text>
-          <Text className="text-gray-600 mt-2">
-            This is where you can display information or actions related to the QR code.
-          </Text>
+        <SlideUpModal visible={isModalVisible} onClose={toggleModal}>          
         </SlideUpModal>
 
         {/* Header Section */}
