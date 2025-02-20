@@ -61,7 +61,7 @@ const AthleteLayout = () => {
           title: "Matches",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.search} title="Matches" focused={focused} />
+            <TabIcon icon={icons.matches} title="Matches" focused={focused} />
           ),
         }}
       />

@@ -4,6 +4,7 @@ import "./globals.css";
 import { useFonts } from "expo-font";
 import { View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import SignUpScreen from "./(auth)/signup";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
