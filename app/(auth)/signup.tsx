@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { 
+  View, Text, ScrollView, TouchableOpacity, TextInput, 
+  Image, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, Modal
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import images from '@/constants/images';
 import { StatusBar } from 'expo-status-bar';
-import RNPickerSelect from 'react-native-picker-select';
+import { Picker } from '@react-native-picker/picker';
 
 const SignUpScreen = () => {
   const [email, setEmail] = useState('');
@@ -15,6 +18,7 @@ const SignUpScreen = () => {
   const [team, setTeam] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [staffID, setStaffID] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
 
   const handleSignUp = async () => {
     if (!email || !password || !confirmPassword || !role) {
@@ -27,7 +31,6 @@ const SignUpScreen = () => {
       return;
     }
 
-    // Collect additional fields based on role
     const userData = {
       email,
       password,
@@ -47,75 +50,113 @@ const SignUpScreen = () => {
   return (
     <SafeAreaView className="bg-black-100 h-full">
       <StatusBar translucent backgroundColor="transparent" style="light" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerClassName="h-full">
-          <Image source={images.onboarding} className="w-full h-52 mt-2" resizeMode="contain" />
 
-          <View className="px-10 mt-5">
-            <Text className="text-center uppercase font-bebas text-3xl text-gold-100 -mt-10">
-              Join RISE Today
-            </Text>
-            <Text className="text-4xl text-center uppercase font-protest text-white-100 mt-2">
-              Let’s Get You Started{"\n"}
-              <Text className="text-gold-100">on Your Journey</Text>
-            </Text>
+      {/* Ensures taps outside close the keyboard */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <ScrollView contentContainerClassName="h-full" keyboardShouldPersistTaps="handled">
+            <Image source={images.onboarding} className="w-full h-52 mt-2" resizeMode="contain" />
 
-            {/* Input Fields */}
-            <View>
-              <TextInput
-                placeholder="Enter your email"
-                placeholderTextColor="#fff"
-                className="mt-8 border-b-2 border-gray-300 w-full"
-                style={{ fontFamily: "Oswald-Regular", fontSize: 14, color: "#fff" }}
-                value={email}
-                onChangeText={setEmail}
-              />
+            <View className="px-10 mt-5">
+              <Text className="text-center uppercase font-bebas text-3xl text-gold-100 -mt-10">
+                Join RISE Today
+              </Text>
+              <Text className="text-4xl text-center uppercase font-protest text-white-100 mt-2">
+                Let’s Get You Started{"\n"}
+                <Text className="text-gold-100">on Your Journey</Text>
+              </Text>
 
-              <TextInput
-                placeholder="Enter your password"
-                placeholderTextColor="#fff"
-                className="mt-8 border-b-2 border-gray-300 w-full"
-                style={{ fontFamily: "Oswald-Regular", fontSize: 14, color: "#fff" }}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
+              {/* Input Fields */}
+              <View>
+                <TextInput
+                  placeholder="Enter your email"
+                  placeholderTextColor="#9EA0A4"
+                  className="mt-8 border-b-2 border-gray-300 w-full"
+                  style={{ fontFamily: "Oswald-Regular", fontSize: 16, color: "#fff" }}
+                  value={email}
+                  onChangeText={setEmail}
+                />
 
-              <TextInput
-                placeholder="Confirm your password"
-                placeholderTextColor="#fff"
-                className="mt-8 border-b-2 border-gray-300 w-full"
-                style={{ fontFamily: "Oswald-Regular", fontSize: 14, color: "#fff" }}
-                secureTextEntry
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-              />
-            </View>
+                <TextInput
+                  placeholder="Enter your password"
+                  placeholderTextColor="#9EA0A4"
+                  className="mt-8 border-b-2 border-gray-300 w-full"
+                  style={{ fontFamily: "Oswald-Regular", fontSize: 16, color: "#fff" }}
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                />
 
-            {/* Role Dropdown */}
-            <View className=" mt-5 border-b-2 border-gray-300">
-              <RNPickerSelect
-                onValueChange={(value) => setRole(value)}
-                items={[
-                  { label: 'Athlete', value: 'athlete' },
-                  { label: 'Parent', value: 'parent' },
-                  { label: 'Instructor', value: 'instructor' },
-                  { label: 'Coach', value: 'coach' },
-                ]}
-                placeholder={{ label: 'Select your role...', value: '', color: '#9EA0A4' }}
-                style={{
-                  inputIOS: { fontSize: 14, fontFamily: "Oswald-Regular", color: "#fff", paddingVertical: 10 },
-                  inputAndroid: { fontSize: 14, fontFamily: "Oswald-Regular", color: "#fff", paddingVertical: 10 },
-                }}
-              />
-            </View>
+                <TextInput
+                  placeholder="Confirm your password"
+                  placeholderTextColor="#9EA0A4"
+                  className="mt-8 border-b-2 border-gray-300 w-full"
+                  style={{ fontFamily: "Oswald-Regular", fontSize: 16, color: "#fff" }}
+                  secureTextEntry
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                />
+              </View>
 
-            {/* Additional Fields for Athletes */}
+              {/* Role Picker */}
+              <View className="mt-4 border-b-2 border-gray-300 h-12 justify-center">
+                {Platform.OS === 'android' ? (
+                  <Picker
+                    selectedValue={role}
+                    onValueChange={(itemValue) => setRole(itemValue)}
+                    style={{ color: "#fff", fontSize: 16, fontFamily: "Oswald-Regular" }}
+                    mode="dropdown"
+                  >
+                    <Picker.Item label="Select your role..." value="" color="#9EA0A4" />
+                    <Picker.Item label="Athlete" value="athlete" />
+                    <Picker.Item label="Parent" value="parent" />
+                    <Picker.Item label="Instructor" value="instructor" />
+                    <Picker.Item label="Coach" value="coach" />
+                  </Picker>
+                ) : (
+                  <>
+                    <TouchableOpacity 
+                      onPress={() => setModalVisible(true)} 
+                      style={{ borderBottomWidth: 1, borderColor: "#9EA0A4", paddingVertical: 10 }}
+                    >
+                      <Text style={{ color: role ? "#fff" : "#9EA0A4", fontSize: 16 }}>
+                        {role ? role.charAt(0).toUpperCase() + role.slice(1) : "Select your role..."}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Modal for iOS */}
+                    <Modal visible={modalVisible} transparent animationType="slide">
+                      <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+                        <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 10 }}>
+                            <Picker
+                              selectedValue={role}
+                              onValueChange={(itemValue) => {
+                                setRole(itemValue);
+                                setModalVisible(false);
+                              }}
+                              style={{ color: "black", fontSize: 16 }}
+                            >
+                              <Picker.Item label="Select your role..." value="" color="black" />
+                              <Picker.Item label="Athlete" value="athlete" color="black" />
+                              <Picker.Item label="Parent" value="parent" color="black" />
+                              <Picker.Item label="Instructor" value="instructor" color="black" />
+                              <Picker.Item label="Coach" value="coach" color="black" />
+                            </Picker>
+                          </View>
+                        </View>
+                      </TouchableWithoutFeedback>
+                    </Modal>
+                  </>
+                )}
+              </View>
+
+               {/* Additional Fields for Athletes */}
             {role === 'athlete' && (
               <>
                 <TextInput
                   placeholder="Player Number"
-                  placeholderTextColor="#fff"
+                  placeholderTextColor="#9EA0A4"
                   className="mt-5 border-b-2 border-gray-300 w-full"
                   style={{ fontFamily: "Oswald-Regular", fontSize: 14, color: "#fff" }}
                   value={playerNumber}
@@ -124,7 +165,7 @@ const SignUpScreen = () => {
                 />
                 <TextInput
                   placeholder="Team Name"
-                  placeholderTextColor="#fff"
+                  placeholderTextColor="#9EA0A4"
                   className="mt-5 border-b-2 border-gray-300 w-full"
                   style={{ fontFamily: "Oswald-Regular", fontSize: 14, color: "#fff" }}
                   value={team}
@@ -132,7 +173,7 @@ const SignUpScreen = () => {
                 />
                 <TextInput
                   placeholder="Date of Birth (YYYY-MM-DD)"
-                  placeholderTextColor="#fff"
+                  placeholderTextColor="#9EA0A4"
                   className="mt-5 border-b-2 border-gray-300 w-full"
                   style={{ fontFamily: "Oswald-Regular", fontSize: 14, color: "#fff" }}
                   value={dateOfBirth}
@@ -146,7 +187,7 @@ const SignUpScreen = () => {
             {(role === 'coach' || role === 'instructor') && (
               <TextInput
                 placeholder="Staff ID"
-                placeholderTextColor="#fff"
+                placeholderTextColor="#9EA0A4"
                 className="mt-5 border-b-2 border-gray-300 w-full"
                 style={{ fontFamily: "Oswald-Regular", fontSize: 14, color: "#fff" }}
                 value={staffID}
@@ -154,7 +195,7 @@ const SignUpScreen = () => {
               />
             )}
 
-            {/* Sign Up Button */}
+              {/* Sign Up Button */}
             <TouchableOpacity
               onPress={handleSignUp}
               className="mt-8 bg-gold-100 rounded-full py-4"
@@ -165,15 +206,17 @@ const SignUpScreen = () => {
               </Text>
             </TouchableOpacity>
 
-            {/* Navigate to Login */}
+               {/* Navigate to Login */}
             <TouchableOpacity onPress={() => router.replace('/(auth)/login')} className="mt-4">
               <Text className="text-center text-gold-100 font-bebas text-lg">
                 Already have an account? Log In
               </Text>
             </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 };
