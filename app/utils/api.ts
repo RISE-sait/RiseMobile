@@ -1,6 +1,11 @@
 import axios from "axios";
 
-const API_URL = "http://10.0.2.2:8080/api/auth/traditional/login"; // Replace with your backend URL
+import { Platform } from "react-native";
+
+const API_URL = Platform.OS === "android"
+  ? "http://10.0.2.2:8080/api/auth/traditional/login"
+  : `http://10.0.0.184:8080/api/auth/traditional/login`;
+
 
 type User = {
   id: string;
