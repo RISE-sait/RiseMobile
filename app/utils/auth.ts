@@ -18,11 +18,14 @@ export const useAuth = () => {
   // Persist user data in AsyncStorage
   const saveUserToStorage = async (userData: User) => {
     try {
-      await AsyncStorage.setItem("user", JSON.stringify(userData));
+      await AsyncStorage.setItem("user", JSON.stringify(userData)); // Save full user object
+      await AsyncStorage.setItem("authToken", userData.token); // Save token separately
+      console.log("User and Token saved successfully.");
     } catch (error) {
       console.error("Failed to save user data:", error);
     }
   };
+  
 
   // Load user data from AsyncStorage
   const loadUserFromStorage = async () => {
@@ -34,7 +37,7 @@ export const useAuth = () => {
 
         // Redirect based on role
         if (parsedUser.role === "athlete") {
-          router.replace("/(athlete)/home");
+          router.replace("/(athlete)/(tabs)/home");
         } else if (parsedUser.role === "instructor") {
           router.replace("/(instructor)/instructorHome");
         } else if (parsedUser.role === "coach") {
@@ -58,7 +61,7 @@ export const useAuth = () => {
 
       // Redirect based on role
       if (userData.role === "athlete") {
-        router.replace("/(athlete)/home");
+        router.replace("/(athlete)/(tabs)/home");
       } else if (userData.role === "instructor") {
         router.replace("/(instructor)/instructorHome");
       } else if (userData.role === "coach") {
