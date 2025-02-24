@@ -10,6 +10,7 @@ export default function ScreensLayout() {
       <Stack.Screen name="store/checkout" options={{ presentation: "modal" }} />
       <Stack.Screen name="event-details/[id]" options={{ presentation: "fullScreenModal" }} />
       <Stack.Screen name="store/cart" options={{ presentation: "modal" }} />
+      <Stack.Screen name="match-details/[id]" options={{ presentation: "modal" }} />
           </Stack>
   );
 }
