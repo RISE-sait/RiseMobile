@@ -18,7 +18,7 @@ const ProfileHeader = ({
   }) => {
     return (
       <View className="w-full px-4 mt-10">
-        <View className="bg-[#B59422] h-60 rounded-3xl overflow-hidden relative flex px-4 items-center">
+        <View className="bg-gold-100 h-60 rounded-3xl overflow-hidden relative flex px-4 items-center">
           {/* Logo */}
           <View className="absolute top-4 left-4 flex flex-row items-center">
             <Image

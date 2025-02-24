@@ -1,13 +1,13 @@
 import React, { useRef } from 'react';
-import { Animated, TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { Animated, TouchableOpacity, Text, View } from 'react-native';
 
 interface AnimatedButtonProps {
   title: string;
   onPress: () => void;
   disabled?: boolean;
   added?: boolean;
-  customStyle?: ViewStyle;
-  customTextStyle?: TextStyle;
+  customStyle?: string;
+  customTextStyle?: string;
 }
 
 const AnimatedButton: React.FC<AnimatedButtonProps> = ({
@@ -15,8 +15,8 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   onPress,
   disabled = false,
   added = false,
-  customStyle = {},
-  customTextStyle = {},
+  customStyle = '',
+  customTextStyle = '',
 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -37,51 +37,35 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   };
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }} className="w-full self-center">
       <TouchableOpacity
         activeOpacity={0.8}
         disabled={disabled || added}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        style={[
-          styles.button,
-          {
-            backgroundColor: added ? '#1D1C1E' : '#FCA311',
-            shadowColor: '#FCA311',
-            opacity: disabled ? 0.6 : 1,
-          },
-          customStyle,
-        ]}
+        className={`
+          flex-row items-center justify-center
+          py-4 px-5 rounded-full mt-5 shadow-lg
+          ${added ? 'bg-[#1D1C1E]' : 'bg-[#FCA311]'}
+          ${disabled ? 'opacity-60' : 'opacity-100'}
+          ${customStyle}
+        `}
+        style={{
+          shadowColor: '#FCA311',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 12,
+        }}
       >
-        <Text style={[styles.text, customTextStyle]}>{title}</Text>
+        <Text
+          className={`text-[#0C0B0B] font-bold uppercase text-lg tracking-wide ${customTextStyle}`}
+        >
+          {title}
+        </Text>
       </TouchableOpacity>
     </Animated.View>
   );
 };
 
 export default AnimatedButton;
-
-const styles = StyleSheet.create({
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 30,
-    marginTop: 20,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    width: '100%',
-    alignSelf: 'center',
-  },
-  text: {
-    color: "#0C0B0B",
-    fontSize: 18,
-    fontWeight: "bold",
-    textTransform: "uppercase", 
-    letterSpacing: 1,
-  },
-});

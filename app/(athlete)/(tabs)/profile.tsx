@@ -1,182 +1,94 @@
-import React, { useRef } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Animated,
-  Image,
-  Dimensions,
-  ScrollView,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
-import images from "@/constants/images";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from 'react';
+import { ScrollView, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { width } = Dimensions.get("window");
+import images from '@/constants/images';
+import ProfileHeader from '@/app/components/ProfileHeader';
+import PlayerStatsCard from '@/app/components/PlayerStatsCard';
+import AnimatedButton from '@/app/components/AnimatedButton';
+
+interface User {
+  firstName: string;
+  lastName: string;
+  role: string;
+  jerseyNumber: string;
+  profileImage?: string;
+  overallRating: number;
+  pointsPerGame: number;
+  assistsPerGame: number;
+}
 
 const AthleteProfileScreen = () => {
   const router = useRouter();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [user, setUser] = useState<User | null>(null);
 
-  const handlePressIn = () => {
-    Animated.timing(scaleAnim, {
-      toValue: 0.95,
-      duration: 100,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.timing(scaleAnim, {
-      toValue: 1,
-      duration: 100,
-      useNativeDriver: true,
-    }).start();
-  };
+  useEffect(() => {
+    const fetchUser = async () => {
+      const storedUser = await AsyncStorage.getItem('user');
+      if (storedUser) setUser(JSON.parse(storedUser));
+    };
+    fetchUser();
+  }, []);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem("user");
-    router.replace("/(auth)/login");
+    await AsyncStorage.removeItem('user');
+    router.replace('/(auth)/login');
   };
 
+  if (!user) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#0C0B0B] px-5">
+        <StatusBar translucent backgroundColor="transparent" style="light" />
+        <Text className="text-[#F0F0F0] text-base text-center mt-5">
+          Loading Profile...
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B", paddingHorizontal: 20 }}>
-      {/* Status Bar */}
+    <SafeAreaView className="flex-1 bg-[#0C0B0B] px-5">
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
-      {/* SCROLLVIEW */}
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Profile Header */}
+        <ProfileHeader
+          firstName={user.firstName}
+          lastName={user.lastName}
+          role={user.role}
+          number={user.jerseyNumber}
+          profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
+          logo={images.logo}
+        />
 
-        {/* 🔥 PROFILE HEADER */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
-          {/* Profile Image */}
-          <Image
-            source={images.headshot}
-            style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              borderWidth: 3,
-              borderColor: "#FCA311",
-            }}
-          />
-          {/* User Info */}
-          <View style={{ marginLeft: 15 }}>
-            <Text style={{ color: "#F0F0F0", fontSize: 24, fontWeight: "700" }}>
-              John Doe
-            </Text>
-            <Text style={{ color: "#FCA311", fontSize: 16, fontWeight: "500" }}>
-              Athlete - Soccer | #10
-            </Text>
-          </View>
-        </View>
+        {/* Player Stats */}
+        <PlayerStatsCard
+          overallRating={user.overallRating}
+          pointsPerGame={user.pointsPerGame}
+          assistsPerGame={user.assistsPerGame}
+        />
 
-        {/* 🎯 PLAYER STATS CARD */}
-        <View
-          style={{
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            padding: 20,
-            borderRadius: 15,
-            marginTop: 30,
-            shadowColor: "#FCA311",
-            shadowOpacity: 0.3,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-          }}
-        >
-          <Text style={{ color: "#F0F0F0", fontSize: 20, fontWeight: "bold", textAlign: "center" }}>
-            🎯 Player Stats
-          </Text>
+        {/* Training Schedule */}
+        <AnimatedButton
+          title="Training Schedule"
+          onPress={() => router.push('/training-schedule')}
+        />
 
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 15 }}>
-            <View style={{ alignItems: "center" }}>
-              <Text style={{ color: "#FCA311", fontSize: 22, fontWeight: "bold" }}>87</Text>
-              <Text style={{ color: "#F0F0F0", fontSize: 14 }}>Overall Rating</Text>
-            </View>
-            <View style={{ alignItems: "center" }}>
-              <Text style={{ color: "#FCA311", fontSize: 22, fontWeight: "bold" }}>15</Text>
-              <Text style={{ color: "#F0F0F0", fontSize: 14 }}>Goals</Text>
-            </View>
-            <View style={{ alignItems: "center" }}>
-              <Text style={{ color: "#FCA311", fontSize: 22, fontWeight: "bold" }}>9</Text>
-              <Text style={{ color: "#F0F0F0", fontSize: 14 }}>Assists</Text>
-            </View>
-          </View>
-        </View>
+        {/* Upcoming Matches */}
+        <AnimatedButton
+          title="Upcoming Matches"
+          onPress={() => router.push('/upcoming-matches')}
+        />
 
-        {/* 🎟️ TRAINING SCHEDULE BUTTON */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => console.log("Training Schedule pressed")}
-          style={{
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            marginTop: 25,
-            paddingVertical: 18,
-            borderRadius: 15,
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#FCA311",
-            shadowOpacity: 0.5,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 3 },
-            width: width * 0.9,
-            alignSelf: "center",
-          }}
-        >
-          <Text style={{ color: "#F0F0F0", fontSize: 18, fontWeight: "bold" }}>
-            📅 View Training Schedule
-          </Text>
-        </TouchableOpacity>
-
-        {/* 🏆 UPCOMING MATCHES BUTTON */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => console.log("Upcoming Matches pressed")}
-          style={{
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            marginTop: 20,
-            paddingVertical: 18,
-            borderRadius: 15,
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#FCA311",
-            shadowOpacity: 0.5,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 3 },
-            width: width * 0.9,
-            alignSelf: "center",
-          }}
-        >
-          <Text style={{ color: "#F0F0F0", fontSize: 18, fontWeight: "bold" }}>
-            🏆 Upcoming Matches
-          </Text>
-        </TouchableOpacity>
-
-        {/* 🚀 LOGOUT BUTTON */}
-        <TouchableOpacity
+        {/* Logout */}
+        <AnimatedButton
+          title="Logout"
           onPress={handleLogout}
-          style={{
-            backgroundColor: "#D62828",
-            marginTop: 40,
-            paddingVertical: 18,
-            borderRadius: 15,
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#D62828",
-            shadowOpacity: 0.6,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 3 },
-            width: width * 0.9,
-            alignSelf: "center",
-          }}
-        >
-          <Text style={{ color: "#F0F0F0", fontSize: 18, fontWeight: "bold" }}>
-            🚀 Logout
-          </Text>
-        </TouchableOpacity>
-
+          customStyle="bg-red-100"
+        />
       </ScrollView>
     </SafeAreaView>
   );

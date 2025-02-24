@@ -1,74 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  Animated,
-} from "react-native";
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native";
 import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MatchCard from "../../components/MatchCard";
 import { StatusBar } from "expo-status-bar";
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome6 } from "@expo/vector-icons";
+import { mockMatches } from "../screens/matchesData";
 
 const { width } = Dimensions.get("window");
 
-interface Match {
-  id: string;
-  date: string;
-  homeTeam: string;
-  awayTeam: string;
-  homeScore: number;
-  awayScore: number;
-  league: string;
-  status: "Upcoming" | "Finished" | "Live";
-}
-
-const mockMatches: Match[] = [
-  {
-    id: "1",
-    date: dayjs().format("YYYY-MM-DD"),
-    homeTeam: "New York Rangers",
-    awayTeam: "Toronto Maple Leafs",
-    homeScore: 3,
-    awayScore: 2,
-    league: "NHL",
-    status: "Finished",
-  },
-  {
-    id: "2",
-    date: dayjs().add(1, "day").format("YYYY-MM-DD"),
-    homeTeam: "LA Lakers",
-    awayTeam: "Golden State Warriors",
-    homeScore: 0,
-    awayScore: 0,
-    league: "NBA",
-    status: "Upcoming",
-  },
-  {
-    id: "3",
-    date: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-    homeTeam: "Real Madrid",
-    awayTeam: "FC Barcelona",
-    homeScore: 1,
-    awayScore: 1,
-    league: "LaLiga",
-    status: "Live",
-  },
-];
-
 const generateWeekDates = (): dayjs.Dayjs[] => {
   const today = dayjs();
-  return Array.from({ length: 7 }, (_, i) => today.add(i - 3, "day"));
+  return Array.from({ length: 14 }, (_, i) => today.add(i - 6, "day"));
 };
 
 const MatchesScreen: React.FC = () => {
-  const [matches] = useState<Match[]>(mockMatches);
-  const [selectedDate, setSelectedDate] = useState<string>(dayjs().format("YYYY-MM-DD"));
-  const [weekDates] = useState<dayjs.Dayjs[]>(generateWeekDates);
+  const [matches] = useState(mockMatches);
+  const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
+  const [weekDates] = useState(generateWeekDates);
   const flatListRef = useRef<FlatList>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -79,9 +28,8 @@ const MatchesScreen: React.FC = () => {
       useNativeDriver: true,
     }).start();
 
-    const todayIndex = weekDates.findIndex(
-      (date) => date.format("YYYY-MM-DD") === dayjs().format("YYYY-MM-DD")
-    );
+    const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"));
+
     if (flatListRef.current) {
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({ index: todayIndex, animated: true });
@@ -89,16 +37,13 @@ const MatchesScreen: React.FC = () => {
     }
   }, []);
 
-  const filteredMatches = matches.filter(
-    (match) => dayjs(match.date).format("YYYY-MM-DD") === selectedDate
+  const filteredMatches = matches.filter((match) =>
+    dayjs(match.date).format("YYYY-MM-DD") === selectedDate
   );
-
-  const handleDateChange = (date: string) => {
-    setSelectedDate(date);
-  };
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate;
+
     const label = item.isSame(dayjs(), "day")
       ? "Today"
       : item.isSame(dayjs().subtract(1, "day"), "day")
@@ -109,29 +54,24 @@ const MatchesScreen: React.FC = () => {
 
     return (
       <TouchableOpacity
-        activeOpacity={0.9}
+        activeOpacity={0.75}
+        className={`mx-1 rounded-lg items-center justify-center ${
+          isSelected ? "bg-gold-100" : "bg-white-100/10"
+        }`}
         style={{
-          width: 90,
+          width: 70,
           height: 50,
-          backgroundColor: isSelected ? "#FCA311" : "rgba(240, 240, 240, 0.1)",
-          borderRadius: 14,
-          justifyContent: "center",
-          alignItems: "center",
-          marginHorizontal: 8,
-          shadowColor: isSelected ? "#FCA311" : "transparent",
-          shadowOpacity: 0.8,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: 6 },
+          shadowColor: isSelected ? "#FCA311" : "#000",
+          shadowOpacity: isSelected ? 0.5 : 0.1,
+          shadowRadius: 5,
+          shadowOffset: { width: 0, height: 2 },
         }}
-        onPress={() => handleDateChange(item.format("YYYY-MM-DD"))}
+        onPress={() => setSelectedDate(item.format("YYYY-MM-DD"))}
       >
         <Text
-          style={{
-            color: isSelected ? "#0C0B0B" : "#F0F0F0",
-            fontSize: 14,
-            fontWeight: "bold",
-            textTransform: "uppercase",
-          }}
+          className={`font-semibold text-xs uppercase ${
+            isSelected ? "text-black" : "text-gray-200"
+          }`}
         >
           {label}
         </Text>
@@ -140,38 +80,19 @@ const MatchesScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B", paddingTop: 10 }}>
-      <StatusBar translucent backgroundColor="transparent" style="light" />
+    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">
+      <StatusBar translucent style="light" />
 
-      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        {/* **Header** */}
-        <View
-          style={{
-            paddingHorizontal: 20,
-            paddingBottom: 12,
-            marginBottom: 10,
-            borderBottomWidth: 1,
-            borderBottomColor: "rgba(255, 255, 255, 0.1)",
-            alignItems: "center",
-            flexDirection: "row",
-            justifyContent: "space-between",
-          }}
-        >
-          <Text
-            style={{
-              color: "#F0F0F0",
-              fontSize: 24,
-              fontWeight: "800",
-            }}
-          >
-            🏆 Matches
-          </Text>
+      <Animated.View style={{ opacity: fadeAnim }} className="flex-1">
+        {/* Header */}
+        <View className="px-6 pb-4 border-b border-white-100/10 flex-row justify-between items-center">
+          <Text className="text-white-100 text-3xl font-bold">Matches</Text>
           <TouchableOpacity>
-            <Text style={{ color: "#FCA311", fontWeight: "bold" }}>See All</Text>
+            <Text className="text-gold-100 font-semibold">See All</Text>
           </TouchableOpacity>
         </View>
 
-        {/* **Horizontal Calendar** */}
+        {/* Horizontal Calendar */}
         <FlatList
           ref={flatListRef}
           data={weekDates}
@@ -179,31 +100,23 @@ const MatchesScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.format("YYYY-MM-DD")}
           renderItem={renderDateItem}
-          contentContainerStyle={{ paddingHorizontal: width / 2 - 100 }}
-          initialScrollIndex={3}
-          getItemLayout={(data, index) => ({
-            length: 90,
-            offset: 90 * index,
-            index,
-          })}
+          contentContainerStyle={{ paddingHorizontal: width / 2 - 70, marginVertical: 15 }}
+          getItemLayout={(_, index) => ({ length: 72, offset: 72 * index, index })}
         />
 
-        {/* **Matches List** */}
-        <ScrollView style={{ flex: 1, paddingHorizontal: 20 }}>
-          {filteredMatches.length > 0 ? (
-            filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)
+        {/* Match Cards */}
+        <ScrollView className="px-4">
+          {filteredMatches.length ? (
+            filteredMatches.map((match) => (
+              <MatchCard key={match.id} match={match} />
+            ))
           ) : (
-            <Text
-              style={{
-                color: "#F0F0F0",
-                fontSize: 16,
-                textAlign: "center",
-                marginTop: 30,
-                fontWeight: "600",
-              }}
-            >
-              No matches scheduled for this date.
-            </Text>
+            <View className="mt-10 items-center">
+              <FontAwesome6 name="calendar-xmark" size={40} color="#555" />
+              <Text className="text-gray-400 mt-3 font-semibold">
+                No matches scheduled for this date.
+              </Text>
+            </View>
           )}
         </ScrollView>
       </Animated.View>

@@ -5,6 +5,7 @@ import images from "@/constants/images";
 import { StatusBar } from "expo-status-bar";
 import GoToCards from "../components/GoToCards";
 import SlideUpModal from "../components/SlideUpModal";
+import QRCodeButton from "../components/QRCodeButton";
 
 export default function CoachHomeScreen() {
   const handleNavigate = (route) => {
@@ -30,24 +31,11 @@ export default function CoachHomeScreen() {
 
         {/* QR Code Button */}
         <View className="absolute top-8 left-10 z-50">
-          <TouchableOpacity
-            onPress={toggleModal}
-            className="w-12 h-12 bg-gray-900 rounded-full flex justify-center items-center shadow-md"
-          >
-            <Image
-              source={images.qrcode}
-              className="w-6 h-6"
-              style={{ resizeMode: "contain" }}
-            />
-          </TouchableOpacity>
+          <QRCodeButton onPress={toggleModal} />
         </View>
 
         {/* Modal */}
         <SlideUpModal visible={isModalVisible} onClose={toggleModal}>
-          <Text className="text-gray-800 text-lg font-bold">QR Code Modal</Text>
-          <Text className="text-gray-600 mt-2">
-            This is where you can display information or actions related to the QR code.
-          </Text>
         </SlideUpModal>
 
         {/* Header Section */}
