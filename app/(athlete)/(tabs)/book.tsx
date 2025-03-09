@@ -6,11 +6,11 @@ import BookingOptionButton from "@/app/components/BookingOption";
 
 const AthleteBook = () => {
   const bookingOptions = [
-    { title: "Basketball Court", icon: "basketball" },
+    { title: "Basketball Court", icon: "basketball", route:"/screens/booking-options/DropIn" },
     { title: "Gym", icon: "dumbbell" },
     { title: "Recovery Room", icon: "bed-pulse" },
     { title: "Physiotherapy", icon: "user-doctor" },
-    { title: "Barber", icon: "scissors" },
+    { title: "Courtside Kutz", icon: "scissors", route:"/screens/booking-options/CourtsideKutz" },
   ];
 
   return (
@@ -24,6 +24,7 @@ const AthleteBook = () => {
               key={option.title}
               title={option.title}
               icon={option.icon as any}
+              route={option.route}
             />
           ))}
         </View>
