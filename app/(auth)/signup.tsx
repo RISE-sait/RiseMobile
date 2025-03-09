@@ -8,8 +8,10 @@ import { router } from 'expo-router';
 import images from '@/constants/images';
 import { StatusBar } from 'expo-status-bar';
 import { Picker } from '@react-native-picker/picker';
+import { useAuth } from '@/app/utils/auth';
 
 const SignUpScreen = () => {
+  const {register,isLoading} = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -21,31 +23,36 @@ const SignUpScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
 
   const handleSignUp = async () => {
+    console.log("📢 handleSignUp called in SignUpScreen.tsx");
+  
     if (!email || !password || !confirmPassword || !role) {
-      console.warn('All fields are required');
+      console.warn("❌ All fields are required");
       return;
     }
-
+  
     if (password !== confirmPassword) {
-      console.warn('Passwords do not match');
+      console.warn("❌ Passwords do not match");
       return;
     }
-
-    const userData = {
-      email,
-      password,
-      role,
-      ...(role === 'athlete' && { playerNumber, team, dateOfBirth }),
-      ...(role === 'coach' || role === 'instructor' ? { staffID } : {}),
-    };
-
+  
+    console.log("📢 Selected Role:", role); // Debugging Role Before Registering
+  
+    const firstName = email.split("@")[0]; // Extract first name from email
+    const lastName = "User"; // Placeholder last name
+    const age = role === "athlete" ? Number(dateOfBirth?.split("-")[0]) || 18 : 30; 
+  
     try {
-      console.log('User Signed Up:', userData);
-      router.replace('/(auth)/login');
+      console.log("📢 Calling register function from useAuth.ts...");
+      
+      await register(email, password, firstName, lastName, role, age);
+  
+      console.log("✅ Registration Successful");
+      router.replace("/(auth)/login");
     } catch (error) {
-      console.error('Signup failed:', error);
+      console.error("❌ Signup failed in SignUpScreen.tsx:", error);
     }
-  };
+  };  
+  
 
   return (
     <SafeAreaView className="bg-black-100 h-full">

@@ -1,18 +1,32 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useAuth } from '../utils/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { loginWithGoogle } from '@/app/utils/auth';
+
+
 
 const LoginScreen = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const { login } = useAuth();
   const router = useRouter();
 
+  // ✅ Google Login Handler
+  const handleGoogleLogin = async () => {
+    try {
+      const user = await loginWithGoogle();
+      Alert.alert("Google Login Successful", `Welcome, ${user.displayName}`);
+    } catch (error) {
+      Alert.alert("Google Login Failed", (error as Error).message);
+    }
+  };
+
+  // ✅ Email/Password Login Handler
   const handleLogin = async () => {
     try {
       const user = await login(email, password);
@@ -106,6 +120,7 @@ const LoginScreen = () => {
                 <Image source={icons.google} style={{ width: 20, height: 20 }} resizeMode="contain" />
               </TouchableOpacity>
               <TouchableOpacity
+                onPress={handleGoogleLogin}
                 className="rounded-full w-16 h-16 items-center justify-center mt-5"
                 style={{
                   backgroundColor: "#fff", // Explicitly set white background
