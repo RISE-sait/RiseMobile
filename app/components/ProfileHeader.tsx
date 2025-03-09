@@ -51,7 +51,7 @@ const ProfileHeader = ({
             <Text className="text-white-100 font-Oswald-Bold text-4xl uppercase">
               {lastName}
             </Text>
-            <Text className="text-black font-protest text-base">{role}</Text>
+            <Text className="text-black-100 font-protest text-base">{role}</Text>
           </View>
         </View>
       </View>

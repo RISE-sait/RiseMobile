@@ -3,12 +3,14 @@ import { Animated, TouchableOpacity, View, Text } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { Platform } from "react-native";
+import { useRouter } from "expo-router";
 
 interface BookingOptionButtonProps {
   title: string;
   icon: keyof typeof FontAwesome6.glyphMap;
   wide?: boolean;
   onPress?: () => void;
+  route?: string;
 }
 
 const BookingOptionButton: React.FC<BookingOptionButtonProps> = ({
@@ -16,7 +18,18 @@ const BookingOptionButton: React.FC<BookingOptionButtonProps> = ({
   icon,
   wide = false,
   onPress = () => {},
+  route,
 }) => {
+  const router = useRouter();
+
+  const handlePress = () => {
+    if (route) {
+      router.push(route);
+    } else {
+      onPress();
+    }
+  }
+
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
 
@@ -44,7 +57,7 @@ const BookingOptionButton: React.FC<BookingOptionButtonProps> = ({
     >
       <TouchableOpacity
         activeOpacity={0.75}
-        onPress={onPress}
+        onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
       >
