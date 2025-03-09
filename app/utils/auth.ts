@@ -2,6 +2,12 @@ import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser, registerUser } from "./api"; // Import API functions
+import { auth } from "../../firebase/firebaseConfig";
+import { GoogleAuthProvider, signInWithCredential, OAuthProvider } from "firebase/auth";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import * as AppleAuthentication from "expo-apple-authentication";
+import { makeRedirectUri } from "expo-auth-session";
 
 type User = {
   id: string;
@@ -10,24 +16,22 @@ type User = {
   token: string;
 };
 
+WebBrowser.maybeCompleteAuthSession();
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // Loading state
-  const [isAuthLoaded, setIsAuthLoaded] = useState(false); // For initial auth check
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAuthLoaded, setIsAuthLoaded] = useState(false);
 
-  // Persist user data in AsyncStorage
-  const saveUserToStorage = async (userData: User) => {
-    try {
-      await AsyncStorage.setItem("user", JSON.stringify(userData)); // Save full user object
-      await AsyncStorage.setItem("authToken", userData.token); // Save token separately
-      console.log("User and Token saved successfully.");
-    } catch (error) {
-      console.error("Failed to save user data:", error);
-    }
-  };
-  
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: "238537761671-vf9tu3vu85hnpm6r56bael9pm5b3k63b.apps.googleusercontent.com",
+    redirectUri: makeRedirectUri({ 
+      native: "myapp://redirect",
+    }),
+    scopes: ["profile", "email"],
+  });
 
-  // Load user data from AsyncStorage
+  // 🔹 Load user from AsyncStorage
   const loadUserFromStorage = async () => {
     try {
       const storedUser = await AsyncStorage.getItem("user");
@@ -35,76 +39,200 @@ export const useAuth = () => {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
 
-        // Redirect based on role
-        if (parsedUser.role === "athlete") {
-          router.replace("/(athlete)/(tabs)/home");
-        } else if (parsedUser.role === "instructor") {
-          router.replace("/(instructor)/instructorHome");
-        } else if (parsedUser.role === "coach") {
-          router.replace("/(coach)/coachHome");
+        // Ensure role is lowercase for consistency
+        const userRole = parsedUser.role.toLowerCase();
+
+        switch (userRole) {
+          case "athlete":
+            router.replace("/(athlete)/(tabs)/home");
+            break;
+          case "instructor":
+            router.replace("/(instructor)/instructorHome");
+            break;
+          case "coach":
+            router.replace("/(coach)/coachHome");
+            break;
+          default:
+            console.error("❌ Unknown role:", userRole);
         }
       }
     } catch (error) {
       console.error("Failed to load user data:", error);
     } finally {
-      setIsAuthLoaded(true); // Ensure app knows auth check is complete
+      setIsAuthLoaded(true);
     }
   };
 
-  // Login function
-  const login = async (email: string, password: string) => {
-    setIsLoading(true); // Start loading
+  // 🔹 Save user data to AsyncStorage
+  const saveUserToStorage = async (userData: User) => {
     try {
-      const userData = await loginUser(email, password); // Call API
-      setUser(userData);
-      await saveUserToStorage(userData); // Persist login data
+      await AsyncStorage.setItem("user", JSON.stringify(userData));
+      await AsyncStorage.setItem("authToken", userData.token);
+      console.log("User and Token saved successfully.");
+    } catch (error) {
+      console.error("Failed to save user data:", error);
+    }
+  };
 
-      // Redirect based on role
-      if (userData.role === "athlete") {
-        router.replace("/(athlete)/(tabs)/home");
-      } else if (userData.role === "instructor") {
-        router.replace("/(instructor)/instructorHome");
-      } else if (userData.role === "coach") {
-        router.replace("/(coach)/coachHome");
+  // 🔹 Login Function
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      console.log("📢 Logging in...");
+      const userData = await loginUser(email, password);
+      setUser(userData);
+      await saveUserToStorage(userData);
+
+      console.log("✅ Login successful:", userData);
+
+      const userRole = userData.role.toLowerCase();
+
+      switch (userRole) {
+        case "athlete":
+          console.log("🏀 Navigating to Athlete Home...");
+          router.replace("/(athlete)/(tabs)/home");
+          break;
+        case "instructor":
+          console.log("📚 Navigating to Instructor Home...");
+          router.replace("/(instructor)/instructorHome");
+          break;
+        case "coach":
+          console.log("🏆 Navigating to Coach Home...");
+          router.replace("/(coach)/coachHome");
+          break;
+        default:
+          console.error("❌ Unknown role:", userRole);
       }
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("❌ Login failed:", error);
       throw error;
     } finally {
-      setIsLoading(false); // End loading
+      setIsLoading(false);
     }
   };
 
-  // Register function
-  const register = async (email: string, password: string, role: string) => {
-    setIsLoading(true); // Start loading
+  // 🔹 Register Function
+  const register = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    role: string,
+    age: number
+  ) => {
+    setIsLoading(true);
+
     try {
-      const userData = await registerUser(email, password, role); // Call API
+      console.log("📢 Calling register function from useAuth.ts...");
+
+      // ✅ Ensure correct parameters are passed
+      const userData = await registerUser(email, password, firstName, lastName, role, age);
+
+      // ✅ Store user data locally
       setUser(userData);
-      router.replace("/(auth)/login"); // Redirect to login after registration
+      await saveUserToStorage(userData);
+
+      console.log("✅ User Registered Successfully:", userData);
+
+      // ✅ Redirect to login after successful registration
+      router.replace("/(auth)/login");
     } catch (error) {
-      console.error("Registration failed:", error);
+      console.error("❌ Registration failed in useAuth.ts:", (error as any).response?.data || (error as any).message);
       throw error;
     } finally {
-      setIsLoading(false); // End loading
+      setIsLoading(false);
     }
   };
 
-  // Logout function
+  // 🔹 Google Login
+  const loginWithGoogle = async () => {
+    try {
+      const result = await promptAsync();
+      if (result.type === "success") {
+        const { id_token } = result.params;
+        const credential = GoogleAuthProvider.credential(id_token);
+        const userCredential = await signInWithCredential(auth, credential);
+        const firebaseUser = userCredential.user;
+
+        if (!firebaseUser) {
+          throw new Error("Failed to authenticate with Firebase.");
+        }
+
+        // ✅ Get Firebase Authentication Token
+        const token = await firebaseUser.getIdToken();
+        console.log("🔥 Firebase Token:", token);
+
+        // ✅ Store User in AsyncStorage
+        const userData: User = { id: firebaseUser.uid, email: firebaseUser.email || "", role: "athlete", token };
+        setUser(userData);
+        await saveUserToStorage(userData);
+
+        router.replace("/(athlete)/(tabs)/home"); // Redirect
+      }
+    } catch (error) {
+      console.error("Google Login Error:", error);
+      throw error;
+    }
+  };
+
+  // 🔹 Apple Login
+  const loginWithApple = async () => {
+    try {
+      if (!(await AppleAuthentication.isAvailableAsync())) {
+        throw new Error("Apple Authentication is not available on this device");
+      }
+
+      const appleCredential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const credential = new OAuthProvider("apple.com").credential({
+        idToken: appleCredential.identityToken!,
+      });
+
+      const userCredential = await signInWithCredential(auth, credential);
+      const firebaseUser = userCredential.user;
+
+      const token = await firebaseUser.getIdToken();
+      console.log("🔥 Apple Firebase Token:", token);
+
+      const userData: User = { id: firebaseUser.uid, email: firebaseUser.email || "", role: "athlete", token };
+      setUser(userData);
+      await saveUserToStorage(userData);
+
+      router.replace("/(athlete)/(tabs)/home");
+    } catch (error) {
+      console.error("Apple Login Error:", error);
+      throw error;
+    }
+  };
+
+  // 🔹 Logout Function
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem("user"); // Clear stored user data
+      await AsyncStorage.removeItem("user");
       setUser(null);
-      router.replace("/(auth)/login"); // Redirect to login
+      router.replace("/(auth)/login");
     } catch (error) {
       console.error("Failed to log out:", error);
     }
   };
 
-  // Load auth state on app load
   useEffect(() => {
     loadUserFromStorage();
   }, []);
 
-  return { user, isLoading, isAuthLoaded, login, register, logout };
+  return {
+    user,
+    isLoading,
+    isAuthLoaded,
+    login,
+    register, // ✅ Ensure `register` is inside return statement
+    loginWithGoogle,
+    loginWithApple,
+    logout,
+  };
 };

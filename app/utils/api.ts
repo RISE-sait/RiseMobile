@@ -1,11 +1,8 @@
 import axios from "axios";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, getAuth } from "firebase/auth";
+import { auth } from "../../firebase/firebaseConfig";
 
-import { Platform } from "react-native";
-
-const API_URL = Platform.OS === "android"
-  ? "http://10.0.2.2:8080/api/auth/traditional/login"
-  : `http://10.0.0.184:8080/api/auth/traditional/login`;
-
+const API_URL = "https://api-461776259687.us-west2.run.app";
 
 type User = {
   id: string;
@@ -14,7 +11,7 @@ type User = {
   token: string;
 };
 
-// Function to decode JWT and determine role
+// ✅ Decode JWT Token
 const decodeJWT = (token: string): any => {
   try {
     const base64Url = token.split(".")[1];
@@ -25,20 +22,16 @@ const decodeJWT = (token: string): any => {
         .map((c) => `%${("00" + c.charCodeAt(0).toString(16)).slice(-2)}`)
         .join("")
     );
-    const decoded = JSON.parse(jsonPayload);
-    console.log("Decoded JWT Payload:", decoded); // Log the decoded payload
-    return decoded;
+    return JSON.parse(jsonPayload);
   } catch (error) {
     console.error("Error decoding JWT:", error);
     throw new Error("Invalid JWT");
   }
 };
 
-
-// Function to extract role from decoded JWT
-const decodeRoleFromToken = (token: string): User["role"] => {
-  const decoded = decodeJWT(token); // Decode the token payload
-
+// ✅ Extract Role from Token
+const getRoleFromToken = (token: string): "athlete" | "instructor" | "coach" => {
+  const decoded = decodeJWT(token);
   if (decoded.role) {
     switch (decoded.role.toLowerCase()) {
       case "athlete":
@@ -48,88 +41,102 @@ const decodeRoleFromToken = (token: string): User["role"] => {
       case "coach":
         return "coach";
       default:
-        throw new Error(`Invalid role value in token: ${decoded.role}`);
+        throw new Error(`Invalid role in token: ${decoded.role}`);
     }
   }
-
-  throw new Error("Role is missing in the token payload");
+  throw new Error("Role missing in token payload");
 };
 
-
-// Login API
+// 🔹 **Login User with Firebase and API**
 export const loginUser = async (email: string, password: string): Promise<User> => {
   if (!email.trim() || !password.trim()) {
     throw new Error("Email and password cannot be empty.");
   }
 
-  console.log("Email:", email);
-  console.log("Password:", password);
-
   try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
+    // ✅ Firebase Login
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const firebaseUser = userCredential.user;
+    if (!firebaseUser) throw new Error("Failed to authenticate with Firebase.");
+
+    // ✅ Retrieve Firebase Token
+    const token = await firebaseUser.getIdToken();
+    console.log("🔥 Firebase Token:", token);
+
+    // ✅ Send Firebase Token to API
+    const response = await axios.post(`${API_URL}/auth`, { email }, {
+      headers: {firebase_token: token}
     });
 
-    console.log("Response status:", response.status);
-
-    if (!response.ok) {
-      const responseBody = await response.text();
-      console.log("Response body:", responseBody);
-      throw new Error(`Failed to login. Server responded with status: ${response.status}`);
-    }
-
-    // Extract token from headers
-    const token = response.headers.get("Authorization") || response.headers.get("x-auth-token");
-    if (!token) {
-      throw new Error("Token is missing in response headers");
-    }
-
-    console.log("Token:", token);
-
-    // Decode the role and other details from the JWT
-    const role = decodeRoleFromToken(token);
-    const decoded = decodeJWT(token);
-
-    return { id: decoded.id || "", email: decoded.email || email, role, token };
+    console.log("API Response:", response.data);
+    
+    // ✅ Return API response (including the role)
+    return { 
+      id: firebaseUser.uid, 
+      email: firebaseUser.email || email, 
+      role: response.data.role, 
+      token 
+    };
   } catch (error) {
     console.error("Error logging in:", error);
     throw error;
   }
 };
 
-
-
-
-// Register API
+// 🔹 **Register User with Firebase and API**
 export const registerUser = async (
   email: string,
   password: string,
-  role: string
-): Promise<User> => {
-  const response = await axios.post(`${API_URL}/register`, { email, password, role });
-  return response.data;
+  firstName: string,
+  lastName: string,
+  role: string,
+  age: number
+): Promise<any> => {
+  try {
+    const auth = getAuth();
+
+    // ✅ Create user in Firebase Authentication
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const firebaseUser = userCredential.user;
+
+    if (!firebaseUser) {
+      throw new Error("Failed to create user in Firebase.");
+    }
+
+    // ✅ Retrieve a fresh Firebase Authentication Token
+    const token = await firebaseUser.getIdToken(true); // <-- `true` forces refresh
+    if (!token) {
+      throw new Error("Failed to retrieve Firebase token.");
+    }
+    console.log("🔥 Firebase Token Retrieved:", token);
+
+    // ✅ Prepare API request body
+    const requestBody = {
+      age,
+      first_name: firstName,
+      last_name: lastName,
+      waivers: [
+        {
+          is_waiver_signed: true,
+          waiver_url: `${API_URL}/swagger/index.html`,
+        },
+      ],
+    };
+
+    console.log("📤 Sending API request:", requestBody);
+
+    // ✅ Ensure correct header key and format
+    const response = await axios.post(`${API_URL}/register/customer`, requestBody, {
+      headers: { 
+        "firebase_token": token,  // 🔹 If API expects token under a different key
+        "Content-Type": "application/json",
+      },      
+    });
+
+    console.log("✅ Registration Successful:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Registration failed in api.ts:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
 };
-
-// Fetch role-specific data (example for athlete matches)
-export const fetchAthleteMatches = async (token: string) => {
-  const response = await axios.get(`${API_URL}/athlete/matches`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
-};
-
-// utils/api.ts
-export const fetchQRCode = async (): Promise<string> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve("https://example.com/qrcode.png"); // Simulated QR code URL
-    }, 2000); // Simulate a 2-second delay
-  });
-};
-
-
-// Add more API calls as needed
