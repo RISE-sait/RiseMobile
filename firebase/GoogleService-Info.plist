@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>461776259687-e7m31ugt2nj770q8l3ud2pnhf4e2vb2s.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.461776259687-e7m31ugt2nj770q8l3ud2pnhf4e2vb2s</string>
+	<key>API_KEY</key>
+	<string>AIzaSyCn6Ngwo7GFGIdugZsVzWDHbDoFz03qfc8</string>
+	<key>GCM_SENDER_ID</key>
+	<string>461776259687</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.risebasketball.mobile</string>
+	<key>PROJECT_ID</key>
+	<string>sacred-armor-452904-c0</string>
+	<key>STORAGE_BUCKET</key>
+	<string>sacred-armor-452904-c0.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:461776259687:ios:aefe13f2c69580e13522c2</string>
+</dict>
+</plist>

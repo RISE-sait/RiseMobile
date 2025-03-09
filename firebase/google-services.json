@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "461776259687",
+    "project_id": "sacred-armor-452904-c0",
+    "storage_bucket": "sacred-armor-452904-c0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:461776259687:android:70af82f7678bf8cb3522c2",
+        "android_client_info": {
+          "package_name": "com.risebasketball.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "461776259687-6hfrtepiboudfvqvsccmokm6itr2ttau.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2vsFTr6kMu2TxEtPtqO2l8S6z5Yd4OJU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "461776259687-6hfrtepiboudfvqvsccmokm6itr2ttau.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "461776259687-e7m31ugt2nj770q8l3ud2pnhf4e2vb2s.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.risebasketball.mobile"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
