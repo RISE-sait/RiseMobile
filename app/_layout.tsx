@@ -4,7 +4,6 @@ import "./globals.css";
 import { useFonts } from "expo-font";
 import { View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import SignUpScreen from "./(auth)/signup";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -27,45 +26,8 @@ export default function RootLayout() {
     "ProtestStrike-Regular": require("../assets/fonts/ProtestStrike-Regular.ttf"),
   });
 
-  const [isAuthLoaded, setIsAuthLoaded] = useState(false);
-  const [initialRoute, setInitialRoute] = useState("(auth)");
 
-  useEffect(() => {
-    const loadAuthState = async () => {
-      try {
-        // Check if the user is already logged in
-        const user = await AsyncStorage.getItem("user");
-        if (user) {
-          const parsedUser = JSON.parse(user);
-          switch (parsedUser.role) {
-            case "athlete":
-              setInitialRoute("(athlete)/home");
-              break;
-            case "instructor":
-              setInitialRoute("(instructor)/instructorHome");
-              break;
-            case "coach":
-              setInitialRoute("(coach)/coachHome");
-              break;
-            default:
-              setInitialRoute("(auth)");
-          }
-        } else {
-          setInitialRoute("(auth)");
-        }
-      } catch (error) {
-        console.error("Error loading auth state:", error);
-        setInitialRoute("(auth)");
-      } finally {
-        setIsAuthLoaded(true);
-      }
-    };
-
-    loadAuthState();
-  }, []);
-
-  // Show a loader until fonts and auth state are loaded
-  if (!fontsLoaded || !isAuthLoaded) {
+  if (!fontsLoaded) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-900">
         <ActivityIndicator size="large" color="#B59422" />
@@ -73,10 +35,6 @@ export default function RootLayout() {
     );
   }
 
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {/* Use the initial route determined by the auth state */}
-      <Stack.Screen name={initialRoute} />
-    </Stack>
-  );
+  return <Stack screenOptions={{ headerShown: false }} />;
 }
+
