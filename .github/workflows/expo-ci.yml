@@ -30,7 +30,9 @@ jobs:
         run: eas whoami  # Check if Expo token is recognized
 
       - name: Build for TestFlight
-        run: eas build --profile testflight --platform ios --non-interactive  # Build iOS app for TestFlight
+        run: |
+          eas build --profile testflight --platform ios --non-interactive --output=build-url.txt
+          echo "EAS_BUILD_URL=$(cat build-url.txt)" >> $GITHUB_ENV
 
       - name: Upload to TestFlight
         run: eas submit --platform ios --profile testflight --non-interactive  # Upload to TestFlight
