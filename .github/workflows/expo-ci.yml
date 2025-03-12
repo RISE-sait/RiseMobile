@@ -24,7 +24,7 @@ jobs:
         run: npm install -g expo-cli eas-cli  # Install Expo and EAS CLI globally
 
       - name: Authenticate with Expo
-        run: echo "${{ secrets.EXPO_TOKEN }}" | eas login  # Authenticate with Expo
+        run: echo "${{ secrets.EXPO_TOKEN }}"  # Authenticate with Expo
 
       - name: Build for TestFlight
         run: eas build --profile testflight --platform ios --non-interactive  # Build iOS app for TestFlight
