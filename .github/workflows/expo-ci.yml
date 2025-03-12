@@ -30,17 +30,17 @@ jobs:
         run: eas whoami  # Check if Expo token is recognized
 
       - name: Build for TestFlight
-        run: eas build --profile testflight --platform ios --non-interactive --json > build-info.json
+        run: eas build --profile testflight --platform ios --non-interactive | tee build-log.txt
 
-      - name: Extract Build URL from JSON
+      - name: Extract Build URL from Logs
         run: |
-          BUILD_URL=$(cat build-info.json | jq -r '.artifacts.buildUrl')
-          if [[ -z "$BUILD_URL" || "$BUILD_URL" == "null" ]]; then
+          BUILD_URL=$(grep -o 'https://expo.dev/accounts/[^ ]*/builds/[a-zA-Z0-9-]*' build-log.txt | tail -1)
+          if [[ -z "$BUILD_URL" ]]; then
             echo "Error: Failed to retrieve build URL!"
             exit 1
           fi
           echo "EAS_BUILD_URL=$BUILD_URL" >> $GITHUB_ENV
-          echo "Build URL: $BUILD_URL"
+          echo "✅ Build URL: $BUILD_URL"
 
       - name: Upload to TestFlight
         run: eas submit --platform ios --profile testflight --non-interactive  # Upload to TestFlight
