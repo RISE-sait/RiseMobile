@@ -20,7 +20,7 @@ export default function Index() {
   } else if (user.role === "instructor") {
     return <Redirect href="/(instructor)/instructorHome" />;
   } else if (user.role === "coach") {
-    return <Redirect href="/(coach)/coachHome" />;
+    return <Redirect href="/(coach)/(tabs)/coachHome" />;
   }
 
   // Fallback, should ideally never be reached
