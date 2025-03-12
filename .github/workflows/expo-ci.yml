@@ -30,9 +30,13 @@ jobs:
         run: eas whoami  # Check if Expo token is recognized
 
       - name: Build for TestFlight
+        run: eas build --profile testflight --platform ios --non-interactive | tee build-log.txt
+
+      - name: Extract Build URL
         run: |
-          eas build --profile testflight --platform ios --non-interactive --output=build-url.txt
-          echo "EAS_BUILD_URL=$(cat build-url.txt)" >> $GITHUB_ENV
+          BUILD_URL=$(cat build-log.txt | grep -o 'https://expo.dev/artifacts/eas/[^ ]*' | head -1)
+          echo "EAS_BUILD_URL=$BUILD_URL" >> $GITHUB_ENV
+          echo "Build URL: $BUILD_URL"
 
       - name: Upload to TestFlight
         run: eas submit --platform ios --profile testflight --non-interactive  # Upload to TestFlight
