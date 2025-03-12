@@ -47,4 +47,4 @@ jobs:
           echo "Build URL: $BUILD_URL"
 
       - name: Upload to TestFlight
-        run: eas submit --platform ios --profile testflight --non-interactive  # Upload to TestFlight
+        run: eas submit --platform ios --non-interactive --path=$EAS_BUILD_URL  # Correctly pass the build URL
