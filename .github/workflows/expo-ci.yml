@@ -30,7 +30,8 @@ jobs:
         run: eas whoami  # Check if Expo token is recognized
 
       - name: Debug Credentials Before Build
-        run: eas credentials  # Correct command to check credentials
+        run: eas credentials:list --json
+      
 
       - name: Sync Credentials
         run: eas credentials:sync  # Force EAS to retrieve credentials from Expo servers
