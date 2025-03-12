@@ -21,7 +21,7 @@ jobs:
         run: npm install  # Install project dependencies
 
       - name: Install Expo & EAS CLI
-        run: npm install -g expo-cli eas-cli  # Install Expo and EAS CLI globally
+        run: npm install -g expo-cli eas-cli jq  # Install Expo, EAS CLI, and jq
 
       - name: Authenticate with Expo using Token
         run: echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> $GITHUB_ENV  # Store token in environment
@@ -30,17 +30,17 @@ jobs:
         run: eas whoami  # Check if Expo token is recognized
 
       - name: Build for TestFlight
-        run: eas build --profile testflight --platform ios --non-interactive | tee build-log.txt
+        run: eas build --profile testflight --platform ios --non-interactive --json > build-info.json
 
-      - name: Extract Build URL from Logs
+      - name: Extract Build URL from JSON
         run: |
-          BUILD_URL=$(grep -o 'https://expo.dev/accounts/[^ ]*/builds/[a-zA-Z0-9-]*' build-log.txt | tail -1)
-          if [[ -z "$BUILD_URL" ]]; then
+          BUILD_URL=$(cat build-info.json | jq -r '.[0].artifacts.buildUrl')
+          if [[ -z "$BUILD_URL" || "$BUILD_URL" == "null" ]]; then
             echo "Error: Failed to retrieve build URL!"
             exit 1
           fi
           echo "EAS_BUILD_URL=$BUILD_URL" >> $GITHUB_ENV
-          echo "✅ Build URL: $BUILD_URL"
+          echo "Build URL: $BUILD_URL"
 
       - name: Upload to TestFlight
         run: eas submit --platform ios --profile testflight --non-interactive  # Upload to TestFlight
