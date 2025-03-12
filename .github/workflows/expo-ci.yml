@@ -30,7 +30,11 @@ jobs:
         run: eas whoami  # Check if Expo token is recognized
 
       - name: Debug Credentials Before Build
-        run: eas credentials:info  # Print credential details
+        run: eas credentials  # Correct command to check credentials
+
+      - name: Sync Credentials
+        run: eas credentials:sync  # Force EAS to retrieve credentials from Expo servers
+
 
       - name: Build for TestFlight
         run: eas build --profile testflight --platform ios --non-interactive  # Build iOS app for TestFlight
