@@ -1,0 +1,30 @@
+name: Expo CI/CD for TestFlight
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Authenticate with Expo
+        run: echo "${{ secrets.EXPO_TOKEN }}" | eas login
+
+      - name: Build for TestFlight
+        run: eas build --profile testflight --platform ios --non-interactive
+
+      - name: Upload to TestFlight
+        run: eas submit --platform ios --profile testflight --non-interactive
