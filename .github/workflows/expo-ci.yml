@@ -3,28 +3,31 @@ name: Expo CI/CD for TestFlight
 on:
   push:
     branches:
-      - master
+      - master  # Ensure you're triggering the correct branch
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3  # Fetches your code
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 18  # Ensure the correct Node.js version
 
       - name: Install Dependencies
-        run: npm install
+        run: npm install  # Install project dependencies
+
+      - name: Install Expo & EAS CLI
+        run: npm install -g expo-cli eas-cli  # Install Expo and EAS CLI globally
 
       - name: Authenticate with Expo
-        run: echo "${{ secrets.EXPO_TOKEN }}" | eas login
+        run: echo "${{ secrets.EXPO_TOKEN }}" | eas login  # Authenticate with Expo
 
       - name: Build for TestFlight
-        run: eas build --profile testflight --platform ios --non-interactive
+        run: eas build --profile testflight --platform ios --non-interactive  # Build iOS app for TestFlight
 
       - name: Upload to TestFlight
-        run: eas submit --platform ios --profile testflight --non-interactive
+        run: eas submit --platform ios --profile testflight --non-interactive  # Upload to TestFlight
