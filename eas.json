@@ -31,7 +31,8 @@
   "submit": {
     "testflight": {
       "ios": {
-        "appleId": "your-apple-id@example.com"
+        "appleId": "mostapha4567@icloud.com",
+        "ascAppId": "6742468897"
       }
     },
     "production": {
