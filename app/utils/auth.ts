@@ -8,11 +8,16 @@ import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { makeRedirectUri } from "expo-auth-session";
+import axios from "axios";
+import { API_URL } from "./api";
 
 type User = {
   id: string;
+  firstName: string;
+  lastName: string;
   email: string;
   role: "athlete" | "instructor" | "coach";
+  countryCode: string;
   token: string;
 };
 
@@ -37,11 +42,18 @@ export const useAuth = () => {
       const storedUser = await AsyncStorage.getItem("user");
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-
-        // Ensure role is lowercase for consistency
+  
+        console.log("📢 Loaded stored user:", parsedUser);
+  
+        setUser({
+          ...parsedUser,
+          firstName: parsedUser.firstName || (parsedUser.displayName?.split(" ")[0] ?? ""),
+          lastName: parsedUser.lastName || (parsedUser.displayName?.split(" ")[1] ?? ""),
+        });
+  
+        // Ensure role is lowercase before navigation
         const userRole = parsedUser.role.toLowerCase();
-
+  
         switch (userRole) {
           case "athlete":
             router.replace("/(athlete)/(tabs)/home");
@@ -50,29 +62,44 @@ export const useAuth = () => {
             router.replace("/(instructor)/instructorHome");
             break;
           case "coach":
-            router.replace("/(coach)/coachHome");
+            router.replace("/(coach)/(tabs)/coachHome");
             break;
           default:
             console.error("❌ Unknown role:", userRole);
         }
       }
     } catch (error) {
-      console.error("Failed to load user data:", error);
+      console.error("❌ Failed to load user data:", error);
     } finally {
       setIsAuthLoaded(true);
     }
   };
+  
+  
 
   // 🔹 Save user data to AsyncStorage
   const saveUserToStorage = async (userData: User) => {
     try {
+      console.log("📢 Saving user to AsyncStorage:", userData);
+  
+      if (!userData.countryCode) {
+        console.warn("⚠️ Missing countryCode in userData, defaulting to 'US'");
+        userData.countryCode = "US"; // ✅ Prevent undefined values
+      }
+  
       await AsyncStorage.setItem("user", JSON.stringify(userData));
       await AsyncStorage.setItem("authToken", userData.token);
-      console.log("User and Token saved successfully.");
+  
+      console.log("✅ User and Token saved successfully.");
     } catch (error) {
-      console.error("Failed to save user data:", error);
+      console.error("❌ Failed to save user data:", error);
     }
   };
+  
+  
+  
+  
+  
 
   // 🔹 Login Function
   const login = async (email: string, password: string) => {
@@ -98,7 +125,7 @@ export const useAuth = () => {
           break;
         case "coach":
           console.log("🏆 Navigating to Coach Home...");
-          router.replace("/(coach)/coachHome");
+          router.replace("/(coach)/(tabs)/coachHome");
           break;
         default:
           console.error("❌ Unknown role:", userRole);
@@ -111,104 +138,242 @@ export const useAuth = () => {
     }
   };
 
-  // 🔹 Register Function
-  const register = async (
-    email: string,
-    password: string,
-    firstName: string,
-    lastName: string,
-    role: string,
-    age: number
-  ) => {
-    setIsLoading(true);
+// 🔹 Register Function
+const register = async (
+  email: string,
+  password: string,
+  firstName: string,
+  lastName: string,
+  role: string,
+  age: number,
+  phoneNumber: string,
+  countryCode: string
+) => {
+  setIsLoading(true);
 
-    try {
-      console.log("📢 Calling register function from useAuth.ts...");
+  try {
+    console.log("📢 Sending registration request...");
 
-      // ✅ Ensure correct parameters are passed
-      const userData = await registerUser(email, password, firstName, lastName, role, age);
+    // ✅ Send registration request (DO NOT store user yet)
+    const userData = await registerUser(
+      email,
+      password,
+      firstName,
+      lastName,
+      role.toLowerCase(), // 🔹 Ensure lowercase role
+      age,
+      phoneNumber,
+      countryCode
+    );
 
-      // ✅ Store user data locally
-      setUser(userData);
-      await saveUserToStorage(userData);
+    console.log("✅ Registration request successful, awaiting approval...");
 
-      console.log("✅ User Registered Successfully:", userData);
+    // ❌ DO NOT automatically log the user in!
+    // setUser(userData);
+    // await saveUserToStorage(userData);
 
-      // ✅ Redirect to login after successful registration
-      router.replace("/(auth)/login");
-    } catch (error) {
-      console.error("❌ Registration failed in useAuth.ts:", (error as any).response?.data || (error as any).message);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // ✅ Instead, show verification pending screen
+    return userData;
+  } catch (error) {
+    console.error("❌ Registration failed in useAuth.ts:", (error as any).response?.data || (error as any).message);
+    throw error;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const registerChild = async (
+  parentToken: string, // ✅ Parent's Firebase token is required
+  firstName: string,
+  lastName: string,
+  age: number,
+  countryCode: string
+): Promise<any> => {
+  setIsLoading(true);
+
+  try {
+    console.log("📢 Sending child registration request...");
+
+    const requestBody = {
+      age,
+      first_name: firstName,
+      last_name: lastName,
+      country_code: countryCode,
+      waivers: [
+        {
+          is_waiver_signed: true,
+          waiver_url: `${API_URL}/swagger/index.html`,
+        },
+      ],
+    };
+
+    // ✅ Send request to API using parent's token
+    const response = await axios.post(`${API_URL}/register/child`, requestBody, {
+      headers: {
+        "firebase_token": parentToken,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("✅ Child Registration Successful:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Child registration failed:", (error as any).response?.data || (error as any).message);
+    throw error;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
+  
+
 
   // 🔹 Google Login
   const loginWithGoogle = async () => {
     try {
-      const result = await promptAsync();
-      if (result.type === "success") {
-        const { id_token } = result.params;
-        const credential = GoogleAuthProvider.credential(id_token);
-        const userCredential = await signInWithCredential(auth, credential);
-        const firebaseUser = userCredential.user;
+        const result = await promptAsync();
+        if (result.type === "success") {
+            const { id_token } = result.params;
+            const credential = GoogleAuthProvider.credential(id_token);
+            const userCredential = await signInWithCredential(auth, credential);
+            const firebaseUser = userCredential.user;
 
-        if (!firebaseUser) {
-          throw new Error("Failed to authenticate with Firebase.");
+            if (!firebaseUser) {
+                throw new Error("Failed to authenticate with Firebase.");
+            }
+
+            // ✅ Get Firebase Authentication Token
+            const token = await firebaseUser.getIdToken();
+            console.log("🔥 Firebase Token:", token);
+
+            // ✅ Send Firebase Token to API for verification and user details
+            const response = await axios.post(`${API_URL}/auth`, { email: firebaseUser.email }, {
+                headers: { firebase_token: token }
+            });
+
+            console.log("API Response:", response.data);
+
+            // ✅ Extract user details from API response
+            const userData: User = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email || "",
+                firstName: response.data.first_name || "",
+                lastName: response.data.last_name || "",
+                role: response.data.role.toUpperCase(), // NEED TO FIX THIS BECASUE  IT IS DIFFERENT NO NEED FOR UPPERCASE ROLES
+                countryCode: response.data.country_code || "US",
+                token,
+            };
+
+            // ✅ Save user in AsyncStorage
+            setUser(userData);
+            await saveUserToStorage(userData);
+
+            console.log("✅ Google Login Successful:", userData);
+
+            // ✅ Redirect Based on Role
+            switch (userData.role) {
+                case "athlete":
+                    router.replace("/(athlete)/(tabs)/home");
+                    break;
+                case "coach":
+                    router.replace("/(coach)/(tabs)/coachHome");
+                    break;
+                case "instructor":
+                    router.replace("/(instructor)/instructorHome");
+                    break;
+                default:
+                    console.error("❌ Unknown role:", userData.role);
+                    router.replace("/(auth)/login");
+            }
         }
-
-        // ✅ Get Firebase Authentication Token
-        const token = await firebaseUser.getIdToken();
-        console.log("🔥 Firebase Token:", token);
-
-        // ✅ Store User in AsyncStorage
-        const userData: User = { id: firebaseUser.uid, email: firebaseUser.email || "", role: "athlete", token };
-        setUser(userData);
-        await saveUserToStorage(userData);
-
-        router.replace("/(athlete)/(tabs)/home"); // Redirect
-      }
     } catch (error) {
-      console.error("Google Login Error:", error);
-      throw error;
+        console.error("Google Login Error:", error);
+        throw error;
     }
-  };
+};
+
 
   // 🔹 Apple Login
   const loginWithApple = async () => {
     try {
-      if (!(await AppleAuthentication.isAvailableAsync())) {
-        throw new Error("Apple Authentication is not available on this device");
-      }
+        if (!(await AppleAuthentication.isAvailableAsync())) {
+            throw new Error("Apple Authentication is not available on this device.");
+        }
 
-      const appleCredential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
+        // 🔹 Apple Sign-In
+        const appleCredential = await AppleAuthentication.signInAsync({
+            requestedScopes: [
+                AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                AppleAuthentication.AppleAuthenticationScope.EMAIL,
+            ],
+        });
 
-      const credential = new OAuthProvider("apple.com").credential({
-        idToken: appleCredential.identityToken!,
-      });
+        if (!appleCredential.identityToken) {
+            throw new Error("Apple Identity Token is missing.");
+        }
 
-      const userCredential = await signInWithCredential(auth, credential);
-      const firebaseUser = userCredential.user;
+        // 🔹 Convert Apple credentials into Firebase credential
+        const credential = new OAuthProvider("apple.com").credential({
+            idToken: appleCredential.identityToken,
+        });
 
-      const token = await firebaseUser.getIdToken();
-      console.log("🔥 Apple Firebase Token:", token);
+        // 🔹 Sign in with Firebase
+        const userCredential = await signInWithCredential(auth, credential);
+        const firebaseUser = userCredential.user;
 
-      const userData: User = { id: firebaseUser.uid, email: firebaseUser.email || "", role: "athlete", token };
-      setUser(userData);
-      await saveUserToStorage(userData);
+        if (!firebaseUser) {
+            throw new Error("Failed to authenticate with Firebase.");
+        }
 
-      router.replace("/(athlete)/(tabs)/home");
+        // 🔹 Retrieve Firebase Authentication Token
+        const token = await firebaseUser.getIdToken();
+        console.log("🔥 Apple Firebase Token:", token);
+
+        // 🔹 Send Firebase Token to API to get user details
+        const response = await axios.post(`${API_URL}/auth`, { email: firebaseUser.email }, {
+            headers: { firebase_token: token }
+        });
+
+        console.log("API Response:", response.data);
+
+        // 🔹 Extract user details from API response
+        const userData: User = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            firstName: response.data.first_name || "",
+            lastName: response.data.last_name || "",
+            role: response.data.role.toUpperCase(), // Ensure uppercase role
+            countryCode: response.data.country_code || "US",
+            token,
+        };
+
+        // 🔹 Save user in AsyncStorage
+        setUser(userData);
+        await saveUserToStorage(userData);
+
+        console.log("✅ Apple Login Successful:", userData);
+
+        // 🔹 Redirect Based on Role
+        switch (userData.role) {
+            case "athlete":
+                router.replace("/(athlete)/(tabs)/home");
+                break;
+            case "coach":
+                router.replace("/(coach)/(tabs)/coachHome");
+                break;
+            case "instructor":
+                router.replace("/(instructor)/instructorHome");
+                break;
+            default:
+                console.error("❌ Unknown role:", userData.role);
+                router.replace("/(auth)/login");
+        }
     } catch (error) {
-      console.error("Apple Login Error:", error);
-      throw error;
+        console.error("Apple Login Error:", error);
+        throw error;
     }
-  };
+};
 
   // 🔹 Logout Function
   const logout = async () => {
@@ -231,6 +396,7 @@ export const useAuth = () => {
     isAuthLoaded,
     login,
     register, // ✅ Ensure `register` is inside return statement
+    registerChild,
     loginWithGoogle,
     loginWithApple,
     logout,
