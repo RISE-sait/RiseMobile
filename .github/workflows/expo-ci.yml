@@ -20,8 +20,12 @@ jobs:
       - name: Install Dependencies
         run: npm install  # Install project dependencies
 
+      - name: Install System Tools (jq)
+        run: sudo apt-get update && sudo apt-get install -y jq  # Correctly install jq
+
+
       - name: Install Expo & EAS CLI
-        run: npm install -g expo-cli eas-cli jq  # Install Expo, EAS CLI, and jq
+        run: npm install -g expo-cli eas-cli # Install Expo, EAS CLI, and jq
 
       - name: Authenticate with Expo using Token
         run: echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> $GITHUB_ENV  # Store token in environment
