@@ -14,8 +14,7 @@
     "testflight": {
       "distribution": "internal",
       "ios": {
-        "simulator": false,
-        "teamId": "9J2KVZY4NS"
+        "simulator": false
       }
     },
     "production": {
