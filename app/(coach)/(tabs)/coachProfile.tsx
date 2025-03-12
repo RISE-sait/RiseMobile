@@ -7,7 +7,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import images from "@/constants/images";
 import ProfileHeader from "@/app/components/ProfileHeader";
-import PlayerStatsCard from "@/app/components/PlayerStatsCard";
 import AccountSection from "@/app/components/AccountSection";
 
 type User = {
@@ -16,46 +15,41 @@ type User = {
   firstName: string;
   lastName: string;
   role: string;
-  jerseyNumber?: string;
   profileImage?: string;
   countryCode: string;
   token: string;
+  teamLogo?: string;
 };
 
-const AthleteProfileScreen = () => {
+const CoachProfileScreen = () => {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-  const loadUser = async () => {
-    try {
-      const storedUser = await AsyncStorage.getItem("user");
+    const loadUser = async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem("user");
 
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        console.log("📢 Loaded user from AsyncStorage:", parsedUser);
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          console.log("📢 Loaded user from AsyncStorage:", parsedUser);
 
-        setUser({
-          ...parsedUser,
-          firstName: parsedUser.firstName || parsedUser.first_name || "",
-          lastName: parsedUser.lastName || parsedUser.last_name || "",
-          countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
-        });
-      } else {
-        console.log("⚠️ No user found in AsyncStorage.");
+          setUser({
+            ...parsedUser,
+            firstName: parsedUser.firstName || parsedUser.first_name || "",
+            lastName: parsedUser.lastName || parsedUser.last_name || "",
+            countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
+          });
+        } else {
+          console.log("⚠️ No user found in AsyncStorage.");
+        }
+      } catch (error) {
+        console.error("❌ Error loading user:", error);
       }
-    } catch (error) {
-      console.error("❌ Error loading user:", error);
-    }
-  };
+    };
 
-  loadUser();
-}, []);
-
-  
-  
-  
-
+    loadUser();
+  }, []);
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem("user");
@@ -76,24 +70,16 @@ const AthleteProfileScreen = () => {
       <StatusBar translucent backgroundColor="transparent" style="light" />
       <ScrollView showsVerticalScrollIndicator={false} className="px-5" contentContainerStyle={{ paddingBottom: 80 }}>
         
+        {/* Profile Header */}
         <ProfileHeader
           firstName={user.firstName}
           lastName={user.lastName}
           role={user.role}
-          number={user?.jerseyNumber ? user.jerseyNumber.toString() : "0"} // ✅ Ensures it's a string
-          profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
-          countryCode={user?.countryCode } // ✅ Ensure countryCode is always defined
-          teamLogo={images.logo}
+          number={"Coach"} // Static text for coaches
+          profileImage={user.profileImage ? { uri: user.profileImage } : images.coachHeadshot}
+          countryCode={user?.countryCode} // Ensure countryCode is always defined
+          teamLogo={user.teamLogo ? { uri: user.teamLogo } : images.teamLogo}
         />
-
-        {/* Player Stats */}
-        <View className="mt-6">
-          <PlayerStatsCard
-            overallRating={user.overallRating}
-            pointsPerGame={user.pointsPerGame}
-            assistsPerGame={user.assistsPerGame}
-          />
-        </View>
 
         {/* My Account Section */}
         <AccountSection 
@@ -119,4 +105,4 @@ const AthleteProfileScreen = () => {
   );
 };
 
-export default AthleteProfileScreen;
+export default CoachProfileScreen;
