@@ -11,11 +11,36 @@
     "preview": {
       "distribution": "internal"
     },
+    "testflight": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
+    },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "distribution": "store",
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "gradleCommand": ":app:bundleRelease"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "testflight": {
+      "ios": {
+        "appleId": "your-apple-id@example.com"
+      }
+    },
+    "production": {
+      "ios": {
+        "appleId": "your-apple-id@example.com"
+      },
+      "android": {
+        "track": "production"
+      }
+    }
   }
 }
