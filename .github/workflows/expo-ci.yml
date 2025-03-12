@@ -29,9 +29,6 @@ jobs:
       - name: Confirm Expo Authentication
         run: eas whoami  # Check if Expo token is recognized
 
-      - name: Sync Credentials for TestFlight
-        run: eas credentials:sync --profile testflight  # Force Expo to use "testflight" profile
-
       - name: Build for TestFlight
         run: eas build --profile testflight --platform ios --non-interactive  # Build iOS app for TestFlight
 
