@@ -12,9 +12,24 @@ import GoToCards from "../../components/GoToCards";
 import dayjs from "dayjs";
 import { mockMatches } from '@/app/(athlete)/screens/matchesData';
 
+type User = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  profileImage?: string;
+  countryCode: string;
+  token: string;
+  teamLogo?: string;
+  phoneNumber?: string;
+  jerseyNumber?: number;};
+
+
+
 export default function CoachHomeScreen() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -50,20 +65,11 @@ export default function CoachHomeScreen() {
     .filter((match) => ["match", "practice"].includes(match.type) && dayjs(match.date).isAfter(today))
     .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0];
 
-  const handleMatchPress = (match) => {
-    setSelectedMatch(match);
-    setModalVisible(true);
-  };
-
-  const closeModal = () => {
-    setModalVisible(false);
-    setSelectedMatch(null);
-  };
 
   const navigationOptions = [
     { label: "Team Roster", route: "/screens/teamRoster", image: images.teamRoster },
     { label: "Training Schedule", route: "/coachCalendar", image: images.schedules },
-    { label: "Match History", route: "/screens/matchHistory", image: images.matches },
+    { label: "Match History", route: "/screens/matchHistory", image: images.matchHistory },
     { label: "Player Stats", route: "/screens/playerStats", image: images.playerStats },
   ];
 
@@ -90,10 +96,10 @@ export default function CoachHomeScreen() {
               firstName={user.firstName}
               lastName={user.lastName}
               role={user.role}
-              number={user?.jerseyNumber ? user.jerseyNumber.toString() : "0"} // ✅ Ensures it's a string
+              number={user?.role === "Player" && user.jerseyNumber ? user.jerseyNumber.toString() : "CJ"} // ✅ Only for players
               profileImage={user.profileImage ? { uri: user.profileImage } : images.coachHeadshot}
               countryCode={user?.countryCode || "US"} // ✅ Ensure countryCode is always defined
-              teamLogo={images.logo}
+              teamLogo={images.teamLogo}
             />
           ) : (
             <Text className="text-white text-center">User data not available</Text>
@@ -104,7 +110,7 @@ export default function CoachHomeScreen() {
         {upcomingEvent && <UpcomingCard event={upcomingEvent} />}
 
         {/* Navigation Buttons Section */}
-        <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route)} />
+        <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />
         
       </ScrollView>
     </SafeAreaView>
