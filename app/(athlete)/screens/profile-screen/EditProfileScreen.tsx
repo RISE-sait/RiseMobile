@@ -1,131 +1,536 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { FontAwesome6 } from "@expo/vector-icons";
-import images from "@/constants/images";
-import ProfileHeader from "@/app/components/ProfileHeader";
+import { useEffect, useState, useRef } from "react"
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Alert,
+  ActivityIndicator,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  Platform,
+  KeyboardAvoidingView,
+} from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
+import { StatusBar } from "expo-status-bar"
+import { useRouter } from "expo-router"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome"
+import {
+  faArrowLeft,
+  faCamera,
+  faCheck,
+  faEnvelope,
+  faPhone,
+  faUser,
+  faShirt,
+  faList,
+  faBasketball,
+} from "@fortawesome/free-solid-svg-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { Input } from "@/app/components/ui/input"
+import images from "@/constants/images"
 
-const EditProfileScreen = () => {
-  const router = useRouter();
-  const [user, setUser] = useState({
-    firstName: "",
-    lastName: "",
-    phoneNumber: "",
-    jerseyNumber: "",
-    position: "",
-    email: "", // Locked field
-  });
+type User = {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: string
+  profileImage?: string
+  jerseyNumber?: string
+  position?: string
+  phoneNumber?: string
+  bio?: string
+  teamLogo?: string
+}
+
+const { width } = Dimensions.get("window")
+
+export default function EditProfileScreen() {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(50)).current
+
+  // Form state
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phoneNumber, setPhoneNumber] = useState("")
+  const [jerseyNumber, setJerseyNumber] = useState("")
+  const [position, setPosition] = useState("")
+  const [profileImage, setProfileImage] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token");
-        const response = await fetch("https://yourapi.com/user/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json();
-        setUser(data);
-      } catch (error) {
-        console.error("Failed to load user data:", error);
-      }
-    };
-    fetchUser();
-  }, []);
+    loadUserData()
+  }, [])
 
-  // Handle Input Changes
-  const handleChange = (key, value) => {
-    setUser((prev) => ({ ...prev, [key]: value }));
-  };
+  useEffect(() => {
+    if (!isLoading) {
+      // Animate content in when data is loaded
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start()
+    }
+  }, [isLoading])
 
-  // Save Profile Updates
-  const handleSaveProfile = async () => {
+  const loadUserData = async () => {
     try {
-      const token = await AsyncStorage.getItem("token");
-      const response = await fetch("https://yourapi.com/user/update-profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(user),
-      });
+      setIsLoading(true)
 
-      const result = await response.json();
-      if (response.ok) {
-        alert("Profile updated successfully!");
-        router.back(); // Navigate back to Profile screen
+      // In a real app, you would fetch from your API
+      // For now, we'll use AsyncStorage as a mock
+      const storedUser = await AsyncStorage.getItem("user")
+
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser)
+        setUser(parsedUser)
+
+        // Initialize form fields
+        setFirstName(parsedUser.firstName || "")
+        setLastName(parsedUser.lastName || "")
+        setEmail(parsedUser.email || "")
+        setPhoneNumber(parsedUser.phoneNumber || "")
+        setJerseyNumber(parsedUser.jerseyNumber || "")
+        setPosition(parsedUser.position || "")
+        setProfileImage(parsedUser.profileImage || null)
       } else {
-        alert("Error updating profile: " + result.message);
+        // For demo purposes, create mock data if none exists
+        const mockUser = {
+          id: "1",
+          firstName: "John",
+          lastName: "Doe",
+          email: "john.doe@example.com",
+          role: "athlete",
+          phoneNumber: "555-123-4567",
+          jerseyNumber: "23",
+          position: "Point Guard",
+        }
+
+        setUser(mockUser)
+        setFirstName(mockUser.firstName)
+        setLastName(mockUser.lastName)
+        setEmail(mockUser.email)
+        setPhoneNumber(mockUser.phoneNumber || "")
+        setJerseyNumber(mockUser.jerseyNumber || "")
+        setPosition(mockUser.position || "")
       }
     } catch (error) {
-      console.error("Update failed:", error);
+      console.error("Error loading user data:", error)
+      Alert.alert("Error", "Failed to load user data")
+    } finally {
+      setIsLoading(false)
     }
-  };
+  }
+
+  const handleSave = async () => {
+    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      Alert.alert("Missing Information", "Please fill in all required fields")
+      return
+    }
+
+    try {
+      setIsSaving(true)
+
+      // Update user object with new values
+      const updatedUser = {
+        ...user,
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+        jerseyNumber,
+        position,
+        profileImage,
+      }
+
+      // In a real app, you would send this to your API
+      // For now, we'll just save to AsyncStorage
+      await AsyncStorage.setItem("user", JSON.stringify(updatedUser))
+
+      // Show success message
+      Alert.alert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }])
+    } catch (error) {
+      console.error("Error saving user data:", error)
+      Alert.alert("Error", "Failed to save profile changes")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <StatusBar translucent backgroundColor="transparent" style="light" />
+        <ActivityIndicator size="large" color="#FCA311" />
+        <Text style={styles.loadingText}>Loading profile data...</Text>
+      </SafeAreaView>
+    )
+  }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0C0B0B] px-5">
-        <ScrollView>
+    <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
-      <ProfileHeader
-            firstName={user.firstName}
-            lastName={user.lastName}
-            role={user.role}
-            number={user.jerseyNumber}
-            profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
-            logo={images.logo}
-            />
-
-      {/* 🔹 User Info Section */}
-      <View className="bg-[#1D1C1E] px-6 py-5 rounded-3xl shadow-lg shadow-black-100 mt-4">
-        
-        {/* 🔸 Locked Email Field (Now Styled to Match Other Inputs) */}
-        <View className="flex-row items-center bg-[#222] p-4 rounded-2xl mb-4 shadow-md shadow-black opacity-50">
-          <FontAwesome6 name="envelope" size={20} color="#888" />
-          <TextInput
-            className="text-gray-500 flex-1 text-lg ml-3"
-            value={user.email}
-            editable={false} // Locked
-          />
-        </View>
-
-        {/* 🔸 Editable Fields - Premium Card UI */}
-        {[
-          { icon: "user", key: "firstName", placeholder: "First Name", value: user.firstName },
-          { icon: "user", key: "lastName", placeholder: "Last Name", value: user.lastName },
-          { icon: "phone", key: "phoneNumber", placeholder: "Phone Number", value: user.phoneNumber, keyboardType: "phone-pad" },
-          { icon: "shirt", key: "jerseyNumber", placeholder: "Jersey Number", value: user.jerseyNumber, keyboardType: "numeric" },
-          { icon: "list", key: "position", placeholder: "Position", value: user.position },
-        ].map((field, index) => (
-          <View key={index} className="flex-row items-center bg-[#222] p-4 rounded-2xl mb-4 shadow-md shadow-black">
-            <FontAwesome6 name={field.icon} size={20} color="#FCA311" />
-            <TextInput
-              className="text-white-100 flex-1 text-lg ml-3"
-              value={field.value}
-              onChangeText={(text) => handleChange(field.key, text)}
-              placeholder={field.placeholder}
-              placeholderTextColor="#888"
-            />
-          </View>
-        ))}
-      </View>
-
-      {/* 🔹 Action Buttons */}
-      <View className="mt-8 space-y-3">
-        <TouchableOpacity onPress={handleSaveProfile} className="bg-gold-100 py-5 rounded-2xl items-center">
-          <Text className="text-black-100 text-xl font-extrabold uppercase tracking-wider">Save Changes</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <FontAwesomeIcon icon={faArrowLeft} color="#F0F0F0" size={20} />
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => router.back()} className="border border-gray-600 py-5 rounded-2xl items-center mt-5">
-          <Text className="text-gray-400 text-xl font-extrabold uppercase tracking-wider">Cancel</Text>
+        <Text style={styles.headerTitle}>Edit Profile</Text>
+        <TouchableOpacity onPress={handleSave} disabled={isSaving} style={styles.saveButton}>
+          {isSaving ? (
+            <ActivityIndicator size="small" color="#FCA311" />
+          ) : (
+            <FontAwesomeIcon icon={faCheck} color="#FCA311" size={20} />
+          )}
         </TouchableOpacity>
       </View>
-      </ScrollView>
+
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            {/* Profile Banner */}
+            <View style={styles.profileBanner}>
+              <LinearGradient colors={["#1D1C1E", "#0C0B0B"]} style={styles.bannerGradient} />
+
+              {/* Profile Image */}
+              <View style={styles.profileImageContainer}>
+                <Image
+                  source={profileImage ? { uri: profileImage } : images.headshot}
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+              </View>
+
+              <View style={styles.nameContainer}>
+                <Text style={styles.nameText}>
+                  {firstName} {lastName}
+                </Text>
+                <View style={styles.roleBadge}>
+                  <FontAwesomeIcon icon={faBasketball} color="#F0F0F0" size={12} style={styles.roleIcon} />
+                  <Text style={styles.roleText}>Athlete</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Personal Information Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Personal Information</Text>
+
+              {/* Locked Email Field */}
+              <View style={styles.formGroup}>
+                <View style={styles.labelContainer}>
+                  <FontAwesomeIcon icon={faEnvelope} color="#999999" size={14} style={styles.inputIcon} />
+                  <Text style={styles.inputLabel}>Email (Locked)</Text>
+                </View>
+                <View style={styles.lockedInputContainer}>
+                  <Text style={styles.lockedInputText}>{email}</Text>
+                </View>
+              </View>
+
+              <View style={styles.formGroup}>
+                <View style={styles.labelContainer}>
+                  <FontAwesomeIcon icon={faUser} color="#FCA311" size={14} style={styles.inputIcon} />
+                  <Text style={styles.inputLabel}>First Name*</Text>
+                </View>
+                <Input
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  inputStyle={styles.input}
+                  placeholderTextColor="#666666"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <View style={styles.labelContainer}>
+                  <FontAwesomeIcon icon={faUser} color="#FCA311" size={14} style={styles.inputIcon} />
+                  <Text style={styles.inputLabel}>Last Name*</Text>
+                </View>
+                <Input
+                  value={lastName}
+                  onChangeText={setLastName}
+                  inputStyle={styles.input}
+                  placeholderTextColor="#666666"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <View style={styles.labelContainer}>
+                  <FontAwesomeIcon icon={faPhone} color="#FCA311" size={14} style={styles.inputIcon} />
+                  <Text style={styles.inputLabel}>Phone Number</Text>
+                </View>
+                <Input
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  keyboardType="phone-pad"
+                  inputStyle={styles.input}
+                  placeholderTextColor="#666666"
+                />
+              </View>
+            </View>
+
+            {/* Athlete Information Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Athlete Information</Text>
+
+              <View style={styles.formGroup}>
+                <View style={styles.labelContainer}>
+                  <FontAwesomeIcon icon={faShirt} color="#FCA311" size={14} style={styles.inputIcon} />
+                  <Text style={styles.inputLabel}>Jersey Number</Text>
+                </View>
+                <Input
+                  value={jerseyNumber}
+                  onChangeText={setJerseyNumber}
+                  keyboardType="numeric"
+                  inputStyle={styles.input}
+                  placeholderTextColor="#666666"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <View style={styles.labelContainer}>
+                  <FontAwesomeIcon icon={faList} color="#FCA311" size={14} style={styles.inputIcon} />
+                  <Text style={styles.inputLabel}>Position</Text>
+                </View>
+                <Input
+                  value={position}
+                  onChangeText={setPosition}
+                  inputStyle={styles.input}
+                  placeholderTextColor="#666666"
+                />
+              </View>
+            </View>
+
+            {/* Save Button */}
+            <TouchableOpacity onPress={handleSave} disabled={isSaving} style={styles.saveProfileButton}>
+              <LinearGradient
+                colors={isSaving ? ["#D68B00", "#B57300"] : ["#FCA311", "#E69200"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.saveButtonGradient}
+              >
+                {isSaving ? (
+                  <View style={styles.savingContainer}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={styles.saveButtonText}>Saving...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.saveButtonText}>Save Profile</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Cancel Button */}
+            <TouchableOpacity onPress={() => router.back()} style={styles.cancelButton}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-};
+  )
+}
 
-export default EditProfileScreen;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0C0B0B",
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#0C0B0B",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "#F0F0F0",
+    marginTop: 16,
+    fontSize: 16,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222222",
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    color: "#F0F0F0",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  saveButton: {
+    padding: 8,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  content: {
+    padding: 16,
+  },
+  profileBanner: {
+    height: 180,
+    borderRadius: 16,
+    marginBottom: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    position: "relative",
+  },
+  bannerGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  profileImageContainer: {
+    position: "relative",
+    marginBottom: 12,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: "#FCA311",
+  },
+  nameContainer: {
+    alignItems: "center",
+  },
+  nameText: {
+    color: "#F0F0F0",
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  roleBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(252, 163, 17, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  roleIcon: {
+    marginRight: 4,
+  },
+  roleText: {
+    color: "#F0F0F0",
+    fontSize: 14,
+  },
+  section: {
+    backgroundColor: "#1D1C1E",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sectionTitle: {
+    color: "#F0F0F0",
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 16,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  labelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  inputIcon: {
+    marginRight: 8,
+  },
+  inputLabel: {
+    color: "#F0F0F0",
+    fontSize: 16,
+  },
+  input: {
+    backgroundColor: "#252525",
+    borderColor: "#333333",
+    borderWidth: 1,
+    borderRadius: 8,
+    color: "#F0F0F0",
+    padding: 12,
+    fontSize: 16,
+  },
+  lockedInputContainer: {
+    backgroundColor: "#252525",
+    borderColor: "#333333",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    opacity: 0.7,
+  },
+  lockedInputText: {
+    color: "#999999",
+    fontSize: 16,
+  },
+  saveProfileButton: {
+    marginTop: 8,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  saveButtonGradient: {
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  savingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveButtonText: {
+    color: "#000000",
+    fontSize: 16,
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  cancelButton: {
+    marginTop: 12,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#333333",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelButtonText: {
+    color: "#999999",
+    fontSize: 16,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+})
+

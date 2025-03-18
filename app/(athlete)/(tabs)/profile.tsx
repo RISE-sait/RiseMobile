@@ -20,6 +20,9 @@ type User = {
   profileImage?: string;
   countryCode: string;
   token: string;
+  overallRating?: number;
+  pointsPerGame?: number;
+  assistsPerGame?: number;
 };
 
 const AthleteProfileScreen = () => {
@@ -83,16 +86,17 @@ const AthleteProfileScreen = () => {
           number={user?.jerseyNumber ? user.jerseyNumber.toString() : "0"} // ✅ Ensures it's a string
           profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
           countryCode={user?.countryCode } // ✅ Ensure countryCode is always defined
-          teamLogo={images.logo}
+          teamLogo={images.teamLogo}
         />
 
         {/* Player Stats */}
         <View className="mt-6">
-          <PlayerStatsCard
-            overallRating={user.overallRating}
-            pointsPerGame={user.pointsPerGame}
-            assistsPerGame={user.assistsPerGame}
-          />
+        <PlayerStatsCard 
+  overallRating={user?.overallRating ?? 0}
+  pointsPerGame={user?.pointsPerGame ?? 0}
+  assistsPerGame={user?.assistsPerGame ?? 0}
+/>
+
         </View>
 
         {/* My Account Section */}
@@ -100,7 +104,7 @@ const AthleteProfileScreen = () => {
           title="My Account"
           items={[
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/profile-screen/EditProfileScreen") },
-            { icon: "bell", text: "Notifications", onPress: () => router.push("/notifications") },
+            { icon: "bell", text: "Notifications", onPress: () => router.push("/screens/comingSoon") },
             { icon: "arrow-right-from-bracket", text: "Logout", iconColor: "#EF4444", textColor: "#EF4444", onPress: handleLogout },
           ]}
         />
@@ -109,8 +113,8 @@ const AthleteProfileScreen = () => {
         <AccountSection 
           title="Support"
           items={[
-            { icon: "question-circle", text: "Help Center", onPress: () => router.push("/help-center") },
-            { icon: "envelope", text: "Contact Us", onPress: () => router.push("/contact-us") },
+            { icon: "question-circle", text: "Help Center", onPress: () => router.push("/screens/profile-options/helpCenter") },
+            { icon: "envelope", text: "Contact Us", onPress: () => router.push("/screens/profile-options/contactUs") },
           ]}
         />
         
