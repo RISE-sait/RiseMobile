@@ -19,7 +19,7 @@ import { StatusBar } from "expo-status-bar"
 import { FontAwesome6, Ionicons, MaterialIcons, MaterialCommunityIcons, AntDesign, Feather } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import * as Haptics from "expo-haptics"
-import players, { type Player, type PlayerPosition, type PlayerStatus } from "../data/players"
+import players from "../data/players"
 import BackButton from "@/app/components/BackButton"
 
 const { width, height } = Dimensions.get("window")
@@ -329,9 +329,6 @@ const TeamRoster: React.FC = () => {
         <TouchableOpacity style={styles.iconButton} onPress={toggleSortModal}>
           <MaterialCommunityIcons name="sort" size={24} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.iconButton, styles.addButton]} onPress={toggleAddPlayerModal}>
-          <Ionicons name="add" size={24} color="black" />
-        </TouchableOpacity>
       </View>
     </View>
   )
@@ -494,7 +491,7 @@ const TeamRoster: React.FC = () => {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                 // Navigate to player details
-                router.push(`/screens/player-details?id=${item.id}`)
+                router.push(`/screens/comingSoon`)
               }}
             >
               <MaterialIcons name="info-outline" size={22} color={COLORS.primary} />
@@ -505,7 +502,7 @@ const TeamRoster: React.FC = () => {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                 // Navigate to message screen
-                router.push(`/screens/message?id=${item.id}`)
+                router.push(`/screens/comingSoon`)
               }}
             >
               <Feather name="message-circle" size={22} color={COLORS.primary} />
@@ -886,7 +883,7 @@ const TeamRoster: React.FC = () => {
                     style={[styles.playerModalActionButton, styles.playerModalActionButtonSecondary]}
                     onPress={() => {
                       setShowPlayerModal(false)
-                      router.push(`/screens/message?id=${selectedPlayer.id}`)
+                      router.push(`/screens/comingSoon`)
                     }}
                   >
                     <Text style={styles.playerModalActionButtonTextSecondary}>Message</Text>
@@ -900,32 +897,6 @@ const TeamRoster: React.FC = () => {
     )
   }
 
-  const renderAddPlayerModal = () => {
-    if (!showAddPlayerModal) return null
-
-    return (
-      <Modal transparent visible={showAddPlayerModal} animationType="fade" onRequestClose={toggleAddPlayerModal}>
-        <View style={styles.addPlayerModalContainer}>
-          <View style={styles.addPlayerModalContent}>
-            <View style={styles.addPlayerModalHeader}>
-              <Text style={styles.addPlayerModalTitle}>Add New Player</Text>
-              <TouchableOpacity onPress={toggleAddPlayerModal}>
-                <AntDesign name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.addPlayerModalMessage}>
-              This feature would allow you to add a new player to the roster with all relevant information.
-            </Text>
-
-            <TouchableOpacity style={styles.addPlayerModalButton} onPress={toggleAddPlayerModal}>
-              <Text style={styles.addPlayerModalButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    )
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -953,7 +924,6 @@ const TeamRoster: React.FC = () => {
       {renderSortModal()}
       {renderFilterModal()}
       {renderPlayerModal()}
-      {renderAddPlayerModal()}
     </SafeAreaView>
   )
 }
