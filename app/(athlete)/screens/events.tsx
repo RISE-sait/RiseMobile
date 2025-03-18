@@ -1,28 +1,61 @@
 import React, { useState, useEffect } from "react";
 import { 
-  View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image, Dimensions 
+  View, Text, FlatList, TouchableOpacity, Image, 
+  StyleSheet, RefreshControl, ActivityIndicator
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { mockEvents, Event } from "./eventsData";
 import { Ionicons } from "@expo/vector-icons";
-
-const { width } = Dimensions.get("window");
+import { mockEvents, Event } from "./eventsData";
 
 const EventsScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [activeFilter, setActiveFilter] = useState<string>("All");
   const router = useRouter();
-
+  
   // Simulate API Call
   useEffect(() => {
+    fetchEvents();
+  }, []);
+  
+  // Update filtered events when filter changes
+  useEffect(() => {
+    filterEvents(activeFilter);
+  }, [events, activeFilter]);
+  
+  const fetchEvents = () => {
+    setLoading(true);
+    // Simulate API call
     setTimeout(() => {
       setEvents(mockEvents);
       setLoading(false);
+      setRefreshing(false);
     }, 1000);
-  }, []);
-
+  };
+  
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchEvents();
+  };
+  
+  const filterEvents = (filter: string) => {
+    if (filter === "All") {
+      setFilteredEvents(events);
+      return;
+    }
+    
+    const filtered = events.filter(event => {
+      const status = getEventStatus(event.date);
+      return status === filter;
+    });
+    
+    setFilteredEvents(filtered);
+  };
+  
   const getEventStatus = (date: string) => {
     const eventDate = new Date(date);
     const today = new Date();
@@ -31,101 +64,320 @@ const EventsScreen: React.FC = () => {
     if (eventDate.toDateString() === today.toDateString()) return "Ongoing"; 
     return "Upcoming"; 
   };
-
-  const renderEventItem = ({ item }: { item: Event }) => (
-    <TouchableOpacity
-      style={{
-        backgroundColor: "rgba(255, 255, 255, 0.1)",
-        borderRadius: 16,
-        overflow: "hidden",
-        marginBottom: 15,
-        flexDirection: "row",
-        padding: 10,
-        alignItems: "center",
-        backdropFilter: "blur(10px)",
-      }}
-      onPress={() => router.push({ pathname: "/(athlete)/screens/event-details/[id]", params: { id: item.id } })}
-    >
-      {/* Event Image */}
-      <Image source={{ uri: item.image }} style={{ width: 90, height: 90, borderRadius: 12 }} resizeMode="cover" />
-      
-      {/* Event Details */}
-      <View style={{ marginLeft: 15, flex: 1 }}>
-        <Text style={{ color: "white", fontSize: 18, fontWeight: "bold" }}>{item.title}</Text>
-        <Text style={{ color: "#bbb", fontSize: 14, marginTop: 5 }}>{item.date} | {item.time}</Text>
-        <Text style={{ color: "#ccc", fontSize: 13, marginTop: 5 }}>{item.location}</Text>
-        
-        {/* Event Status (Upcoming, Ongoing, Past) */}
-        <View style={{
-          backgroundColor: getEventStatus(item.date) === "Upcoming" ? "#FFD700" : getEventStatus(item.date) === "Ongoing" ? "#32CD32" : "#FF4500",
-          alignSelf: "flex-start",
-          paddingVertical: 4,
-          paddingHorizontal: 10,
-          borderRadius: 12,
-          marginTop: 8,
-        }}>
-          <Text style={{ color: "black", fontSize: 12, fontWeight: "bold" }}>{getEventStatus(item.date)}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#121212", paddingHorizontal: 15 }}>
-      <StatusBar translucent backgroundColor="transparent" style="light" />
-
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Upcoming":
+        return "#FCA311";
+      case "Ongoing":
+        return "#4CAF50";
+      case "Past":
+        return "#9E9E9E";
+      default:
+        return "#FCA311";
+    }
+  };
+  
+  const renderEventItem = ({ item }: { item: Event }) => {
+    const status = getEventStatus(item.date);
+    const statusColor = getStatusColor(status);
+    
+    return (
       <TouchableOpacity
-  onPress={() => router.replace("/(athlete)/(tabs)/home")}
-  style={{
-    position: "absolute",
-    top: 70, // Move down slightly
-    left: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    padding: 12,
-    borderRadius: 50,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
-    flexDirection: "row",
-    alignItems: "center",
-    zIndex: 10, // Ensures it's above other content
-  }}
->
-  <Ionicons name="chevron-back" size={28} color="#F0F0F0" />
-</TouchableOpacity>
-
-{/* Header (Adjusted for Overlap) */}
-<View style={{ marginTop: 90, marginBottom: 20 }}> 
-  {/* ⬆️ Increased marginTop to push it below the button */}
-  <Text style={{ fontSize: 28, fontWeight: "bold", color: "white", textAlign: "center" }}>
-    📅 Upcoming Events
-  </Text>
-</View>
-
-
-      {/* Loading Skeleton */}
+        style={styles.eventCard}
+        activeOpacity={0.9}
+        onPress={() => router.push({ 
+          pathname: "/(athlete)/screens/event-details/[id]", 
+          params: { id: item.id } 
+        })}
+      >
+        {/* Event Image */}
+        <Image 
+          source={{ uri: item.image }} 
+          style={styles.eventImage} 
+          resizeMode="cover" 
+        />
+        
+        {/* Event Details */}
+        <View style={styles.eventDetails}>
+          <View style={styles.eventHeader}>
+            <Text style={styles.eventTitle}>{item.title}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
+              <Text style={[styles.statusText, { color: statusColor }]}>{status}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.eventInfo}>
+            <View style={styles.infoRow}>
+              <Ionicons name="calendar-outline" size={16} color="#FCA311" style={styles.infoIcon} />
+              <Text style={styles.infoText}>{item.date}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="time-outline" size={16} color="#FCA311" style={styles.infoIcon} />
+              <Text style={styles.infoText}>{item.time}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="location-outline" size={16} color="#FCA311" style={styles.infoIcon} />
+              <Text style={styles.infoText}>{item.location}</Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+  
+  const renderFilterChips = () => {
+    const filters = ["All", "Upcoming", "Ongoing", "Past"];
+    
+    return (
+      <View style={styles.filtersContainer}>
+        {filters.map((filter) => (
+          <TouchableOpacity
+            key={filter}
+            style={[
+              styles.filterChip,
+              activeFilter === filter && styles.activeFilterChip,
+            ]}
+            onPress={() => setActiveFilter(filter)}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                activeFilter === filter && styles.activeFilterChipText,
+              ]}
+            >
+              {filter}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+  
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="calendar-outline" size={50} color="#333" />
+      <Text style={styles.emptyText}>No events found</Text>
+      <Text style={styles.emptySubtext}>
+        {activeFilter !== "All" 
+          ? `There are no ${activeFilter.toLowerCase()} events` 
+          : "Check back later for upcoming events"}
+      </Text>
+      
+      {activeFilter !== "All" && (
+        <TouchableOpacity
+          style={styles.resetButton}
+          onPress={() => setActiveFilter("All")}
+        >
+          <Text style={styles.resetButtonText}>Show All Events</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+  
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar translucent backgroundColor="transparent" style="light" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.replace("/(athlete)/(tabs)/home")}
+        >
+          <Ionicons name="chevron-back" size={24} color="#F0F0F0" />
+        </TouchableOpacity>
+        
+        <Text style={styles.headerTitle}>Events</Text>
+        
+        <View style={{ width: 40 }} /> 
+      </View>
+      
+      {/* Filter Chips */}
+      {renderFilterChips()}
+      
+      {/* Events List */}
       {loading ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color="#FFD700" />
-          <Text style={{ color: "#bbb", marginTop: 10 }}>Fetching latest events...</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FCA311" />
+          <Text style={styles.loadingText}>Loading events...</Text>
         </View>
       ) : (
         <FlatList
-          data={events}
+          data={filteredEvents}
           keyExtractor={(item) => item.id}
           renderItem={renderEventItem}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={{ alignItems: "center", marginTop: 20 }}>
-              <Text style={{ color: "#bbb", fontSize: 16 }}>No upcoming events</Text>
-            </View>
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={renderEmptyState}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FCA311"
+              colors={["#FCA311"]}
+            />
           }
         />
       )}
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0C0B0B",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  filtersContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#1A1A1A",
+    marginRight: 10,
+  },
+  activeFilterChip: {
+    backgroundColor: "rgba(252, 163, 17, 0.2)",
+  },
+  filterChipText: {
+    color: "#999",
+    fontWeight: "500",
+    fontSize: 14,
+  },
+  activeFilterChipText: {
+    color: "#FCA311",
+    fontWeight: "600",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "#999",
+    marginTop: 12,
+    fontSize: 16,
+  },
+  listContent: {
+    padding: 20,
+    paddingTop: 5,
+  },
+  eventCard: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  eventImage: {
+    width: "100%",
+    height: 160,
+  },
+  eventDetails: {
+    padding: 16,
+  },
+  eventHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  eventTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    flex: 1,
+    marginRight: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  eventInfo: {
+    marginTop: 4,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  infoIcon: {
+    marginRight: 8,
+  },
+  infoText: {
+    color: "#CCCCCC",
+    fontSize: 14,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+    marginTop: 40,
+  },
+  emptyText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 16,
+  },
+  emptySubtext: {
+    color: "#999",
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  resetButton: {
+    backgroundColor: "rgba(252, 163, 17, 0.2)",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  resetButtonText: {
+    color: "#FCA311",
+    fontWeight: "bold",
+  },
+});
 
 export default EventsScreen;
