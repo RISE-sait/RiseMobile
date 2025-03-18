@@ -16,6 +16,9 @@ import event from "@/assets/images/event.jpg";
 import schedules from "@/assets/images/schedules.jpg";
 import memberships from "@/assets/images/memberships.jpg";
 import stores from "@/assets/images/stores.jpg";
+import teamRoster from "@/assets/images/teamRoster.jpg";
+import matchHistory from "@/assets/images/matchHistory.jpg";
+import playerStats from "@/assets/images/playerStats.jpg";
 
 export default {
     onboarding,
@@ -36,5 +39,8 @@ export default {
     schedules,
     memberships,
     stores,
+    teamRoster,
+    matchHistory,
+    playerStats,
 
 };

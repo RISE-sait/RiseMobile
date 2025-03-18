@@ -1,56 +1,4 @@
-export type PlayerPosition = 'PG' | 'SG' | 'SF' | 'PF' | 'C';
-
-export type PlayerStatus = 'Active' | 'Injured' | 'Suspended' | 'Conditioning' | 'Day-to-Day';
-
-export interface PlayerStats {
-  ppg: number;      // Points per game
-  rpg: number;      // Rebounds per game
-  apg: number;      // Assists per game
-  spg: number;      // Steals per game
-  bpg: number;      // Blocks per game
-  fg: number;       // Field goal percentage
-  threePt: number;  // Three-point percentage
-  ft: number;       // Free throw percentage
-  mpg: number;      // Minutes per game
-  topg: number;     // Turnovers per game
-}
-
-export interface Player {
-  id: string;
-  firstName: string;
-  lastName: string;
-  number: number;
-  position: PlayerPosition;
-  height: string;
-  weight: number;
-  age: number;
-  experience: number;
-  college: string;
-  image: string;
-  status: PlayerStatus;
-  stats: PlayerStats;
-  hotZones?: string[];
-  strengths?: string[];
-  weaknesses?: string[];
-  notes?: string;
-  contract?: {
-    years: number;
-    amount: number;
-    signed: string;
-    expires: string;
-  };
-  lastFiveGames?: {
-    date: string;
-    opponent: string;
-    result: 'W' | 'L';
-    minutes: number;
-    points: number;
-    rebounds: number;
-    assists: number;
-    steals: number;
-    blocks: number;
-  }[];
-}
+import { Player } from "../types/player";
 
 const players: Player[] = [
   {
@@ -986,3 +934,4 @@ const players: Player[] = [
 ];
 
 export default players;
+
