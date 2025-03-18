@@ -1,13 +1,20 @@
 definitions:
   course.RequestDto:
     properties:
+      capacity:
+        type: integer
       description:
         type: string
       name:
         type: string
+    required:
+      - capacity
+      - name
     type: object
   course.ResponseDto:
     properties:
+      capacity:
+        type: integer
       createdAt:
         type: string
       description:
@@ -144,6 +151,10 @@ definitions:
         type: string
       last_name:
         type: string
+      membership_name:
+        type: string
+      membership_start_date:
+        type: string
       phone:
         type: string
       profile_pic:
@@ -174,26 +185,6 @@ definitions:
         type: string
     required:
     - waiver_url
-    type: object
-  dto.PracticeRequestDto:
-    properties:
-      description:
-        type: string
-      name:
-        type: string
-    type: object
-  dto.PracticeResponse:
-    properties:
-      createdAt:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      updatedAt:
-        type: string
     type: object
   enrollment.CreateRequestDto:
     properties:
@@ -227,9 +218,6 @@ definitions:
       course_id:
         example: 00000000-0000-0000-0000-000000000000
         type: string
-      day:
-        example: THURSDAY
-        type: string
       event_end_at:
         example: "2023-10-05T07:00:00Z"
         type: string
@@ -245,24 +233,13 @@ definitions:
       practice_id:
         example: f0e21457-75d4-4de6-b765-5ee13221fd72
         type: string
-      session_end_time:
-        example: 23:00:00+00:00
-        type: string
-      session_start_time:
-        example: 23:00:00+00:00
-        type: string
     required:
-    - day
     - event_end_at
     - event_start_at
-    - session_end_time
-    - session_start_time
     type: object
   event.ResponseDto:
     properties:
       course_id:
-        type: string
-      day:
         type: string
       event_end_at:
         type: string
@@ -296,8 +273,6 @@ definitions:
   game.RequestDto:
     properties:
       name:
-        type: string
-      video_link:
         type: string
     type: object
   game.ResponseDto:
@@ -414,12 +389,12 @@ definitions:
     type: object
   location.RequestDto:
     properties:
-      location:
+      address:
         type: string
       name:
         type: string
     required:
-      - location
+      - address
       - name
     type: object
   location.ResponseDto:
@@ -466,16 +441,21 @@ definitions:
       payment_frequency:
         type: string
       price:
-        type: integer
+        type: string
     required:
     - membership_id
+    - payment_frequency
     - price
     type: object
   membership_plan.PlanResponse:
     properties:
       amt_periods:
         type: integer
+      created_at:
+        type: string
       id:
+        type: string
+      joining_fees:
         type: string
       membership_id:
         type: string
@@ -484,7 +464,48 @@ definitions:
       payment_frequency:
         type: string
       price:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  practice.LevelsResponse:
+    properties:
+      levels:
+        items:
+          type: string
+        type: array
+    type: object
+  practice.RequestDto:
+    properties:
+      capacity:
         type: integer
+      description:
+        type: string
+      level:
+        type: string
+      name:
+        type: string
+    required:
+      - capacity
+      - level
+      - name
+    type: object
+  practice.Response:
+    properties:
+      capacity:
+        type: integer
+      createdAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      level:
+        type: string
+      name:
+        type: string
+      updatedAt:
+        type: string
     type: object
   purchase.MembershipPlanRequestDto:
     properties:
@@ -684,9 +705,9 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Delete a course by HubSpotId
+      description: Delete a course by Id
       parameters:
-      - description: Course HubSpotId
+        - description: Course Id
         in: path
         name: id
         required: true
@@ -697,7 +718,7 @@ paths:
         "204":
           description: No Content
         "400":
-          description: 'Bad Request: Invalid HubSpotId'
+          description: 'Bad Request: Invalid Id'
           schema:
             additionalProperties: true
             type: object
@@ -719,9 +740,9 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a course by HubSpotId
+      description: Get a course by Id
       parameters:
-      - description: Course HubSpotId
+        - description: Course Id
         in: path
         name: id
         required: true
@@ -734,7 +755,7 @@ paths:
           schema:
             $ref: '#/definitions/course.ResponseDto'
         "400":
-          description: 'Bad Request: Invalid HubSpotId'
+          description: 'Bad Request: Invalid Id'
           schema:
             additionalProperties: true
             type: object
@@ -748,7 +769,7 @@ paths:
           schema:
             additionalProperties: true
             type: object
-      summary: Get a course by HubSpotId
+      summary: Get a course by Id
       tags:
       - courses
     put:
@@ -796,7 +817,17 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieves a list of customers, optionally filtered by HubSpot IDs.
+      description: Retrieves a list of customers, optionally filtered by HubSpot IDs,
+        with pagination support.
+      parameters:
+        - description: 'Number of customers to retrieve (default: 20)'
+          in: query
+          name: limit
+          type: integer
+        - description: 'Number of customers to skip (default: 0)'
+          in: query
+          name: offset
+          type: integer
       produces:
       - application/json
       responses:
@@ -1190,19 +1221,52 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve all events, with optional filters by course, location,
-        and practice.
+      description: Retrieve all events within a specific date range, with optional
+        filters by course, location, game, and practice.
+      parameters:
+        - description: 'Retrieve events after this date (format: YYYY-MM-DD)'
+          example: '"2024-05-01"'
+          in: query
+          name: after
+          required: true
+          type: string
+        - description: 'Retrieve events before this date (format: YYYY-MM-DD)'
+          example: '"2024-06-01"'
+          in: query
+          name: before
+          required: true
+          type: string
+        - description: Filter by game ID (UUID format)
+          example: '"550e8400-e29b-41d4-a716-446655440000"'
+          in: query
+          name: game_id
+          type: string
+        - description: Filter by course ID (UUID format)
+          example: '"550e8400-e29b-41d4-a716-446655440000"'
+          in: query
+          name: course_id
+          type: string
+        - description: Filter by practice ID (UUID format)
+          example: '"550e8400-e29b-41d4-a716-446655440000"'
+          in: query
+          name: practice_id
+          type: string
+        - description: Filter by location ID (UUID format)
+          example: '"550e8400-e29b-41d4-a716-446655440000"'
+          in: query
+          name: location_id
+          type: string
       produces:
       - application/json
       responses:
         "200":
-          description: GetMemberships of events retrieved successfully
+          description: List of events retrieved successfully
           schema:
             items:
               $ref: '#/definitions/event.ResponseDto'
             type: array
         "400":
-          description: 'Bad Request: Invalid input'
+          description: 'Bad Request: Invalid input format or missing required parameters'
           schema:
             additionalProperties: true
             type: object
@@ -1250,7 +1314,7 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Deletes an event by its HubSpotId.
+      description: Deletes an event by its ID.
       parameters:
       - description: Event ID
         in: path
@@ -1266,7 +1330,7 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: 'Bad Request: Invalid HubSpotId'
+          description: 'Bad Request: Invalid ID'
           schema:
             additionalProperties: true
             type: object
@@ -1286,7 +1350,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieves details of a specific event based on its HubSpotId.
+      description: Retrieves details of a specific event based on its ID.
       parameters:
       - description: Event ID
         in: path
@@ -1301,7 +1365,7 @@ paths:
           schema:
             $ref: '#/definitions/event.ResponseDto'
         "400":
-          description: 'Bad Request: Invalid HubSpotId'
+          description: 'Bad Request: Invalid ID'
           schema:
             additionalProperties: true
             type: object
@@ -1369,10 +1433,6 @@ paths:
       - description: Filter by game name
         in: query
         name: name
-        type: string
-      - description: Filter by game description
-        in: query
-        name: description
         type: string
       produces:
       - application/json
@@ -2292,15 +2352,6 @@ paths:
       consumes:
       - application/json
       description: Get a list of practices
-      parameters:
-      - description: Filter by practice name
-        in: query
-        name: name
-        type: string
-      - description: Filter by practice description
-        in: query
-        name: description
-        type: string
       produces:
       - application/json
       responses:
@@ -2308,7 +2359,7 @@ paths:
           description: GetMemberships of practices retrieved successfully
           schema:
             items:
-              $ref: '#/definitions/dto.PracticeResponse'
+              $ref: '#/definitions/practice.Response'
             type: array
         "500":
           description: Internal Server Error
@@ -2328,14 +2379,14 @@ paths:
         name: practice
         required: true
         schema:
-          $ref: '#/definitions/dto.PracticeRequestDto'
+          $ref: '#/definitions/practice.RequestDto'
       produces:
       - application/json
       responses:
         "201":
           description: Practice created successfully
           schema:
-            $ref: '#/definitions/dto.PracticeResponse'
+            $ref: '#/definitions/practice.Response'
         "400":
           description: 'Bad Request: Invalid input'
           schema:
@@ -2355,9 +2406,9 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Delete a practice by HubSpotId
+      description: Delete a practice by ID
       parameters:
-      - description: Practice HubSpotId
+        - description: Practice ID
         in: path
         name: id
         required: true
@@ -2368,7 +2419,7 @@ paths:
         "204":
           description: 'No Content: Practice deleted successfully'
         "400":
-          description: 'Bad Request: Invalid HubSpotId'
+          description: 'Bad Request: Invalid ID'
           schema:
             additionalProperties: true
             type: object
@@ -2392,7 +2443,7 @@ paths:
       - application/json
       description: Update a practice
       parameters:
-      - description: Practice HubSpotId
+        - description: Practice ID
         in: path
         name: id
         required: true
@@ -2402,7 +2453,7 @@ paths:
         name: practice
         required: true
         schema:
-          $ref: '#/definitions/dto.PracticeRequestDto'
+          $ref: '#/definitions/practice.RequestDto'
       produces:
       - application/json
       responses:
@@ -2426,42 +2477,28 @@ paths:
       summary: Update a practice
       tags:
       - practices
-  /practices/{name}:
+  /practices/levels:
     get:
       consumes:
       - application/json
-      description: Get a practice by name
-      parameters:
-      - description: Practice Name
-        in: path
-        name: name
-        required: true
-        type: string
+      description: Retrieves a list of available practice levels.
       produces:
       - application/json
       responses:
         "200":
-          description: Practice retrieved successfully
+          description: Get practice levels retrieved successfully
           schema:
-            $ref: '#/definitions/dto.PracticeResponse'
-        "400":
-          description: 'Bad Request: Invalid Name'
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: 'Not Found: Practice not found'
-          schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/practice.LevelsResponse'
+            type: array
         "500":
           description: Internal Server Error
           schema:
             additionalProperties: true
             type: object
-      summary: Get a practice by name
+      summary: Get practice levels
       tags:
-      - practices
+        - practices
   /purchases/memberships:
     post:
       consumes:

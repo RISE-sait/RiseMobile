@@ -51,7 +51,7 @@
                 }
             }
         },
-      "/auth/child/{id}": {
+        "/auth/child/{id}": {
             "post": {
                 "security": [
                     {
@@ -72,8 +72,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                      "description": "Child ID",
-                      "name": "id",
+                        "description": "Child ID",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     }
@@ -188,7 +188,7 @@
         },
         "/courses/{id}": {
             "get": {
-                "description": "Get a course by HubSpotId",
+                "description": "Get a course by Id",
                 "consumes": [
                     "application/json"
                 ],
@@ -198,11 +198,11 @@
                 "tags": [
                     "courses"
                 ],
-                "summary": "Get a course by HubSpotId",
+                "summary": "Get a course by Id",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Course HubSpotId",
+                        "description": "Course Id",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -216,7 +216,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad Request: Invalid HubSpotId",
+                        "description": "Bad Request: Invalid Id",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -306,7 +306,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Delete a course by HubSpotId",
+                "description": "Delete a course by Id",
                 "consumes": [
                     "application/json"
                 ],
@@ -320,7 +320,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Course HubSpotId",
+                        "description": "Course Id",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -331,7 +331,7 @@
                         "description": "No Content"
                     },
                     "400": {
-                        "description": "Bad Request: Invalid HubSpotId",
+                        "description": "Bad Request: Invalid Id",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -356,7 +356,7 @@
         },
         "/customers": {
             "get": {
-                "description": "Retrieves a list of customers, optionally filtered by HubSpot IDs.",
+                "description": "Retrieves a list of customers, optionally filtered by HubSpot IDs, with pagination support.",
                 "consumes": [
                     "application/json"
                 ],
@@ -367,6 +367,20 @@
                     "customers"
                 ],
                 "summary": "Get customers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number of customers to retrieve (default: 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of customers to skip (default: 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "List of customers",
@@ -394,58 +408,58 @@
                 }
             }
         },
-      "/customers/{customer_id}/athlete": {
-        "get": {
-          "description": "Fetches customer statistics (wins, losses, etc.) for the specified customer ID.",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "customers"
-          ],
-          "summary": "Get customer statistics",
-          "parameters": [
-            {
-              "type": "string",
-              "description": "Customer ID",
-              "name": "customer_id",
-              "in": "path",
-              "required": true
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Customer stats retrieved successfully",
-              "schema": {
-                "$ref": "#/definitions/customer.AthleteResponseDto"
-              }
+        "/customers/{customer_id}/athlete": {
+            "get": {
+                "description": "Fetches customer statistics (wins, losses, etc.) for the specified customer ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "customers"
+                ],
+                "summary": "Get customer statistics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Customer ID",
+                        "name": "customer_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Customer stats retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/customer.AthleteResponseDto"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found: Customer does not exist",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
             },
-            "400": {
-              "description": "Bad Request: Invalid parameters",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "404": {
-              "description": "Not Found: Customer does not exist",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "500": {
-              "description": "Internal Server Error",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
             "patch": {
                 "description": "Updates customer statistics (wins, losses, etc.) for the specified customer ID",
                 "consumes": [
@@ -491,60 +505,60 @@
                             "additionalProperties": true
                         }
                     },
-                  "500": {
-                    "description": "Internal Server Error",
-                    "schema": {
-                      "type": "object",
-                      "additionalProperties": true
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
                     }
-                  }
                 }
             }
-      },
-      "/customers/{id}/children": {
-        "get": {
-          "description": "Retrieves a repository's children using the parent's ID",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "customers"
-          ],
-          "summary": "Get a repository's children by parent ID",
-          "parameters": [
-            {
-              "type": "string",
-              "description": "Parent ID",
-              "name": "email",
-              "in": "path",
-              "required": true
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Customer's children retrieved successfully",
-              "schema": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/hubspot.UserResponse"
-                }
-              }
-            },
-            "400": {
-              "description": "Bad Request: Invalid ID",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "404": {
-              "description": "Not Found: Parent or children not found",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
+        },
+        "/customers/{id}/children": {
+            "get": {
+                "description": "Retrieves a repository's children using the parent's ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "customers"
+                ],
+                "summary": "Get a repository's children by parent ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Parent ID",
+                        "name": "email",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Customer's children retrieved successfully",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/hubspot.UserResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found: Parent or children not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
@@ -932,7 +946,7 @@
         },
         "/events": {
             "get": {
-                "description": "Retrieve all events, with optional filters by course, location, and practice.",
+                "description": "Retrieve all events within a specific date range, with optional filters by course, location, game, and practice.",
                 "consumes": [
                     "application/json"
                 ],
@@ -943,9 +957,55 @@
                     "events"
                 ],
                 "summary": "Get all events",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"2024-05-01\"",
+                        "description": "Retrieve events after this date (format: YYYY-MM-DD)",
+                        "name": "after",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2024-06-01\"",
+                        "description": "Retrieve events before this date (format: YYYY-MM-DD)",
+                        "name": "before",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Filter by game ID (UUID format)",
+                        "name": "game_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Filter by course ID (UUID format)",
+                        "name": "course_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Filter by practice ID (UUID format)",
+                        "name": "practice_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Filter by location ID (UUID format)",
+                        "name": "location_id",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "GetMemberships of events retrieved successfully",
+                        "description": "List of events retrieved successfully",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -954,7 +1014,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad Request: Invalid input",
+                        "description": "Bad Request: Invalid input format or missing required parameters",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1019,7 +1079,7 @@
         },
         "/events/{id}": {
             "get": {
-                "description": "Retrieves details of a specific event based on its HubSpotId.",
+                "description": "Retrieves details of a specific event based on its ID.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1047,7 +1107,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad Request: Invalid HubSpotId",
+                        "description": "Bad Request: Invalid ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1131,7 +1191,7 @@
                 }
             },
             "delete": {
-                "description": "Deletes an event by its HubSpotId.",
+                "description": "Deletes an event by its ID.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1160,7 +1220,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad Request: Invalid HubSpotId",
+                        "description": "Bad Request: Invalid ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1201,12 +1261,6 @@
                         "type": "string",
                         "description": "Filter by game name",
                         "name": "name",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by game description",
-                        "name": "description",
                         "in": "query"
                     }
                 ],
@@ -1806,241 +1860,241 @@
                             "additionalProperties": true
                         }
                     },
-                  "500": {
-                    "description": "Internal Server Error",
-                    "schema": {
-                      "type": "object",
-                      "additionalProperties": true
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
                     }
-                  }
                 }
             }
         },
-      "/locations": {
-        "get": {
-          "description": "Retrieves a list of all locations.",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "locations"
-          ],
-          "summary": "Get all locations",
-          "responses": {
-            "200": {
-              "description": "List of locations retrieved successfully",
-              "schema": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/location.ResponseDto"
+        "/locations": {
+            "get": {
+                "description": "Retrieves a list of all locations.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Get all locations",
+                "responses": {
+                    "200": {
+                        "description": "List of locations retrieved successfully",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/location.ResponseDto"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
                 }
-              }
             },
-            "500": {
-              "description": "Internal Server Error",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
+            "post": {
+                "description": "Registers a new Location with the provided details.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Create a new Location",
+                "parameters": [
+                    {
+                        "description": "Location details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/location.RequestDto"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Location created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/location.ResponseDto"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
             }
-          }
         },
-        "post": {
-          "description": "Registers a new Location with the provided details.",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "locations"
-          ],
-          "summary": "Create a new Location",
-          "parameters": [
-            {
-              "description": "Location details",
-              "name": "body",
-              "in": "body",
-              "required": true,
-              "schema": {
-                "$ref": "#/definitions/location.RequestDto"
-              }
-            }
-          ],
-          "responses": {
-            "201": {
-              "description": "Location created successfully",
-              "schema": {
-                "$ref": "#/definitions/location.ResponseDto"
-              }
+        "/locations/{id}": {
+            "get": {
+                "description": "Retrieves a Location by its unique identifier.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Get a Location by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Location UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Location retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/location.ResponseDto"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid UUID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found: Location not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
             },
-            "400": {
-              "description": "Bad Request: Invalid input",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
+            "put": {
+                "description": "Updates the details of an existing Location by its UUID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Update a Location",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Location UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated Location details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/location.RequestDto"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content: Location updated successfully"
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found: Location not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
             },
-            "500": {
-              "description": "Internal Server Error",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        }
-      },
-      "/locations/{id}": {
-        "get": {
-          "description": "Retrieves a Location by its unique identifier.",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "locations"
-          ],
-          "summary": "Get a Location by ID",
-          "parameters": [
-            {
-              "type": "string",
-              "description": "Location UUID",
-              "name": "id",
-              "in": "path",
-              "required": true
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Location retrieved successfully",
-              "schema": {
-                "$ref": "#/definitions/location.ResponseDto"
-              }
-            },
-            "400": {
-              "description": "Bad Request: Invalid UUID",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "404": {
-              "description": "Not Found: Location not found",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "500": {
-              "description": "Internal Server Error",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "put": {
-          "description": "Updates the details of an existing Location by its UUID.",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "locations"
-          ],
-          "summary": "Update a Location",
-          "parameters": [
-            {
-              "type": "string",
-              "description": "Location UUID",
-              "name": "id",
-              "in": "path",
-              "required": true
-            },
-            {
-              "description": "Updated Location details",
-              "name": "body",
-              "in": "body",
-              "required": true,
-              "schema": {
-                "$ref": "#/definitions/location.RequestDto"
-              }
-            }
-          ],
-          "responses": {
-            "204": {
-              "description": "No Content: Location updated successfully"
-            },
-            "400": {
-              "description": "Bad Request: Invalid input",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "404": {
-              "description": "Not Found: Location not found",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "500": {
-              "description": "Internal Server Error",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "delete": {
-          "description": "Deletes a Location by its UUID.",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "locations"
-          ],
-          "summary": "Delete a Location",
-          "parameters": [
-            {
-              "type": "string",
-              "description": "Location UUID",
-              "name": "id",
-              "in": "path",
-              "required": true
-            }
-          ],
-          "responses": {
-            "204": {
-              "description": "No Content: Location deleted successfully"
-            },
-            "400": {
-              "description": "Bad Request: Invalid UUID",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "404": {
-              "description": "Not Found: Location not found",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
+            "delete": {
+                "description": "Deletes a Location by its UUID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Delete a Location",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Location UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content: Location deleted successfully"
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid UUID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found: Location not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
@@ -2578,27 +2632,13 @@
                     "practices"
                 ],
                 "summary": "Get a list of practices",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Filter by practice name",
-                        "name": "name",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by practice description",
-                        "name": "description",
-                        "in": "query"
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "GetMemberships of practices retrieved successfully",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.PracticeResponse"
+                                "$ref": "#/definitions/practice.Response"
                             }
                         }
                     },
@@ -2635,7 +2675,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.PracticeRequestDto"
+                            "$ref": "#/definitions/practice.RequestDto"
                         }
                     }
                 ],
@@ -2643,7 +2683,7 @@
                     "201": {
                         "description": "Practice created successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.PracticeResponse"
+                            "$ref": "#/definitions/practice.Response"
                         }
                     },
                     "400": {
@@ -2651,6 +2691,39 @@
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/practices/levels": {
+            "get": {
+                "description": "Retrieves a list of available practice levels.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "practices"
+                ],
+                "summary": "Get practice levels",
+                "responses": {
+                    "200": {
+                        "description": "Get practice levels retrieved successfully",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/practice.LevelsResponse"
+                            }
                         }
                     },
                     "500": {
@@ -2679,7 +2752,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Practice HubSpotId",
+                        "description": "Practice ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2690,7 +2763,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.PracticeRequestDto"
+                            "$ref": "#/definitions/practice.RequestDto"
                         }
                     }
                 ],
@@ -2727,7 +2800,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Delete a practice by HubSpotId",
+                "description": "Delete a practice by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -2741,7 +2814,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Practice HubSpotId",
+                        "description": "Practice ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2752,60 +2825,7 @@
                         "description": "No Content: Practice deleted successfully"
                     },
                     "400": {
-                        "description": "Bad Request: Invalid HubSpotId",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found: Practice not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/practices/{name}": {
-            "get": {
-                "description": "Get a practice by name",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "practices"
-                ],
-                "summary": "Get a practice by name",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Practice Name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Practice retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.PracticeResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request: Invalid Name",
+                        "description": "Bad Request: Invalid ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -2882,58 +2902,58 @@
                 }
             }
         },
-      "/register/athlete": {
-        "post": {
-          "description": "Registers a new athlete by verifying the Firebase token and creating an account based on the provided details.",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "registration"
-          ],
-          "summary": "Register a new athlete",
-          "parameters": [
-            {
-              "description": "Athlete registration details",
-              "name": "athlete",
-              "in": "body",
-              "required": true,
-              "schema": {
-                "$ref": "#/definitions/customer.AthleteRegistrationRequestDto"
-              }
-            },
-            {
-              "type": "string",
-              "description": "Firebase token for user verification",
-              "name": "firebase_token",
-              "in": "header",
-              "required": true
-            }
-          ],
-          "responses": {
-            "201": {
-              "description": "Athlete registered successfully",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "400": {
-              "description": "Bad Request: Missing or invalid Firebase token or request body",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "500": {
-              "description": "Internal Server Error: Failed to register athlete",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
+        "/register/athlete": {
+            "post": {
+                "description": "Registers a new athlete by verifying the Firebase token and creating an account based on the provided details.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "registration"
+                ],
+                "summary": "Register a new athlete",
+                "parameters": [
+                    {
+                        "description": "Athlete registration details",
+                        "name": "athlete",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/customer.AthleteRegistrationRequestDto"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Firebase token for user verification",
+                        "name": "firebase_token",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Athlete registered successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Missing or invalid Firebase token or request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error: Failed to register athlete",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
                     }
                 }
             }
@@ -3001,9 +3021,9 @@
                 }
             }
         },
-      "/register/parent": {
+        "/register/parent": {
             "post": {
-              "description": "Registers a new parent by verifying the Firebase token and creating an account based on the provided details.",
+                "description": "Registers a new parent by verifying the Firebase token and creating an account based on the provided details.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3013,15 +3033,15 @@
                 "tags": [
                     "registration"
                 ],
-              "summary": "Register a new parent",
+                "summary": "Register a new parent",
                 "parameters": [
                     {
-                      "description": "Parent registration details",
-                      "name": "parent",
+                        "description": "Parent registration details",
+                        "name": "parent",
                         "in": "body",
                         "required": true,
                         "schema": {
-                          "$ref": "#/definitions/customer.ParentRegistrationRequestDto"
+                            "$ref": "#/definitions/customer.ParentRegistrationRequestDto"
                         }
                     },
                     {
@@ -3034,7 +3054,7 @@
                 ],
                 "responses": {
                     "201": {
-                      "description": "Parent registered successfully",
+                        "description": "Parent registered successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -3048,7 +3068,7 @@
                         }
                     },
                     "500": {
-                      "description": "Internal Server Error: Failed to register parent",
+                        "description": "Internal Server Error: Failed to register parent",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -3072,19 +3092,19 @@
                 "summary": "Register a new staff member",
                 "parameters": [
                     {
-                      "type": "string",
-                      "description": "Firebase token for user verification",
-                      "name": "firebase_token",
-                      "in": "header",
-                      "required": true
+                        "type": "string",
+                        "description": "Firebase token for user verification",
+                        "name": "firebase_token",
+                        "in": "header",
+                        "required": true
                     },
-                  {
+                    {
                         "description": "Staff registration details",
                         "name": "staff",
                         "in": "body",
                         "required": true,
                         "schema": {
-                          "$ref": "#/definitions/staff.RegistrationRequestDto"
+                            "$ref": "#/definitions/staff.RegistrationRequestDto"
                         }
                     }
                 ],
@@ -3122,7 +3142,7 @@
         },
         "/staffs": {
             "get": {
-              "description": "Retrieves staff members based on optional role filter.",
+                "description": "Retrieves staff members based on optional role filter.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3191,7 +3211,7 @@
                     {
                         "type": "string",
                         "example": "\"f47ac10b-58cc-4372-a567-0e02b2c3d479\"",
-                      "description": "Staff ID",
+                        "description": "Staff ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3292,7 +3312,14 @@
     "definitions": {
         "course.RequestDto": {
             "type": "object",
+            "required": [
+                "capacity",
+                "name"
+            ],
             "properties": {
+                "capacity": {
+                    "type": "integer"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -3304,6 +3331,9 @@
         "course.ResponseDto": {
             "type": "object",
             "properties": {
+                "capacity": {
+                    "type": "integer"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -3321,76 +3351,76 @@
                 }
             }
         },
-      "customer.AthleteRegistrationRequestDto": {
-        "type": "object",
-        "required": [
-          "age",
-          "first_name",
-          "last_name"
-        ],
-        "properties": {
-          "age": {
-            "type": "integer"
-          },
-          "country_code": {
-            "type": "string"
-          },
-          "first_name": {
-            "type": "string"
-          },
-          "has_consent_to_email_marketing": {
-            "type": "boolean"
-          },
-          "has_consent_to_sms": {
-            "type": "boolean"
-          },
-          "last_name": {
-            "type": "string"
-          },
-          "phone_number": {
-            "type": "string",
-            "example": "+15141234567"
-          },
-          "waivers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/definitions/customer.WaiverSigningRequestDto"
+        "customer.AthleteRegistrationRequestDto": {
+            "type": "object",
+            "required": [
+                "age",
+                "first_name",
+                "last_name"
+            ],
+            "properties": {
+                "age": {
+                    "type": "integer"
+                },
+                "country_code": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "has_consent_to_email_marketing": {
+                    "type": "boolean"
+                },
+                "has_consent_to_sms": {
+                    "type": "boolean"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string",
+                    "example": "+15141234567"
+                },
+                "waivers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/customer.WaiverSigningRequestDto"
+                    }
+                }
             }
-          }
-        }
-      },
-      "customer.AthleteResponseDto": {
-        "type": "object",
-        "properties": {
-          "assists": {
-            "type": "integer"
-          },
-          "created_at": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "losses": {
-            "type": "integer"
-          },
-          "points": {
-            "type": "integer"
-          },
-          "profile_pic": {
-            "type": "string"
-          },
-          "rebounds": {
-            "type": "integer"
-          },
-          "steals": {
-            "type": "integer"
-          },
-          "updated_at": {
-            "type": "string"
-          },
-          "wins": {
-            "type": "integer"
+        },
+        "customer.AthleteResponseDto": {
+            "type": "object",
+            "properties": {
+                "assists": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "losses": {
+                    "type": "integer"
+                },
+                "points": {
+                    "type": "integer"
+                },
+                "profile_pic": {
+                    "type": "string"
+                },
+                "rebounds": {
+                    "type": "integer"
+                },
+                "steals": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "wins": {
+                    "type": "integer"
                 }
             }
         },
@@ -3405,9 +3435,9 @@
                 "age": {
                     "type": "integer"
                 },
-              "country_code": {
-                "type": "string"
-              },
+                "country_code": {
+                    "type": "string"
+                },
                 "first_name": {
                     "type": "string"
                 },
@@ -3454,20 +3484,20 @@
                 }
             }
         },
-      "customer.ParentRegistrationRequestDto": {
+        "customer.ParentRegistrationRequestDto": {
             "type": "object",
             "required": [
                 "age",
                 "first_name",
-              "last_name"
+                "last_name"
             ],
             "properties": {
                 "age": {
                     "type": "integer"
                 },
-              "country_code": {
-                "type": "string"
-              },
+                "country_code": {
+                    "type": "string"
+                },
                 "first_name": {
                     "type": "string"
                 },
@@ -3489,12 +3519,12 @@
         "customer.Response": {
             "type": "object",
             "properties": {
-              "age": {
-                "type": "integer"
-              },
-              "country_code": {
-                "type": "string"
-              },
+                "age": {
+                    "type": "integer"
+                },
+                "country_code": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -3505,6 +3535,12 @@
                     "type": "string"
                 },
                 "last_name": {
+                    "type": "string"
+                },
+                "membership_name": {
+                    "type": "string"
+                },
+                "membership_start_date": {
                     "type": "string"
                 },
                 "phone": {
@@ -3555,37 +3591,6 @@
                 }
             }
         },
-        "dto.PracticeRequestDto": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.PracticeResponse": {
-            "type": "object",
-            "properties": {
-              "createdAt": {
-                "type": "string"
-              },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-              "updatedAt": {
-                "type": "string"
-                }
-            }
-        },
         "enrollment.CreateRequestDto": {
             "type": "object",
             "required": [
@@ -3630,20 +3635,13 @@
         "event.RequestDto": {
             "type": "object",
             "required": [
-                "day",
                 "event_end_at",
-                "event_start_at",
-                "session_end_time",
-                "session_start_time"
+                "event_start_at"
             ],
             "properties": {
                 "course_id": {
                     "type": "string",
                     "example": "00000000-0000-0000-0000-000000000000"
-                },
-                "day": {
-                    "type": "string",
-                    "example": "THURSDAY"
                 },
                 "event_end_at": {
                     "type": "string",
@@ -3664,14 +3662,6 @@
                 "practice_id": {
                     "type": "string",
                     "example": "f0e21457-75d4-4de6-b765-5ee13221fd72"
-                },
-                "session_end_time": {
-                    "type": "string",
-                    "example": "23:00:00+00:00"
-                },
-                "session_start_time": {
-                    "type": "string",
-                    "example": "23:00:00+00:00"
                 }
             }
         },
@@ -3679,9 +3669,6 @@
             "type": "object",
             "properties": {
                 "course_id": {
-                    "type": "string"
-                },
-                "day": {
                     "type": "string"
                 },
                 "event_end_at": {
@@ -3733,9 +3720,6 @@
             "type": "object",
             "properties": {
                 "name": {
-                    "type": "string"
-                },
-                "video_link": {
                     "type": "string"
                 }
             }
@@ -3847,15 +3831,15 @@
                 "firstname": {
                     "type": "string"
                 },
-              "has_marketing_email_consent": {
-                "type": "string"
-              },
-              "has_sms_consent": {
-                "type": "string"
-              },
-              "hs_country_region_code": {
-                "type": "string"
-              },
+                "has_marketing_email_consent": {
+                    "type": "string"
+                },
+                "has_sms_consent": {
+                    "type": "string"
+                },
+                "hs_country_region_code": {
+                    "type": "string"
+                },
                 "lastname": {
                     "type": "string"
                 },
@@ -3890,9 +3874,9 @@
                 "age": {
                     "type": "integer"
                 },
-              "country_code": {
-                "type": "string"
-              },
+                "country_code": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -3910,32 +3894,32 @@
                 }
             }
         },
-      "location.RequestDto": {
-        "type": "object",
-        "required": [
-          "location",
-          "name"
-        ],
-        "properties": {
-          "location": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        }
-      },
-      "location.ResponseDto": {
-        "type": "object",
-        "properties": {
-          "address": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
+        "location.RequestDto": {
+            "type": "object",
+            "required": [
+                "address",
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "location.ResponseDto": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -3979,6 +3963,7 @@
             "type": "object",
             "required": [
                 "membership_id",
+                "payment_frequency",
                 "price"
             ],
             "properties": {
@@ -3995,7 +3980,7 @@
                     "type": "string"
                 },
                 "price": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -4005,7 +3990,13 @@
                 "amt_periods": {
                     "type": "integer"
                 },
+                "created_at": {
+                    "type": "string"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "joining_fees": {
                     "type": "string"
                 },
                 "membership_id": {
@@ -4018,7 +4009,69 @@
                     "type": "string"
                 },
                 "price": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "practice.LevelsResponse": {
+            "type": "object",
+            "properties": {
+                "levels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "practice.RequestDto": {
+            "type": "object",
+            "required": [
+                "capacity",
+                "level",
+                "name"
+            ],
+            "properties": {
+                "capacity": {
                     "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "practice.Response": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         },
@@ -4039,36 +4092,36 @@
                 }
             }
         },
-      "staff.RegistrationRequestDto": {
-        "type": "object",
-        "required": [
-          "age",
-          "first_name",
-          "last_name",
-          "role"
-        ],
-        "properties": {
-          "age": {
-            "type": "integer"
-          },
-          "country_code": {
-            "type": "string"
-          },
-          "first_name": {
-            "type": "string"
-          },
-          "is_active_staff": {
-            "type": "boolean"
-          },
-          "last_name": {
-            "type": "string"
-          },
-          "phone_number": {
-            "type": "string",
-            "example": "+15141234567"
-          },
-          "role": {
-            "type": "string"
+        "staff.RegistrationRequestDto": {
+            "type": "object",
+            "required": [
+                "age",
+                "first_name",
+                "last_name",
+                "role"
+            ],
+            "properties": {
+                "age": {
+                    "type": "integer"
+                },
+                "country_code": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "is_active_staff": {
+                    "type": "boolean"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string",
+                    "example": "+15141234567"
+                },
+                "role": {
+                    "type": "string"
                 }
             }
         },
@@ -4090,9 +4143,9 @@
         "staff.ResponseDto": {
             "type": "object",
             "properties": {
-              "country_code": {
-                "type": "string"
-              },
+                "country_code": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
