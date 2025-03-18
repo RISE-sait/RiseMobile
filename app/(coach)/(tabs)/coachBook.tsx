@@ -89,8 +89,8 @@ const featuredFacilities = [
     description: "Check open slots for practice sessions",
     image:
       "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
-    route: "/screens/booking-options/DropIn",
-  },
+      route: "/screens/coach-booking/practiceBooking",
+    },
 ]
 
 // Booking options with availability status
@@ -98,28 +98,28 @@ const bookingOptions = [
   {
     title: "Practice",
     icon: "basketball-ball",
-    route: "/screens/booking-options/DropIn",
+    route: "/screens/coach-booking/practiceBooking",
     availability: "High",
     color: "#FF7043",
   },
   {
     title: "Wellness",
     icon: "spa",
-    route: "/screens/booking-options/Wellness",
+    route: "/screens/comingSoon",
     availability: "Medium",
     color: "#66BB6A",
   },
   {
     title: "Podcast Room",
     icon: "microphone",
-    route: "/screens/booking-options/PodcastRoom",
+    route: "/screens/comingSoon",
     availability: "Low",
     color: "#42A5F5",
   },
   {
     title: "Recovery Room",
     icon: "bed",
-    route: "/screens/booking-options/RecoveryRoom",
+    route: "/screens/comingSoon",
     availability: "High",
     color: "#AB47BC",
   },
@@ -133,7 +133,7 @@ const bookingOptions = [
   {
     title: "Gym",
     icon: "dumbbell",
-    route: "/screens/booking-options/Gym",
+    route: "/screens/comingSoon",
     availability: "High",
     color: "#EC407A",
   },

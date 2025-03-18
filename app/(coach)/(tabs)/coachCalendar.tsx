@@ -74,7 +74,7 @@ const CoachCalendar = () => {
       <StatusBar translucent style="light" />
 
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <PageTitle title="Coach Calendar" buttonText="View All" />
+        <PageTitle title="Coach Calendar" />
 
         <View className="px-5 py-4">
           <CalendarCard
