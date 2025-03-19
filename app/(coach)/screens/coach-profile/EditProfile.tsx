@@ -20,20 +20,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { 
   faArrowLeft, 
-  faCamera, 
   faCheck, 
   faEnvelope, 
   faPhone, 
   faUser, 
-  faPen, 
-  faShield,
   faBasketball
 } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
-
 import { Input } from "@/app/components/ui/input";
-import { Button } from "@/app/components/ui/button";
 import images from "@/constants/images";
 
 type User = {
