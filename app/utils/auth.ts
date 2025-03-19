@@ -16,7 +16,7 @@ type User = {
   firstName: string;
   lastName: string;
   email: string;
-  role: "athlete" | "instructor" | "coach";
+  role: string;
   countryCode: string;
   token: string;
 };
@@ -63,6 +63,12 @@ export const useAuth = () => {
             break;
           case "coach":
             router.replace("/(coach)/(tabs)/coachHome");
+            break;
+          case "parent":
+            router.replace("/(parent)/(tabs)/home");
+            break;
+          case "barber":
+            router.replace("/(barber)/(tabs)/home");
             break;
           default:
             console.error("❌ Unknown role:", userRole);
@@ -126,6 +132,12 @@ export const useAuth = () => {
         case "coach":
           console.log("🏆 Navigating to Coach Home...");
           router.replace("/(coach)/(tabs)/coachHome");
+        case "parent":
+          console.log("🏆 Navigating to Parent Home...")
+          router.replace("/(parent)/(tabs)/home");
+        case "barber":
+          console.log("🏆 Navigating to Barber Home...")
+          router.replace("/(barber)/(tabs)/home");
           break;
         default:
           console.error("❌ Unknown role:", userRole);

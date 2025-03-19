@@ -21,6 +21,10 @@ export default function Index() {
     return <Redirect href="/(instructor)/instructorHome" />;
   } else if (user.role === "coach") {
     return <Redirect href="/(coach)/(tabs)/coachHome" />;
+  } else if (user.role === "parent") {
+    return <Redirect href="/(parent)/(tabs)/home" />;
+  } else if (user.role === "barber") {
+    return <Redirect href="/(barber)/(tabs)/home" />;
   }
 
   // Fallback, should ideally never be reached

@@ -9,7 +9,7 @@ type User = {
   email: string;
   firstName: string;  // ✅ Add firstName
   lastName: string;   // ✅ Add lastName
-  role: "athlete" | "instructor" | "coach";
+  role: string;
   countryCode: string; //
   token: string;
 };
@@ -36,7 +36,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 
     // ✅ Send Firebase Token to API
     const response = await axios.post(`${API_URL}/auth`, { email }, {
-      headers: { firebase_token: token }
+      headers: { Authorization: `Bearer ${token}` }
     });
 
     console.log("API Response:", response.data); // Debug log ✅
@@ -86,7 +86,7 @@ export const registerChild = async (
     // ✅ Send request to API
     const response = await axios.post(`${API_URL}/register/child`, requestBody, {
       headers: {
-        "firebase_token": parentToken, // ✅ Use parent's token for authentication
+        "Authorization": `Bearer ${parentToken}`,
         "Content-Type": "application/json",
       },
     });
@@ -162,7 +162,7 @@ export const registerUser = async (
         has_consent_to_email_marketing: true,
         has_consent_to_sms: true,
       };
-    } else if (role === "coach" || role === "instructor") {
+    } else if (role === "coach" || role === "instructor" || role === "barber") {
       endpoint = "register/staff";
       requestBody = {
         age,
@@ -182,7 +182,7 @@ export const registerUser = async (
     // ✅ Send request to API
     const response = await axios.post(`${API_URL}/${endpoint}`, requestBody, {
       headers: {
-        "firebase_token": token,
+        "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });

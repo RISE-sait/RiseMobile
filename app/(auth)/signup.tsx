@@ -25,6 +25,8 @@ import CountryPicker, { Country } from "react-native-country-picker-modal";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import DateTimePickerModal from "react-native-modal-datetime-picker"
+import { format } from "date-fns"
 
 const { width, height } = Dimensions.get("window");
 
@@ -55,6 +57,9 @@ const SignUpScreen = () => {
     { cca2: "GB", name: "United Kingdom" },
     { cca2: "AU", name: "Australia" },
   ]);
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false)
+  const [formattedPhoneNumber, setFormattedPhoneNumber] = useState("")
+  const [phoneInputFocused, setPhoneInputFocused] = useState(false)
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -117,7 +122,26 @@ const SignUpScreen = () => {
   };
 
   const validatePassword = (password) => {
-    return password.length >= 8;
+    // Check for minimum length
+    if (password.length < 8)
+      return { valid: false, strength: "weak", message: "Password must be at least 8 characters" }
+
+    // Check for complexity
+    const hasUpperCase = /[A-Z]/.test(password)
+    const hasLowerCase = /[a-z]/.test(password)
+    const hasNumbers = /\d/.test(password)
+    const hasSpecialChars = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)
+
+    const complexity = [hasUpperCase, hasLowerCase, hasNumbers, hasSpecialChars].filter(Boolean).length
+
+    if (complexity === 1)
+      return { valid: false, strength: "weak", message: "Add uppercase, numbers, or special characters" }
+    if (complexity === 2)
+      return { valid: false, strength: "medium", message: "Add more character types for a stronger password" }
+    if (complexity === 3) return { valid: true, strength: "good", message: "Good password strength" }
+    if (complexity === 4) return { valid: true, strength: "strong", message: "Strong password" }
+
+    return { valid: false, strength: "weak", message: "Invalid password" }
   };
 
   const validateForm = () => {
@@ -127,8 +151,10 @@ const SignUpScreen = () => {
     else if (!validateEmail(email)) newErrors.email = "Invalid email format";
     
     if (!password) newErrors.password = "Password is required";
-    else if (!validatePassword(password)) newErrors.password = "Password must be at least 8 characters";
-    
+    else {
+      const passwordCheck = validatePassword(password)
+      if (!passwordCheck.valid) newErrors.password = passwordCheck.message
+    }    
     if (password !== confirmPassword) newErrors.confirmPassword = "Passwords don't match";
     
     if (!role) newErrors.role = "Please select a role";
@@ -153,9 +179,12 @@ const SignUpScreen = () => {
         setErrors({ dateOfBirth: "You must be at least 13 years old." });
         return;
       }
+
+      // Format phone with country code
+      const fullPhoneNumber = `+${country.callingCode?.[0] || "1"}${phoneNumber}`
   
       // Determine API Endpoint
-      const isCustomer = role === "athlete" || role === "parent";
+      const isCustomer = role === "athlete" || role === "parent" || role === "barber"
       const endpoint = isCustomer ? "customers/register" : "staff/register";
   
       // Construct Payload
@@ -166,7 +195,7 @@ const SignUpScreen = () => {
         password,
         age,
         role,
-        phone_number: phoneNumber,
+        phone_number: fullPhoneNumber,
         country_code: country.cca2,
         has_consent_to_email_marketing: true,  // Defaulting to true, modify if needed
         has_consent_to_sms: true,             // Defaulting to true, modify if needed
@@ -193,8 +222,8 @@ const SignUpScreen = () => {
         lastName,
         role,
         age,
-        phoneNumber,
-        country.cca2 // Country Code
+        fullPhoneNumber, // Use the full phone number with country code
+        country.cca2,
       );
         
       console.log("✅ Registration Successful:", response);
@@ -230,10 +259,42 @@ const SignUpScreen = () => {
         return <Ionicons name="people" size={18} color="#FFD700" />;
       case "instructor":
         return <MaterialCommunityIcons name="whistle" size={18} color="#FFD700" />;
+        case "barber":
+        return <MaterialCommunityIcons name="content-cut" size={18} color="#FFD700" />
       default:
         return <Ionicons name="person-outline" size={18} color="#9EA0A4" />;
     }
   };
+
+  const showDatePicker = () => {
+    setDatePickerVisible(true)
+  }
+
+  const hideDatePicker = () => {
+    setDatePickerVisible(false)
+  }
+
+  const handleConfirmDate = (date) => {
+    setDateOfBirth(format(date, "yyyy-MM-dd"))
+    hideDatePicker()
+    if (errors.dateOfBirth) setErrors({ ...errors, dateOfBirth: null })
+  }
+
+  const formatPhoneNumber = (text) => {
+    // Remove all non-numeric characters
+    const cleaned = text.replace(/\D/g, "")
+    setPhoneNumber(cleaned)
+
+    // Format based on length
+    let formatted = cleaned
+    if (cleaned.length > 3 && cleaned.length <= 6) {
+      formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`
+    } else if (cleaned.length > 6) {
+      formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`
+    }
+
+    setFormattedPhoneNumber(formatted)
+  }
 
   const renderStep1 = () => (
     <Animated.View 
@@ -301,17 +362,46 @@ const SignUpScreen = () => {
                 style={[
                   styles.strengthBar, 
                   { 
-                    width: `${Math.min((password.length / 12) * 100, 100)}%`,
-                    backgroundColor: password.length < 8 ? '#FF4D4F' : 
-                                    password.length < 10 ? '#FFA500' : '#4CAF50'
+                    width: `${(() => {
+                      const result = validatePassword(password)
+                      switch (result.strength) {
+                        case "weak":
+                          return 25
+                        case "medium":
+                          return 50
+                        case "good":
+                          return 75
+                        case "strong":
+                          return 100
+                        default:
+                          return 0
+                      }
+                    })()}%`,
+                    backgroundColor: (() => {
+                      const result = validatePassword(password)
+                      switch (result.strength) {
+                        case "weak":
+                          return "#FF4D4F"
+                        case "medium":
+                          return "#FFA500"
+                        case "good":
+                          return "#2EB62C"
+                        case "strong":
+                          return "#57C84D"
+                        default:
+                          return "#FF4D4F"
+                      }
+                    })(),
                   }
                 ]} 
               />
             </View>
-            <Text style={styles.strengthText}>
-              {password.length < 8 ? 'Weak' : 
-               password.length < 10 ? 'Good' : 'Strong'}
-            </Text>
+            <View style={styles.strengthTextContainer}>
+              <Text style={styles.strengthText}>{validatePassword(password).message}</Text>
+              {validatePassword(password).strength === "weak" && (
+                <Ionicons name="alert-circle" size={14} color="#FF4D4F" style={{ marginLeft: 5 }} />
+              )}
+            </View>
           </View>
         )}
       </View>
@@ -418,22 +508,28 @@ const SignUpScreen = () => {
   
       {/* Date of Birth */}
       <View style={styles.inputContainer}>
-        <View style={styles.inputWrapper}>
+      <TouchableOpacity
+          style={[styles.inputWrapper, errors.dateOfBirth && styles.inputError]}
+          onPress={showDatePicker}
+        >
           <Ionicons name="calendar-outline" size={20} color="#9EA0A4" style={styles.inputIcon} />
-          <TextInput
-            placeholder="Date of Birth (YYYY-MM-DD)"
-            placeholderTextColor="#9EA0A4"
-            style={[styles.input, errors.dateOfBirth && styles.inputError]}
-            value={dateOfBirth}
-            onChangeText={(text) => {
-              setDateOfBirth(text);
-              if (errors.dateOfBirth) setErrors({...errors, dateOfBirth: null});
-            }}
-            keyboardType="numeric"
-          />
-        </View>
+          <Text style={[styles.pickerText, dateOfBirth ? styles.activePickerText : {}]}>
+            {dateOfBirth ? dateOfBirth : "Date of Birth"}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color="#9EA0A4" style={styles.dropdownIcon} />
+        </TouchableOpacity>
         {errors.dateOfBirth && <Text style={styles.errorText}>{errors.dateOfBirth}</Text>}
       </View>
+
+      {/* Date Picker Modal */}
+      <DateTimePickerModal
+        isVisible={isDatePickerVisible}
+        mode="date"
+        onConfirm={handleConfirmDate}
+        onCancel={hideDatePicker}
+        maximumDate={new Date()}
+        date={dateOfBirth ? new Date(dateOfBirth) : new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+      />
   
       {/* Role Selection */}
       <View style={styles.inputContainer}>
@@ -450,20 +546,23 @@ const SignUpScreen = () => {
         {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
       </View>
   
-      {/* Phone Number */}
+      {/* Phone Number with Country Code */}
       <View style={styles.inputContainer}>
-        <View style={styles.inputWrapper}>
+      <View style={[styles.inputWrapper, errors.phoneNumber && styles.inputError]}>
           <Ionicons name="call-outline" size={20} color="#9EA0A4" style={styles.inputIcon} />
+
+          <TouchableOpacity style={styles.countryCodeContainer} onPress={() => setCountryPickerVisible(true)}>
+            <Text style={styles.countryCodeText}>{country ? `+${country.callingCode?.[0] || "1"}` : "+1"}</Text>
+            <Ionicons name="chevron-down" size={16} color="#9EA0A4" />
+          </TouchableOpacity>
+
           <TextInput
-            placeholder="Phone Number"
-            placeholderTextColor="#9EA0A4"
-            style={[styles.input, errors.phoneNumber && styles.inputError]}
-            value={phoneNumber}
-            onChangeText={(text) => {
-              setPhoneNumber(text);
-              if (errors.phoneNumber) setErrors({...errors, phoneNumber: null});
-            }}
+            style={styles.input}
+            value={phoneInputFocused ? phoneNumber : formattedPhoneNumber}
+            onChangeText={formatPhoneNumber}
             keyboardType="phone-pad"
+            onFocus={() => setPhoneInputFocused(true)}
+            onBlur={() => setPhoneInputFocused(false)}
           />
         </View>
         {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
@@ -623,6 +722,29 @@ const SignUpScreen = () => {
                   <Text style={styles.roleDescription}>Specialized skills instructors</Text>
                 </View>
                 {role === "instructor" && (
+                  <Ionicons name="checkmark-circle" size={24} color="#FFD700" style={styles.checkIcon} />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.roleOption}
+                onPress={() => {
+                  setRole("barber")
+                  setRoleModalVisible(false)
+                  // Trigger haptic feedback
+                  if (Platform.OS === "ios") {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                  }
+                }}
+              >
+                <View style={styles.roleIconContainer}>
+                  <MaterialCommunityIcons name="content-cut" size={24} color="#FFD700" />
+                </View>
+                <View style={styles.roleTextContainer}>
+                  <Text style={styles.roleTitle}>Barber</Text>
+                  <Text style={styles.roleDescription}>Haircut specialists for athletes</Text>
+                </View>
+                {role === "barber" && (
                   <Ionicons name="checkmark-circle" size={24} color="#FFD700" style={styles.checkIcon} />
                 )}
               </TouchableOpacity>
@@ -1240,6 +1362,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 10,
     flex: 1,
+  },
+  strengthTextContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  countryCodeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 10,
+    marginRight: 10,
+    borderRightWidth: 1,
+    borderRightColor: "#333",
+  },
+  countryCodeText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    marginRight: 5,
   },
 });
 
