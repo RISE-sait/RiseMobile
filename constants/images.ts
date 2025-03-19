@@ -19,6 +19,7 @@ import stores from "@/assets/images/stores.jpg";
 import teamRoster from "@/assets/images/teamRoster.jpg";
 import matchHistory from "@/assets/images/matchHistory.jpg";
 import playerStats from "@/assets/images/playerStats.jpg";
+import parentHeadshot from "@/assets/images/parentHeadshot.png";
 
 export default {
     onboarding,
@@ -42,5 +43,6 @@ export default {
     teamRoster,
     matchHistory,
     playerStats,
+    parentHeadshot,
 
 };
