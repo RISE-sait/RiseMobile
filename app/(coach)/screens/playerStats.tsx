@@ -17,7 +17,6 @@ import RecentGames from "../../components/playerStats/RecentGames";
 import ComparisonChart from "../../components/playerStats/ComparisonChart";
 import ShotChart from "../../components/playerStats/ShotChart";
 import StrengthsWeaknesses from "../../components/playerStats/StrengthsWeaknesses";
-import ContractInfo from "../../components/playerStats/ContractInfo";
 
 // Stat categories list 
 const statCategories = [
@@ -85,7 +84,6 @@ const PlayerStats = () => {
             <ComparisonChart comparisonData={comparisonData} />
             <ShotChart shotChartData={shotChartData} />
             <StrengthsWeaknesses strengths={player?.strengths || []} weaknesses={player?.weaknesses || []} />
-            <ContractInfo contract={player?.contract ?? { signed: "", expires: "", years: 0, amount: 0 }} />
           </>
         )}
       </Animated.ScrollView>

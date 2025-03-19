@@ -304,28 +304,6 @@ const MatchHistory: React.FC = () => {
                 </View>
               </View>
 
-              {/* Match Timeline/Events */}
-              {item.events && item.events.length > 0 && (
-                <View style={styles.timelineContainer}>
-                  <Text style={styles.timelineTitle}>Match Timeline</Text>
-                  <View style={styles.timeline}>
-                    {item.events.map((event, index) => (
-                      <View key={event.id} style={styles.timelineEvent}>
-                        <View style={styles.timelineDot} />
-                        {index < item.events.length - 1 && <View style={styles.timelineLine} />}
-                        <View style={styles.timelineContent}>
-                          <Text style={styles.timelineTime}>{event.time}'</Text>
-                          <View style={styles.timelineDetails}>
-                            <Text style={styles.timelinePlayer}>{event.player}</Text>
-                            <Text style={styles.timelineDescription}>{event.description}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
               {/* Highlights */}
               {item.highlights && item.highlights.length > 0 && (
                 <View style={styles.highlightsContainer}>
