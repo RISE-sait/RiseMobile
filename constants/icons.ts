@@ -7,6 +7,8 @@ import home from "@/assets/icons/home.png";
 import person from "@/assets/icons/person.png";
 import search from "@/assets/icons/search.png";
 import matches from "@/assets/icons/matches.png";
+import family from "@/assets/icons/family.png";
+import scissors from "@/assets/icons/scissors.png";
 
 export default {
     google,
@@ -18,4 +20,6 @@ export default {
     person,
     search,
     matches,
+    family,
+    scissors,
 };
