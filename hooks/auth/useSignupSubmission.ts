@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Platform } from "react-native"
 import * as Haptics from "expo-haptics"
-import { useAuth } from "@/utils/auth"
+import { useAuth } from "@/app/utils/auth"
 import type { SignupFormData, SignupFormErrors } from "./useSignupForm"
 
 export const useSignupSubmission = (

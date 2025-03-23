@@ -1,7 +1,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { View, Image, StyleSheet } from "react-native"
-import { isTablet } from "../utils/device-info"
+import { isTablet } from "../app/utils/device-info"
 
 interface CustomSplashScreenProps {
   onFinish: () => void

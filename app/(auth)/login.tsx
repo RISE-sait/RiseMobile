@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
-import { useAuth } from "@/utils/auth"
+import { useAuth } from "@/app/utils/auth"
 import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
 

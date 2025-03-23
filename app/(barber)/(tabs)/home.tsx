@@ -9,7 +9,7 @@ import * as Haptics from "expo-haptics"
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from "react-native-reanimated"
 import { FontAwesome6 } from "@expo/vector-icons"
 
-import { useAuth } from "@/utils/auth"
+import { useAuth } from "@/app/utils/auth"
 import images from "@/constants/images"
 import ProfileHeader from "@/components/ProfileHeader"
 import QRCodeModal from "@/components/QRCodeModal"
