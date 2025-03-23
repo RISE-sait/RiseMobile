@@ -3,12 +3,11 @@ import { View, Text, FlatList, Dimensions, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import dayjs from "dayjs";
-import PageTitle from "@/app/components/PageTitle";
-import CalendarCard from "@/app/components/CalendarCard";
-import EventListContainer from "@/app/components/EventListContainer";
-import EventListItem from "@/app/components/EventListItem";
+import PageTitle from "@/components/PageTitle";
+import { CalendarCard, EventListContainer, EventListItem } from '@/components/calendar';
 import { mockEvents } from "@/app/(athlete)/screens/eventsData";
 import { mockMatches } from "@/app/(athlete)/screens/matchesData";
+import EmptyState from "@/components/EmptyState";
 
 const { width } = Dimensions.get("window");
 
@@ -68,6 +67,7 @@ const CoachCalendar = () => {
   };
 
   const eventsForSelectedDate = events[selectedDate] || [];
+  const formattedDate = dayjs(selectedDate).format("MMMM D, YYYY")
 
   return (
     <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">
@@ -86,7 +86,7 @@ const CoachCalendar = () => {
 
         <EventListContainer date={dayjs(selectedDate).format("DD MMM YYYY")}>
           {loading ? (
-            <Text className="text-center text-white">Loading events...</Text>
+            <Text className="text-center text-white-100">Loading events...</Text>
           ) : (
             <FlatList
               data={eventsForSelectedDate}
@@ -99,7 +99,13 @@ const CoachCalendar = () => {
                 type={item.type} />
               )}
               ListEmptyComponent={
-                <Text className="text-center text-gray-300">No events scheduled.</Text>
+                <EmptyState
+                  icon="calendar-xmark"
+                  title="No Events"
+                  message={`No events scheduled for ${formattedDate}.`}
+                  iconColor="#FCA311"
+                  iconSize={36}
+                />
               }
             />
           )}
