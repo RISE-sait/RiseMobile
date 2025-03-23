@@ -6,12 +6,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { mockEvents, Event } from "../eventsData";
+import { mockEvents, Event } from "@/app/(athlete)/screens/eventsData";
 import dayjs from "dayjs";
 import { Ionicons } from "@expo/vector-icons";
-import EventImageHeader from "@/app/components/EventImageHeader";
-import BackButton from "@/app/components/BackButton";
-import EventInfoRow from "@/app/components/EventInfoRow";
+import EventImageHeader from "@/components/EventImageHeader";
+import BackButton from "@/components/BackButton";
+import EventInfoRow from "@/components/EventInfoRow";
 
 const { width } = Dimensions.get("window");
 
