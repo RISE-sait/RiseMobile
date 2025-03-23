@@ -1,148 +1,133 @@
 "use client"
 
-import { useState } from "react"
-import { Text, View, ScrollView, TouchableOpacity } from "react-native"
+import { useState, useEffect, useRef } from "react"
+import { View, Text, FlatList, Dimensions, Animated } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
-import { Calendar } from "react-native-calendars"
-import { Ionicons } from "@expo/vector-icons"
 import dayjs from "dayjs"
+import PageTitle from "@/app/components/PageTitle"
+import CalendarCard from "@/app/components/CalendarCard"
+import EventListContainer from "@/app/components/EventListContainer"
+import EventListItem from "@/app/components/EventListItem"
+import { mockEvents } from "@/app/(athlete)/screens/eventsData"
 import { mockMatches } from "@/app/(athlete)/screens/matchesData"
 
-export default function ParentCalendarScreen() {
-  const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))
+const { width } = Dimensions.get("window")
 
-  // Create marked dates for the calendar
-  const markedDates = mockMatches.reduce((acc, event) => {
-    const date = event.date
-    const existingDots = acc[date]?.dots || []
+// Mock children data - in a real app, this would come from an API
+const mockChildren = [
+  {
+    id: "1",
+    firstName: "Michael",
+    lastName: "Johnson",
+    age: 12,
+    sport: "Basketball",
+  },
+  {
+    id: "2",
+    firstName: "Sarah",
+    lastName: "Johnson",
+    age: 14,
+    sport: "Volleyball",
+  },
+]
 
-    // Determine dot color based on event type
-    let dotColor = "#FFD700" // Default gold
-    if (event.type === "match") dotColor = "#FF4D4F" // Red for matches
-    if (event.type === "practice") dotColor = "#4CAF50" // Green for practices
+const ParentCalendar = () => {
+  const [selectedDate, setSelectedDate] = useState<string>(dayjs().format("YYYY-MM-DD"))
+  const [events, setEvents] = useState<Record<string, any[]>>({})
+  const [loading, setLoading] = useState(false)
+  const fadeAnim = useRef(new Animated.Value(0)).current
 
-    return {
-      ...acc,
-      [date]: {
-        dots: [...existingDots, { key: event.id, color: dotColor }],
-        marked: true,
-      },
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start()
+
+    fetchEvents()
+  }, [])
+
+  const fetchEvents = async () => {
+    setLoading(true)
+    try {
+      const eventsData: Record<string, any[]> = {}
+
+      // Add general events
+      mockEvents.forEach((event) => {
+        if (!eventsData[event.date]) {
+          eventsData[event.date] = []
+        }
+        eventsData[event.date].push({
+          id: event.id,
+          title: `${mockChildren[0].firstName}: ${event.title}`,
+          time: event.time,
+          type: "event",
+          childId: "1", // Michael's ID
+        })
+      })
+
+      // Add matches as events
+      mockMatches.forEach((match, index) => {
+        if (!eventsData[match.date]) {
+          eventsData[match.date] = []
+        }
+        // Alternate between children for demonstration
+        const childIndex = index % 2
+        eventsData[match.date].push({
+          id: match.id,
+          title: `${mockChildren[childIndex].firstName}: ${match.homeTeam} vs ${match.awayTeam}`,
+          time: match.status === "Upcoming" ? "Scheduled" : match.status,
+          type: "match",
+          childId: mockChildren[childIndex].id,
+        })
+      })
+
+      setEvents(eventsData)
+    } catch (error) {
+      console.error("Failed to fetch events:", error)
+    } finally {
+      setLoading(false)
     }
-  }, {})
-
-  // Add selected date styling
-  markedDates[selectedDate] = {
-    ...markedDates[selectedDate],
-    selected: true,
-    selectedColor: "#333",
   }
 
-  // Filter events for the selected date
-  const eventsForSelectedDate = mockMatches.filter((event) => event.date === selectedDate)
-
-  // Group events by child
-  const eventsByChild = eventsForSelectedDate.reduce((acc, event) => {
-    // In a real app, each event would have a childId
-    // For mock data, we'll assign events to children based on type
-    const childName = event.type === "match" ? "Michael" : "Sarah"
-
-    if (!acc[childName]) {
-      acc[childName] = []
-    }
-
-    acc[childName].push(event)
-    return acc
-  }, {})
+  const eventsForSelectedDate = events[selectedDate] || []
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
-      <StatusBar translucent backgroundColor="transparent" style="light" />
+    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">
+      <StatusBar translucent style="light" />
 
-      <View className="px-5 pt-12 pb-4">
-        <Text className="text-white text-2xl font-bold">Family Calendar</Text>
-      </View>
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <PageTitle title="Family Calendar" />
 
-      <View className="px-4">
-        <Calendar
-          theme={{
-            backgroundColor: "#1A1A1A",
-            calendarBackground: "#1A1A1A",
-            textSectionTitleColor: "#b6c1cd",
-            selectedDayBackgroundColor: "#FFD700",
-            selectedDayTextColor: "#000000",
-            todayTextColor: "#FFD700",
-            dayTextColor: "#FFFFFF",
-            textDisabledColor: "#444444",
-            dotColor: "#FFD700",
-            selectedDotColor: "#000000",
-            arrowColor: "#FFD700",
-            monthTextColor: "#FFFFFF",
-            indicatorColor: "#FFD700",
-            textDayFontWeight: "300",
-            textMonthFontWeight: "bold",
-            textDayHeaderFontWeight: "500",
-          }}
-          markingType="multi-dot"
-          markedDates={markedDates}
-          onDayPress={(day) => setSelectedDate(day.dateString)}
-        />
-
-        <View className="flex-row mt-4 mb-2">
-          <View className="flex-row items-center mr-4">
-            <View className="w-3 h-3 rounded-full bg-[#FF4D4F] mr-1" />
-            <Text className="text-white">Match</Text>
-          </View>
-          <View className="flex-row items-center mr-4">
-            <View className="w-3 h-3 rounded-full bg-[#4CAF50] mr-1" />
-            <Text className="text-white">Practice</Text>
-          </View>
-          <View className="flex-row items-center">
-            <View className="w-3 h-3 rounded-full bg-[#FFD700] mr-1" />
-            <Text className="text-white">Other</Text>
-          </View>
+        <View className="px-5 py-4">
+          <CalendarCard
+            selectedDate={selectedDate}
+            events={events}
+            onDayPress={(day) => setSelectedDate(day.dateString)}
+          />
         </View>
-      </View>
 
-      <View className="px-5 mt-2">
-        <Text className="text-white text-xl font-bold mb-2">{dayjs(selectedDate).format("MMMM D, YYYY")}</Text>
-      </View>
-
-      <ScrollView className="flex-1 px-5">
-        {Object.keys(eventsByChild).length > 0 ? (
-          Object.entries(eventsByChild).map(([childName, events], index) => (
-            <View key={index} className="mb-4">
-              <View className="flex-row items-center mb-2">
-                <View className="w-2 h-2 rounded-full bg-gold-100 mr-2" />
-                <Text className="text-gold-100 font-bold">{childName}'s Schedule</Text>
-              </View>
-
-              {events.map((event, eventIndex) => (
-                <TouchableOpacity key={eventIndex} className="bg-[#1A1A1A] rounded-xl p-4 mb-3">
-                  <View className="flex-row justify-between items-center">
-                    <View>
-                      <Text className={`font-bold ${event.type === "match" ? "text-[#FF4D4F]" : "text-[#4CAF50]"}`}>
-                        {event.type.toUpperCase()}
-                      </Text>
-                      <Text className="text-white text-lg font-bold">{event.title}</Text>
-                      <Text className="text-gray-400">{event.time}</Text>
-                      <Text className="text-gray-400">{event.location}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={24} color="#666" />
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))
-        ) : (
-          <View className="bg-[#1A1A1A] rounded-xl p-6 items-center justify-center">
-            <Ionicons name="calendar-outline" size={48} color="#666" />
-            <Text className="text-white text-lg mt-2">No events scheduled</Text>
-            <Text className="text-gray-400 text-center mt-1">There are no events scheduled for this day</Text>
-          </View>
-        )}
-      </ScrollView>
+        <EventListContainer date={dayjs(selectedDate).format("DD MMM YYYY")}>
+          {loading ? (
+            <Text className="text-center text-white">Loading events...</Text>
+          ) : (
+            <FlatList
+              data={eventsForSelectedDate}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <EventListItem id={item.id} title={item.title} time={item.time} type={item.type} />
+              )}
+              ListEmptyComponent={
+                <Text className="text-center text-gray-300">No events scheduled for your children.</Text>
+              }
+            />
+          )}
+        </EventListContainer>
+      </Animated.View>
     </SafeAreaView>
   )
 }
+
+export default ParentCalendar
 

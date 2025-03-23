@@ -1,14 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Text, View, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native"
+import { useEffect, useState, useRef } from "react"
+import { Text, View, ActivityIndicator, Animated } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import * as Haptics from "expo-haptics"
 
 import images from "@/constants/images"
 import GoToCards from "../../components/GoToCards"
+import UpcomingCard from "@/app/components/UpcomingCard"
 import ProfileHeader from "@/app/components/ProfileHeader"
 import QRCodeModal from "@/app/components/QRCodeModal"
 import { mockMatches } from "@/app/(athlete)/screens/matchesData"
@@ -54,8 +56,15 @@ export default function ParentHome() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [children, setChildren] = useState(mockChildren)
+  const fadeAnim = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start()
+
     const loadUser = async () => {
       try {
         const storedUser = await AsyncStorage.getItem("user")
@@ -86,23 +95,27 @@ export default function ParentHome() {
   const today = dayjs().format("YYYY-MM-DD")
 
   // Filter upcoming matches/practices for all children
-  const upcomingEvents = mockMatches
+  const upcomingEvent = mockMatches
     .filter((match) => ["match", "practice"].includes(match.type) && dayjs(match.date).isAfter(today))
-    .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())
-    .slice(0, 3) // Get the next 3 events
+    .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0]
 
   const navigationOptions = [
-    { label: "Add Child", route: "/screens/add-child", image: images.addPerson },
+    { label: "Family Management", route: "/screens/children", image: images.addPerson },
     { label: "Family Calendar", route: "/calendar", image: images.schedules },
     { label: "Membership", route: "/screens/membership", image: images.memberships },
     { label: "Store", route: "/screens/store/store", image: images.stores },
   ]
 
+  const handleChildSelect = (childId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    router.push(`/screens/child-details/${childId}`)
+  }
+
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] items-center justify-center">
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text className="text-white text-center mt-4">Loading user data...</Text>
+        <Text className="text-white-100 text-center mt-4">Loading user data...</Text>
       </SafeAreaView>
     )
   }
@@ -110,7 +123,11 @@ export default function ParentHome() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
-      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+      <Animated.ScrollView
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+        style={{ opacity: fadeAnim }}
+      >
         {/* QR Code Button */}
         <QRCodeModal />
 
@@ -120,7 +137,7 @@ export default function ParentHome() {
             <ProfileHeader
               firstName={user.firstName}
               lastName={user.lastName}
-              role="Parent"
+              role={user.role}
               profileImage={user.profileImage ? { uri: user.profileImage } : images.parentHeadshot}
               countryCode={user?.countryCode}
               teamLogo={images.teamLogo}
@@ -132,45 +149,24 @@ export default function ParentHome() {
 
         {/* Children Carousel */}
         <View className="mt-6">
-          <Text className="text-white text-xl font-bold px-5 mb-2">Your Children</Text>
-          <ChildrenCarousel
-            children={children}
-            onSelectChild={(childId) => router.push(`/screens/child-details/${childId}`)}
-          />
+          <ChildrenCarousel children={children} onSelectChild={handleChildSelect} showTitle={true} />
         </View>
 
-        {/* Upcoming Events Section */}
-        <View className="mt-6 px-5">
-          <Text className="text-white text-xl font-bold mb-2">Upcoming Events</Text>
-          {upcomingEvents.length > 0 ? (
-            upcomingEvents.map((event, index) => (
-              <TouchableOpacity
-                key={index}
-                className="bg-[#1A1A1A] rounded-xl p-4 mb-3"
-                onPress={() => router.push(`/screens/event-details/${event.id}`)}
-              >
-                <View className="flex-row justify-between items-center">
-                  <View>
-                    <Text className="text-gold-100 font-bold">{event.type.toUpperCase()}</Text>
-                    <Text className="text-white text-lg font-bold">{event.title}</Text>
-                    <Text className="text-gray-400">
-                      {dayjs(event.date).format("MMM D, YYYY")} • {event.time}
-                    </Text>
-                  </View>
-                  <View className="bg-[#2A2A2A] px-3 py-1 rounded-full">
-                    <Text className="text-gold-100">{event.type === "match" ? "Michael" : "Sarah"}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <Text className="text-gray-400 text-center py-4">No upcoming events</Text>
-          )}
-        </View>
+        {/* Upcoming Game Section */}
+        {upcomingEvent && (
+          <View className="mt-4">
+            <UpcomingCard
+              event={{
+                ...upcomingEvent,
+                description: `${children[0].firstName}'s ${upcomingEvent.type}`,
+              }}
+            />
+          </View>
+        )}
 
         {/* Navigation Buttons Section */}
         <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route)} />
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   )
 }

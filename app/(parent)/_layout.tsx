@@ -1,6 +1,5 @@
-import React from "react";
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import { Stack } from "expo-router"
+import { StatusBar } from "expo-status-bar"
 
 export default function ParentLayout() {
   return (
@@ -21,5 +20,6 @@ export default function ParentLayout() {
         <Stack.Screen name="screens/store/store" options={{ headerShown: false }} />
       </Stack>
     </>
-  );
+  )
 }
+
