@@ -182,7 +182,7 @@ export const registerUser = async (
     // ✅ Send request to API
     const response = await axios.post(`${API_URL}/${endpoint}`, requestBody, {
       headers: {
-        "Authorization": `Bearer ${token}`,
+        "firebase_token": token,
         "Content-Type": "application/json",
       },
     });

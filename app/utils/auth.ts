@@ -59,7 +59,7 @@ export const useAuth = () => {
             router.replace("/(athlete)/(tabs)/home");
             break;
           case "instructor":
-            router.replace("/(instructor)/instructorHome");
+            router.replace("/(instructor)/(tabs)/instructorHome");
             break;
           case "coach":
             router.replace("/(coach)/(tabs)/coachHome");
@@ -127,7 +127,7 @@ export const useAuth = () => {
           break;
         case "instructor":
           console.log("📚 Navigating to Instructor Home...");
-          router.replace("/(instructor)/instructorHome");
+          router.replace("/(instructor)/(tabs)/instructorHome");
           break;
         case "coach":
           console.log("🏆 Navigating to Coach Home...");
@@ -218,6 +218,10 @@ const registerChild = async (
         },
       ],
     };
+    console.log("📤 Child registration request body:", JSON.stringify(requestBody))
+    console.log("🔑 Using parent token:", parentToken.substring(0, 10) + "...")
+
+    
 
     // ✅ Send request to API using parent's token
     const response = await axios.post(`${API_URL}/register/child`, requestBody, {
@@ -292,7 +296,7 @@ const registerChild = async (
                     router.replace("/(coach)/(tabs)/coachHome");
                     break;
                 case "instructor":
-                    router.replace("/(instructor)/instructorHome");
+                    router.replace("/(instructor)/(tabs)/instructorHome");
                     break;
                 default:
                     console.error("❌ Unknown role:", userData.role);
@@ -375,7 +379,7 @@ const registerChild = async (
                 router.replace("/(coach)/(tabs)/coachHome");
                 break;
             case "instructor":
-                router.replace("/(instructor)/instructorHome");
+                router.replace("/(instructor)/(tabs)/instructorHome");
                 break;
             default:
                 console.error("❌ Unknown role:", userData.role);
