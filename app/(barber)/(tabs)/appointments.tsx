@@ -1,13 +1,18 @@
 "use client"
 
-import { useState } from "react"
-import { Text, View, ScrollView, TouchableOpacity } from "react-native"
+import { useState, useEffect } from "react"
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
-import { Ionicons } from "@expo/vector-icons"
+import { FontAwesome6 } from "@expo/vector-icons"
 import { Calendar } from "react-native-calendars"
 import dayjs from "dayjs"
+import * as Haptics from "expo-haptics"
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from "react-native-reanimated"
+
+import GradientBackground from "@/app/components/barber/GradientBackground"
+import AnimatedAppointmentCard from "@/app/components/barber/AnimatedAppointmentCard"
 
 // Mock appointments data
 const mockAppointments = {
@@ -77,6 +82,65 @@ export default function AppointmentsScreen() {
   const router = useRouter()
   const today = dayjs().format("YYYY-MM-DD")
   const [selectedDate, setSelectedDate] = useState(today)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Animation values
+  const headerOpacity = useSharedValue(0)
+  const calendarOpacity = useSharedValue(0)
+  const calendarTranslateY = useSharedValue(-20)
+  const listOpacity = useSharedValue(0)
+  const listTranslateY = useSharedValue(30)
+
+  useEffect(() => {
+    // Simulate loading data
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+
+      // Start animations
+      headerOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) })
+
+      calendarOpacity.value = withDelay(200, withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) }))
+
+      calendarTranslateY.value = withDelay(200, withTiming(0, { duration: 600, easing: Easing.out(Easing.quad) }))
+
+      listOpacity.value = withDelay(400, withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) }))
+
+      listTranslateY.value = withDelay(400, withTiming(0, { duration: 700, easing: Easing.out(Easing.quad) }))
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Reset list animations when date changes
+  useEffect(() => {
+    if (!isLoading) {
+      listOpacity.value = 0
+      listTranslateY.value = 30
+
+      listOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) })
+      listTranslateY.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.quad) })
+    }
+  }, [selectedDate, isLoading])
+
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: headerOpacity.value,
+    }
+  })
+
+  const calendarAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: calendarOpacity.value,
+      transform: [{ translateY: calendarTranslateY.value }],
+    }
+  })
+
+  const listAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: listOpacity.value,
+      transform: [{ translateY: listTranslateY.value }],
+    }
+  })
 
   // Create marked dates for the calendar
   const markedDates = {}
@@ -97,77 +161,151 @@ export default function AppointmentsScreen() {
   // Get appointments for selected date
   const appointmentsForSelectedDate = mockAppointments[selectedDate] || []
 
+  const handleDayPress = (day) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    setSelectedDate(day.dateString)
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
+    <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
-      <View className="px-5 pt-12 pb-4">
-        <Text className="text-white text-2xl font-bold">Appointments</Text>
-      </View>
+      <GradientBackground>
+        <Animated.View style={[styles.header, headerAnimatedStyle]}>
+          <Text style={styles.headerTitle}>Appointments</Text>
+        </Animated.View>
 
-      <View className="px-4">
-        <Calendar
-          theme={{
-            backgroundColor: "#1A1A1A",
-            calendarBackground: "#1A1A1A",
-            textSectionTitleColor: "#b6c1cd",
-            selectedDayBackgroundColor: "#FFD700",
-            selectedDayTextColor: "#000000",
-            todayTextColor: "#FFD700",
-            dayTextColor: "#FFFFFF",
-            textDisabledColor: "#444444",
-            dotColor: "#FFD700",
-            selectedDotColor: "#000000",
-            arrowColor: "#FFD700",
-            monthTextColor: "#FFFFFF",
-            indicatorColor: "#FFD700",
-            textDayFontWeight: "300",
-            textMonthFontWeight: "bold",
-            textDayHeaderFontWeight: "500",
-          }}
-          markedDates={markedDates}
-          onDayPress={(day) => setSelectedDate(day.dateString)}
-        />
-      </View>
-
-      <View className="px-5 mt-4">
-        <Text className="text-white text-xl font-bold mb-2">{dayjs(selectedDate).format("MMMM D, YYYY")}</Text>
-      </View>
-
-      <ScrollView className="flex-1 px-5">
-        {appointmentsForSelectedDate.length > 0 ? (
-          appointmentsForSelectedDate.map((appointment, index) => (
-            <TouchableOpacity
-              key={index}
-              className="bg-[#1A1A1A] rounded-xl p-4 mb-3"
-              onPress={() => router.push(`/screens/appointment-details/${appointment.id}`)}
-            >
-              <View className="flex-row justify-between items-center">
-                <View>
-                  <Text className="text-white text-lg font-bold">{appointment.clientName}</Text>
-                  <Text className="text-gold-100">{appointment.service}</Text>
-                  <Text className="text-gray-400">
-                    {appointment.time} • {appointment.duration} min
-                  </Text>
-                </View>
-                <View className="items-end">
-                  <Text className="text-white font-bold">${appointment.price}</Text>
-                  <View className="bg-[#2A2A2A] px-3 py-1 rounded-full mt-1">
-                    <Text className="text-gold-100 text-xs">Confirmed</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))
-        ) : (
-          <View className="bg-[#1A1A1A] rounded-xl p-6 items-center">
-            <Ionicons name="calendar-outline" size={48} color="#666" />
-            <Text className="text-white text-lg mt-2">No appointments</Text>
-            <Text className="text-gray-400 text-center mt-1">You have no scheduled appointments for this day</Text>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#FFD700" />
           </View>
+        ) : (
+          <>
+            <Animated.View style={[styles.calendarContainer, calendarAnimatedStyle]}>
+              <Calendar
+                theme={{
+                  backgroundColor: "#1A1A1A",
+                  calendarBackground: "#1A1A1A",
+                  textSectionTitleColor: "#b6c1cd",
+                  selectedDayBackgroundColor: "#FFD700",
+                  selectedDayTextColor: "#000000",
+                  todayTextColor: "#FFD700",
+                  dayTextColor: "#FFFFFF",
+                  textDisabledColor: "#444444",
+                  dotColor: "#FFD700",
+                  selectedDotColor: "#000000",
+                  arrowColor: "#FFD700",
+                  monthTextColor: "#FFFFFF",
+                  indicatorColor: "#FFD700",
+                  textDayFontWeight: "300",
+                  textMonthFontWeight: "bold",
+                  textDayHeaderFontWeight: "500",
+                }}
+                markedDates={markedDates}
+                onDayPress={handleDayPress}
+                enableSwipeMonths={true}
+              />
+            </Animated.View>
+
+            <Animated.View style={[styles.appointmentsContainer, listAnimatedStyle]}>
+              <View style={styles.dateHeader}>
+                <Text style={styles.dateTitle}>{dayjs(selectedDate).format("MMMM D, YYYY")}</Text>
+              </View>
+
+              <ScrollView style={styles.appointmentsList} showsVerticalScrollIndicator={false}>
+                {appointmentsForSelectedDate.length > 0 ? (
+                  appointmentsForSelectedDate.map((appointment, index) => (
+                    <AnimatedAppointmentCard
+                      key={appointment.id}
+                      id={appointment.id}
+                      clientName={appointment.clientName}
+                      service={appointment.service}
+                      time={appointment.time}
+                      duration={appointment.duration}
+                      price={appointment.price}
+                      status={appointment.status}
+                      index={index}
+                    />
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <FontAwesome6 name="calendar" size={48} color="#666" />
+                    <Text style={styles.emptyStateTitle}>No appointments</Text>
+                    <Text style={styles.emptyStateMessage}>You have no scheduled appointments for this day</Text>
+                  </View>
+                )}
+              </ScrollView>
+            </Animated.View>
+          </>
         )}
-      </ScrollView>
+      </GradientBackground>
     </SafeAreaView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0C0B0B",
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 16,
+  },
+  headerTitle: {
+    color: "white",
+    fontSize: 28,
+    fontWeight: "bold",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  calendarContainer: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  appointmentsContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  dateHeader: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  dateTitle: {
+    color: "white",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  appointmentsList: {
+    flex: 1,
+  },
+  emptyState: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  emptyStateTitle: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 12,
+  },
+  emptyStateMessage: {
+    color: "#999",
+    textAlign: "center",
+    marginTop: 8,
+  },
+})
 

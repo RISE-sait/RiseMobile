@@ -1,61 +1,51 @@
 "use client"
-
-import { useState, useEffect } from "react"
-import { Text, View, ScrollView, TouchableOpacity, Image, Switch, Alert } from "react-native"
+import { useEffect } from "react"
+import { Text, View, ScrollView, ActivityIndicator, StyleSheet, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { Ionicons } from "@expo/vector-icons"
+import { Alert } from "react-native"
+import { FontAwesome6 } from "@expo/vector-icons"
+import * as Haptics from "expo-haptics"
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated"
+
 import { useAuth } from "@/app/utils/auth"
 import images from "@/constants/images"
-
-// Define User Type
-type User = {
-  id: string
-  email: string
-  firstName: string
-  lastName: string
-  role: string
-  profileImage?: string
-  countryCode: string
-  token: string
-  phoneNumber?: string
-}
+import ProfileHeader from "@/app/components/ProfileHeader"
+import GradientBackground from "@/app/components/barber/GradientBackground"
 
 export default function BarberProfileScreen() {
   const router = useRouter()
-  const { logout } = useAuth()
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
-  const [emailUpdatesEnabled, setEmailUpdatesEnabled] = useState(true)
-  const [availableForBooking, setAvailableForBooking] = useState(true)
+  const { user, isLoading, logout } = useAuth()
+
+  // Animation values
+  const headerOpacity = useSharedValue(0)
+  const contentOpacity = useSharedValue(0)
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const storedUser = await AsyncStorage.getItem("user")
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser)
-          setUser({
-            ...parsedUser,
-            firstName: parsedUser.firstName || parsedUser.first_name || "",
-            lastName: parsedUser.lastName || parsedUser.last_name || "",
-            countryCode: parsedUser.countryCode || parsedUser.country_code || "US",
-          })
-        }
-      } catch (error) {
-        console.error("Error loading user:", error)
-      } finally {
-        setIsLoading(false)
-      }
+    if (!isLoading) {
+      // Start animations when data is loaded
+      headerOpacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) })
+      contentOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) })
     }
+  }, [isLoading])
 
-    loadUser()
-  }, [])
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: headerOpacity.value,
+      transform: [{ translateY: withTiming(headerOpacity.value * 0, { duration: 600 }) }],
+    }
+  })
 
-  const handleLogout = async () => {
+  const contentAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: contentOpacity.value,
+      transform: [{ translateY: withTiming((1 - contentOpacity.value) * 20, { duration: 600 }) }],
+    }
+  })
+
+  const handleLogout = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     Alert.alert("Logout", "Are you sure you want to logout?", [
       {
         text: "Cancel",
@@ -69,173 +59,197 @@ export default function BarberProfileScreen() {
     ])
   }
 
+  const handleNavigation = (route) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    router.push(route)
+  }
+
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#0C0B0B] items-center justify-center">
-        <Text className="text-white">Loading...</Text>
+      <SafeAreaView style={styles.container}>
+        <GradientBackground>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#FFD700" />
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        </GradientBackground>
       </SafeAreaView>
     )
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
-      <StatusBar translucent backgroundColor="transparent" style="light" />
-
-      <ScrollView className="flex-1">
-        <View className="px-5 pt-12 pb-6 items-center">
-          <Image
-            source={user?.profileImage ? { uri: user.profileImage } : images.barberHeadshot}
-            className="w-24 h-24 rounded-full"
-          />
-
-          <Text className="text-white text-2xl font-bold mt-4">
-            {user?.firstName} {user?.lastName}
-          </Text>
-
-          <Text className="text-gray-400">{user?.email}</Text>
-
-          <TouchableOpacity
-            className="mt-4 bg-[#1A1A1A] px-4 py-2 rounded-full flex-row items-center"
-            onPress={() => router.push("/screens/edit-profile")}
-          >
-            <Ionicons name="pencil" size={16} color="#FFD700" />
-            <Text className="text-gold-100 ml-2">Edit Profile</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View className="px-5">
-          <Text className="text-white text-lg font-bold mb-2">Availability</Text>
-
-          <View className="bg-[#1A1A1A] rounded-xl overflow-hidden mb-6">
-            <View className="p-4 flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="calendar" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">Available for Booking</Text>
-              </View>
-              <Switch
-                trackColor={{ false: "#333", true: "#FFD700" }}
-                thumbColor={availableForBooking ? "#FFFFFF" : "#f4f3f4"}
-                ios_backgroundColor="#333"
-                onValueChange={setAvailableForBooking}
-                value={availableForBooking}
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
+      <GradientBackground>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <Animated.View style={[styles.profileHeaderContainer, headerAnimatedStyle]}>
+            {user ? (
+              <ProfileHeader
+                firstName={user.firstName}
+                lastName={user.lastName}
+                role="Barber"
+                number="01"
+                profileImage={user.profileImage ? { uri: user.profileImage } : images.barberHeadshot}
+                countryCode={user?.countryCode}
+                teamLogo={images.teamLogo}
               />
-            </View>
-          </View>
+            ) : (
+              <Text style={styles.errorText}>User data not available</Text>
+            )}
+          </Animated.View>
 
-          <Text className="text-white text-lg font-bold mb-2">Account</Text>
-
-          <View className="bg-[#1A1A1A] rounded-xl overflow-hidden mb-6">
-            <TouchableOpacity
-              className="p-4 border-b border-[#333] flex-row items-center justify-between"
-              onPress={() => router.push("/screens/service-management")}
-            >
-              <View className="flex-row items-center">
-                <Ionicons name="cut" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">Manage Services</Text>
+          <Animated.View style={[styles.sectionsContainer, contentAnimatedStyle]}>
+            {/* Account Section */}
+            <View style={styles.sectionWrapper}>
+              <Text style={styles.sectionTitle}>ACCOUNT</Text>
+              <View style={styles.sectionContent}>
+                <MenuItem
+                  icon="pen-to-square"
+                  text="Edit Profile"
+                  onPress={() => handleNavigation("/screens/edit-profile")}
+                />
+                <MenuItem
+                  icon="scissors"
+                  text="Manage Services"
+                  onPress={() => handleNavigation("/screens/service-management")}
+                />
+                <MenuItem
+                  icon="clock"
+                  text="Working Hours"
+                  onPress={() => handleNavigation("/screens/working-hours")}
+                />
+                <MenuItem
+                  icon="chart-line"
+                  text="Earnings & Payments"
+                  onPress={() => handleNavigation("/screens/earnings")}
+                />
+                <MenuItem
+                  icon="arrow-right-from-bracket"
+                  text="Logout"
+                  textColor="#FF4D4F"
+                  iconColor="#FF4D4F"
+                  onPress={handleLogout}
+                />
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className="p-4 border-b border-[#333] flex-row items-center justify-between"
-              onPress={() => router.push("/screens/earnings")}
-            >
-              <View className="flex-row items-center">
-                <Ionicons name="cash" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">Earnings & Payments</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-
-            <TouchableOpacity className="p-4 border-b border-[#333] flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="time" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">Working Hours</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-
-            <TouchableOpacity className="p-4 flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="lock-closed" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">Privacy & Security</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          <Text className="text-white text-lg font-bold mb-2">Notifications</Text>
-
-          <View className="bg-[#1A1A1A] rounded-xl overflow-hidden mb-6">
-            <View className="p-4 border-b border-[#333] flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="notifications" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">Push Notifications</Text>
-              </View>
-              <Switch
-                trackColor={{ false: "#333", true: "#FFD700" }}
-                thumbColor={notificationsEnabled ? "#FFFFFF" : "#f4f3f4"}
-                ios_backgroundColor="#333"
-                onValueChange={setNotificationsEnabled}
-                value={notificationsEnabled}
-              />
             </View>
 
-            <View className="p-4 flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="mail" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">Email Updates</Text>
+            {/* Support Section */}
+            <View style={styles.sectionWrapper}>
+              <Text style={styles.sectionTitle}>SUPPORT</Text>
+              <View style={styles.sectionContent}>
+                <MenuItem
+                  icon="question-circle"
+                  text="Help Center"
+                  onPress={() => handleNavigation("/screens/help-center")}
+                />
+                <MenuItem
+                  icon="comment-alt"
+                  text="Contact Us"
+                  onPress={() => handleNavigation("/screens/contact-us")}
+                />
+                <MenuItem icon="info" text="About Rise" onPress={() => handleNavigation("/screens/about")} />
               </View>
-              <Switch
-                trackColor={{ false: "#333", true: "#FFD700" }}
-                thumbColor={emailUpdatesEnabled ? "#FFFFFF" : "#f4f3f4"}
-                ios_backgroundColor="#333"
-                onValueChange={setEmailUpdatesEnabled}
-                value={emailUpdatesEnabled}
-              />
             </View>
-          </View>
 
-          <Text className="text-white text-lg font-bold mb-2">Support</Text>
-
-          <View className="bg-[#1A1A1A] rounded-xl overflow-hidden mb-6">
-            <TouchableOpacity className="p-4 border-b border-[#333] flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="help-circle" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">Help Center</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-
-            <TouchableOpacity className="p-4 border-b border-[#333] flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="chatbubble-ellipses" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">Contact Us</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-
-            <TouchableOpacity className="p-4 flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="information-circle" size={20} color="#FFD700" />
-                <Text className="text-white ml-3">About Rise</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            className="bg-[#1A1A1A] rounded-xl p-4 flex-row items-center justify-center mb-8"
-            onPress={handleLogout}
-          >
-            <Ionicons name="log-out" size={20} color="#FF4D4F" />
-            <Text className="text-[#FF4D4F] ml-2 font-bold">Logout</Text>
-          </TouchableOpacity>
-
-          <Text className="text-gray-500 text-center mb-8">Version 1.0.0</Text>
-        </View>
-      </ScrollView>
+            <Text style={styles.versionText}>Version 1.0.0</Text>
+          </Animated.View>
+        </ScrollView>
+      </GradientBackground>
     </SafeAreaView>
   )
 }
+
+// MenuItem component for better organization
+const MenuItem = ({ icon, text, onPress, textColor = "white", iconColor = "#FFD700" }) => {
+  return (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.menuIconContainer}>
+        <FontAwesome6 name={icon} size={18} color={iconColor} />
+      </View>
+      <Text style={[styles.menuText, { color: textColor }]}>{text}</Text>
+      <FontAwesome6 name="chevron-right" size={14} color="#666" />
+    </TouchableOpacity>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0C0B0B",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "white",
+    marginTop: 12,
+    fontSize: 16,
+  },
+  profileHeaderContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 40,
+  },
+  errorText: {
+    color: "white",
+    textAlign: "center",
+    fontSize: 16,
+  },
+  sectionsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  sectionWrapper: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    color: "#999",
+    fontSize: 14,
+    fontWeight: "bold",
+    marginBottom: 12,
+    letterSpacing: 1,
+  },
+  sectionContent: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222",
+  },
+  menuIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#2A2A2A",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  menuText: {
+    flex: 1,
+    fontSize: 16,
+  },
+  versionText: {
+    color: "#666",
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 14,
+  },
+})
 
