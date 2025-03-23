@@ -1,15 +1,17 @@
-import { Tabs } from "expo-router";
-import { View, Image, Text } from "react-native";
-import icons from "@/constants/icons";
+import { Tabs } from "expo-router"
+import { View, Image, Text } from "react-native"
+import icons from "@/constants/icons"
+import { Stack } from "expo-router"
+import { CartProvider } from "../(athlete)/screens/store/cartContext"
 
 const TabIcon = ({
   focused,
   icon,
   title,
 }: {
-  focused: boolean;
-  icon: any;
-  title: string;
+  focused: boolean
+  icon: any
+  title: string
 }) => (
   <View className="flex-1 mt-3 flex flex-col items-center">
     <Image
@@ -20,17 +22,15 @@ const TabIcon = ({
     />
     <Text
       className={`${
-        focused
-          ? "text-gold-100 font-protest"
-          : "text-white-100 font-protest"
+        focused ? "text-gold-100 font-protest" : "text-white-100 font-protest"
       } text-xs w-full text-center mt-1`}
     >
       {title}
     </Text>
   </View>
-);
+)
 
-const InstructorLayout = () => {
+const InstructorTabLayout = () => {
   return (
     <Tabs
       screenOptions={{
@@ -49,9 +49,7 @@ const InstructorLayout = () => {
         options={{
           title: "Home",
           headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.home} title="Home" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon icon={icons.home} title="Home" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -59,9 +57,7 @@ const InstructorLayout = () => {
         options={{
           title: "Matches",
           headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.matches} title="Matches" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon icon={icons.matches} title="Matches" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -69,9 +65,7 @@ const InstructorLayout = () => {
         options={{
           title: "Calendar",
           headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.calendar} title="Calendar" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon icon={icons.calendar} title="Calendar" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -79,9 +73,7 @@ const InstructorLayout = () => {
         options={{
           title: "Book",
           headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.booking} title="Book" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon icon={icons.booking} title="Book" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -89,13 +81,42 @@ const InstructorLayout = () => {
         options={{
           title: "Profile",
           headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.person} title="Profile" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon icon={icons.person} title="Profile" focused={focused} />,
         }}
       />
     </Tabs>
-  );
-};
+  )
+}
 
-export default InstructorLayout;
+export default function AppLayout() {
+  return (
+    <CartProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        {/* ✅ Main Tabs */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+        {/* ✅ Screens inside "screens/" */}
+        <Stack.Screen name="screens" options={{ headerShown: false }} />
+        <Stack.Screen name="(instructor)" options={{ headerShown: false }} />
+      </Stack>
+    </CartProvider>
+  )
+}
+
+export function InstructorLayout() {
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: "#0C0B0B" },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/classList" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/courseList" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/attendance" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/grades" options={{ headerShown: false }} />
+    </Stack>
+  )
+}
+
