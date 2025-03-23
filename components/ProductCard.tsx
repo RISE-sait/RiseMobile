@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Image, Text, View, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Product } from '../(athlete)/screens/store/storeData';
+import { Product } from '../app/(athlete)/screens/store/storeData';
 
 const { width } = Dimensions.get("window");
 const itemWidth = width / 2 - 24;
