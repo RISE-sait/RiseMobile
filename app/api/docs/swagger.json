@@ -3,7 +3,6 @@
     "info": {
         "contact": {}
     },
-    "host": "localhost:80",
     "paths": {
         "/auth": {
             "post": {
@@ -20,7 +19,7 @@
                     {
                         "type": "string",
                         "description": "Firebase token for user verification",
-                      "name": "Authorization",
+                        "name": "Authorization",
                         "in": "header",
                         "required": true
                     }
@@ -92,6 +91,170 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/barbers/services": {
+            "get": {
+                "description": "Retrieve a list of all barber services",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "barber"
+                ],
+                "summary": "Get all barber services",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/haircut.BarberServiceResponseDto"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new barber service with the provided details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "barber"
+                ],
+                "summary": "Create a new barber service",
+                "parameters": [
+                    {
+                        "description": "Create Barber Service Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/haircut.CreateBarberServiceRequestDto"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/barbers/services/{id}": {
+            "delete": {
+                "description": "Delete a barber service by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "barber"
+                ],
+                "summary": "Delete a barber service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Barber Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content: Updated successfully"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/checkout/membership_plans/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Generates a payment link for purchasing a membership plan.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "purchases"
+                ],
+                "summary": "Checkout a membership plan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Membership plan ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment link generated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/purchase.CheckoutResponseDto"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error: Failed to process checkout",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -186,7 +349,7 @@
         },
         "/courses/{id}": {
             "get": {
-                "description": "Get a course by Id",
+                "description": "Get a course by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -196,11 +359,11 @@
                 "tags": [
                     "courses"
                 ],
-                "summary": "Get a course by Id",
+                "summary": "Get a course by ID",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Course Id",
+                        "description": "Course ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -214,7 +377,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad Request: Invalid Id",
+                        "description": "Bad Request: Invalid ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -304,7 +467,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Delete a course by Id",
+                "description": "Delete a course by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -318,7 +481,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Course Id",
+                        "description": "Course ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -329,7 +492,7 @@
                         "description": "No Content"
                     },
                     "400": {
-                        "description": "Bad Request: Invalid Id",
+                        "description": "Bad Request: Invalid ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -407,57 +570,6 @@
             }
         },
         "/customers/{customer_id}/athlete": {
-            "get": {
-                "description": "Fetches customer statistics (wins, losses, etc.) for the specified customer ID.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "customers"
-                ],
-                "summary": "Get customer statistics",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Customer ID",
-                        "name": "customer_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Customer stats retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/customer.AthleteResponseDto"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request: Invalid parameters",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found: Customer does not exist",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
             "patch": {
                 "description": "Updates customer statistics (wins, losses, etc.) for the specified customer ID",
                 "consumes": [
@@ -541,7 +653,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/hubspot.UserResponse"
+                                "$ref": "#/definitions/customer.Response"
                             }
                         }
                     },
@@ -569,7 +681,7 @@
                 }
             }
         },
-        "/customers/{id}/membership-plans": {
+        "/customers/{id}/memberships": {
             "get": {
                 "description": "Retrieves a list of membership plans associated with a specific customer, using the customer ID as a required parameter.",
                 "consumes": [
@@ -792,156 +904,6 @@
                 }
             }
         },
-        "/event-staff": {
-            "get": {
-                "description": "Retrieve all staff assigned to an event using event_id as a query parameter.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "event_staff"
-                ],
-                "summary": "Get staff assigned to an event",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Event ID (UUID)",
-                        "name": "event_id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "GetMemberships of staff assigned to the event",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/staff.ResponseDto"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request: Invalid input",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "404": {
-                        "description": "Event not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Assign a staff member to an event using event_id and staff_id in the request body.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "event_staff"
-                ],
-                "summary": "Assign a staff member to an event",
-                "parameters": [
-                    {
-                        "description": "Event and staff assignment details",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/event_staff.RequestDto"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Staff successfully assigned to event",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request: Invalid input",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Remove a staff member from an event using event_id and staff_id in the request body.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "event_staff"
-                ],
-                "summary": "Unassign a staff member from an event",
-                "parameters": [
-                    {
-                        "description": "Event and staff unassignment details",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/event_staff.RequestDto"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Staff successfully unassigned from event",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request: Invalid input",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/events": {
             "get": {
                 "description": "Retrieve all events within a specific date range, with optional filters by course, location, game, and practice.",
@@ -954,8 +916,22 @@
                 "tags": [
                     "events"
                 ],
-                "summary": "Get all events",
+                "summary": "Get events",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"2025-03-01\"",
+                        "description": "Start date of the events range (YYYY-MM-DD)",
+                        "name": "after",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2025-03-31\"",
+                        "description": "End date of the events range (YYYY-MM-DD)",
+                        "name": "before",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
@@ -1037,6 +1013,168 @@
                 "responses": {
                     "201": {
                         "description": "Event created successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/events/{event_id}/staffs": {
+            "get": {
+                "description": "Retrieve all staff assigned to an event using event_id as a query parameter.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "event_staff"
+                ],
+                "summary": "Get staff assigned to an event",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Event ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "GetMemberships of staff assigned to the event",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/staff.ResponseDto"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Event not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/events/{event_id}/staffs/{staff_id}": {
+            "post": {
+                "description": "Assign a staff member to an event using event_id and staff_id in the request body.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "event_staff"
+                ],
+                "summary": "Assign a staff member to an event",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Event ID",
+                        "name": "event_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Staff ID",
+                        "name": "staff_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Staff successfully assigned to event",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove a staff member from an event using event_id and staff_id in the request body.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "event_staff"
+                ],
+                "summary": "Unassign a staff member from an event",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Event ID",
+                        "name": "event_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Staff ID",
+                        "name": "staff_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Staff successfully unassigned from event",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1490,7 +1628,7 @@
         },
         "/haircuts": {
             "get": {
-                "description": "Retrieves all haircut images from a folder in S3. Optionally, specify a barber name to get images from that barber's folder.",
+                "description": "Retrieves all haircut images from a folder in Google Cloud Storage. Optionally, specify a barber name to get images from that barber's folder.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1500,7 +1638,6 @@
                 "tags": [
                     "haircut"
                 ],
-                "summary": "Retrieve haircut images",
                 "parameters": [
                     {
                         "type": "string",
@@ -1540,7 +1677,7 @@
                 }
             },
             "post": {
-                "description": "Uploads a haircut image to S3 and returns the object URL.",
+                "description": "Uploads a haircut image to Google Cloud Storage and returns the object URL.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -1550,7 +1687,6 @@
                 "tags": [
                     "haircut"
                 ],
-                "summary": "Upload a haircut image",
                 "parameters": [
                     {
                         "type": "file",
@@ -1593,7 +1729,7 @@
         },
         "/haircuts/events": {
             "get": {
-                "description": "Retrieve all barber events, with optional filters by barber ID and customer ID.",
+                "description": "Retrieve all haircut events, with optional filters by barber ID and customer ID.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1603,8 +1739,22 @@
                 "tags": [
                     "haircut"
                 ],
-                "summary": "Get all barber events",
+                "summary": "Get all haircut events",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"2025-03-01\"",
+                        "description": "Start date of the events range (YYYY-MM-DD)",
+                        "name": "after",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2025-03-31\"",
+                        "description": "End date of the events range (YYYY-MM-DD)",
+                        "name": "before",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "description": "Filter by barber ID",
@@ -1620,11 +1770,11 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of barber events retrieved successfully",
+                        "description": "List of haircut events retrieved successfully",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/haircut.ResponseDto"
+                                "$ref": "#/definitions/haircut.EventResponseDto"
                             }
                         }
                     },
@@ -1645,7 +1795,12 @@
                 }
             },
             "post": {
-                "description": "Registers a new barber event with the provided details.",
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Registers a new haircut event with the provided details from request body.\nRequires an Authorization header containing the customer's JWT, ensuring only logged-in customers can make the request.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1655,10 +1810,9 @@
                 "tags": [
                     "haircut"
                 ],
-                "summary": "Create a new barber event",
                 "parameters": [
                     {
-                        "description": "Barber event details",
+                        "description": "Haircut event details",
                         "name": "event",
                         "in": "body",
                         "required": true,
@@ -1669,9 +1823,9 @@
                 ],
                 "responses": {
                     "201": {
-                        "description": "Barber event created successfully",
+                        "description": "Haircut event created successfully",
                         "schema": {
-                            "$ref": "#/definitions/haircut.ResponseDto"
+                            "$ref": "#/definitions/haircut.EventResponseDto"
                         }
                     },
                     "400": {
@@ -1693,7 +1847,7 @@
         },
         "/haircuts/events/{id}": {
             "get": {
-                "description": "Retrieves details of a specific barber event based on its ID.",
+                "description": "Retrieves details of a specific haircut event based on its ID.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1703,11 +1857,10 @@
                 "tags": [
                     "haircut"
                 ],
-                "summary": "Get barber event details",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Barber event ID",
+                        "description": "Haircut event ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1715,9 +1868,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Barber event details retrieved successfully",
+                        "description": "Haircut event details retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/haircut.ResponseDto"
+                            "$ref": "#/definitions/haircut.EventResponseDto"
                         }
                     },
                     "400": {
@@ -1728,67 +1881,7 @@
                         }
                     },
                     "404": {
-                        "description": "Not Found: Barber event not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Updates the details of an existing barber event.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "haircut"
-                ],
-                "summary": "Update a barber event",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Barber event ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Updated barber event details",
-                        "name": "event",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/haircut.RequestDto"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Barber event updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/haircut.ResponseDto"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request: Invalid input",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found: Barber event not found",
+                        "description": "Not Found: Haircut event not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1804,7 +1897,7 @@
                 }
             },
             "delete": {
-                "description": "Deletes a barber event by its ID.",
+                "description": "Deletes a haircut event by its ID.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1814,11 +1907,10 @@
                 "tags": [
                     "haircut"
                 ],
-                "summary": "Delete a barber event",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Barber event ID",
+                        "description": "Haircut event ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1826,7 +1918,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content: Barber event deleted successfully"
+                        "description": "No Content: Haircut event deleted successfully"
                     },
                     "400": {
                         "description": "Bad Request: Invalid ID",
@@ -1836,7 +1928,7 @@
                         }
                     },
                     "404": {
-                        "description": "Not Found: Barber event not found",
+                        "description": "Not Found: Haircut event not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -2616,7 +2708,7 @@
                 "summary": "Get a list of practices",
                 "responses": {
                     "200": {
-                      "description": "Practices retrieved successfully",
+                        "description": "Practices retrieved successfully",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -2665,8 +2757,8 @@
                     "201": {
                         "description": "Practice created successfully",
                         "schema": {
-                          "type": "object",
-                          "additionalProperties": true
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -2831,14 +2923,9 @@
                 }
             }
         },
-        "/purchases/memberships": {
+        "/purchases/square/webhook": {
             "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Allows a customer to purchase a membership plan by providing the plan details.",
+                "description": "Receives and processes payment updates from Square.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2848,21 +2935,21 @@
                 "tags": [
                     "purchases"
                 ],
-                "summary": "Purchase a membership plan",
+                "summary": "Handle Square Webhook",
                 "parameters": [
                     {
-                        "description": "Membership purchase details",
+                        "description": "Square Webhook Event",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/purchase.MembershipPlanRequestDto"
+                            "$ref": "#/definitions/purchase.SquareWebhookEventDto"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Membership purchased successfully",
+                        "description": "Webhook processed successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -2876,7 +2963,7 @@
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error: Failed to process membership purchase",
+                        "description": "Internal Server Error: Failed to process webhook event",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -3317,7 +3404,7 @@
                 "capacity": {
                     "type": "integer"
                 },
-              "created_at": {
+                "created_at": {
                     "type": "string"
                 },
                 "description": {
@@ -3329,7 +3416,7 @@
                 "name": {
                     "type": "string"
                 },
-              "updated_at": {
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -3378,29 +3465,17 @@
                 "assists": {
                     "type": "integer"
                 },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
                 "losses": {
                     "type": "integer"
                 },
                 "points": {
                     "type": "integer"
                 },
-                "profile_pic": {
-                    "type": "string"
-                },
                 "rebounds": {
                     "type": "integer"
                 },
                 "steals": {
                     "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
                 },
                 "wins": {
                     "type": "integer"
@@ -3467,6 +3542,26 @@
                 }
             }
         },
+        "customer.MembershipResponseDto": {
+            "type": "object",
+            "properties": {
+                "membership_name": {
+                    "type": "string"
+                },
+                "membership_plan_id": {
+                    "type": "string"
+                },
+                "membership_plan_name": {
+                    "type": "string"
+                },
+                "membership_renewal_date": {
+                    "type": "string"
+                },
+                "membership_start_date": {
+                    "type": "string"
+                }
+            }
+        },
         "customer.ParentRegistrationRequestDto": {
             "type": "object",
             "required": [
@@ -3505,6 +3600,9 @@
                 "age": {
                     "type": "integer"
                 },
+                "athlete_info": {
+                    "$ref": "#/definitions/customer.AthleteResponseDto"
+                },
                 "country_code": {
                     "type": "string"
                 },
@@ -3520,16 +3618,10 @@
                 "last_name": {
                     "type": "string"
                 },
-                "membership_name": {
-                    "type": "string"
-                },
-                "membership_start_date": {
-                    "type": "string"
+                "membership_info": {
+                    "$ref": "#/definitions/customer.MembershipResponseDto"
                 },
                 "phone": {
-                    "type": "string"
-                },
-                "profile_pic": {
                     "type": "string"
                 },
                 "user_id": {
@@ -3669,19 +3761,34 @@
                 "course_id": {
                     "type": "string"
                 },
+                "course_name": {
+                    "type": "string"
+                },
                 "day": {
                     "type": "string"
                 },
                 "game_id": {
                     "type": "string"
                 },
+                "game_name": {
+                    "type": "string"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "location_address": {
                     "type": "string"
                 },
                 "location_id": {
                     "type": "string"
                 },
+                "location_name": {
+                    "type": "string"
+                },
                 "practice_id": {
+                    "type": "string"
+                },
+                "practice_name": {
                     "type": "string"
                 },
                 "program_end_at": {
@@ -3695,25 +3802,6 @@
                 },
                 "session_start_at": {
                     "type": "string"
-                }
-            }
-        },
-        "event_staff.EventStaffBase": {
-            "type": "object",
-            "properties": {
-                "event_id": {
-                    "type": "string"
-                },
-                "staff_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "event_staff.RequestDto": {
-            "type": "object",
-            "properties": {
-                "base": {
-                    "$ref": "#/definitions/event_staff.EventStaffBase"
                 }
             }
         },
@@ -3739,6 +3827,77 @@
                 }
             }
         },
+        "haircut.BarberServiceResponseDto": {
+            "type": "object",
+            "properties": {
+                "barber_id": {
+                    "type": "string"
+                },
+                "barber_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "haircut_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "service_type_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "haircut.CreateBarberServiceRequestDto": {
+            "type": "object",
+            "properties": {
+                "barber_id": {
+                    "type": "string",
+                    "example": "f0e21457-75d4-4de6-b765-5ee13221fd72"
+                },
+                "haircut_service_id": {
+                    "type": "string",
+                    "example": "f0e21457-75d4-4de6-b765-5ee13221fd72"
+                }
+            }
+        },
+        "haircut.EventResponseDto": {
+            "type": "object",
+            "properties": {
+                "barber_id": {
+                    "type": "string"
+                },
+                "barber_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_id": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "end_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "start_at": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "haircut.RequestDto": {
             "type": "object",
             "required": [
@@ -3754,138 +3913,29 @@
                     "type": "string",
                     "example": "2023-10-05T07:00:00Z"
                 },
-                "customer_id": {
-                    "type": "string",
-                    "example": "00000000-0000-0000-0000-000000000000"
-                },
                 "end_time": {
                     "type": "string",
                     "example": "2023-10-05T07:00:00Z"
                 }
             }
         },
-        "haircut.ResponseDto": {
+        "identity.MembershipReadResponseDto": {
             "type": "object",
             "properties": {
-                "barber_id": {
+                "membership_name": {
                     "type": "string"
                 },
-                "begin_time": {
+                "plan_name": {
                     "type": "string"
                 },
-                "created_at": {
+                "renewal_date": {
                     "type": "string"
                 },
-                "customer_id": {
-                    "type": "string"
-                },
-                "end_time": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "updated_at": {
+                "start_date": {
                     "type": "string"
                 }
             }
         },
-        "hubspot.UserAssociation": {
-            "type": "object",
-            "properties": {
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/hubspot.UserAssociationResult"
-                    }
-                }
-            }
-        },
-        "hubspot.UserAssociationResult": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "hubspot.UserAssociations": {
-            "type": "object",
-            "properties": {
-                "contacts": {
-                    "$ref": "#/definitions/hubspot.UserAssociation"
-                }
-            }
-        },
-        "hubspot.UserProps": {
-            "type": "object",
-            "properties": {
-                "age": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "firstname": {
-                    "type": "string"
-                },
-                "has_marketing_email_consent": {
-                    "type": "string"
-                },
-                "has_sms_consent": {
-                    "type": "string"
-                },
-                "hs_country_region_code": {
-                    "type": "string"
-                },
-                "lastname": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                }
-            }
-        },
-        "hubspot.UserResponse": {
-            "type": "object",
-            "properties": {
-                "associations": {
-                    "$ref": "#/definitions/hubspot.UserAssociations"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "properties": {
-                    "$ref": "#/definitions/hubspot.UserProps"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
-      "identity.MembershipReadResponseDto": {
-        "type": "object",
-        "properties": {
-          "membership_name": {
-            "type": "string"
-          },
-          "plan_name": {
-            "type": "string"
-          },
-          "renewal_date": {
-            "type": "string"
-          },
-          "start_date": {
-            "type": "string"
-          }
-        }
-      },
         "identity.UserAuthenticationResponseDto": {
             "type": "object",
             "properties": {
@@ -3901,15 +3951,21 @@
                 "first_name": {
                     "type": "string"
                 },
-              "id": {
-                "type": "string"
+                "gender": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active_staff": {
+                    "type": "boolean"
                 },
                 "last_name": {
                     "type": "string"
                 },
-              "membership_info": {
-                "$ref": "#/definitions/identity.MembershipReadResponseDto"
-              },
+                "membership_info": {
+                    "$ref": "#/definitions/identity.MembershipReadResponseDto"
+                },
                 "phone": {
                     "type": "string"
                 },
@@ -4079,7 +4135,7 @@
                 "capacity": {
                     "type": "integer"
                 },
-              "created_at": {
+                "created_at": {
                     "type": "string"
                 },
                 "description": {
@@ -4094,27 +4150,21 @@
                 "name": {
                     "type": "string"
                 },
-              "updated_at": {
+                "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "purchase.MembershipPlanRequestDto": {
+        "purchase.CheckoutResponseDto": {
             "type": "object",
-            "required": [
-                "start_date"
-            ],
             "properties": {
-                "membership_plan_id": {
-                    "type": "string"
-                },
-                "start_date": {
-                    "type": "string"
-                },
-                "status": {
+                "payment_url": {
                     "type": "string"
                 }
             }
+        },
+        "purchase.SquareWebhookEventDto": {
+            "type": "object"
         },
         "staff.RegistrationRequestDto": {
             "type": "object",
