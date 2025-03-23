@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import "./globals.css";
 import { useFonts } from "expo-font";
+import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -35,6 +37,20 @@ export default function RootLayout() {
     );
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
-}
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StatusBar style="auto" />
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)/signup" options={{ headerShown: false }} />
+        <Stack.Screen name="(athlete)" options={{ headerShown: false }} />
+        <Stack.Screen name="(coach)" options={{ headerShown: false }} />
+        <Stack.Screen name="(parent)" options={{ headerShown: false }} />
+        <Stack.Screen name="(barber)" options={{ headerShown: false }} />
+        <Stack.Screen name="(instructor)" options={{ headerShown: false }} />
+      </Stack>
+    </GestureHandlerRootView>
+    );
+  }
 
