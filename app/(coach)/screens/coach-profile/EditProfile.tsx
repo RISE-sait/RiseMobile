@@ -27,7 +27,7 @@ import {
   faBasketball
 } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Input } from "@/app/components/ui/input";
+import { Input } from "@/components/ui/input";
 import images from "@/constants/images";
 
 type User = {

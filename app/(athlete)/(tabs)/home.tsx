@@ -6,10 +6,10 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import images from "@/constants/images"; 
-import GoToCards from "../../components/GoToCards";
-import UpcomingCard from "@/app/components/UpcomingCard";
-import ProfileHeader from "@/app/components/ProfileHeader";
-import QRCodeModal from "@/app/components/QRCodeModal";
+import GoToCards from "../../../components/GoToCards";
+import UpcomingCard from "@/components/UpcomingCard";
+import ProfileHeader from "@/components/ProfileHeader";
+import QRCodeModal from "@/components/QRCodeModal";
 import { mockMatches } from "../screens/matchesData";
 import dayjs from "dayjs";
 

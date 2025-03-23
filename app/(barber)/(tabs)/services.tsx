@@ -23,7 +23,7 @@ import Animated, {
   FadeOut,
 } from "react-native-reanimated"
 
-import GradientBackground from "@/app/components/barber/GradientBackground"
+import GradientBackground from "@/components/barber/GradientBackground"
 
 // Mock services data
 const initialServices = [

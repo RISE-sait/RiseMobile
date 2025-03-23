@@ -16,8 +16,8 @@ import { FontAwesome6 } from "@expo/vector-icons"
 import dayjs from "dayjs"
 import * as Haptics from "expo-haptics"
 
-import CalendarCard from "@/app/components/CalendarCard"
-import BackButton from "@/app/components/BackButton"
+import CalendarCard from "@/components/calendar/CalendarCard"
+import BackButton from "@/components/BackButton"
 
 // Define types for our data
 interface Barber {

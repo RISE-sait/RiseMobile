@@ -8,7 +8,7 @@ import { useRouter } from "expo-router"
 import { FontAwesome6 } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 
-import BackButton from "@/app/components/BackButton"
+import BackButton from "@/components/BackButton"
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 

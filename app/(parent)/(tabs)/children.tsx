@@ -9,8 +9,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
 import images from "@/constants/images"
-import PageTitle from "@/app/components/PageTitle"
-import LoadingIndicator from "@/app/components/LoadingIndicator"
+import PageTitle from "@/components/PageTitle"
+import LoadingIndicator from "@/components/LoadingIndicator"
 
 const { width } = Dimensions.get("window")
 const CARD_WIDTH = width * 0.9

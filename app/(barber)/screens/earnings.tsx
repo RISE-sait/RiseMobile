@@ -4,14 +4,14 @@ import React, { useState, useEffect } from "react"
 import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
-import BackButton from "@/app/components/BackButton"
+import BackButton from "@/components/BackButton"
 import * as Haptics from "expo-haptics"
 
-import DateRangePicker from "@/app/components/barber/DateRangePicker"
-import AnimatedStatsCard from "@/app/components/barber/AnimatedStatsCard"
-import AnimatedTransactionItem from "@/app/components/barber/AnimatedTransactionItem"
-import AnimatedChart from "@/app/components/barber/AnimatedChart"
-import GradientBackground from "@/app/components/barber/GradientBackground"
+import DateRangePicker from "@/components/barber/DateRangePicker"
+import AnimatedStatsCard from "@/components/barber/AnimatedStatsCard"
+import AnimatedTransactionItem from "@/components/barber/AnimatedTransactionItem"
+import AnimatedChart from "@/components/barber/AnimatedChart"
+import GradientBackground from "@/components/barber/GradientBackground"
 
 // Mock data
 const mockEarningsData = {

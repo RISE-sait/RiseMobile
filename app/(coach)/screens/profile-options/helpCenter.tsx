@@ -5,8 +5,8 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faChevronDown, faChevronUp, faSearch } from "@fortawesome/free-solid-svg-icons";
-import { Input } from "@/app/components/ui/input";
-import BackButton from "@/app/components/BackButton";
+import { Input } from "@/components/ui/input";
+import BackButton from "@/components/BackButton";
 
 interface FAQItem {
   question: string;

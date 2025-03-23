@@ -17,7 +17,7 @@ import { useRouter } from "expo-router"
 import { FontAwesome5, Ionicons, Feather, AntDesign } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 import { StatusBar } from "expo-status-bar"
-import GradientBackground from "@/app/components/barber/GradientBackground"
+import GradientBackground from "@/components/barber/GradientBackground"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85

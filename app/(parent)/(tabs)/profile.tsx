@@ -6,9 +6,9 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { useAuth } from "@/app/utils/auth"
-import ProfileHeader from "@/app/components/ProfileHeader"
-import AccountSection from "@/app/components/AccountSection"
+import { useAuth } from "@/utils/auth"
+import ProfileHeader from "@/components/ProfileHeader"
+import AccountSection from "@/components/AccountSection"
 import images from "@/constants/images"
 
 // Define User Type

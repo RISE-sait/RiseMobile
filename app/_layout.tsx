@@ -44,6 +44,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)/signup" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)/forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="(athlete)" options={{ headerShown: false }} />
         <Stack.Screen name="(coach)" options={{ headerShown: false }} />
         <Stack.Screen name="(parent)" options={{ headerShown: false }} />

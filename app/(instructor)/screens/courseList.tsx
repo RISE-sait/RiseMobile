@@ -8,8 +8,8 @@ import { useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import { FlatList } from "react-native-gesture-handler"
 import Animated, { FadeInDown } from "react-native-reanimated"
-import BackButton from "@/app/components/BackButton"
-import PageTitle from "@/app/components/PageTitle"
+import BackButton from "@/components/BackButton"
+import PageTitle from "@/components/PageTitle"
 
 // Mock data for courses
 const mockCourses = [

@@ -3,11 +3,11 @@ import { View, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { mockProducts, Product } from "./storeData";
-import BackButton from "@/app/components/BackButton";
-import PageTitle from "@/app/components/PageTitle";
-import ProductCard from "@/app/components/ProductCard";
-import LoadingIndicator from "@/app/components/LoadingIndicator";
-import FloatingCartButton from "@/app/components/FloatingCartButton";
+import BackButton from "@/components/BackButton";
+import PageTitle from "@/components/PageTitle";
+import ProductCard from "@/components/ProductCard";
+import LoadingIndicator from "@/components/LoadingIndicator";
+import FloatingCartButton from "@/components/FloatingCartButton";
 
 const StoreScreen: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);

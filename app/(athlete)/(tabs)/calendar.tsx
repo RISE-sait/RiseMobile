@@ -9,10 +9,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import dayjs from "dayjs";
-import PageTitle from "@/app/components/PageTitle";
-import CalendarCard from "@/app/components/CalendarCard";
-import EventListContainer from "@/app/components/EventListContainer";
-import EventListItem from "@/app/components/EventListItem";
+import PageTitle from "@/components/PageTitle";
+import CalendarCard from "@/components/calendar/CalendarCard";
+import EventListContainer from "@/components/calendar/EventListContainer";
+import EventListItem from "@/components/calendar/EventListItem";
 import { mockEvents } from "../screens/eventsData";
 import { mockMatches } from "../screens/matchesData";
 

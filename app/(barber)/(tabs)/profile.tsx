@@ -9,10 +9,10 @@ import { FontAwesome6 } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated"
 
-import { useAuth } from "@/app/utils/auth"
+import { useAuth } from "@/utils/auth"
 import images from "@/constants/images"
-import ProfileHeader from "@/app/components/ProfileHeader"
-import GradientBackground from "@/app/components/barber/GradientBackground"
+import ProfileHeader from "@/components/ProfileHeader"
+import GradientBackground from "@/components/barber/GradientBackground"
 
 export default function BarberProfileScreen() {
   const router = useRouter()

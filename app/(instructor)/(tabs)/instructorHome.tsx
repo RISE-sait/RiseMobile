@@ -7,13 +7,13 @@ import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import images from "@/constants/images"
-import ProfileHeader from "@/app/components/ProfileHeader"
-import UpcomingCard from "@/app/components/UpcomingCard"
-import QRCodeModal from "@/app/components/QRCodeModal"
-import GoToCards from "../../components/GoToCards"
+import ProfileHeader from "@/components/ProfileHeader"
+import UpcomingCard from "@/components/UpcomingCard"
+import QRCodeModal from "@/components/QRCodeModal"
+import GoToCards from "../../../components/GoToCards"
 import dayjs from "dayjs"
 import { mockMatches } from "@/app/(athlete)/screens/matchesData"
-import GradientBackground from "@/app/components/barber/GradientBackground"
+import GradientBackground from "@/components/barber/GradientBackground"
 
 type User = {
   id: string

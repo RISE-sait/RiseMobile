@@ -11,8 +11,8 @@ import dayjs from "dayjs"
 import * as Haptics from "expo-haptics"
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from "react-native-reanimated"
 
-import GradientBackground from "@/app/components/barber/GradientBackground"
-import AnimatedAppointmentCard from "@/app/components/barber/AnimatedAppointmentCard"
+import GradientBackground from "@/components/barber/GradientBackground"
+import AnimatedAppointmentCard from "@/components/barber/AnimatedAppointmentCard"
 
 // Mock appointments data
 const mockAppointments = {

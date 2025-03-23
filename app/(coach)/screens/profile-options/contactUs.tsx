@@ -5,9 +5,9 @@ import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome"
 import { faEnvelope, faPhone, faPaperPlane } from "@fortawesome/free-solid-svg-icons"
-import { Input } from "@/app/components/ui/input"
-import { Button } from "@/app/components/ui/button"
-import BackButton from "@/app/components/BackButton"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import BackButton from "@/components/BackButton"
 
 export default function ContactUs() {
   const router = useRouter()

@@ -18,8 +18,8 @@ import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import dayjs from "dayjs";
 import mockMatches from "../data/matches";
-import { useMatchFilters } from './../../hooks/useMatchFIlters';
-import BackButton from "@/app/components/BackButton";
+import { useMatchFilters } from '../../../hooks/useMatchFIlters';
+import BackButton from "@/components/BackButton";
 
 const { width } = Dimensions.get("window");
 

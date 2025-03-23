@@ -7,8 +7,8 @@ import { StatusBar } from "expo-status-bar"
 import { useLocalSearchParams } from "expo-router"
 import * as Haptics from "expo-haptics"
 
-import ServiceForm from "@/app/components/barber/ServiceForm"
-import GradientBackground from "@/app/components/barber/GradientBackground"
+import ServiceForm from "@/components/barber/ServiceForm"
+import GradientBackground from "@/components/barber/GradientBackground"
 
 // Mock API functions
 const saveService = async (service: any) => {

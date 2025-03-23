@@ -1,4 +1,4 @@
-import { Match } from '@/app/hooks/useMatchFIlters';
+import { Match } from '@/hooks/useMatchFIlters';
 
 const mockMatches: Match[] = [
   {

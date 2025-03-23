@@ -9,13 +9,13 @@ import * as Haptics from "expo-haptics"
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from "react-native-reanimated"
 import { FontAwesome6 } from "@expo/vector-icons"
 
-import { useAuth } from "@/app/utils/auth"
+import { useAuth } from "@/utils/auth"
 import images from "@/constants/images"
-import ProfileHeader from "@/app/components/ProfileHeader"
-import QRCodeModal from "@/app/components/QRCodeModal"
-import GradientBackground from "@/app/components/barber/GradientBackground"
-import AnimatedStatsCard from "@/app/components/barber/AnimatedStatsCard"
-import AnimatedAppointmentCard from "@/app/components/barber/AnimatedAppointmentCard"
+import ProfileHeader from "@/components/ProfileHeader"
+import QRCodeModal from "@/components/QRCodeModal"
+import GradientBackground from "@/components/barber/GradientBackground"
+import AnimatedStatsCard from "@/components/barber/AnimatedStatsCard"
+import AnimatedAppointmentCard from "@/components/barber/AnimatedAppointmentCard"
 
 // Mock appointments data
 const mockAppointments = [

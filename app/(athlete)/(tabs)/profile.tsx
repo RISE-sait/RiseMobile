@@ -6,9 +6,9 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import images from "@/constants/images";
-import ProfileHeader from "@/app/components/ProfileHeader";
-import PlayerStatsCard from "@/app/components/PlayerStatsCard";
-import AccountSection from "@/app/components/AccountSection";
+import ProfileHeader from "@/components/ProfileHeader";
+import PlayerStatsCard from "@/components/PlayerStatsCard";
+import AccountSection from "@/components/AccountSection";
 
 type User = {
   id: string;

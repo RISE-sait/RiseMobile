@@ -18,7 +18,7 @@ import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Ionicons } from "@expo/vector-icons"
-import BackButton from "@/app/components/BackButton"
+import BackButton from "@/components/BackButton"
 import images from "@/constants/images"
 
 type User = {

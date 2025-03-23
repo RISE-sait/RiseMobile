@@ -6,17 +6,17 @@ import { COLORS } from "../../../constants/colors";
 import { seasonStats, performanceTrendData, recentGames, comparisonData, shotChartData, radarData } from "../../(coach)/data/mockData";
 
 // Import components
-import PlayerHeader from "../../components/playerStats/PlayerHeader";
-import PlayerSelector from "../../components/playerStats/PlayerSelector";
-import CategoryTabs from "../../components/playerStats/CategoryTabs";
-import SeasonSelector from "../../components/playerStats/SeasonSelector";
-import KeyStats from "../../components/playerStats/KeyStats";
-import CoachActions from "../../components/playerStats/CoachActions";
-import PerformanceTrend from "../../components/playerStats/PerformanceTrend";
-import RecentGames from "../../components/playerStats/RecentGames";
-import ComparisonChart from "../../components/playerStats/ComparisonChart";
-import ShotChart from "../../components/playerStats/ShotChart";
-import StrengthsWeaknesses from "../../components/playerStats/StrengthsWeaknesses";
+import PlayerHeader from "../../../components/playerStats/PlayerHeader";
+import PlayerSelector from "../../../components/playerStats/PlayerSelector";
+import CategoryTabs from "../../../components/playerStats/CategoryTabs";
+import SeasonSelector from "../../../components/playerStats/SeasonSelector";
+import KeyStats from "../../../components/playerStats/KeyStats";
+import CoachActions from "../../../components/playerStats/CoachActions";
+import PerformanceTrend from "../../../components/playerStats/PerformanceTrend";
+import RecentGames from "../../../components/playerStats/RecentGames";
+import ComparisonChart from "../../../components/playerStats/ComparisonChart";
+import ShotChart from "../../../components/playerStats/ShotChart";
+import StrengthsWeaknesses from "../../../components/playerStats/StrengthsWeaknesses";
 
 // Stat categories list 
 const statCategories = [

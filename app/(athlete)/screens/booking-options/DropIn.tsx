@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { FontAwesome6 } from "@expo/vector-icons";
-import BackButton from "@/app/components/BackButton";
+import BackButton from "@/components/BackButton";
 
 // Mock court data (Replace with API in future)
 const courts = [

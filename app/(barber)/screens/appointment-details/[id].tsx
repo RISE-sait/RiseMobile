@@ -10,9 +10,9 @@ import * as Haptics from "expo-haptics"
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated"
 import { LinearGradient } from "expo-linear-gradient"
 
-import BackButton from "@/app/components/BackButton"
-import GradientBackground from "@/app/components/barber/GradientBackground"
-import AppointmentDetailCard from "@/app/components/barber/AppointmentDetailCard"
+import BackButton from "@/components/BackButton"
+import GradientBackground from "@/components/barber/GradientBackground"
+import AppointmentDetailCard from "@/components/barber/AppointmentDetailCard"
 
 // Mock API functions
 const getAppointment = async (id: string) => {
