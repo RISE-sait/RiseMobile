@@ -8,10 +8,21 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/riseSplash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "ios": {
       "bundleIdentifier": "com.risebasketball.mobile",
       "googleServicesFile": "./firebase/GoogleService-Info.plist",
       "supportsTablet": true,
+      "splash": {
+        "image": "./assets/images/riseSplash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000000",
+        "tabletImage": "./assets/images/riseSplashTablet.png"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -19,9 +30,24 @@
     "android": {
       "package": "com.risebasketball.mobile",
       "googleServicesFile": "./firebase/google-services.json",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/rise-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
+      },
+      "splash": {
+        "mdpi": "./assets/images/riseSplash.png",
+        "hdpi": "./assets/images/riseSplash.png",
+        "xhdpi": "./assets/images/riseSplash.png",
+        "xxhdpi": "./assets/images/riseSplash.png",
+        "xxxhdpi": "./assets/images/riseSplash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000000",
+        "tabletMdpi": "./assets/images/riseSplashTablet.png",
+        "tabletHdpi": "./assets/images/riseSplashTablet.png",
+        "tabletXhdpi": "./assets/images/riseSplashTablet.png",
+        "tabletXxhdpi": "./assets/images/riseSplashTablet.png",
+        "tabletXxxhdpi": "./assets/images/riseSplashTablet.png"
       }
     },
     "web": {
@@ -35,9 +61,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/riseSplash.png",
-          "imageWidth": 200,
-          "resizeMode": "cover",
-          "backgroundColor": "#ffffff"
+          "tabletImage": "./assets/images/riseSplashTablet.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
         }
       ],
       [
