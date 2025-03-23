@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser, registerUser } from "./api"; // Import API functions
-import { auth } from "../../firebase/firebaseConfig";
+import { auth } from "@/firebase/firebaseConfig";
 import { GoogleAuthProvider, signInWithCredential, OAuthProvider } from "firebase/auth";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";

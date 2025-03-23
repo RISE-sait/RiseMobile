@@ -2,7 +2,7 @@
 import React from "react";
 import { View, Text, ActivityIndicator } from "react-native";
 import { Redirect } from "expo-router";
-import { useAuth } from "./utils/auth";
+import { useAuth } from "@/utils/auth";
 
 export default function Index() {
   const { user, isLoading } = useAuth();

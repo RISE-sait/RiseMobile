@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useEffect, useState } from "react"
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, RefreshControl } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -9,7 +7,7 @@ import * as Haptics from "expo-haptics"
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from "react-native-reanimated"
 import { FontAwesome6 } from "@expo/vector-icons"
 
-import { useAuth } from "@/app/utils/auth"
+import { useAuth } from "@/utils/auth"
 import images from "@/constants/images"
 import ProfileHeader from "@/components/ProfileHeader"
 import QRCodeModal from "@/components/QRCodeModal"

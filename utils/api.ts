@@ -1,6 +1,6 @@
 import axios from "axios";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, getAuth } from "firebase/auth";
-import { auth } from "../../firebase/firebaseConfig";
+import { auth } from "@/firebase/firebaseConfig";
 
 export const API_URL = "https://api-461776259687.us-west2.run.app";
 
