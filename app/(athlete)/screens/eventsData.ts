@@ -29,7 +29,7 @@ export const mockEvents: Event[] = [
     title: "Pro Skills Training Camp",
     description:
       "Intensive training camp led by professional coaches. Improve your skills, learn new techniques, and take your game to the next level.",
-    date: new Date().toISOString().split("T")[0], // Today's date
+    date: "2025-06-20", // Future date
     time: "4:00 PM - 7:00 PM",
     location: "Training Court, RISE Facility",
     image:
