@@ -15,6 +15,8 @@ import { useRouter } from "expo-router"
 import { useAuth } from "@/utils/auth"
 import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
+import { useDispatch } from "react-redux"
+import { setUser } from "@/store/slices/userSlice"
 
 // Components
 import { AnimatedLogo } from "@/components/auth/AnimatedLogo"
@@ -24,14 +26,12 @@ import { SocialLogin } from "@/components/auth/SocialLogin"
 import { SignupLink } from "@/components/auth/SignupLink"
 import { ErrorToast } from "@/components/auth/ErrorToast"
 
-
-
 const { height } = Dimensions.get("window")
 
 interface ErrorState {
-  general?: string;
-  email?: string;
-  password?: string;
+  general?: string
+  email?: string
+  password?: string
 }
 
 const LoginScreen = () => {
@@ -39,7 +39,7 @@ const LoginScreen = () => {
   const [errors, setErrors] = useState<ErrorState>({})
   const { login, loginWithGoogle } = useAuth()
   const router = useRouter()
-
+  const dispatch = useDispatch()
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -65,6 +65,7 @@ const LoginScreen = () => {
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true)
+
       // Trigger haptic feedback
       if (Platform.OS === "ios") {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -72,6 +73,18 @@ const LoginScreen = () => {
 
       const user = await loginWithGoogle()
       console.log("Google login successful:", user)
+
+      // Store user in Redux
+      if (user) {
+        dispatch(
+          setUser({
+            ...user,
+            isAuthenticated: true, // Add isAuthenticated property
+          }),
+        )
+      }
+
+      // Note: Navigation is already handled in loginWithGoogle function
     } catch (error) {
       setErrors({ general: "Google login failed. Please try again." })
       // Trigger haptic feedback for error
@@ -92,6 +105,18 @@ const LoginScreen = () => {
       const user = await login(email, password)
 
       console.log("User logged in:", user)
+
+      // Store user in Redux
+      if (user) {
+        dispatch(
+          setUser({
+            ...user,
+            isAuthenticated: true, // Add isAuthenticated property
+          }),
+        )
+      }
+
+      // Note: Navigation is already handled in the login function in auth.ts
     } catch (error) {
       console.error("Failed to login:", error)
       setErrors({ general: "Invalid email or password. Please try again." })

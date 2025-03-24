@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { Stack } from "expo-router";
-import "./globals.css";
-import { useFonts } from "expo-font";
-import { StatusBar } from 'expo-status-bar';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View, ActivityIndicator } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Stack } from "expo-router"
+import "./globals.css"
+import { useFonts } from "expo-font"
+import { StatusBar } from "expo-status-bar"
+import { GestureHandlerRootView } from "react-native-gesture-handler"
+import { View, ActivityIndicator } from "react-native"
+import { Provider } from "react-redux"
+import { PersistGate } from "redux-persist/integration/react"
+import { store, persistor } from "@/store"
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -26,32 +27,36 @@ export default function RootLayout() {
     "Outfit-ExtraBold": require("../assets/fonts/Outfit-ExtraBold.ttf"),
     "Outfit-Thin": require("../assets/fonts/Outfit-Thin.ttf"),
     "ProtestStrike-Regular": require("../assets/fonts/ProtestStrike-Regular.ttf"),
-  });
-
+  })
 
   if (!fontsLoaded) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-900">
         <ActivityIndicator size="large" color="#B59422" />
       </View>
-    );
+    )
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style="auto" />
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)/signup" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)/forgot-password" options={{ headerShown: false }} />
-        <Stack.Screen name="(athlete)" options={{ headerShown: false }} />
-        <Stack.Screen name="(coach)" options={{ headerShown: false }} />
-        <Stack.Screen name="(parent)" options={{ headerShown: false }} />
-        <Stack.Screen name="(barber)" options={{ headerShown: false }} />
-        <Stack.Screen name="(instructor)" options={{ headerShown: false }} />
-      </Stack>
-    </GestureHandlerRootView>
-    );
-  }
+    <Provider store={store}>
+      <PersistGate loading={<ActivityIndicator size="large" color="#B59422" />} persistor={persistor}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <StatusBar style="auto" />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)/signup" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)/forgot-password" options={{ headerShown: false }} />
+            <Stack.Screen name="(athlete)" options={{ headerShown: false }} />
+            <Stack.Screen name="(coach)" options={{ headerShown: false }} />
+            <Stack.Screen name="(parent)" options={{ headerShown: false }} />
+            <Stack.Screen name="(barber)" options={{ headerShown: false }} />
+            <Stack.Screen name="(instructor)" options={{ headerShown: false }} />
+            <Stack.Screen name="screens" options={{ headerShown: false }} />
+          </Stack>
+        </GestureHandlerRootView>
+      </PersistGate>
+    </Provider>
+  )
+}
 
