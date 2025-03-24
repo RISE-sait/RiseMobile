@@ -1,63 +1,76 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native";
-import dayjs from "dayjs";
-import { SafeAreaView } from "react-native-safe-area-context";
-import MatchCard from "../../../components/events/MatchCard";
-import { StatusBar } from "expo-status-bar";
-import { FontAwesome6 } from "@expo/vector-icons";
-import { mockMatches } from "../screens/matchesData";
+"use client"
 
-const { width } = Dimensions.get("window");
+import type React from "react"
+import { useState, useEffect, useRef } from "react"
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native"
+import dayjs from "dayjs"
+import { SafeAreaView } from "react-native-safe-area-context"
+import MatchCard from "../../../components/events/MatchCard"
+import { StatusBar } from "expo-status-bar"
+import { FontAwesome6 } from "@expo/vector-icons"
+import { useAppDispatch, useAppSelector } from "../../../store/hooks"
+import { fetchMatches } from "../../../store/slices/matchesSlice"
+import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
+import EmptyState from "../../../components/feedback/EmptyState"
+
+const { width } = Dimensions.get("window")
 
 const generateWeekDates = (): dayjs.Dayjs[] => {
-  const today = dayjs();
-  return Array.from({ length: 14 }, (_, i) => today.add(i - 6, "day"));
-};
+  const today = dayjs()
+  return Array.from({ length: 14 }, (_, i) => today.add(i - 6, "day"))
+}
 
 const MatchesScreen: React.FC = () => {
-  const [matches] = useState(mockMatches);
-  const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
-  const [weekDates] = useState(generateWeekDates);
-  const flatListRef = useRef<FlatList>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const dispatch = useAppDispatch()
+  const { items: matches, status, error } = useAppSelector((state) => state.matches)
+  const { token } = useAppSelector((state) => state.user)
+
+  const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))
+  const [weekDates] = useState(generateWeekDates)
+  const flatListRef = useRef<FlatList>(null)
+  const fadeAnim = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    // Fetch matches when component mounts
+    if (token) {
+      dispatch(fetchMatches(token))
+    }
+  }, [dispatch, token])
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
-    }).start();
+    }).start()
 
-    const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"));
+    const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"))
 
     if (flatListRef.current) {
       setTimeout(() => {
-        flatListRef.current?.scrollToIndex({ index: todayIndex, animated: true });
-      }, 300);
+        flatListRef.current?.scrollToIndex({ index: todayIndex, animated: true })
+      }, 300)
     }
-  }, []);
+  }, [])
 
-  const filteredMatches = matches.filter((match) =>
-    dayjs(match.date).format("YYYY-MM-DD") === selectedDate
-  );
+  // Filter matches by selected date
+  const filteredMatches = matches.filter((match) => dayjs(match.date).format("YYYY-MM-DD") === selectedDate)
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
-    const isSelected = item.format("YYYY-MM-DD") === selectedDate;
+    const isSelected = item.format("YYYY-MM-DD") === selectedDate
 
     const label = item.isSame(dayjs(), "day")
       ? "Today"
       : item.isSame(dayjs().subtract(1, "day"), "day")
-      ? "Yesterday"
-      : item.isSame(dayjs().add(1, "day"), "day")
-      ? "Tomorrow"
-      : item.format("DD MMM");
+        ? "Yesterday"
+        : item.isSame(dayjs().add(1, "day"), "day")
+          ? "Tomorrow"
+          : item.format("DD MMM")
 
     return (
       <TouchableOpacity
         activeOpacity={0.75}
-        className={`mx-1 rounded-lg items-center justify-center ${
-          isSelected ? "bg-gold-100" : "bg-white-100/10"
-        }`}
+        className={`mx-1 rounded-lg items-center justify-center ${isSelected ? "bg-gold-100" : "bg-white-100/10"}`}
         style={{
           width: 70,
           height: 50,
@@ -68,16 +81,37 @@ const MatchesScreen: React.FC = () => {
         }}
         onPress={() => setSelectedDate(item.format("YYYY-MM-DD"))}
       >
-        <Text
-          className={`font-semibold text-xs uppercase ${
-            isSelected ? "text-black" : "text-gray-200"
-          }`}
-        >
+        <Text className={`font-semibold text-xs uppercase ${isSelected ? "text-black" : "text-gray-200"}`}>
           {label}
         </Text>
       </TouchableOpacity>
-    );
-  };
+    )
+  }
+
+  // Render loading state
+  if (status === "loading") {
+    return (
+      <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
+        <LoadingIndicator size="large" color="#FCA311" />
+        <Text className="text-white-100 mt-4">Loading matches...</Text>
+      </SafeAreaView>
+    )
+  }
+
+  // Render error state
+  if (status === "failed" && error) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
+        <EmptyState
+          icon="exclamation-circle"
+          title="Error Loading Matches"
+          message={error}
+          actionLabel="Try Again"
+          onAction={() => token && dispatch(fetchMatches(token))}
+        />
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">
@@ -107,21 +141,18 @@ const MatchesScreen: React.FC = () => {
         {/* Match Cards */}
         <ScrollView className="px-4">
           {filteredMatches.length ? (
-            filteredMatches.map((match) => (
-              <MatchCard key={match.id} match={match} />
-            ))
+            filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)
           ) : (
             <View className="mt-10 items-center">
               <FontAwesome6 name="calendar-xmark" size={40} color="#555" />
-              <Text className="text-gray-400 mt-3 font-semibold">
-                No matches scheduled for this date.
-              </Text>
+              <Text className="text-gray-400 mt-3 font-semibold">No matches scheduled for this date.</Text>
             </View>
           )}
         </ScrollView>
       </Animated.View>
     </SafeAreaView>
-  );
-};
+  )
+}
 
-export default MatchesScreen;
+export default MatchesScreen
+

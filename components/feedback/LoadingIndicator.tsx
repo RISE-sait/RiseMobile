@@ -1,15 +1,20 @@
-import React from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import type React from "react"
+import { ActivityIndicator, View, Text } from "react-native"
 
 interface LoadingIndicatorProps {
-  text?: string;
+  size?: "small" | "large"
+  color?: string
+  message?: string
 }
 
-const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ text = "Loading..." }) => (
-  <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-    <ActivityIndicator size="large" color="#FCA311" />
-    <Text style={{ color: "#A0A0A0", marginTop: 10 }}>{text}</Text>
-  </View>
-);
+const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ size = "large", color = "#FCA311", message }) => {
+  return (
+    <View className="items-center justify-center">
+      <ActivityIndicator size={size} color={color} />
+      {message && <Text className="text-gray-400 mt-2">{message}</Text>}
+    </View>
+  )
+}
 
-export default LoadingIndicator;
+export default LoadingIndicator
+

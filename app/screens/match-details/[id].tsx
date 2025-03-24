@@ -12,7 +12,6 @@ import {
   Dimensions,
   ImageBackground,
   Linking,
-  Alert,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
@@ -24,8 +23,9 @@ import BackButton from "@/components/buttons/BackButton"
 import EventInfoRow from "@/components/events/EventInfoRow"
 import { Image } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
-import axios from "axios"
-import { API_URL } from "@/utils/api"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { fetchMatchById } from "@/store/slices/matchesSlice"
+import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 
 const { width } = Dimensions.get("window")
 
@@ -38,52 +38,104 @@ const statusStyles = {
 // Instagram profile URL - replace with your actual profile URL
 const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/yourprofile"
 
-// Helper function to check if a string is a valid UUID
-const isValidUUID = (id: string): boolean => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-}
-
-// Helper function to extract title from different field names
-const extractTitle = (data: any): string => {
-  // Log the data to see what we're working with
-  console.log("Extracting title from data:", data)
-
-  if (data.title) return data.title
-  if (data.name) return data.name
-  if (data.game_name) return data.game_name
-  if (data.match_name) return data.match_name
-  if (data.event_name) return data.event_name
-
-  // For games, check for team names to create a title
-  if (data.home_team && data.away_team) {
-    return `${data.home_team} vs ${data.away_team}`
-  }
-
-  return "Basketball Game"
-}
-
-// Helper function to extract video link if available
-const extractVideoLink = (data: any): string | null => {
-  if (data.video_link) return data.video_link
-  if (data.videoLink) return data.videoLink
-  if (data.video) return data.video
-  if (data.video_url) return data.video_url
-
-  return null
-}
-
 const MatchDetailsScreen = () => {
   const { id } = useLocalSearchParams()
   const router = useRouter()
-  const [match, setMatch] = useState<MatchDetails | null>(null)
+  const dispatch = useAppDispatch()
+  const { token } = useAppSelector((state) => state.user)
+  const matchState = useAppSelector((state) => state.matches)
+  const teamsById = matchState.teams.byId || {}
+
   const [loading, setLoading] = useState(true)
-  const [videoLink, setVideoLink] = useState<string | null>(null)
+  const [match, setMatch] = useState<MatchDetails | null>(null)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
 
-  // Define fallbackToMockData BEFORE it's used
+  useEffect(() => {
+    // Start animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start()
+
+    // Fetch match data
+    const fetchMatchData = async () => {
+      setLoading(true)
+
+      if (token && id) {
+        try {
+          // Dispatch the action to fetch the match
+          await dispatch(fetchMatchById({ id: id as string, token })).unwrap()
+
+          // Get the match from the store
+          const matchData = matchState.byId[id as string]
+
+          if (matchData) {
+            // Get team information
+            const homeTeamId = matchData.win_team
+            const awayTeamId = matchData.lose_team
+
+            const homeTeam = homeTeamId && teamsById[homeTeamId] ? teamsById[homeTeamId].name : "Home Team"
+
+            const awayTeam = awayTeamId && teamsById[awayTeamId] ? teamsById[awayTeamId].name : "Away Team"
+
+            const homeLogo =
+              homeTeamId && teamsById[homeTeamId]?.logo ? teamsById[homeTeamId].logo : "https://via.placeholder.com/100"
+
+            const awayLogo =
+              awayTeamId && teamsById[awayTeamId]?.logo ? teamsById[awayTeamId].logo : "https://via.placeholder.com/100"
+
+            // Create match details object
+            const matchDetails: MatchDetails = {
+              id: matchData.id,
+              homeTeam: homeTeam,
+              awayTeam: awayTeam,
+              homeScore: matchData.win_score || 0,
+              awayScore: matchData.lose_score || 0,
+              league: matchData.league || "RISE Basketball League",
+              status: matchData.status || "Upcoming",
+              date: matchData.date,
+              time: matchData.time || "TBD",
+              location: matchData.location || "RISE Basketball Court",
+              description: matchData.description || "Basketball match",
+              homeLogo: homeLogo,
+              awayLogo: awayLogo,
+              bgImage: "https://images.unsplash.com/photo-1504450758481-7338eba7524a",
+              type: "match",
+              organizer: "RISE Basketball",
+            }
+
+            setMatch(matchDetails)
+          } else {
+            // Fallback to mock data if match not found
+            fallbackToMockData()
+          }
+        } catch (error) {
+          console.error("Error fetching match:", error)
+          fallbackToMockData()
+        } finally {
+          setLoading(false)
+        }
+      } else {
+        fallbackToMockData()
+        setLoading(false)
+      }
+    }
+
+    fetchMatchData()
+  }, [id, token, dispatch])
+
+  // Define fallbackToMockData function
   const fallbackToMockData = () => {
-    console.log("Using mock data as fallback for game")
+    console.log("Using mock data as fallback for match")
 
     // Find the match by ID in mock data
     const foundMatch = mockMatches.find((m) => m.id === id)
@@ -107,123 +159,13 @@ const MatchDetailsScreen = () => {
         homeLogo: "https://via.placeholder.com/100",
         awayLogo: "https://via.placeholder.com/100",
         bgImage: "https://images.unsplash.com/photo-1504450758481-7338eba7524a",
-        type: "match", // Add the required 'type' property
+        type: "match",
+        organizer: "RISE Basketball",
       }
 
       setMatch(defaultMatch)
     }
   }
-
-  useEffect(() => {
-    // Start animations
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start()
-
-    // Fetch game data from API
-    const fetchGameData = async () => {
-      try {
-        setLoading(true)
-
-        // Check if the ID is already a valid UUID
-        const gameId = isValidUUID(id as string) ? id : null
-
-        // If we don't have a valid UUID, fall back to mock data
-        if (!gameId) {
-          console.log("Invalid UUID format, using mock data")
-          fallbackToMockData()
-          setLoading(false)
-          return
-        }
-
-        // Log the request details for debugging
-        console.log("Making API request to:", `${API_URL}/games/${gameId}`)
-
-        try {
-          const response = await axios.get(`${API_URL}/games/${gameId}`, {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          })
-
-          console.log("API Response:", response.data)
-
-          if (response.data) {
-            const gameData = response.data
-
-            // Extract video link if available
-            const extractedVideoLink = extractVideoLink(gameData)
-            if (extractedVideoLink) {
-              setVideoLink(extractedVideoLink)
-            }
-
-            // Get the title from the API response
-            const title = extractTitle(gameData)
-            console.log("Extracted title:", title)
-
-            // Create a match details object with the minimal data we have
-            // and fill in defaults for missing fields
-            const matchDetails: MatchDetails = {
-              id: gameData.id || (id as string),
-              homeTeam: gameData.home_team || gameData.homeTeam || "Home Team",
-              awayTeam: gameData.away_team || gameData.awayTeam || "Away Team",
-              homeScore: gameData.home_score || gameData.homeScore || 0,
-              awayScore: gameData.away_score || gameData.awayScore || 0,
-              league: gameData.league || gameData.tournament || title || "Basketball League",
-              status: gameData.status || "Finished",
-              date: gameData.date || gameData.game_date || new Date().toISOString(),
-              location: gameData.location || gameData.venue || "RISE Basketball Court",
-              description:
-                gameData.description ||
-                gameData.details ||
-                `Watch this exciting match: ${title}. ${extractedVideoLink ? "Video available." : ""}`,
-              homeLogo: gameData.home_logo || gameData.homeLogo || "https://via.placeholder.com/100",
-              awayLogo: gameData.away_logo || gameData.awayLogo || "https://via.placeholder.com/100",
-              bgImage:
-                gameData.image ||
-                gameData.background_image ||
-                gameData.bgImage ||
-                "https://images.unsplash.com/photo-1504450758481-7338eba7524a",
-              type: "match",
-            }
-
-            setMatch(matchDetails)
-          } else {
-            fallbackToMockData()
-          }
-        } catch (error) {
-          // Enhanced error logging
-          if (axios.isAxiosError(error)) {
-            console.error("API Error Details:", {
-              status: error.response?.status,
-              statusText: error.response?.statusText,
-              data: error.response?.data,
-              url: error.config?.url,
-              method: error.config?.method,
-            })
-          }
-          fallbackToMockData()
-        } finally {
-          setLoading(false)
-        }
-      } catch (error) {
-        console.error("General error:", error)
-        fallbackToMockData()
-        setLoading(false)
-      }
-    }
-
-    fetchGameData()
-  }, [id])
 
   const handleShare = async () => {
     if (!match) return
@@ -242,25 +184,29 @@ const MatchDetailsScreen = () => {
     Linking.openURL(INSTAGRAM_PROFILE_URL).catch((err) => console.error("Error opening Instagram profile:", err))
   }
 
-  const openVideoLink = () => {
-    if (videoLink) {
-      Linking.openURL(videoLink).catch((err) => {
-        console.error("Error opening video link:", err)
-        Alert.alert("Error", "Could not open video link")
-      })
-    }
-  }
-
-  if (loading || !match) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar translucent style="light" />
-        <Text style={styles.loadingText}>{loading ? "Loading match details..." : "Match not found"}</Text>
+        <LoadingIndicator size="large" color="#FCA311" />
+        <Text style={styles.loadingText}>Loading match details...</Text>
       </SafeAreaView>
     )
   }
 
-  const { color, label, bgColor } = statusStyles[match.status]
+  if (!match) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <StatusBar translucent style="light" />
+        <Text style={styles.loadingText}>Match not found</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    )
+  }
+
+  const { color, label, bgColor } = statusStyles[match.status as keyof typeof statusStyles] || statusStyles.Upcoming
 
   // Basketball stats (mock data - in a real app, this would come from your API)
   const basketballStats = {
@@ -345,18 +291,10 @@ const MatchDetailsScreen = () => {
 
             <View style={styles.infoSection}>
               <EventInfoRow icon="calendar" text={dayjs(match.date).format("dddd, MMMM D, YYYY")} />
-              <EventInfoRow icon="clock" text={match.time} />
+              <EventInfoRow icon="clock" text={match.time || "TBD"} />
               <EventInfoRow icon="map-marker-alt" text={match.location} />
-              <EventInfoRow icon="user" text={`Organized by: ${match.organizer}`} />
+              <EventInfoRow icon="user" text={`Organized by: ${match.organizer || "RISE Basketball"}`} />
             </View>
-
-            {/* Video Link Button (if available) */}
-            {videoLink && (
-              <TouchableOpacity style={styles.videoButton} onPress={openVideoLink}>
-                <FontAwesome6 name="play-circle" size={20} color="#FFFFFF" style={styles.videoIcon} />
-                <Text style={styles.videoButtonText}>Watch Game Video</Text>
-              </TouchableOpacity>
-            )}
 
             <View style={styles.divider} />
 
@@ -442,6 +380,18 @@ const styles = StyleSheet.create({
   loadingText: {
     color: "#CCCCCC",
     fontSize: 16,
+    marginTop: 16,
+  },
+  backButton: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "#FCA311",
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: "#000000",
+    fontWeight: "bold",
   },
   headerImage: {
     height: 300,
@@ -537,23 +487,6 @@ const styles = StyleSheet.create({
   },
   infoSection: {
     marginBottom: 16,
-  },
-  videoButton: {
-    backgroundColor: "#EF4444",
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 10,
-  },
-  videoIcon: {
-    marginRight: 8,
-  },
-  videoButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
   },
   sectionTitle: {
     color: "#FFFFFF",

@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { TouchableOpacity, Text, View } from "react-native"
 import { useRouter } from "expo-router"
@@ -7,6 +9,7 @@ interface EventListItemProps {
   id: string
   title: string
   time: string
+  location?: string
   type: "event" | "match" | "practice" | "course"
 }
 
@@ -28,15 +31,14 @@ const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.gl
   return "calendar"
 }
 
-const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, type = "event" }) => {
+const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, location, type = "event" }) => {
   const router = useRouter()
   const iconName = getEventIcon(title, type)
 
   const handlePress = () => {
+    console.log(`Navigating to event: ${id}, type: ${type}`)
+
     switch (type) {
-      case "event":
-        router.push(`/screens/event-details/${id}`)
-        break
       case "match":
         router.push(`/screens/match-details/${id}`)
         break
@@ -47,6 +49,7 @@ const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, type = "
       case "course":
         router.push(`/screens/event-details/${id}?type=course`)
         break
+      case "event":
       default:
         router.push(`/screens/event-details/${id}`)
     }
@@ -104,7 +107,15 @@ const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, type = "
 
       <View className="flex-1">
         <Text className="text-white-100 text-lg font-semibold tracking-wide">{title}</Text>
-        <Text className="text-gray-400 text-sm mt-1">{time}</Text>
+        <View className="flex-row flex-wrap items-center mt-1">
+          <Text className="text-gray-400 text-sm">{time}</Text>
+          {location && (
+            <View className="flex-row items-center ml-2">
+              <FontAwesome6 name="location-dot" size={12} color="#a0a0a0" style={{ marginRight: 4 }} />
+              <Text className="text-gray-400 text-sm">{location}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       <FontAwesome6 name="chevron-right" size={16} color={getIconColor()} />

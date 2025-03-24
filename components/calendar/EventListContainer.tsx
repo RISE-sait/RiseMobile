@@ -1,39 +1,156 @@
 import type React from "react"
-import { View, Text } from "react-native"
+import { View, Text, FlatList } from "react-native"
 import { FontAwesome6 } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
+import EventListItem from "./EventListItem"
+import { EmptyState } from "@/components/feedback/EmptyState"
+import LoadingIndicator from "@/components/feedback/LoadingIndicator"
+
+interface EventItem {
+  id: string
+  title: string
+  time: string
+  location?: string
+  type: string // Changed from union type to string to accept any type
+  [key: string]: any
+}
 
 interface EventListContainerProps {
   date: string
-  children: React.ReactNode
+  data: EventItem[]
+  isLoading?: boolean
+  error?: string | null
+  onRetry?: () => void
+  emptyMessage?: string
 }
 
-const EventListContainer: React.FC<EventListContainerProps> = ({ date, children }) => {
+// Helper function to map API types to display types
+const mapTypeToValidType = (type: string): "event" | "match" | "practice" | "course" => {
+  switch (type.toLowerCase()) {
+    case "match":
+      return "match"
+    case "practice":
+      return "practice"
+    case "course":
+      return "course"
+    case "game":
+      return "match"
+    case "event":
+      return "event"
+    default:
+      return "event"
+  }
+}
+
+const EventListContainer: React.FC<EventListContainerProps> = ({
+  date,
+  data,
+  isLoading = false,
+  error = null,
+  onRetry,
+  emptyMessage = "There are no events scheduled for this day.",
+}) => {
   return (
-    <View className="flex-1">
-      <LinearGradient colors={["#1A1A1A", "#121212"]} className="flex-1 rounded-t-3xl overflow-hidden shadow-lg">
+    <View style={{ flex: 1, minHeight: 300 }}>
+      <LinearGradient
+        colors={["#1A1A1A", "#121212"]}
+        style={{ flex: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" }}
+      >
         {/* Date header */}
-        <View className="px-5 pt-5 pb-3 border-b border-gray-800">
-          <View className="flex-row items-center">
-            <View className="w-10 h-10 rounded-full bg-[#FCA311]/20 items-center justify-center mr-3">
+        <View
+          style={{
+            paddingHorizontal: 20,
+            paddingTop: 20,
+            paddingBottom: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: "#333",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: "rgba(252, 163, 17, 0.2)",
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+              }}
+            >
               <FontAwesome6 name="calendar-day" size={16} color="#FCA311" />
             </View>
-            <Text className="text-[#FCA311] text-lg font-bold">{date}</Text>
+            <Text style={{ color: "#FCA311", fontSize: 18, fontWeight: "bold" }}>{date}</Text>
           </View>
         </View>
 
         {/* Content area */}
-        <View className="flex-1 p-5">{children}</View>
+        {isLoading ? (
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+            <LoadingIndicator />
+          </View>
+        ) : error ? (
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+            <Text style={{ color: "#f87171", marginBottom: 8, textAlign: "center" }}>{error}</Text>
+            {onRetry && (
+              <Text
+                style={{ color: "#60a5fa", textDecorationLine: "underline", textAlign: "center" }}
+                onPress={onRetry}
+              >
+                Tap to retry
+              </Text>
+            )}
+          </View>
+        ) : (
+          <FlatList
+            data={data}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => {
+              // Map the type to a valid display type
+              const validType = mapTypeToValidType(item.type)
+
+              // Log the type mapping for debugging
+              console.log(`Mapping item type: ${item.type} -> ${validType} for item: ${item.title}`)
+
+              return (
+                <EventListItem
+                  id={item.id}
+                  title={item.title}
+                  time={item.time || "TBD"}
+                  location={item.location}
+                  type={validType}
+                />
+              )
+            }}
+            contentContainerStyle={{
+              padding: 20,
+              flexGrow: 1,
+              minHeight: data.length === 0 ? 200 : undefined,
+            }}
+            ListEmptyComponent={<EmptyState icon="calendar-xmark" title="No Events" message={emptyMessage} />}
+          />
+        )}
 
         {/* Legend */}
-        <View className="flex-row justify-center items-center pb-4 pt-2 px-5 border-t border-gray-800">
-          <View className="flex-row items-center mr-4">
-            <View className="w-3 h-3 rounded-full bg-[#FCA311] mr-2" />
-            <Text className="text-gray-400 text-xs">Matches</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+            paddingBottom: 16,
+            paddingTop: 8,
+            paddingHorizontal: 20,
+            borderTopWidth: 1,
+            borderTopColor: "#333",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginRight: 16 }}>
+            <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: "#FCA311", marginRight: 8 }} />
+            <Text style={{ color: "#a0a0a0", fontSize: 12 }}>Matches</Text>
           </View>
-          <View className="flex-row items-center">
-            <View className="w-3 h-3 rounded-full bg-[#4ade80] mr-2" />
-            <Text className="text-gray-400 text-xs">Events</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: "#4ade80", marginRight: 8 }} />
+            <Text style={{ color: "#a0a0a0", fontSize: 12 }}>Events</Text>
           </View>
         </View>
       </LinearGradient>
