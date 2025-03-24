@@ -3,7 +3,7 @@ import { useState } from "react"
 import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native"
 import { useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
-import BackButton from "@/components/BackButton"
+import BackButton from "@/components/buttons/BackButton"
 
 interface ServiceFormProps {
   initialData?: {

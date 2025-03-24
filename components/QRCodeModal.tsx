@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { View, Modal, Text, Image, Animated, TouchableOpacity } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome6 } from "@expo/vector-icons";
-import QRCodeButton from "./QRCodeButton"; // ✅ Import the component
+import QRCodeButton from "./buttons/QRCodeButton"; // ✅ Import the component
 
 const QRCodeModal = () => {
   const [isModalVisible, setModalVisible] = useState(false);

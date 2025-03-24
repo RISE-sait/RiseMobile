@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useEffect, useRef } from "react"
 import { View, Text, Animated, TouchableOpacity } from "react-native"
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome"

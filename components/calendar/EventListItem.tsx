@@ -1,67 +1,116 @@
-import React from "react";
-import { TouchableOpacity, Text, View } from "react-native";
-import { useRouter } from "expo-router";
-import { FontAwesome6 } from "@expo/vector-icons";
+import type React from "react"
+import { TouchableOpacity, Text, View } from "react-native"
+import { useRouter } from "expo-router"
+import { FontAwesome6 } from "@expo/vector-icons"
 
 interface EventListItemProps {
-  id: string;
-  title: string;
-  time: string;
-  type?: "match" | "event";
+  id: string
+  title: string
+  time: string
+  type: "event" | "match" | "practice" | "course"
 }
 
-const getEventIcon = (title: string, type: "match" | "event"): keyof typeof FontAwesome6.glyphMap => {
-  const lowerTitle = title.toLowerCase();
+const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.glyphMap => {
+  const lowerTitle = title.toLowerCase()
 
-  if (type === "match") return "trophy";
+  // Handle by type first
+  if (type === "match") return "trophy"
+  if (type === "practice") return "person-running"
+  if (type === "course") return "book"
 
-  if (lowerTitle.includes("basketball")) return "basketball";
-  if (lowerTitle.includes("training") || lowerTitle.includes("gym")) return "dumbbell";
-  if (lowerTitle.includes("meeting")) return "users";
-  if (lowerTitle.includes("nutrition")) return "apple-whole";
-  if (lowerTitle.includes("speed") || lowerTitle.includes("agility")) return "stopwatch";
+  // Then check title content for event type
+  if (lowerTitle.includes("basketball")) return "basketball"
+  if (lowerTitle.includes("training") || lowerTitle.includes("gym")) return "dumbbell"
+  if (lowerTitle.includes("meeting")) return "users"
+  if (lowerTitle.includes("nutrition")) return "apple-whole"
+  if (lowerTitle.includes("speed") || lowerTitle.includes("agility")) return "stopwatch"
 
-  return "calendar";
-};
+  return "calendar"
+}
 
 const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, type = "event" }) => {
-  const router = useRouter();
-  const iconName = getEventIcon(title, type);
+  const router = useRouter()
+  const iconName = getEventIcon(title, type)
 
   const handlePress = () => {
-    router.push(
-      type === "match"
-        ? `/screens/match-details/${id}`
-        : `/screens/event-details/${id}`
-    );
-  };
+    switch (type) {
+      case "event":
+        router.push(`/screens/event-details/${id}`)
+        break
+      case "match":
+        router.push(`/screens/match-details/${id}`)
+        break
+      case "practice":
+        // For now, practices also go to event details
+        router.push(`/screens/event-details/${id}?type=practice`)
+        break
+      case "course":
+        router.push(`/screens/event-details/${id}?type=course`)
+        break
+      default:
+        router.push(`/screens/event-details/${id}`)
+    }
+  }
+
+  // Determine background and text colors based on type
+  const getBgColor = () => {
+    switch (type) {
+      case "match":
+        return "bg-gold-100/10"
+      case "practice":
+        return "bg-blue-500/10"
+      case "course":
+        return "bg-purple-500/10"
+      default:
+        return "bg-[#4ade80]/10"
+    }
+  }
+
+  const getIconBgColor = () => {
+    switch (type) {
+      case "match":
+        return "bg-gold-100/40"
+      case "practice":
+        return "bg-blue-500/20"
+      case "course":
+        return "bg-purple-500/20"
+      default:
+        return "bg-[#4ade80]/20"
+    }
+  }
+
+  const getIconColor = () => {
+    switch (type) {
+      case "match":
+        return "#FCA311"
+      case "practice":
+        return "#3b82f6"
+      case "course":
+        return "#8b5cf6"
+      default:
+        return "#4ade80"
+    }
+  }
 
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={handlePress}
-      className={`rounded-xl p-5 mb-4 flex-row items-center shadow-lg shadow-black ${
-        type === "match" ? "bg-gold-100/10" : "bg-[#4ade80]/10"
-      }`}
+      className={`rounded-xl p-5 mb-4 flex-row items-center shadow-lg shadow-black ${getBgColor()}`}
     >
-      <View className={`p-3 rounded-lg mr-4 ${type === "match" ? "bg-gold-100/40" : "bg-[#4ade80]/20"}`}>
-        <FontAwesome6 name={iconName} size={20} color={type === "match" ? "#FCA311" : "#4ade80"} />
+      <View className={`p-3 rounded-lg mr-4 ${getIconBgColor()}`}>
+        <FontAwesome6 name={iconName} size={20} color={getIconColor()} />
       </View>
-
-      
 
       <View className="flex-1">
-        <Text className="text-white-100 text-lg font-semibold tracking-wide">
-          {title}
-        </Text>
-        <Text className="text-gray-400 text-sm mt-1">
-          {time}
-        </Text>
+        <Text className="text-white-100 text-lg font-semibold tracking-wide">{title}</Text>
+        <Text className="text-gray-400 text-sm mt-1">{time}</Text>
       </View>
 
-      <FontAwesome6 name="chevron-right" size={16} color={type === "match" ? "#FCA311" : "#4ade80"} />
-      </TouchableOpacity>
-  );
-};
+      <FontAwesome6 name="chevron-right" size={16} color={getIconColor()} />
+    </TouchableOpacity>
+  )
+}
 
-export default EventListItem;
+export default EventListItem
+

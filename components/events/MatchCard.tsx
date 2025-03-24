@@ -31,7 +31,7 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
   return (
     <TouchableOpacity
       activeOpacity={0.8}
-      onPress={() => router.push(`/(athlete)/screens/match-details/${match.id}`)}
+      onPress={() => router.push(`/screens/match-details/${match.id}`)}
       className="mb-4"
     >
       <LinearGradient
