@@ -7,7 +7,7 @@ import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import Animated, { FadeInDown } from "react-native-reanimated"
-import BackButton from "@/components/BackButton"
+import BackButton from "@/components/buttons/BackButton"
 import PageTitle from "@/components/PageTitle"
 
 // Mock data for courses and assignments

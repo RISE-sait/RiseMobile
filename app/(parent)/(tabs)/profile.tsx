@@ -7,8 +7,8 @@ import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useAuth } from "@/utils/auth"
-import ProfileHeader from "@/components/ProfileHeader"
-import AccountSection from "@/components/AccountSection"
+import ProfileHeader from "@/components/profile/ProfileHeader"
+import AccountSection from "@/components/profile/AccountSection"
 import images from "@/constants/images"
 
 // Define User Type

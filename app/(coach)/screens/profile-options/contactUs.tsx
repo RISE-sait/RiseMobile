@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome"
 import { faEnvelope, faPhone, faPaperPlane } from "@fortawesome/free-solid-svg-icons"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import BackButton from "@/components/BackButton"
+import BackButton from "@/components/buttons/BackButton"
 
 export default function ContactUs() {
   const router = useRouter()

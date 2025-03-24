@@ -17,7 +17,7 @@ import dayjs from "dayjs"
 import * as Haptics from "expo-haptics"
 
 import CalendarCard from "@/components/calendar/CalendarCard"
-import BackButton from "@/components/BackButton"
+import BackButton from "@/components/buttons/BackButton"
 
 // Define types for our data
 interface Barber {

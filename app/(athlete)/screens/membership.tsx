@@ -31,7 +31,7 @@ import {
   faTag
 } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import BackButton from "@/components/BackButton";
+import BackButton from "@/components/buttons/BackButton";
 
 // Define the structure of the membership data
 interface MembershipData {

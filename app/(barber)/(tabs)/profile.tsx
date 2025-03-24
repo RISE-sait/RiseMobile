@@ -11,7 +11,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "
 
 import { useAuth } from "@/utils/auth"
 import images from "@/constants/images"
-import ProfileHeader from "@/components/ProfileHeader"
+import ProfileHeader from "@/components/profile/ProfileHeader"
 import GradientBackground from "@/components/barber/GradientBackground"
 
 export default function BarberProfileScreen() {

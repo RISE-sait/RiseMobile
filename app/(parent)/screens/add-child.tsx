@@ -21,7 +21,7 @@ import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-ico
 import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import BackButton from "@/components/BackButton"
+import BackButton from "@/components/buttons/BackButton"
 import DateTimePicker from "@react-native-community/datetimepicker"
 
 const { width } = Dimensions.get("window")

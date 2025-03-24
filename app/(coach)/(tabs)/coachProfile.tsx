@@ -6,8 +6,8 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import images from "@/constants/images";
-import ProfileHeader from "@/components/ProfileHeader";
-import AccountSection from "@/components/AccountSection";
+import ProfileHeader from "@/components/profile/ProfileHeader";
+import AccountSection from "@/components/profile/AccountSection";
 
 type User = {
   id: string;
@@ -85,7 +85,7 @@ const CoachProfileScreen = () => {
         <AccountSection 
           title="My Account"
           items={[
-            { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/coach-profile/EditProfile") },
+            { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
             { icon: "bell", text: "Notifications", onPress: () => router.push("/screens/comingSoon") },
             { icon: "arrow-right-from-bracket", text: "Logout", iconColor: "#EF4444", textColor: "#EF4444", onPress: handleLogout },
           ]}

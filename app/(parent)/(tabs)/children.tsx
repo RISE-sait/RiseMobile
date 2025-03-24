@@ -10,7 +10,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
 import images from "@/constants/images"
 import PageTitle from "@/components/PageTitle"
-import LoadingIndicator from "@/components/LoadingIndicator"
+import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 
 const { width } = Dimensions.get("window")
 const CARD_WIDTH = width * 0.9

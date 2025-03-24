@@ -19,7 +19,7 @@ import * as Haptics from "expo-haptics";
 import dayjs from "dayjs";
 import mockMatches from "../data/matches";
 import { useMatchFilters } from '../../../hooks/useMatchFIlters';
-import BackButton from "@/components/BackButton";
+import BackButton from "@/components/buttons/BackButton";
 
 const { width } = Dimensions.get("window");
 

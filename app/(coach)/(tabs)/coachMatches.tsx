@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native";
 import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MatchCard from "../../../components/MatchCard";
+import MatchCard from "../../../components/events/MatchCard";
 import { StatusBar } from "expo-status-bar";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { mockMatches } from '@/app/(athlete)/screens/matchesData';

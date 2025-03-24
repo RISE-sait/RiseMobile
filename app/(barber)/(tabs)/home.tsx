@@ -9,7 +9,7 @@ import { FontAwesome6 } from "@expo/vector-icons"
 
 import { useAuth } from "@/utils/auth"
 import images from "@/constants/images"
-import ProfileHeader from "@/components/ProfileHeader"
+import ProfileHeader from "@/components/profile/ProfileHeader"
 import QRCodeModal from "@/components/QRCodeModal"
 import GradientBackground from "@/components/barber/GradientBackground"
 import AnimatedStatsCard from "@/components/barber/AnimatedStatsCard"

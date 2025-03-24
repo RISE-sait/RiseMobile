@@ -7,7 +7,7 @@ import PageTitle from "@/components/PageTitle";
 import { CalendarCard, EventListContainer, EventListItem } from '@/components/calendar';
 import { mockEvents } from "@/app/(athlete)/screens/eventsData";
 import { mockMatches } from "@/app/(athlete)/screens/matchesData";
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/feedback/EmptyState";
 
 const { width } = Dimensions.get("window");
 

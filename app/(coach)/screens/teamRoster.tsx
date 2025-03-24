@@ -20,7 +20,7 @@ import { FontAwesome6, Ionicons, MaterialIcons, MaterialCommunityIcons, AntDesig
 import { useRouter } from "expo-router"
 import * as Haptics from "expo-haptics"
 import players from "../data/players"
-import BackButton from "@/components/BackButton"
+import BackButton from "@/components/buttons/BackButton"
 
 const { width, height } = Dimensions.get("window")
 

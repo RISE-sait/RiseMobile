@@ -10,7 +10,7 @@ import * as Haptics from "expo-haptics"
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated"
 import { LinearGradient } from "expo-linear-gradient"
 
-import BackButton from "@/components/BackButton"
+import BackButton from "@/components/buttons/BackButton"
 import GradientBackground from "@/components/barber/GradientBackground"
 import AppointmentDetailCard from "@/components/barber/AppointmentDetailCard"
 
