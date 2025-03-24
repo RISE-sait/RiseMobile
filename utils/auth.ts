@@ -223,7 +223,7 @@ export const useAuth = () => {
       // ✅ Send request to API using parent's token
       const response = await axios.post(`${API_URL}/register/child`, requestBody, {
         headers: {
-          firebase_token: parentToken,
+          Authorization: `Bearer ${parentToken}`,
           "Content-Type": "application/json",
         },
       })
@@ -261,7 +261,7 @@ export const useAuth = () => {
           `${API_URL}/auth`,
           { email: firebaseUser.email },
           {
-            headers: { firebase_token: token },
+            headers: { Authorization: `Bearer ${token}` },
           },
         )
 
@@ -358,7 +358,7 @@ export const useAuth = () => {
         `${API_URL}/auth`,
         { email: firebaseUser.email },
         {
-          headers: { firebase_token: token },
+          headers: { Authorization: `Bearer ${token}` },
         },
       )
 

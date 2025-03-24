@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "swagger": "swagger-typescript-api -p app/api/docs/swagger.json -o app/api"
+    "swagger": "npx swagger-typescript-api generate -p app/api/docs/swagger.json -o app/api"
   },
   "jest": {
     "preset": "jest-expo"
@@ -84,6 +84,7 @@
     "@types/react-test-renderer": "^18.3.0",
     "jest-expo": "~52.0.6",
     "react-test-renderer": "18.3.1",
+    "swagger-typescript-api": "^13.0.23",
     "tailwindcss": "^3.3.2",
     "typescript": "^5.3.3"
   },
