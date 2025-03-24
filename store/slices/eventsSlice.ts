@@ -31,13 +31,56 @@ const initialState: EventsState = {
   lastFetched: null,
 }
 
-// Helper function to extract title
+// Update the extractTitle function to be more descriptive and check more fields
 const extractTitle = (event: any): string => {
+  // First check for explicit title fields
   if (event.title) return event.title
   if (event.name) return event.name
   if (event.practice_name) return event.practice_name
   if (event.course_name) return event.course_name
-  return "Scheduled Event"
+
+  // Check for type-specific fields
+  if (event.type) {
+    const eventType = event.type.toLowerCase()
+    if (eventType === "practice") return `${event.team_name || "Team"} Practice`
+    if (eventType === "game" || eventType === "match")
+      return `${event.team_name || "Game"} vs ${event.opponent || "Opponent"}`
+    if (eventType === "course") return `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Session`
+    return `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Event`
+  }
+
+  // If we have a day field, create a more descriptive title
+  if (event.day) {
+    return `${event.day.charAt(0).toUpperCase() + event.day.slice(1).toLowerCase()} Training Session`
+  }
+
+  // If we have a session_start_at field, it's likely a scheduled session
+  if (event.session_start_at) {
+    return "Training Session"
+  }
+
+  // Last resort fallback
+  return "RISE Basketball Event"
+}
+
+// Helper function to determine event type
+const determineEventType = (event: any): "event" | "match" | "practice" | "course" => {
+  // Check if the event has an explicit type field
+  if (event.type) {
+    const eventType = event.type.toLowerCase()
+    if (eventType === "match" || eventType === "game") return "match"
+    if (eventType === "practice") return "practice"
+    if (eventType === "course" || eventType === "class") return "course"
+  }
+
+  // Check title for keywords
+  const title = (event.title || event.name || "").toLowerCase()
+  if (title.includes("match") || title.includes("game") || title.includes("vs")) return "match"
+  if (title.includes("practice") || title.includes("training")) return "practice"
+  if (title.includes("course") || title.includes("class") || title.includes("workshop")) return "course"
+
+  // Default to generic event
+  return "event"
 }
 
 // Helper function to format time
@@ -80,6 +123,9 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
     const afterDate = dayjs().subtract(3, "month").format("YYYY-MM-DD")
     const beforeDate = dayjs().add(3, "month").format("YYYY-MM-DD")
 
+    // Log the request for debugging
+    console.log(`Fetching events from ${API_URL}/events with token: ${token.substring(0, 10)}...`)
+
     const response = await axios.get(`${API_URL}/events`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
@@ -87,6 +133,8 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
         before: beforeDate,
       },
     })
+
+    console.log("Events API response:", response.data)
 
     const events: CalendarItem[] = []
     const byDate: Record<string, CalendarItem[]> = {}
@@ -106,12 +154,15 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
           // Extract title
           const title = extractTitle(event)
 
+          // Determine event type
+          const eventType = determineEventType(event)
+
           const calendarItem: CalendarItem = {
             id: event.id || `event-${Math.random().toString(36).substr(2, 9)}`,
             title: title,
             date: eventDate,
             time: timeDisplay,
-            type: "event",
+            type: eventType,
             location: event.location || "RISE Basketball Facility",
             description: event.description || "",
           }
@@ -134,7 +185,7 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
               title: title,
               date: futureDate,
               time: timeDisplay,
-              type: "event",
+              type: eventType,
               location: event.location || "RISE Basketball Facility",
               description: event.description || "",
             }
@@ -151,13 +202,14 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
         else if (event.date) {
           const eventDate = dayjs(event.date).format("YYYY-MM-DD")
           const title = extractTitle(event)
+          const eventType = determineEventType(event)
 
           const calendarItem: CalendarItem = {
             id: event.id || `event-${Math.random().toString(36).substr(2, 9)}`,
             title: title,
             date: eventDate,
             time: event.time || "TBD",
-            type: "event",
+            type: eventType,
             location: event.location || "RISE Basketball Facility",
             description: event.description || "",
           }
@@ -178,6 +230,7 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
       lastFetched: new Date().toISOString(),
     }
   } catch (error: any) {
+    console.error("Events API error:", error.response?.data || error.message)
     return rejectWithValue(error.message || "Failed to fetch events")
   }
 })

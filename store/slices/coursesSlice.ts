@@ -23,12 +23,33 @@ const initialState: CoursesState = {
   lastFetched: null,
 }
 
-// Helper function to extract title
-const extractTitle = (course: any): string => {
-  if (course.title) return course.title
-  if (course.name) return course.name
-  if (course.course_name) return course.course_name
-  return "Course"
+// Helper function to extract day from program name
+const extractDayFromName = (name: string): string | null => {
+  if (!name) return null
+
+  // Define day patterns to look for
+  const dayPatterns = [
+    { day: "MONDAY", patterns: ["monday", "mon-", "mon ", "-mon", " mon"] },
+    { day: "TUESDAY", patterns: ["tuesday", "tue-", "tue ", "-tue", " tue"] },
+    { day: "WEDNESDAY", patterns: ["wednesday", "wed-", "wed ", "-wed", " wed"] },
+    { day: "THURSDAY", patterns: ["thursday", "thu-", "thu ", "-thu", " thu"] },
+    { day: "FRIDAY", patterns: ["friday", "fri-", "fri ", "-fri", " fri"] },
+    { day: "SATURDAY", patterns: ["saturday", "sat-", "sat ", "-sat", " sat"] },
+    { day: "SUNDAY", patterns: ["sunday", "sun-", "sun ", "-sun", " sun"] },
+  ]
+
+  const lowerName = name.toLowerCase()
+
+  // Check for each day pattern
+  for (const { day, patterns } of dayPatterns) {
+    for (const pattern of patterns) {
+      if (lowerName.includes(pattern)) {
+        return day
+      }
+    }
+  }
+
+  return null
 }
 
 // Helper function to get next day occurrence
@@ -45,44 +66,94 @@ const getNextDayOccurrence = (dayName: string) => {
   return today.add(daysUntilNext, "day").format("YYYY-MM-DD")
 }
 
+// Generate a default time based on program type
+const getDefaultTimeForType = (type: string): string => {
+  switch (type.toLowerCase()) {
+    case "practice":
+      return "5:30 PM - 7:00 PM"
+    case "game":
+      return "7:00 PM - 9:00 PM"
+    case "course":
+      return "4:00 PM - 5:30 PM"
+    default:
+      return "6:00 PM - 7:30 PM"
+  }
+}
+
+// Get default location based on program type and name
+const getDefaultLocation = (type: string, name: string): string => {
+  // Check for specific keywords in the name that might indicate location
+  const lowerName = name.toLowerCase()
+
+  if (lowerName.includes("court") || lowerName.includes("gym")) {
+    return "RISE Basketball Courts"
+  } else if (lowerName.includes("field") || lowerName.includes("outdoor")) {
+    return "RISE Outdoor Fields"
+  } else if (lowerName.includes("classroom") || lowerName.includes("lecture")) {
+    return "RISE Learning Center"
+  }
+
+  switch (type.toLowerCase()) {
+    case "practice":
+      return "RISE Practice Facility"
+    case "game":
+      return "RISE Main Court"
+    case "course":
+      return "RISE Training Center"
+    default:
+      return "RISE Basketball Facility"
+  }
+}
+
 // Async thunk to fetch courses
 export const fetchCourses = createAsyncThunk("courses/fetchCourses", async (token: string, { rejectWithValue }) => {
   try {
-    const response = await axios.get(`${API_URL}/courses`, {
+    // Log the request for debugging
+    console.log(`Fetching programs from ${API_URL}/programs with token: ${token.substring(0, 10)}...`)
+
+    const response = await axios.get(`${API_URL}/programs`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+
+    console.log("Programs API response:", response.data)
 
     const courses: CalendarItem[] = []
     const byDate: Record<string, CalendarItem[]> = {}
     const byId: Record<string, CalendarItem> = {}
 
     if (response.data && Array.isArray(response.data)) {
-      response.data.forEach((course: any) => {
-        // Extract day information from the name if possible
-        let dayOfWeek = null
-        const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+      response.data.forEach((program: any) => {
+        // Extract day from program name
+        const dayOfWeek = extractDayFromName(program.name)
 
-        for (const day of dayNames) {
-          if (course.name && course.name.includes(day)) {
-            dayOfWeek = day.toUpperCase()
-            break
-          }
-        }
+        // Get program title with better fallbacks
+        const title =
+          program.name ||
+          (program.type
+            ? `${program.type.charAt(0).toUpperCase() + program.type.slice(1).toLowerCase()} Session`
+            : dayOfWeek
+              ? `${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1).toLowerCase()} Training`
+              : "RISE Basketball Program")
 
-        const title = extractTitle(course)
+        // Generate default time based on program type
+        const timeString = getDefaultTimeForType(program.type || "course")
 
+        // Get default location based on program type and name
+        const location = program.location || getDefaultLocation(program.type || "course", title)
+
+        // If we can extract a day, use it to schedule the program
         if (dayOfWeek) {
           // Get the next occurrence of this day
           const courseDate = getNextDayOccurrence(dayOfWeek)
 
           const calendarItem: CalendarItem = {
-            id: course.id || `course-${Math.random().toString(36).substr(2, 9)}`,
+            id: program.id || `program-${Math.random().toString(36).substr(2, 9)}`,
             title: title,
             date: courseDate,
-            time: course.time || "TBD",
-            type: "course",
-            location: course.location || "RISE Basketball Facility",
-            description: course.description || `${title} at ${course.location || "RISE Basketball Facility"}`,
+            time: timeString,
+            type: program.type || "course", // Preserve the original type
+            location: location,
+            description: program.description || `${title} at ${location}`,
           }
 
           courses.push(calendarItem)
@@ -93,20 +164,20 @@ export const fetchCourses = createAsyncThunk("courses/fetchCourses", async (toke
           }
           byDate[courseDate].push(calendarItem)
 
-          // Also add recurring courses
+          // Also add recurring programs for the next 8 weeks
           for (let i = 1; i <= 8; i++) {
             const futureDate = dayjs(courseDate)
               .add(i * 7, "day")
               .format("YYYY-MM-DD")
 
             const recurringItem: CalendarItem = {
-              id: `${course.id}-${i}` || `course-${Math.random().toString(36).substr(2, 9)}-${i}`,
+              id: `${program.id}-${i}` || `program-${Math.random().toString(36).substr(2, 9)}-${i}`,
               title: title,
               date: futureDate,
-              time: course.time || "TBD",
-              type: "course",
-              location: course.location || "RISE Basketball Facility",
-              description: course.description || `${title} at ${course.location || "RISE Basketball Facility"}`,
+              time: timeString,
+              type: program.type || "course", // Preserve the original type
+              location: location,
+              description: program.description || `${title} at ${location}`,
             }
 
             courses.push(recurringItem)
@@ -118,19 +189,23 @@ export const fetchCourses = createAsyncThunk("courses/fetchCourses", async (toke
             byDate[futureDate].push(recurringItem)
           }
         }
-        // If we can't determine the day, add it to a random day in the next week
+        // If we can't determine the day, distribute programs across the next 2 weeks
         else {
-          const randomDays = Math.floor(Math.random() * 7)
+          // Distribute programs across the next 14 days to avoid clustering
+          const randomDays = Math.floor(Math.random() * 14)
           const courseDate = dayjs().add(randomDays, "day").format("YYYY-MM-DD")
 
+          // Create a unique ID with a suffix to avoid duplicate keys
+          const uniqueId = `${program.id}-${randomDays}` || `program-${Math.random().toString(36).substr(2, 9)}`
+
           const calendarItem: CalendarItem = {
-            id: course.id || `course-${Math.random().toString(36).substr(2, 9)}`,
+            id: uniqueId,
             title: title,
             date: courseDate,
-            time: course.time || "TBD",
-            type: "course",
-            location: course.location || "RISE Basketball Facility",
-            description: course.description || `${title} at ${course.location || "RISE Basketball Facility"}`,
+            time: timeString,
+            type: program.type || "course", // Preserve the original type
+            location: location,
+            description: program.description || `${title} at ${location}`,
           }
 
           courses.push(calendarItem)
@@ -151,7 +226,8 @@ export const fetchCourses = createAsyncThunk("courses/fetchCourses", async (toke
       lastFetched: new Date().toISOString(),
     }
   } catch (error: any) {
-    return rejectWithValue(error.message || "Failed to fetch courses")
+    console.error("Programs API error:", error.response?.data || error.message)
+    return rejectWithValue(error.message || "Failed to fetch programs")
   }
 })
 

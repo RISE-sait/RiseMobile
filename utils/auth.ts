@@ -52,28 +52,8 @@ export const useAuth = () => {
           lastName: parsedUser.lastName || (parsedUser.displayName?.split(" ")[1] ?? ""),
         })
 
-        // Ensure role is lowercase before navigation
-        const userRole = parsedUser.role.toLowerCase()
-
-        switch (userRole) {
-          case "athlete":
-            router.replace("/(athlete)/(tabs)/home")
-            break
-          case "instructor":
-            router.replace("/(instructor)/(tabs)/instructorHome")
-            break
-          case "coach":
-            router.replace("/(coach)/(tabs)/coachHome")
-            break
-          case "parent":
-            router.replace("/(parent)/(tabs)/home")
-            break
-          case "barber":
-            router.replace("/(barber)/(tabs)/home")
-            break
-          default:
-            console.error("❌ Unknown role:", userRole)
-        }
+        // DO NOT navigate here - this causes the error
+        // Instead, the index.tsx file will handle navigation based on user state
       }
     } catch (error) {
       console.error("❌ Failed to load user data:", error)
@@ -114,6 +94,7 @@ export const useAuth = () => {
 
       const userRole = userData.role.toLowerCase()
 
+      // Now it's safe to navigate after login
       switch (userRole) {
         case "athlete":
           console.log("🏀 Navigating to Athlete Home...")
@@ -223,7 +204,7 @@ export const useAuth = () => {
       // ✅ Send request to API using parent's token
       const response = await axios.post(`${API_URL}/register/child`, requestBody, {
         headers: {
-          Authorization: `Bearer ${parentToken}`,
+          firebase_token: parentToken,
           "Content-Type": "application/json",
         },
       })
@@ -261,7 +242,7 @@ export const useAuth = () => {
           `${API_URL}/auth`,
           { email: firebaseUser.email },
           {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { firebase_token: token },
           },
         )
 
@@ -358,7 +339,7 @@ export const useAuth = () => {
         `${API_URL}/auth`,
         { email: firebaseUser.email },
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { firebase_token: token },
         },
       )
 

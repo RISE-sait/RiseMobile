@@ -88,6 +88,22 @@ module.exports = {
           300: '#FFE680',
           400: '#FFD94D', 
         },
+        blue:{
+          100: '#ebf4ff',  // Very light tint
+          200: '#c3dafe',  // Light tint
+          300: '#a3bffa',  // Soft tint
+          400: '#7f9cf5',  // Slightly lighter than base
+          500: '#3b82f6',  // Your base color (#3b82f6)
+          600: '#1d4ed8',  // Darker shade
+        },
+        purple: {
+          100: '#f3e8ff',  // Very light lavender
+          200: '#e9d5ff',  // Soft pastel purple
+          300: '#d8b4fe',  // Light purple tint
+          400: '#a855f7',  // Vibrant medium purple
+          500: '#8b5cf6',  // Your base color (#8b5cf6)
+          600: '#7c3aed',  // Deepened purple
+        },
       }
   },
   plugins: [],

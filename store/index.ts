@@ -10,6 +10,7 @@ import eventsReducer from "./slices/eventsSlice"
 import gamesReducer from "./slices/gamesSlice"
 import practicesReducer from "./slices/practicesSlice"
 import coursesReducer from "./slices/coursesSlice"
+import matchesReducer from "./slices/matchesSlice"
 
 // Combine all reducers
 const rootReducer = combineReducers({
@@ -18,13 +19,14 @@ const rootReducer = combineReducers({
   games: gamesReducer,
   practices: practicesReducer,
   courses: coursesReducer,
+  matches: matchesReducer,
 })
 
 // Configure persistence
 const persistConfig = {
   key: "root",
   storage: AsyncStorage,
-  whitelist: ["user", "events", "games", "practices", "courses"], // What to persist
+  whitelist: ["user", "events", "games", "practices", "courses", "matches"], // Added matches to whitelist
 }
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)
