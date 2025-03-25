@@ -151,11 +151,16 @@ const EventDetails: React.FC = () => {
       console.log(`Original ID: ${id}, Cleaned ID: ${cleanedId}`)
 
       // Determine which endpoint to use based on the type
-      let endpoint = `/events/${cleanedId}`
-      if (type === "practice") {
-        endpoint = `/practices/${cleanedId}`
-      } else if (type === "course") {
-        endpoint = `/courses/${cleanedId}`
+      let endpoint = `/programs/${cleanedId}`
+      if (type === "practice" || type === "course" || type === "others") {
+        // These are all program types, so we use the programs endpoint
+        endpoint = `/programs/${cleanedId}`
+      } else if (type === "event") {
+        // Use events endpoint for explicit event types
+        endpoint = `/events/${cleanedId}`
+      } else if (type === "game" || type === "match") {
+        // Use games endpoint for game/match types
+        endpoint = `/games/${cleanedId}`
       }
 
       console.log(`Fetching details from ${endpoint}`)
@@ -177,7 +182,7 @@ const EventDetails: React.FC = () => {
         description: extractDescription(eventData),
         date: processDate(eventData),
         time: processTime(eventData),
-        location: eventData.location || "RISE Facility",
+        location: eventData.location_name || "RISE Facility",
         image:
           eventData.image ||
           "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
@@ -193,6 +198,80 @@ const EventDetails: React.FC = () => {
       setRegistered(false)
     } catch (err: any) {
       console.error("Error fetching event details:", err.response?.data || err.message)
+
+      // Try to fetch from alternative endpoint if the first one failed
+      if (endpoint.includes("/events/")) {
+        try {
+          console.log(`Retrying with programs endpoint for ID: ${cleanedId}`)
+          const programResponse = await axios.get(`${API_URL}/programs/${cleanedId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+
+          console.log("Programs API Response:", programResponse.data)
+
+          // Process the data
+          const eventData = programResponse.data
+          // Transform API data to our EventDetails format
+          const processedEvent: EventDetails = {
+            id: eventData.id || cleanedId,
+            title: extractTitle(eventData),
+            description: extractDescription(eventData),
+            date: processDate(eventData),
+            time: processTime(eventData),
+            location: eventData.location_name || "RISE Facility",
+            image:
+              eventData.image ||
+              "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+            organizer: eventData.organizer || "RISE Basketball",
+            category: eventData.category || (type === "practice" ? "Practice" : type === "course" ? "Course" : "Event"),
+            status: getEventStatus(eventData.date || new Date().toISOString()),
+          }
+
+          setEvent(processedEvent)
+          setRegistered(false)
+          setLoading(false)
+          return
+        } catch (retryErr) {
+          console.error("Programs API retry error:", retryErr)
+          // Continue to fallback
+        }
+      } else if (endpoint.includes("/programs/")) {
+        try {
+          console.log(`Retrying with events endpoint for ID: ${cleanedId}`)
+          const eventsResponse = await axios.get(`${API_URL}/events/${cleanedId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+
+          console.log("Events API Response:", eventsResponse.data)
+
+          // Process the data
+          const eventData = eventsResponse.data
+          // Transform API data to our EventDetails format
+          const processedEvent: EventDetails = {
+            id: eventData.id || cleanedId,
+            title: extractTitle(eventData),
+            description: extractDescription(eventData),
+            date: processDate(eventData),
+            time: processTime(eventData),
+            location: eventData.location_name || "RISE Facility",
+            image:
+              eventData.image ||
+              "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+            organizer: eventData.organizer || "RISE Basketball",
+            category: eventData.category || (type === "practice" ? "Practice" : type === "course" ? "Course" : "Event"),
+            status: getEventStatus(eventData.date || new Date().toISOString()),
+          }
+
+          setEvent(processedEvent)
+          setRegistered(false)
+          setLoading(false)
+          return
+        } catch (retryErr) {
+          console.error("Events API retry error:", retryErr)
+          // Continue to fallback
+        }
+      }
+
       setError("Failed to load event details. Please try again.")
 
       // For demo purposes, use mock data if API fails

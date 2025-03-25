@@ -40,18 +40,46 @@ const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, location
 
     switch (type) {
       case "match":
-        router.push(`/screens/match-details/${id}`)
+        // Check if the ID has a suffix after the UUID (like -1)
+        // A standard UUID is 36 characters (including hyphens)
+        const matchId = id.length > 36 ? id.substring(0, 36) : id
+        console.log(`Navigating to match details with matchId: ${matchId}`)
+        router.push({
+          pathname: "screens/match-details/[id]",
+          params: {
+            id: matchId,
+            type: "match",
+          },
+        })
         break
       case "practice":
         // For now, practices also go to event details
-        router.push(`/screens/event-details/${id}`)
+        router.push({
+          pathname: `/screens/event-details/${id}`,
+          params: {
+            id: id,
+            type: type || "program",
+          },
+        })
         break
       case "course":
-        router.push(`/screens/event-details/${id}`)
+        router.push({
+          pathname: `/screens/event-details/${id}`,
+          params: {
+            id: id,
+            type: type || "program",
+          },
+        })
         break
       case "event":
       default:
-        router.push(`/screens/event-details/${id}`)
+        router.push({
+          pathname: `/screens/event-details/${id}`,
+          params: {
+            id: id,
+            type: type || "program",
+          },
+        })
     }
   }
 

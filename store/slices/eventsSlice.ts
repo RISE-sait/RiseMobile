@@ -10,7 +10,7 @@ export interface CalendarItem {
   title: string
   date: string
   time: string
-  type: "practice" | "course" | "game" | "others" // Updated to match valid types
+  type: "practice" | "course" | "game" | "match" | "others" // Updated to include "match"
   location?: string
   description?: string
 }
@@ -27,7 +27,7 @@ export interface Event {
   program_id?: string
   program_name?: string
   program_start_at?: string
-  program_type?: "practice" | "course" | "game" | "others" // Updated to match valid types
+  program_type?: "practice" | "course" | "game" | "match" | "others" // Updated to include "match"
   session_end_at?: string
   session_start_at?: string
 }
@@ -92,6 +92,11 @@ const extractTitle = (program: any): string => {
   if (program.name) return program.name
   if (program.program_name) return program.program_name
 
+  // For games/matches, create a title based on teams if available
+  if (program.home_team && program.away_team) {
+    return `${program.home_team} vs ${program.away_team}`
+  }
+
   // If we have a day field, create a more descriptive title
   if (program.day) {
     return `${program.day.charAt(0).toUpperCase() + program.day.slice(1).toLowerCase()} Training Session`
@@ -102,13 +107,39 @@ const extractTitle = (program: any): string => {
 }
 
 // Helper function to determine event type
-const determineEventType = (program: any): "practice" | "course" | "game" | "others" => {
-  // Check if the program has an explicit type field
-  if (program.program_type) {
-    const programType = program.program_type.toLowerCase()
-    if (programType === "practice") return "practice"
-    if (programType === "course") return "course"
-    if (programType === "game") return "game"
+export const determineEventType = (program: any): "practice" | "course" | "game" | "match" | "others" => {
+  // Check if it's explicitly a match
+  if (program.type === "match" || program.program_type === "match") {
+    return "match"
+  }
+
+  // Check if it's a game
+  if (
+    program.type === "game" ||
+    program.program_type === "game" ||
+    program.game_id ||
+    program.home_team ||
+    program.away_team
+  ) {
+    return "game"
+  }
+
+  // Check if it's a practice
+  if (
+    program.type === "practice" ||
+    program.program_type === "practice" ||
+    program.title?.toLowerCase().includes("practice")
+  ) {
+    return "practice"
+  }
+
+  // Check if it's a course
+  if (
+    program.type === "course" ||
+    program.program_type === "course" ||
+    program.title?.toLowerCase().includes("course")
+  ) {
+    return "course"
   }
 
   // Default to others
@@ -159,12 +190,20 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
     console.log(`Fetching programs from ${API_URL}/programs with token: ${token.substring(0, 10)}...`)
 
     // Create an array of requests for each program type
-    const programTypes = ["practice", "course", "game", "others"]
+    const programTypes = ["practice", "course", "game", "match", "others"]
     const requests = programTypes.map((type) =>
       fetchWithRetry(`${API_URL}/programs`, token, {
         after: afterDate,
         before: beforeDate,
         program_type: type,
+      }),
+    )
+
+    // Also fetch games directly to ensure we have all matches
+    requests.push(
+      fetchWithRetry(`${API_URL}/games`, token, {
+        after: afterDate,
+        before: beforeDate,
       }),
     )
 
@@ -179,8 +218,18 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
     const events: CalendarItem[] = []
     const byDate: Record<string, CalendarItem[]> = {}
 
+    // Track processed IDs to avoid duplicates
+    const processedIds = new Set<string>()
+
     if (allPrograms.length > 0) {
       allPrograms.forEach((program: any) => {
+        // Skip if we've already processed this ID
+        if (processedIds.has(program.id)) {
+          return
+        }
+
+        processedIds.add(program.id)
+
         // For programs with day of week and session times
         if (program.day && program.session_start_at) {
           // Get the next occurrence of this day
@@ -261,6 +310,44 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
           }
           byDate[eventDate].push(calendarItem)
         }
+        // For games with game_date field
+        else if (program.game_date) {
+          const eventDate = dayjs(program.game_date).format("YYYY-MM-DD")
+
+          // Create a title based on teams if available
+          let title = "Basketball Game"
+          if (program.home_team && program.away_team) {
+            title = `${program.home_team} vs ${program.away_team}`
+          } else if (program.title) {
+            title = program.title
+          }
+
+          // Games should always be type 'game'
+          const eventType = "game"
+
+          // Format time if available
+          let timeDisplay = "TBD"
+          if (program.game_time) {
+            timeDisplay = formatTimeString(program.game_time)
+          }
+
+          const calendarItem: CalendarItem = {
+            id: program.id || `game-${Math.random().toString(36).substr(2, 9)}`,
+            title: title,
+            date: eventDate,
+            time: timeDisplay,
+            type: eventType,
+            location: program.location_name || program.venue || "RISE Basketball Facility",
+            description: program.description || "",
+          }
+
+          events.push(calendarItem)
+
+          if (!byDate[eventDate]) {
+            byDate[eventDate] = []
+          }
+          byDate[eventDate].push(calendarItem)
+        }
       })
     }
 
@@ -276,36 +363,91 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
 })
 
 // Fetch a single event by ID
-export const fetchEventById = createAsyncThunk<Event, { eventId: string; token: string }, { state: RootState }>(
-  "events/fetchEventById",
-  async ({ eventId, token }, { getState, rejectWithValue }) => {
-    try {
-      const state = getState()
-      const lastFetched = state.events.lastFetchedDetailed[eventId]
-      const now = Date.now()
+export const fetchEventById = createAsyncThunk<
+  Event,
+  { eventId: string; token: string; type?: string },
+  { state: RootState }
+>("events/fetchEventById", async ({ eventId, token, type = "program" }, { getState, rejectWithValue }) => {
+  try {
+    const state = getState()
+    const lastFetched = state.events.lastFetchedDetailed[eventId]
+    const now = Date.now()
 
-      // If the event is in the cache and was fetched recently, return it from the cache
-      if (lastFetched && now - lastFetched < CACHE_DURATION && state.events.detailedEvents[eventId]) {
-        return state.events.detailedEvents[eventId]
+    // If the event is in the cache and was fetched recently, return it from the cache
+    if (lastFetched && now - lastFetched < CACHE_DURATION && state.events.detailedEvents[eventId]) {
+      return state.events.detailedEvents[eventId]
+    }
+
+    // Clean the ID - if it's a UUID with a suffix, remove the suffix
+    const baseId = eventId.includes("-") && eventId.length > 36 ? eventId.substring(0, 36) : eventId
+
+    // Determine which endpoint to use based on the type
+    let endpoint = `/programs/${baseId}`
+    if (type === "event") {
+      endpoint = `/events/${baseId}`
+    } else if (type === "game" || type === "match") {
+      endpoint = `/games/${baseId}`
+    }
+
+    // Fetch from the API with retry logic
+    console.log(`Fetching details for ID: ${baseId} from endpoint: ${endpoint}`)
+    const response = await fetchWithRetry(`${API_URL}${endpoint}`, token)
+    console.log("Details response:", response.data)
+
+    // If the response is empty or invalid, try alternative endpoints
+    if (!response.data || Object.keys(response.data).length === 0) {
+      // Try each alternative endpoint
+      const alternativeEndpoints = [`/programs/${baseId}`, `/events/${baseId}`, `/games/${baseId}`].filter(
+        (ep) => ep !== endpoint,
+      )
+
+      for (const altEndpoint of alternativeEndpoints) {
+        try {
+          console.log(`Trying alternative endpoint: ${altEndpoint}`)
+          const altResponse = await fetchWithRetry(`${API_URL}${altEndpoint}`, token)
+          if (altResponse.data && Object.keys(altResponse.data).length > 0) {
+            return altResponse.data
+          }
+        } catch (err) {
+          console.log(`Failed to fetch from ${altEndpoint}`)
+        }
+      }
+    }
+
+    return response.data
+  } catch (error: any) {
+    console.error("Details API error:", error.response?.data || error.message)
+
+    // Try alternative endpoints if the first one fails
+    try {
+      // Clean the ID - if it's a UUID with a suffix, remove the suffix
+      const baseId = eventId.includes("-") && eventId.length > 36 ? eventId.substring(0, 36) : eventId
+
+      // Determine which endpoints to try based on the failed type
+      const alternativeEndpoints = [`/programs/${baseId}`, `/events/${baseId}`, `/games/${baseId}`]
+
+      for (const altEndpoint of alternativeEndpoints) {
+        try {
+          console.log(`Trying alternative endpoint: ${altEndpoint}`)
+          const altResponse = await fetchWithRetry(`${API_URL}${altEndpoint}`, token)
+          if (altResponse.data && Object.keys(altResponse.data).length > 0) {
+            return altResponse.data
+          }
+        } catch (err) {
+          console.log(`Failed to fetch from ${altEndpoint}`)
+        }
       }
 
-      // Extract the base ID (remove any suffix for recurring events)
-      const baseId = eventId.includes("-") ? eventId.split("-")[0] : eventId
-
-      // Otherwise, fetch from the API with retry logic
-      console.log(`Fetching event details for ID: ${baseId}`)
-      const response = await fetchWithRetry(`${API_URL}/events/${baseId}`, token)
-      console.log("Event details response:", response.data)
-      return response.data
-    } catch (error: any) {
-      console.error("Event details API error:", error.response?.data || error.message)
+      throw new Error("All alternative endpoints failed")
+    } catch (alternativeError) {
+      console.error("All alternative endpoints failed:", alternativeError)
       if (axios.isAxiosError(error)) {
-        return rejectWithValue(error.response?.data?.error?.message || "Failed to fetch event details")
+        return rejectWithValue(error.response?.data?.error?.message || "Failed to fetch details")
       }
       return rejectWithValue("An unexpected error occurred")
     }
-  },
-)
+  }
+})
 
 // Create slice
 const eventsSlice = createSlice({
@@ -359,10 +501,15 @@ const eventsSlice = createSlice({
       })
       .addCase(fetchEventById.fulfilled, (state, action: PayloadAction<Event>) => {
         state.detailedEventsStatus = "succeeded"
-        // Add the event to the detailedEvents object
-        state.detailedEvents[action.payload.id] = action.payload
-        // Update the lastFetchedDetailed timestamp for this event
-        state.lastFetchedDetailed[action.payload.id] = Date.now()
+        // Make sure we have a valid ID
+        if (action.payload && action.payload.id) {
+          // Add the event to the detailedEvents object
+          state.detailedEvents[action.payload.id] = action.payload
+          // Update the lastFetchedDetailed timestamp for this event
+          state.lastFetchedDetailed[action.payload.id] = Date.now()
+        } else {
+          console.error("Received invalid event data:", action.payload)
+        }
       })
       .addCase(fetchEventById.rejected, (state, action) => {
         state.detailedEventsStatus = "failed"

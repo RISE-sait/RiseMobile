@@ -27,6 +27,7 @@ import axios from "axios"
 import { API_URL } from "@/utils/api"
 import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 import { fetchTeams, selectTeamById, selectTeamsLoading } from "@/store/slices/teamsSlice"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const { width } = Dimensions.get("window")
 
@@ -99,13 +100,17 @@ const MatchDetailsScreen = () => {
 
       if (token && id) {
         try {
+          // A standard UUID is 36 characters (including hyphens)
+          const matchId = typeof id === "string" && id.length > 36 ? id.substring(0, 36) : id
+          console.log(`Fetching game data with ID: ${matchId}`)
+
           // Fetch game data with retry logic
           let retries = 3
           let gameData = null
 
           while (retries > 0 && !gameData) {
             try {
-              const gameResponse = await axios.get(`${API_URL}/games/${id}`, {
+              const gameResponse = await axios.get(`${API_URL}/games/${matchId}`, {
                 headers: { Authorization: `Bearer ${token}` },
               })
 
@@ -142,18 +147,17 @@ const MatchDetailsScreen = () => {
   }, [id, token, dispatch, teamsLoading])
 
   // Get team selectors at the component level
-  const teamsState = useAppSelector((state) => state)
+  const homeTeamId = game?.win_team
+  const awayTeamId = game?.lose_team
+  const homeTeam = useAppSelector((state) => (homeTeamId ? selectTeamById(state, homeTeamId) : null))
+  const awayTeam = useAppSelector((state) => (awayTeamId ? selectTeamById(state, awayTeamId) : null))
 
   useEffect(() => {
     if (game) {
-      // Use the selectors with the already selected state
-      const homeTeam = selectTeamById(teamsState, game.win_team)
-      const awayTeam = selectTeamById(teamsState, game.lose_team)
-
       setHomeTeamName(homeTeam ? homeTeam.name : game.win_team || "Home Team")
       setAwayTeamName(awayTeam ? awayTeam.name : game.lose_team || "Away Team")
     }
-  }, [game, teamsState])
+  }, [game, homeTeam, awayTeam])
 
   const handleShare = async () => {
     if (!game) return
@@ -236,6 +240,55 @@ const MatchDetailsScreen = () => {
     },
   }
 
+  // Inside the fetchMatchDetails function
+  const fetchMatchDetails = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Get the user's auth token
+      const userString = await AsyncStorage.getItem("user")
+      if (!userString) {
+        setError("Authentication error. Please log in again.")
+        setLoading(false)
+        return
+      }
+
+      const user = JSON.parse(userString)
+      const token = user.token
+
+      if (!token) {
+        setError("Authentication token not found. Please log in again.")
+        setLoading(false)
+        return
+      }
+
+      // Clean the ID to remove any suffix
+      const cleanedId = cleanId(id as string)
+      console.log(`Fetching match details for ID: ${cleanedId}`)
+
+      // Always use the games endpoint for match details
+      const response = await axios.get(`${API_URL}/games/${cleanedId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      console.log("Match API Response:", response.data)
+
+      // Process the data
+      const matchData = response.data
+
+      // Transform API data to our MatchDetails format
+      // ... rest of the function
+    } catch (err) {
+      // ... error handling
+    }
+  }
+
+  const cleanId = (id: string) => {
+    // A standard UUID is 36 characters (including hyphens)
+    return id.length > 36 ? id.substring(0, 36) : id
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar translucent style="light" />
@@ -262,7 +315,7 @@ const MatchDetailsScreen = () => {
               style={styles.headerGradient}
             />
           </ImageBackground>
-          
+
           {/* Back Button Container */}
           <View style={styles.backButtonContainer}>
             <BackButton />

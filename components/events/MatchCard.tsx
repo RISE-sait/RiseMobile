@@ -58,12 +58,15 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
   const homeLogo = "https://via.placeholder.com/100"
   const awayLogo = "https://via.placeholder.com/100"
 
+  const handlePress = () => {
+    router.push({
+      pathname: `/screens/match-details/${match.id}`,
+      params: { type: "game" },
+    })
+  }
+
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={() => router.push(`/screens/match-details/${match.id}`)}
-      className="mb-4"
-    >
+    <TouchableOpacity activeOpacity={0.8} onPress={handlePress} className="mb-4">
       <LinearGradient
         colors={["rgba(255,255,255,0.15)", "rgba(255,255,255,0.03)"]}
         className="shadow-lg shadow-black overflow-hidden"
