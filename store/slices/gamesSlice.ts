@@ -13,6 +13,22 @@ interface GamesState {
   lastFetched: string | null
 }
 
+// Define the extended game data interface
+export interface GameDetails extends CalendarItem {
+  homeTeam?: string
+  awayTeam?: string
+  homeScore?: number
+  awayScore?: number
+  league?: string
+  status?: string
+  homeLogo?: string
+  awayLogo?: string
+  bgImage?: string
+  organizer?: string
+  home_team_id?: string
+  away_team_id?: string
+}
+
 // Initial state
 const initialState: GamesState = {
   items: [],
@@ -40,21 +56,17 @@ export const fetchGames = createAsyncThunk("games/fetchGames", async (token: str
       headers: { Authorization: `Bearer ${token}` },
     })
 
-    const games: CalendarItem[] = []
-    const byDate: Record<string, CalendarItem[]> = {}
-    const byId: Record<string, CalendarItem> = {}
+    const games: GameDetails[] = []
+    const byDate: Record<string, GameDetails[]> = {}
+    const byId: Record<string, GameDetails> = {}
 
     if (response.data && Array.isArray(response.data)) {
-      response.data.forEach((game: any, index: number) => {
+      response.data.forEach((game: any) => {
         // Create a date for the game
-        const gameDate =
-          game.date ||
-          dayjs()
-            .add(index % 30, "day")
-            .format("YYYY-MM-DD")
+        const gameDate = game.date || dayjs().format("YYYY-MM-DD")
         const title = extractTitle(game)
 
-        const calendarItem: CalendarItem = {
+        const gameItem: GameDetails = {
           id: game.id || `game-${Math.random().toString(36).substr(2, 9)}`,
           title: title,
           date: gameDate,
@@ -62,15 +74,27 @@ export const fetchGames = createAsyncThunk("games/fetchGames", async (token: str
           type: "match",
           location: game.location || game.venue || "RISE Basketball Court",
           description: game.description || `${title} at ${game.location || "RISE Basketball Court"}`,
+          homeTeam: game.home_team || "Home Team",
+          awayTeam: game.away_team || "Away Team",
+          homeScore: game.home_score || 0,
+          awayScore: game.away_score || 0,
+          league: game.league || "RISE Basketball League",
+          status: game.status || "Upcoming",
+          homeLogo: game.home_logo || "https://via.placeholder.com/100",
+          awayLogo: game.away_logo || "https://via.placeholder.com/100",
+          bgImage: game.bg_image || "https://images.unsplash.com/photo-1504450758481-7338eba7524a",
+          organizer: game.organizer || "RISE Basketball",
+          home_team_id: game.home_team_id,
+          away_team_id: game.away_team_id,
         }
 
-        games.push(calendarItem)
-        byId[calendarItem.id] = calendarItem
+        games.push(gameItem)
+        byId[gameItem.id] = gameItem
 
         if (!byDate[gameDate]) {
           byDate[gameDate] = []
         }
-        byDate[gameDate].push(calendarItem)
+        byDate[gameDate].push(gameItem)
       })
     }
 
@@ -90,12 +114,6 @@ export const fetchGameById = createAsyncThunk(
   "games/fetchGameById",
   async ({ id, token }: { id: string; token: string }, { rejectWithValue }) => {
     try {
-      // Check if ID is a valid UUID
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (!uuidRegex.test(id)) {
-        return rejectWithValue("Invalid game ID format")
-      }
-
       const response = await axios.get(`${API_URL}/games/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -103,7 +121,7 @@ export const fetchGameById = createAsyncThunk(
       const game = response.data
       const title = extractTitle(game)
 
-      const calendarItem: CalendarItem = {
+      const gameItem: GameDetails = {
         id: game.id,
         title: title,
         date: game.date || dayjs().format("YYYY-MM-DD"),
@@ -111,9 +129,21 @@ export const fetchGameById = createAsyncThunk(
         type: "match",
         location: game.location || game.venue || "RISE Basketball Court",
         description: game.description || `${title} at ${game.location || "RISE Basketball Court"}`,
+        homeTeam: game.home_team || "Home Team",
+        awayTeam: game.away_team || "Away Team",
+        homeScore: game.home_score || 0,
+        awayScore: game.away_score || 0,
+        league: game.league || "RISE Basketball League",
+        status: game.status || "Upcoming",
+        homeLogo: game.home_logo || "https://via.placeholder.com/100",
+        awayLogo: game.away_logo || "https://via.placeholder.com/100",
+        bgImage: game.bg_image || "https://images.unsplash.com/photo-1504450758481-7338eba7524a",
+        organizer: game.organizer || "RISE Basketball",
+        home_team_id: game.home_team_id,
+        away_team_id: game.away_team_id,
       }
 
-      return calendarItem
+      return gameItem
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to fetch game")
     }
@@ -133,7 +163,7 @@ const gamesSlice = createSlice({
       state.error = null
       state.lastFetched = null
     },
-    addGame: (state, action: PayloadAction<CalendarItem>) => {
+    addGame: (state, action: PayloadAction<GameDetails>) => {
       state.items.push(action.payload)
       state.byId[action.payload.id] = action.payload
 

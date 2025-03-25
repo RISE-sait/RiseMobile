@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/tool
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
+import type { RootState } from "@/store"
 
 // Define types
 export interface CalendarItem {
@@ -9,9 +10,26 @@ export interface CalendarItem {
   title: string
   date: string
   time: string
-  type: "event" | "match" | "practice" | "course"
+  type: "practice" | "course" | "game" | "others" // Updated to match valid types
   location?: string
   description?: string
+}
+
+// Define the Event interface based on the API response
+export interface Event {
+  id: string
+  capacity?: number
+  day?: string
+  location_address?: string
+  location_id?: string
+  location_name?: string
+  program_end_at?: string
+  program_id?: string
+  program_name?: string
+  program_start_at?: string
+  program_type?: "practice" | "course" | "game" | "others" // Updated to match valid types
+  session_end_at?: string
+  session_start_at?: string
 }
 
 interface EventsState {
@@ -20,6 +38,11 @@ interface EventsState {
   status: "idle" | "loading" | "succeeded" | "failed"
   error: string | null
   lastFetched: string | null
+  // Fields for detailed event data
+  detailedEvents: Record<string, Event>
+  detailedEventsStatus: "idle" | "loading" | "succeeded" | "failed"
+  detailedEventsError: string | null
+  lastFetchedDetailed: Record<string, number> // Timestamp of when each event was last fetched
 }
 
 // Initial state
@@ -29,34 +52,49 @@ const initialState: EventsState = {
   status: "idle",
   error: null,
   lastFetched: null,
+  // Fields for detailed event data
+  detailedEvents: {},
+  detailedEventsStatus: "idle",
+  detailedEventsError: null,
+  lastFetchedDetailed: {},
+}
+
+// Cache duration in milliseconds (5 minutes)
+const CACHE_DURATION = 5 * 60 * 1000
+
+// Function to implement retry logic with exponential backoff
+const fetchWithRetry = async (url: string, token: string, params = {}, maxRetries = 3) => {
+  let retries = 0
+  let lastError
+
+  while (retries < maxRetries) {
+    try {
+      return await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      })
+    } catch (error) {
+      lastError = error
+      retries++
+      // Exponential backoff: wait 2^retries * 1000ms before retrying
+      const delay = Math.pow(2, retries) * 1000
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+  }
+
+  throw lastError
 }
 
 // Update the extractTitle function to be more descriptive and check more fields
-const extractTitle = (event: any): string => {
+const extractTitle = (program: any): string => {
   // First check for explicit title fields
-  if (event.title) return event.title
-  if (event.name) return event.name
-  if (event.practice_name) return event.practice_name
-  if (event.course_name) return event.course_name
-
-  // Check for type-specific fields
-  if (event.type) {
-    const eventType = event.type.toLowerCase()
-    if (eventType === "practice") return `${event.team_name || "Team"} Practice`
-    if (eventType === "game" || eventType === "match")
-      return `${event.team_name || "Game"} vs ${event.opponent || "Opponent"}`
-    if (eventType === "course") return `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Session`
-    return `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Event`
-  }
+  if (program.title) return program.title
+  if (program.name) return program.name
+  if (program.program_name) return program.program_name
 
   // If we have a day field, create a more descriptive title
-  if (event.day) {
-    return `${event.day.charAt(0).toUpperCase() + event.day.slice(1).toLowerCase()} Training Session`
-  }
-
-  // If we have a session_start_at field, it's likely a scheduled session
-  if (event.session_start_at) {
-    return "Training Session"
+  if (program.day) {
+    return `${program.day.charAt(0).toUpperCase() + program.day.slice(1).toLowerCase()} Training Session`
   }
 
   // Last resort fallback
@@ -64,23 +102,17 @@ const extractTitle = (event: any): string => {
 }
 
 // Helper function to determine event type
-const determineEventType = (event: any): "event" | "match" | "practice" | "course" => {
-  // Check if the event has an explicit type field
-  if (event.type) {
-    const eventType = event.type.toLowerCase()
-    if (eventType === "match" || eventType === "game") return "match"
-    if (eventType === "practice") return "practice"
-    if (eventType === "course" || eventType === "class") return "course"
+const determineEventType = (program: any): "practice" | "course" | "game" | "others" => {
+  // Check if the program has an explicit type field
+  if (program.program_type) {
+    const programType = program.program_type.toLowerCase()
+    if (programType === "practice") return "practice"
+    if (programType === "course") return "course"
+    if (programType === "game") return "game"
   }
 
-  // Check title for keywords
-  const title = (event.title || event.name || "").toLowerCase()
-  if (title.includes("match") || title.includes("game") || title.includes("vs")) return "match"
-  if (title.includes("practice") || title.includes("training")) return "practice"
-  if (title.includes("course") || title.includes("class") || title.includes("workshop")) return "course"
-
-  // Default to generic event
-  return "event"
+  // Default to others
+  return "others"
 }
 
 // Helper function to format time
@@ -116,7 +148,7 @@ const getNextDayOccurrence = (dayName: string) => {
   return today.add(daysUntilNext, "day").format("YYYY-MM-DD")
 }
 
-// Async thunk to fetch events
+// Async thunk to fetch events (now from /programs endpoint)
 export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: string, { rejectWithValue }) => {
   try {
     // Calculate date range
@@ -124,47 +156,55 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
     const beforeDate = dayjs().add(3, "month").format("YYYY-MM-DD")
 
     // Log the request for debugging
-    console.log(`Fetching events from ${API_URL}/events with token: ${token.substring(0, 10)}...`)
+    console.log(`Fetching programs from ${API_URL}/programs with token: ${token.substring(0, 10)}...`)
 
-    const response = await axios.get(`${API_URL}/events`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: {
+    // Create an array of requests for each program type
+    const programTypes = ["practice", "course", "game", "others"]
+    const requests = programTypes.map((type) =>
+      fetchWithRetry(`${API_URL}/programs`, token, {
         after: afterDate,
         before: beforeDate,
-      },
-    })
+        program_type: type,
+      }),
+    )
 
-    console.log("Events API response:", response.data)
+    // Execute all requests in parallel
+    const responses = await Promise.all(requests)
+
+    // Combine all responses
+    const allPrograms = responses.flatMap((response) => response.data || [])
+
+    console.log(`Programs API response: ${allPrograms.length} programs found`)
 
     const events: CalendarItem[] = []
     const byDate: Record<string, CalendarItem[]> = {}
 
-    if (response.data && Array.isArray(response.data)) {
-      response.data.forEach((event: any) => {
-        // For events with day of week and session times
-        if (event.day && event.session_start_at) {
+    if (allPrograms.length > 0) {
+      allPrograms.forEach((program: any) => {
+        // For programs with day of week and session times
+        if (program.day && program.session_start_at) {
           // Get the next occurrence of this day
-          const eventDate = getNextDayOccurrence(event.day)
+          const eventDate = getNextDayOccurrence(program.day)
 
           // Format the time
-          const startTime = formatTimeString(event.session_start_at)
-          const endTime = event.session_end_at ? formatTimeString(event.session_end_at) : ""
+          const startTime = formatTimeString(program.session_start_at)
+          const endTime = program.session_end_at ? formatTimeString(program.session_end_at) : ""
           const timeDisplay = endTime ? `${startTime} - ${endTime}` : startTime
 
           // Extract title
-          const title = extractTitle(event)
+          const title = extractTitle(program)
 
-          // Determine event type
-          const eventType = determineEventType(event)
+          // Determine event type (using valid types)
+          const eventType = determineEventType(program)
 
           const calendarItem: CalendarItem = {
-            id: event.id || `event-${Math.random().toString(36).substr(2, 9)}`,
+            id: program.id || `event-${Math.random().toString(36).substr(2, 9)}`,
             title: title,
             date: eventDate,
             time: timeDisplay,
             type: eventType,
-            location: event.location || "RISE Basketball Facility",
-            description: event.description || "",
+            location: program.location_name || "RISE Basketball Facility",
+            description: program.description || "",
           }
 
           events.push(calendarItem)
@@ -181,13 +221,13 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
               .format("YYYY-MM-DD")
 
             const recurringItem: CalendarItem = {
-              id: `${event.id}-${i}` || `event-${Math.random().toString(36).substr(2, 9)}-${i}`,
+              id: `${program.id}-${i}` || `event-${Math.random().toString(36).substr(2, 9)}-${i}`,
               title: title,
               date: futureDate,
               time: timeDisplay,
               type: eventType,
-              location: event.location || "RISE Basketball Facility",
-              description: event.description || "",
+              location: program.location_name || "RISE Basketball Facility",
+              description: program.description || "",
             }
 
             events.push(recurringItem)
@@ -198,20 +238,20 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
             byDate[futureDate].push(recurringItem)
           }
         }
-        // For events with regular date field
-        else if (event.date) {
-          const eventDate = dayjs(event.date).format("YYYY-MM-DD")
-          const title = extractTitle(event)
-          const eventType = determineEventType(event)
+        // For programs with regular date field
+        else if (program.date) {
+          const eventDate = dayjs(program.date).format("YYYY-MM-DD")
+          const title = extractTitle(program)
+          const eventType = determineEventType(program)
 
           const calendarItem: CalendarItem = {
-            id: event.id || `event-${Math.random().toString(36).substr(2, 9)}`,
+            id: program.id || `event-${Math.random().toString(36).substr(2, 9)}`,
             title: title,
             date: eventDate,
-            time: event.time || "TBD",
+            time: program.time || "TBD",
             type: eventType,
-            location: event.location || "RISE Basketball Facility",
-            description: event.description || "",
+            location: program.location_name || "RISE Basketball Facility",
+            description: program.description || "",
           }
 
           events.push(calendarItem)
@@ -230,10 +270,42 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
       lastFetched: new Date().toISOString(),
     }
   } catch (error: any) {
-    console.error("Events API error:", error.response?.data || error.message)
-    return rejectWithValue(error.message || "Failed to fetch events")
+    console.error("Programs API error:", error.response?.data || error.message)
+    return rejectWithValue(error.response?.data?.error?.message || error.message || "Failed to fetch programs")
   }
 })
+
+// Fetch a single event by ID
+export const fetchEventById = createAsyncThunk<Event, { eventId: string; token: string }, { state: RootState }>(
+  "events/fetchEventById",
+  async ({ eventId, token }, { getState, rejectWithValue }) => {
+    try {
+      const state = getState()
+      const lastFetched = state.events.lastFetchedDetailed[eventId]
+      const now = Date.now()
+
+      // If the event is in the cache and was fetched recently, return it from the cache
+      if (lastFetched && now - lastFetched < CACHE_DURATION && state.events.detailedEvents[eventId]) {
+        return state.events.detailedEvents[eventId]
+      }
+
+      // Extract the base ID (remove any suffix for recurring events)
+      const baseId = eventId.includes("-") ? eventId.split("-")[0] : eventId
+
+      // Otherwise, fetch from the API with retry logic
+      console.log(`Fetching event details for ID: ${baseId}`)
+      const response = await fetchWithRetry(`${API_URL}/events/${baseId}`, token)
+      console.log("Event details response:", response.data)
+      return response.data
+    } catch (error: any) {
+      console.error("Event details API error:", error.response?.data || error.message)
+      if (axios.isAxiosError(error)) {
+        return rejectWithValue(error.response?.data?.error?.message || "Failed to fetch event details")
+      }
+      return rejectWithValue("An unexpected error occurred")
+    }
+  },
+)
 
 // Create slice
 const eventsSlice = createSlice({
@@ -246,6 +318,10 @@ const eventsSlice = createSlice({
       state.status = "idle"
       state.error = null
       state.lastFetched = null
+      state.detailedEvents = {}
+      state.detailedEventsStatus = "idle"
+      state.detailedEventsError = null
+      state.lastFetchedDetailed = {}
     },
     addEvent: (state, action: PayloadAction<CalendarItem>) => {
       state.items.push(action.payload)
@@ -259,6 +335,7 @@ const eventsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Handle fetchEvents
       .addCase(fetchEvents.pending, (state) => {
         state.status = "loading"
         state.error = null
@@ -274,10 +351,37 @@ const eventsSlice = createSlice({
         state.status = "failed"
         state.error = action.payload as string
       })
+
+      // Handle fetchEventById
+      .addCase(fetchEventById.pending, (state) => {
+        state.detailedEventsStatus = "loading"
+        state.detailedEventsError = null
+      })
+      .addCase(fetchEventById.fulfilled, (state, action: PayloadAction<Event>) => {
+        state.detailedEventsStatus = "succeeded"
+        // Add the event to the detailedEvents object
+        state.detailedEvents[action.payload.id] = action.payload
+        // Update the lastFetchedDetailed timestamp for this event
+        state.lastFetchedDetailed[action.payload.id] = Date.now()
+      })
+      .addCase(fetchEventById.rejected, (state, action) => {
+        state.detailedEventsStatus = "failed"
+        state.detailedEventsError = action.payload as string
+      })
   },
 })
 
 // Export actions and reducer
 export const { clearEvents, addEvent } = eventsSlice.actions
+
+// Export selectors
+export const selectAllEvents = (state: RootState) => state.events.items
+export const selectEventsByDate = (state: RootState, date: string) => state.events.byDate[date] || []
+export const selectDetailedEventById = (state: RootState, eventId: string) => state.events.detailedEvents[eventId]
+export const selectEventsStatus = (state: RootState) => state.events.status
+export const selectEventsError = (state: RootState) => state.events.error
+export const selectDetailedEventsStatus = (state: RootState) => state.events.detailedEventsStatus
+export const selectDetailedEventsError = (state: RootState) => state.events.detailedEventsError
+
 export default eventsSlice.reducer
 

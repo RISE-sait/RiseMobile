@@ -16,7 +16,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { mockMatches, type MatchDetails } from "@/app/(athlete)/screens/matchesData"
 import dayjs from "dayjs"
 import { FontAwesome6 } from "@expo/vector-icons"
 import BackButton from "@/components/buttons/BackButton"
@@ -24,8 +23,10 @@ import EventInfoRow from "@/components/events/EventInfoRow"
 import { Image } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { fetchMatchById } from "@/store/slices/matchesSlice"
+import axios from "axios"
+import { API_URL } from "@/utils/api"
 import LoadingIndicator from "@/components/feedback/LoadingIndicator"
+import { fetchTeams, selectTeamById, selectTeamsLoading } from "@/store/slices/teamsSlice"
 
 const { width } = Dimensions.get("window")
 
@@ -38,18 +39,38 @@ const statusStyles = {
 // Instagram profile URL - replace with your actual profile URL
 const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/yourprofile"
 
+interface GameData {
+  id: string
+  name?: string
+  description?: string
+  win_team?: string
+  lose_team?: string
+  win_score?: number
+  lose_score?: number
+  created_at?: string
+  updated_at?: string
+}
+
 const MatchDetailsScreen = () => {
   const { id } = useLocalSearchParams()
   const router = useRouter()
   const dispatch = useAppDispatch()
-  const { token } = useAppSelector((state) => state.user)
-  const matchState = useAppSelector((state) => state.matches)
-  const teamsById = matchState.teams.byId || {}
+  const userData = useAppSelector((state) => state.user.data)
+  const token = userData?.token
 
   const [loading, setLoading] = useState(true)
-  const [match, setMatch] = useState<MatchDetails | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [game, setGame] = useState<GameData | null>(null)
+
+  // Get teams data from Redux store
+  const teamsLoading = useAppSelector(selectTeamsLoading)
+
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
+
+  // State to hold team names
+  const [homeTeamName, setHomeTeamName] = useState<string>("Home Team")
+  const [awayTeamName, setAwayTeamName] = useState<string>("Away Team")
 
   useEffect(() => {
     // Start animations
@@ -66,114 +87,81 @@ const MatchDetailsScreen = () => {
       }),
     ]).start()
 
-    // Fetch match data
-    const fetchMatchData = async () => {
+    // Fetch teams data if not already loaded
+    if (token && (teamsLoading === "idle" || teamsLoading === "failed")) {
+      dispatch(fetchTeams(token))
+    }
+
+    // Fetch game data directly from API
+    const fetchGameData = async () => {
       setLoading(true)
+      setError(null)
 
       if (token && id) {
         try {
-          // Dispatch the action to fetch the match
-          await dispatch(fetchMatchById({ id: id as string, token })).unwrap()
+          // Fetch game data with retry logic
+          let retries = 3
+          let gameData = null
 
-          // Get the match from the store
-          const matchData = matchState.byId[id as string]
+          while (retries > 0 && !gameData) {
+            try {
+              const gameResponse = await axios.get(`${API_URL}/games/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
 
-          if (matchData) {
-            // Get team information
-            const homeTeamId = matchData.win_team
-            const awayTeamId = matchData.lose_team
-
-            const homeTeam = homeTeamId && teamsById[homeTeamId] ? teamsById[homeTeamId].name : "Home Team"
-
-            const awayTeam = awayTeamId && teamsById[awayTeamId] ? teamsById[awayTeamId].name : "Away Team"
-
-            const homeLogo =
-              homeTeamId && teamsById[homeTeamId]?.logo ? teamsById[homeTeamId].logo : "https://via.placeholder.com/100"
-
-            const awayLogo =
-              awayTeamId && teamsById[awayTeamId]?.logo ? teamsById[awayTeamId].logo : "https://via.placeholder.com/100"
-
-            // Create match details object
-            const matchDetails: MatchDetails = {
-              id: matchData.id,
-              homeTeam: homeTeam,
-              awayTeam: awayTeam,
-              homeScore: matchData.win_score || 0,
-              awayScore: matchData.lose_score || 0,
-              league: matchData.league || "RISE Basketball League",
-              status: matchData.status || "Upcoming",
-              date: matchData.date,
-              time: matchData.time || "TBD",
-              location: matchData.location || "RISE Basketball Court",
-              description: matchData.description || "Basketball match",
-              homeLogo: homeLogo,
-              awayLogo: awayLogo,
-              bgImage: "https://images.unsplash.com/photo-1504450758481-7338eba7524a",
-              type: "match",
-              organizer: "RISE Basketball",
+              if (gameResponse.data) {
+                gameData = gameResponse.data
+              }
+            } catch (err) {
+              retries--
+              if (retries === 0) throw err
+              // Wait before retrying (exponential backoff)
+              await new Promise((resolve) => setTimeout(resolve, (3 - retries) * 1000))
             }
+          }
 
-            setMatch(matchDetails)
+          if (gameData) {
+            setGame(gameData)
           } else {
-            // Fallback to mock data if match not found
-            fallbackToMockData()
+            setError("Could not fetch game data after multiple attempts")
           }
         } catch (error) {
-          console.error("Error fetching match:", error)
-          fallbackToMockData()
+          console.error("Error fetching game data:", error)
+          setError("Failed to load game data. Please try again.")
         } finally {
           setLoading(false)
         }
       } else {
-        fallbackToMockData()
         setLoading(false)
+        if (!token) setError("Authentication token is missing")
+        if (!id) setError("Game ID is missing")
       }
     }
 
-    fetchMatchData()
-  }, [id, token, dispatch])
+    fetchGameData()
+  }, [id, token, dispatch, teamsLoading])
 
-  // Define fallbackToMockData function
-  const fallbackToMockData = () => {
-    console.log("Using mock data as fallback for match")
+  // Get team selectors at the component level
+  const teamsState = useAppSelector((state) => state)
 
-    // Find the match by ID in mock data
-    const foundMatch = mockMatches.find((m) => m.id === id)
+  useEffect(() => {
+    if (game) {
+      // Use the selectors with the already selected state
+      const homeTeam = selectTeamById(teamsState, game.win_team)
+      const awayTeam = selectTeamById(teamsState, game.lose_team)
 
-    if (foundMatch) {
-      setMatch(foundMatch)
-    } else {
-      // Create default mock data if not found
-      const defaultMatch: MatchDetails = {
-        id: id as string,
-        homeTeam: "RISE Ballers",
-        awayTeam: "City Hoops",
-        homeScore: 87,
-        awayScore: 82,
-        league: "Summer Basketball League",
-        status: "Finished",
-        date: new Date().toISOString(),
-        location: "RISE Main Court",
-        description:
-          "An exciting game between two top teams in the league. The RISE Ballers secured a narrow victory with clutch shooting in the final minutes.",
-        homeLogo: "https://via.placeholder.com/100",
-        awayLogo: "https://via.placeholder.com/100",
-        bgImage: "https://images.unsplash.com/photo-1504450758481-7338eba7524a",
-        type: "match",
-        organizer: "RISE Basketball",
-      }
-
-      setMatch(defaultMatch)
+      setHomeTeamName(homeTeam ? homeTeam.name : game.win_team || "Home Team")
+      setAwayTeamName(awayTeam ? awayTeam.name : game.lose_team || "Away Team")
     }
-  }
+  }, [game, teamsState])
 
   const handleShare = async () => {
-    if (!match) return
+    if (!game) return
 
     try {
       await Share.share({
-        message: `Check out this match: ${match.homeTeam} vs ${match.awayTeam} on ${dayjs(match.date).format("MMMM D, YYYY")} at ${match.location}.`,
-        title: `${match.homeTeam} vs ${match.awayTeam}`,
+        message: `Check out this match: ${homeTeamName} vs ${awayTeamName} - ${game.name || "Basketball Match"}`,
+        title: game.name || `${homeTeamName} vs ${awayTeamName}`,
       })
     } catch (error) {
       console.error("Error sharing match:", error)
@@ -182,6 +170,13 @@ const MatchDetailsScreen = () => {
 
   const openInstagramProfile = () => {
     Linking.openURL(INSTAGRAM_PROFILE_URL).catch((err) => console.error("Error opening Instagram profile:", err))
+  }
+
+  const handleRetry = () => {
+    // Reset state and trigger a re-fetch
+    setGame(null)
+    setError(null)
+    setLoading(true)
   }
 
   if (loading) {
@@ -194,7 +189,22 @@ const MatchDetailsScreen = () => {
     )
   }
 
-  if (!match) {
+  if (error) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <StatusBar translucent style="light" />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    )
+  }
+
+  if (!game) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar translucent style="light" />
@@ -206,7 +216,9 @@ const MatchDetailsScreen = () => {
     )
   }
 
-  const { color, label, bgColor } = statusStyles[match.status as keyof typeof statusStyles] || statusStyles.Upcoming
+  // Default status
+  const status = "Finished" // You can determine this based on game data if available
+  const { color, label, bgColor } = statusStyles[status as keyof typeof statusStyles]
 
   // Basketball stats (mock data - in a real app, this would come from your API)
   const basketballStats = {
@@ -239,14 +251,18 @@ const MatchDetailsScreen = () => {
       >
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Match Image Header */}
-          <ImageBackground source={{ uri: match.bgImage }} style={styles.headerImage} resizeMode="cover">
+          <ImageBackground
+            source={{ uri: "https://images.unsplash.com/photo-1504450758481-7338eba7524a" }}
+            style={styles.headerImage}
+            resizeMode="cover"
+          >
             <LinearGradient
               colors={["rgba(0,0,0,0.7)", "rgba(0,0,0,0.3)", "transparent", "rgba(0,0,0,0.7)"]}
               locations={[0, 0.3, 0.6, 1]}
               style={styles.headerGradient}
             />
           </ImageBackground>
-
+          
           {/* Back Button Container */}
           <View style={styles.backButtonContainer}>
             <BackButton />
@@ -256,7 +272,7 @@ const MatchDetailsScreen = () => {
           <View style={styles.detailsContainer}>
             {/* League Title and Status */}
             <View style={styles.headerRow}>
-              <Text style={styles.leagueTitle}>{match.league}</Text>
+              <Text style={styles.leagueTitle}>{game.name || "Basketball Match"}</Text>
               <View style={[styles.statusBadge, { backgroundColor: bgColor }]}>
                 <Text style={[styles.statusText, { color }]}>{label}</Text>
               </View>
@@ -265,41 +281,44 @@ const MatchDetailsScreen = () => {
             {/* Teams and Score */}
             <View style={styles.teamsContainer}>
               <View style={styles.teamColumn}>
-                <Image source={{ uri: match.homeLogo }} style={styles.teamLogo} resizeMode="contain" />
-                <Text style={styles.teamName}>{match.homeTeam}</Text>
+                <Image
+                  source={{ uri: "https://via.placeholder.com/100" }}
+                  style={styles.teamLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.teamName}>{homeTeamName}</Text>
               </View>
 
               <View style={styles.scoreContainer}>
                 <Text style={styles.scoreText}>
-                  {match.homeScore} - {match.awayScore}
+                  {game.win_score || 0} - {game.lose_score || 0}
                 </Text>
-                {match.status === "Live" && (
-                  <View style={styles.liveIndicator}>
-                    <FontAwesome6 name="circle-dot" size={8} color="#EF4444" />
-                    <Text style={styles.liveText}>LIVE</Text>
-                  </View>
-                )}
               </View>
 
               <View style={styles.teamColumn}>
-                <Image source={{ uri: match.awayLogo }} style={styles.teamLogo} resizeMode="contain" />
-                <Text style={styles.teamName}>{match.awayTeam}</Text>
+                <Image
+                  source={{ uri: "https://via.placeholder.com/100" }}
+                  style={styles.teamLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.teamName}>{awayTeamName}</Text>
               </View>
             </View>
 
             <View style={styles.divider} />
 
             <View style={styles.infoSection}>
-              <EventInfoRow icon="calendar" text={dayjs(match.date).format("dddd, MMMM D, YYYY")} />
-              <EventInfoRow icon="clock" text={match.time || "TBD"} />
-              <EventInfoRow icon="map-marker-alt" text={match.location} />
-              <EventInfoRow icon="user" text={`Organized by: ${match.organizer || "RISE Basketball"}`} />
+              <EventInfoRow
+                icon="calendar"
+                text={game.created_at ? dayjs(game.created_at).format("dddd, MMMM D, YYYY") : "Date not available"}
+              />
+              <EventInfoRow icon="user" text={`Teams: ${homeTeamName} vs ${awayTeamName}`} />
             </View>
 
             <View style={styles.divider} />
 
-            <Text style={styles.sectionTitle}>Match Highlights</Text>
-            <Text style={styles.description}>{match.description}</Text>
+            <Text style={styles.sectionTitle}>Match Details</Text>
+            <Text style={styles.description}>{game.description || "No description available for this match."}</Text>
 
             {/* Basketball Stats Section */}
             <View style={styles.divider} />
@@ -308,9 +327,9 @@ const MatchDetailsScreen = () => {
             <View style={styles.statsContainer}>
               {/* Simple Basketball Stats */}
               <View style={styles.statHeader}>
-                <Text style={styles.statHeaderTeam}>{match.homeTeam}</Text>
+                <Text style={styles.statHeaderTeam}>{homeTeamName}</Text>
                 <Text style={styles.statHeaderLabel}>STAT</Text>
-                <Text style={styles.statHeaderTeam}>{match.awayTeam}</Text>
+                <Text style={styles.statHeaderTeam}>{awayTeamName}</Text>
               </View>
 
               {/* Rebounds */}
@@ -382,8 +401,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
   },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 16,
+    marginTop: 16,
+    marginBottom: 20,
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  retryButton: {
+    marginBottom: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "#FCA311",
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#000000",
+    fontWeight: "bold",
+  },
   backButton: {
-    marginTop: 20,
+    marginTop: 8,
     paddingHorizontal: 20,
     paddingVertical: 10,
     backgroundColor: "#FCA311",

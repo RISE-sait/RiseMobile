@@ -44,10 +44,10 @@ const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, location
         break
       case "practice":
         // For now, practices also go to event details
-        router.push(`/screens/event-details/${id}?type=practice`)
+        router.push(`/screens/event-details/${id}`)
         break
       case "course":
-        router.push(`/screens/event-details/${id}?type=course`)
+        router.push(`/screens/event-details/${id}`)
         break
       case "event":
       default:
