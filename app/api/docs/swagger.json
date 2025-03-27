@@ -227,13 +227,62 @@
                     "application/json"
                 ],
                 "tags": [
-                    "purchases"
+                    "payments"
                 ],
-                "summary": "Checkout a membership plan",
+                "summary": "CheckoutMembershipPlan a membership plan",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Membership plan ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment link generated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/purchase.CheckoutResponseDto"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error: Failed to process checkout",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/checkout/programs/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payments"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Program ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -520,19 +569,25 @@
                         "name": "program_id",
                         "in": "query"
                     },
-                  {
-                    "type": "string",
-                    "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
-                    "description": "Filter by user ID (UUID format)",
-                    "name": "user_id",
-                    "in": "query"
-                  },
-                  {
-                    "type": "string",
-                    "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
-                    "description": "Filter by location ID (UUID format)",
-                    "name": "location_id",
-                    "in": "query"
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Filter by user ID (UUID format)",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Filter by location ID (UUID format)",
+                        "name": "location_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Program Type (game, practice, course, others)",
+                        "name": "program_type",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -609,13 +664,13 @@
                 }
             }
         },
-      "/events/{event_id}/customers/{customer_id}": {
-        "post": {
-          "security": [
-            {
-              "Bearer": []
-            }
-          ],
+        "/events/{event_id}/customers/{customer_id}": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -623,27 +678,27 @@
                     "application/json"
                 ],
                 "tags": [
-                  "enrollments"
+                    "enrollments"
                 ],
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Event ID",
-                      "name": "event_id",
-                      "in": "path",
-                      "required": true
+                        "name": "event_id",
+                        "in": "path",
+                        "required": true
                     },
-                  {
-                    "type": "string",
-                    "description": "Customer ID",
-                    "name": "customer_id",
+                    {
+                        "type": "string",
+                        "description": "Customer ID",
+                        "name": "customer_id",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
-                  "201": {
-                    "description": "Enrollment created successfully"
+                    "201": {
+                        "description": "Enrollment created successfully"
                     },
                     "400": {
                         "description": "Bad Request: Invalid input",
@@ -652,54 +707,54 @@
                             "additionalProperties": true
                         }
                     },
-                  "500": {
-                    "description": "Internal Server Error",
-                    "schema": {
-                      "type": "object",
-                      "additionalProperties": true
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
                     }
-                  }
                 }
-        },
-        "delete": {
-          "security": [
-            {
-              "Bearer": []
-            }
-          ],
-          "description": "Delete an enrollment by ID",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "enrollments"
-          ],
-          "summary": "Delete an enrollment",
-          "parameters": [
-            {
-              "type": "string",
-              "description": "Enrollment ID",
-              "name": "id",
-              "in": "path",
-              "required": true
-            }
-          ],
-          "responses": {
-            "204": {
-              "description": "No Content: Enrollment deleted successfully"
             },
-            "400": {
-              "description": "Bad Request: Invalid ID",
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Delete an enrollment by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enrollments"
+                ],
+                "summary": "Delete an enrollment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enrollment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content: Enrollment deleted successfully"
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "404": {
-                      "description": "Not Found: Enrollment not found",
+                        "description": "Not Found: Enrollment not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1241,8 +1296,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Barber name to filter images",
-                        "name": "barber",
+                        "description": "Barber ID to filter images",
+                        "name": "barber_id",
                         "in": "query"
                     }
                 ],
@@ -1277,6 +1332,11 @@
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
                 "description": "Uploads a haircut image to Google Cloud Storage and returns the object URL.",
                 "consumes": [
                     "multipart/form-data"
@@ -2306,13 +2366,21 @@
                     "programs"
                 ],
                 "summary": "Get a list of programs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Program Type (game, practice, course, others)",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Programs retrieved successfully",
                         "schema": {
                             "type": "array",
                             "items": {
-                              "$ref": "#/definitions/program.Response"
+                                "$ref": "#/definitions/program.Response"
                             }
                         }
                     },
@@ -2349,7 +2417,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                          "$ref": "#/definitions/program.RequestDto"
+                            "$ref": "#/definitions/program.RequestDto"
                         }
                     }
                 ],
@@ -2396,7 +2464,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                              "$ref": "#/definitions/program.LevelsResponse"
+                                "$ref": "#/definitions/program.LevelsResponse"
                             }
                         }
                     },
@@ -2411,6 +2479,58 @@
             }
         },
         "/programs/{id}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "programs"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Program ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Programs retrieved successfully",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/program.Response"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found: Program not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
             "put": {
                 "description": "Update a program",
                 "consumes": [
@@ -2437,7 +2557,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                          "$ref": "#/definitions/program.RequestDto"
+                            "$ref": "#/definitions/program.RequestDto"
                         }
                     }
                 ],
@@ -2520,55 +2640,6 @@
                 }
             }
         },
-        "/purchases/square/webhook": {
-            "post": {
-                "description": "Receives and processes payment updates from Square.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "purchases"
-                ],
-                "summary": "Handle Square Webhook",
-                "parameters": [
-                    {
-                        "description": "Square Webhook Event",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/purchase.SquareWebhookEventDto"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Webhook processed successfully",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request: Invalid input",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error: Failed to process webhook event",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/register/athlete": {
             "post": {
                 "description": "Registers a new athlete by verifying the Firebase token and creating an account based on the provided details.",
@@ -2595,7 +2666,7 @@
                     {
                         "type": "string",
                         "description": "Firebase token for user verification",
-                      "name": "Authorization",
+                        "name": "Authorization",
                         "in": "header",
                         "required": true
                     }
@@ -2651,7 +2722,7 @@
                     {
                         "type": "string",
                         "description": "Firebase token for user verification",
-                      "name": "Authorization",
+                        "name": "Authorization",
                         "in": "header",
                         "required": true
                     }
@@ -2714,7 +2785,7 @@
                     {
                         "type": "string",
                         "description": "Firebase token for user verification",
-                      "name": "Authorization",
+                        "name": "Authorization",
                         "in": "header",
                         "required": true
                     }
@@ -3168,6 +3239,62 @@
                     }
                 }
             }
+        },
+        "/webhooks/stripe": {
+            "post": {
+                "description": "- checkout.session.completed: Logs completed checkout sessions",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payments"
+                ],
+                "summary": "Receives and processes payment updates from Stripe .",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Stripe webhook signature",
+                        "name": "Stripe-Signature",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Raw webhook payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Webhook processed successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request: Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error: Failed to process webhook event",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -3416,28 +3543,28 @@
                 }
             }
         },
-      "event.CustomerResponseDto": {
+        "event.CustomerResponseDto": {
             "type": "object",
             "properties": {
-              "email": {
+                "email": {
                     "type": "string"
                 },
-              "first_name": {
-                    "type": "string"
-              },
-              "gender": {
+                "first_name": {
                     "type": "string"
                 },
-              "has_cancelled_enrollment": {
-                "type": "boolean"
-              },
-              "id": {
+                "gender": {
                     "type": "string"
                 },
-              "last_name": {
+                "has_cancelled_enrollment": {
+                    "type": "boolean"
+                },
+                "id": {
                     "type": "string"
                 },
-              "phone": {
+                "last_name": {
+                    "type": "string"
+                },
+                "phone": {
                     "type": "string"
                 }
             }
@@ -3489,15 +3616,15 @@
         "event.ResponseDto": {
             "type": "object",
             "properties": {
-              "capacity": {
-                "type": "integer"
+                "capacity": {
+                    "type": "integer"
                 },
-              "customers": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/event.CustomerResponseDto"
-                }
-              },
+                "customers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/event.CustomerResponseDto"
+                    }
+                },
                 "day": {
                     "type": "string"
                 },
@@ -3534,37 +3661,37 @@
                 "session_start_at": {
                     "type": "string"
                 },
-              "staff": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/event.StaffResponseDto"
+                "staff": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/event.StaffResponseDto"
+                    }
                 }
-              }
             }
         },
-      "event.StaffResponseDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string"
-          },
-          "first_name": {
-            "type": "string"
-          },
-          "gender": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "last_name": {
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          },
-          "role_name": {
-            "type": "string"
+        "event.StaffResponseDto": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role_name": {
+                    "type": "string"
                 }
             }
         },
@@ -3895,7 +4022,7 @@
                 }
             }
         },
-      "program.LevelsResponse": {
+        "program.LevelsResponse": {
             "type": "object",
             "properties": {
                 "levels": {
@@ -3906,7 +4033,7 @@
                 }
             }
         },
-      "program.RequestDto": {
+        "program.RequestDto": {
             "type": "object",
             "required": [
                 "level",
@@ -3928,7 +4055,7 @@
                 }
             }
         },
-      "program.Response": {
+        "program.Response": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -3962,8 +4089,16 @@
                 }
             }
         },
-        "purchase.SquareWebhookEventDto": {
-            "type": "object"
+        "staff.CoachStatsResponseDto": {
+            "type": "object",
+            "properties": {
+                "losses": {
+                    "type": "integer"
+                },
+                "wins": {
+                    "type": "integer"
+                }
+            }
         },
         "staff.RegistrationRequestDto": {
             "type": "object",
@@ -4016,6 +4151,9 @@
         "staff.ResponseDto": {
             "type": "object",
             "properties": {
+                "coach_stats": {
+                    "$ref": "#/definitions/staff.CoachStatsResponseDto"
+                },
                 "country_code": {
                     "type": "string"
                 },
