@@ -11,6 +11,7 @@ import dayjs from "dayjs"
 import { useDispatch, useSelector } from "react-redux"
 import type { RootState } from "@/store"
 import { fetchEvents } from "@/store/slices/eventsSlice"
+import { fetchMatches } from "@/store/slices/gamesSlice"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
 import PageTitle from "@/components/PageTitle"
@@ -39,10 +40,12 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
   // Get calendar data from Redux store
   const reduxEvents = useSelector((state: RootState) => state.events)
+  const reduxMatches = useSelector((state: RootState) => state.matches)
 
   // Determine loading state
-  const isLoading = reduxEvents.status === "loading"
-  const error = reduxEvents.error
+  const isLoading = reduxEvents.status === "loading" || reduxMatches.status === "loading"
+
+  const error = reduxEvents.error || reduxMatches.error
 
   // Memoize the token retrieval to avoid recreating this function on every render
   const getToken = useCallback(async () => {
@@ -73,8 +76,9 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
         return
       }
 
-      // Dispatch the fetch action for events
+      // Dispatch the fetch actions for events and matches (from games endpoint)
       dispatch(fetchEvents(token) as any)
+      dispatch(fetchMatches(token) as any)
     } catch (err) {
       console.error("Error fetching calendar data:", err)
     }
@@ -97,10 +101,62 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Empty dependency array - only run once
 
-  // Memoize events for selected date
-  const eventsForSelectedDate = useMemo(() => {
-    return reduxEvents.byDate[selectedDate] || []
-  }, [reduxEvents.byDate, selectedDate])
+  // Process matches data to organize by date
+  const matchesByDate = useMemo(() => {
+    const byDate: Record<string, any[]> = {}
+
+    // Process matches from the matches slice
+    reduxMatches.items.forEach((match) => {
+      if (match.created_at) {
+        // Parse the date string correctly
+        const dateObj = dayjs(match.created_at)
+        if (dateObj.isValid()) {
+          const dateStr = dateObj.format("YYYY-MM-DD")
+
+          if (!byDate[dateStr]) {
+            byDate[dateStr] = []
+          }
+
+          byDate[dateStr].push({
+            id: match.id,
+            title: match.name || `Match ${match.id.substring(0, 6)}`,
+            date: dateStr,
+            time: dateObj.format("h:mm A"),
+            type: "match",
+            location: "RISE Basketball Court",
+            description: match.description || "Basketball match",
+          })
+        }
+      }
+    })
+
+    return byDate
+  }, [reduxMatches.items])
+
+  // Combine all events and matches for the selected date
+  const combinedEventsForSelectedDate = useMemo(() => {
+    const events = reduxEvents.byDate[selectedDate] || []
+    const matches = matchesByDate[selectedDate] || []
+
+    return [...events, ...matches]
+  }, [reduxEvents.byDate, matchesByDate, selectedDate])
+
+  // Combine all events and matches for the calendar display
+  const combinedCalendarEvents = useMemo(() => {
+    const allDates = {
+      ...reduxEvents.byDate,
+      ...matchesByDate,
+    }
+
+    // Create a new object with combined events for each date
+    const combined: Record<string, any[]> = {}
+
+    Object.keys(allDates).forEach((date) => {
+      combined[date] = [...(reduxEvents.byDate[date] || []), ...(matchesByDate[date] || [])]
+    })
+
+    return combined
+  }, [reduxEvents.byDate, matchesByDate])
 
   // Memoize formatted date
   const formattedDate = useMemo(() => {
@@ -131,7 +187,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
         <View className="px-5 py-4">
           <CalendarCard
             selectedDate={selectedDate}
-            events={reduxEvents.byDate}
+            events={combinedCalendarEvents}
             onDayPress={(day) => setSelectedDate(day.dateString)}
           />
         </View>
@@ -139,7 +195,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
         {/* Updated EventListContainer that accepts data directly */}
         <EventListContainer
           date={dayjs(selectedDate).format("DD MMM YYYY")}
-          data={eventsForSelectedDate}
+          data={combinedEventsForSelectedDate}
           isLoading={isLoading}
           error={error}
           onRetry={handleRefresh}

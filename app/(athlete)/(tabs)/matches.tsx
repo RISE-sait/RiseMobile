@@ -9,21 +9,22 @@ import MatchCard from "../../../components/events/MatchCard"
 import { StatusBar } from "expo-status-bar"
 import { FontAwesome6 } from "@expo/vector-icons"
 import { useAppDispatch, useAppSelector } from "../../../store/hooks"
-import { fetchMatches } from "../../../store/slices/matchesSlice"
+import { fetchMatches } from "../../../store/slices/gamesSlice"
 import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
 import EmptyState from "../../../components/feedback/EmptyState"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const { width } = Dimensions.get("window")
 
 const generateWeekDates = (): dayjs.Dayjs[] => {
   const today = dayjs()
-  return Array.from({ length: 14 }, (_, i) => today.add(i - 6, "day"))
+  return Array.from({ length: 17 }, (_, i) => today.add(i - 8, "day"))
 }
 
 const MatchesScreen: React.FC = () => {
   const dispatch = useAppDispatch()
-  const { items: matches, status, error } = useAppSelector((state) => state.matches)
-  const { token } = useAppSelector((state) => state.user)
+  const { items: matches, status, error } = useAppSelector((state) => state.games)
+  const token = useAppSelector((state) => state.user.data?.token)
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))
   const [weekDates] = useState(generateWeekDates)
@@ -32,9 +33,27 @@ const MatchesScreen: React.FC = () => {
 
   useEffect(() => {
     // Fetch matches when component mounts
-    if (token) {
-      dispatch(fetchMatches(token))
+    const fetchData = async () => {
+      let authToken = token
+
+      if (!authToken) {
+        try {
+          const userString = await AsyncStorage.getItem("user")
+          if (userString) {
+            const userData = JSON.parse(userString)
+            authToken = userData.token
+          }
+        } catch (err) {
+          console.error("Error getting token from AsyncStorage:", err)
+        }
+      }
+
+      if (authToken) {
+        dispatch(fetchMatches(authToken))
+      }
     }
+
+    fetchData()
   }, [dispatch, token])
 
   useEffect(() => {
@@ -51,10 +70,13 @@ const MatchesScreen: React.FC = () => {
         flatListRef.current?.scrollToIndex({ index: todayIndex, animated: true })
       }, 300)
     }
-  }, [])
+  }, [weekDates])
 
   // Filter matches by selected date
-  const filteredMatches = matches.filter((match) => dayjs(match.created_at).format("YYYY-MM-DD") === selectedDate)
+  const filteredMatches = matches.filter((match) => {
+    const matchDate = match.created_at ? dayjs(match.created_at).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD")
+    return matchDate === selectedDate
+  })
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate
@@ -107,7 +129,29 @@ const MatchesScreen: React.FC = () => {
           title="Error Loading Matches"
           message={error}
           actionLabel="Try Again"
-          onAction={() => token && dispatch(fetchMatches(token))}
+          onAction={() => {
+            const fetchData = async () => {
+              let authToken = token
+
+              if (!authToken) {
+                try {
+                  const userString = await AsyncStorage.getItem("user")
+                  if (userString) {
+                    const userData = JSON.parse(userString)
+                    authToken = userData.token
+                  }
+                } catch (err) {
+                  console.error("Error getting token from AsyncStorage:", err)
+                }
+              }
+
+              if (authToken) {
+                dispatch(fetchMatches(authToken))
+              }
+            }
+
+            fetchData()
+          }}
         />
       </SafeAreaView>
     )
@@ -117,12 +161,36 @@ const MatchesScreen: React.FC = () => {
     <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">
       <StatusBar translucent style="light" />
 
-      <Animated.View style={{ opacity: fadeAnim }} className="flex-1">
+      <View className="flex-1">
         {/* Header */}
         <View className="px-6 pb-4 border-b border-white-100/10 flex-row justify-between items-center">
           <Text className="text-white-100 text-3xl font-bold">Matches</Text>
-          <TouchableOpacity>
-            <Text className="text-gold-100 font-semibold">See All</Text>
+          <TouchableOpacity
+            onPress={() => {
+              const fetchData = async () => {
+                let authToken = token
+
+                if (!authToken) {
+                  try {
+                    const userString = await AsyncStorage.getItem("user")
+                    if (userString) {
+                      const userData = JSON.parse(userString)
+                      authToken = userData.token
+                    }
+                  } catch (err) {
+                    console.error("Error getting token from AsyncStorage:", err)
+                  }
+                }
+
+                if (authToken) {
+                  dispatch(fetchMatches(authToken))
+                }
+              }
+
+              fetchData()
+            }}
+          >
+            <Text className="text-gold-100 font-semibold">Refresh</Text>
           </TouchableOpacity>
         </View>
 
@@ -149,7 +217,7 @@ const MatchesScreen: React.FC = () => {
             </View>
           )}
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   )
 }

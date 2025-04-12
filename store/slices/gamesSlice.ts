@@ -1,229 +1,118 @@
-import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit"
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
-import type { CalendarItem } from "./eventsSlice"
 
-interface GamesState {
-  items: CalendarItem[]
-  byDate: Record<string, CalendarItem[]>
-  byId: Record<string, CalendarItem>
-  status: "idle" | "loading" | "succeeded" | "failed"
-  error: string | null
-  lastFetched: string | null
+// Define types
+export interface Match {
+  id: string
+  name: string
+  description?: string
+  win_team?: string
+  lose_team?: string
+  win_score?: number
+  lose_score?: number
+  created_at?: string
+  updated_at?: string
+  // Add any other fields that might be in the API response
 }
 
-// Define the extended game data interface
-export interface GameDetails extends CalendarItem {
-  homeTeam?: string
-  awayTeam?: string
-  homeScore?: number
-  awayScore?: number
-  league?: string
-  status?: string
-  homeLogo?: string
-  awayLogo?: string
-  bgImage?: string
-  organizer?: string
-  home_team_id?: string
-  away_team_id?: string
+interface MatchesState {
+  items: Match[]
+  byDate: Record<string, Match[]>
+  status: "idle" | "loading" | "succeeded" | "failed"
+  error: string | null
 }
 
 // Initial state
-const initialState: GamesState = {
+const initialState: MatchesState = {
   items: [],
   byDate: {},
-  byId: {},
   status: "idle",
   error: null,
-  lastFetched: null,
 }
 
-// Helper function to extract title
-const extractTitle = (game: any): string => {
-  if (game.title) return game.title
-  if (game.name) return game.name
-  if (game.match_name) return game.match_name
-  if (game.game_name) return game.game_name
-  if (game.home_team && game.away_team) return `${game.home_team} vs ${game.away_team}`
-  return "Game"
-}
-
-// Async thunk to fetch games
-export const fetchGames = createAsyncThunk("games/fetchGames", async (token: string, { rejectWithValue }) => {
+// Async thunk to fetch matches from the games endpoint
+export const fetchMatches = createAsyncThunk("matches/fetchMatches", async (token: string, { rejectWithValue }) => {
   try {
+    console.log("Fetching games with token:", token.substring(0, 10) + "...")
+
     const response = await axios.get(`${API_URL}/games`, {
       headers: { Authorization: `Bearer ${token}` },
     })
 
-    const games: GameDetails[] = []
-    const byDate: Record<string, GameDetails[]> = {}
-    const byId: Record<string, GameDetails> = {}
+    console.log("Games API response:", response.data)
 
-    if (response.data && Array.isArray(response.data)) {
-      response.data.forEach((game: any) => {
-        // Create a date for the game
-        const gameDate = game.date || dayjs().format("YYYY-MM-DD")
-        const title = extractTitle(game)
+    // Process the games to organize by date and convert to Match format
+    const games = response.data
+    const matches: Match[] = games.map((game: any) => ({
+      id: game.id,
+      name: game.name || "Game",
+      description: game.description,
+      win_team: game.win_team,
+      lose_team: game.lose_team,
+      win_score: game.win_score,
+      lose_score: game.lose_score,
+      created_at: game.created_at,
+      updated_at: game.updated_at,
+    }))
 
-        const gameItem: GameDetails = {
-          id: game.id || `game-${Math.random().toString(36).substr(2, 9)}`,
-          title: title,
-          date: gameDate,
-          time: game.time || "7:00 PM",
-          type: "match",
-          location: game.location || game.venue || "RISE Basketball Court",
-          description: game.description || `${title} at ${game.location || "RISE Basketball Court"}`,
-          homeTeam: game.home_team || "Home Team",
-          awayTeam: game.away_team || "Away Team",
-          homeScore: game.home_score || 0,
-          awayScore: game.away_score || 0,
-          league: game.league || "RISE Basketball League",
-          status: game.status || "Upcoming",
-          homeLogo: game.home_logo || "https://via.placeholder.com/100",
-          awayLogo: game.away_logo || "https://via.placeholder.com/100",
-          bgImage: game.bg_image || "https://images.unsplash.com/photo-1504450758481-7338eba7524a",
-          organizer: game.organizer || "RISE Basketball",
-          home_team_id: game.home_team_id,
-          away_team_id: game.away_team_id,
+    const byDate: Record<string, Match[]> = {}
+
+    matches.forEach((match: Match) => {
+      if (match.created_at) {
+        // Parse the date string correctly
+        const dateObj = dayjs(match.created_at)
+        if (dateObj.isValid()) {
+          const dateStr = dateObj.format("YYYY-MM-DD")
+
+          if (!byDate[dateStr]) {
+            byDate[dateStr] = []
+          }
+
+          byDate[dateStr].push(match)
         }
+      }
+    })
 
-        games.push(gameItem)
-        byId[gameItem.id] = gameItem
-
-        if (!byDate[gameDate]) {
-          byDate[gameDate] = []
-        }
-        byDate[gameDate].push(gameItem)
-      })
-    }
-
-    return {
-      items: games,
-      byDate,
-      byId,
-      lastFetched: new Date().toISOString(),
-    }
+    return { items: matches, byDate }
   } catch (error: any) {
+    console.error("Games API error:", error.response?.data || error.message)
     return rejectWithValue(error.message || "Failed to fetch games")
   }
 })
 
-// Async thunk to fetch a single game by ID
-export const fetchGameById = createAsyncThunk(
-  "games/fetchGameById",
-  async ({ id, token }: { id: string; token: string }, { rejectWithValue }) => {
-    try {
-      const response = await axios.get(`${API_URL}/games/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      const game = response.data
-      const title = extractTitle(game)
-
-      const gameItem: GameDetails = {
-        id: game.id,
-        title: title,
-        date: game.date || dayjs().format("YYYY-MM-DD"),
-        time: game.time || "7:00 PM",
-        type: "match",
-        location: game.location || game.venue || "RISE Basketball Court",
-        description: game.description || `${title} at ${game.location || "RISE Basketball Court"}`,
-        homeTeam: game.home_team || "Home Team",
-        awayTeam: game.away_team || "Away Team",
-        homeScore: game.home_score || 0,
-        awayScore: game.away_score || 0,
-        league: game.league || "RISE Basketball League",
-        status: game.status || "Upcoming",
-        homeLogo: game.home_logo || "https://via.placeholder.com/100",
-        awayLogo: game.away_logo || "https://via.placeholder.com/100",
-        bgImage: game.bg_image || "https://images.unsplash.com/photo-1504450758481-7338eba7524a",
-        organizer: game.organizer || "RISE Basketball",
-        home_team_id: game.home_team_id,
-        away_team_id: game.away_team_id,
-      }
-
-      return gameItem
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to fetch game")
-    }
-  },
-)
-
 // Create slice
-const gamesSlice = createSlice({
-  name: "games",
+const matchesSlice = createSlice({
+  name: "matches",
   initialState,
   reducers: {
-    clearGames: (state) => {
+    clearMatches: (state) => {
       state.items = []
       state.byDate = {}
-      state.byId = {}
       state.status = "idle"
       state.error = null
-      state.lastFetched = null
-    },
-    addGame: (state, action: PayloadAction<GameDetails>) => {
-      state.items.push(action.payload)
-      state.byId[action.payload.id] = action.payload
-
-      const date = action.payload.date
-      if (!state.byDate[date]) {
-        state.byDate[date] = []
-      }
-      state.byDate[date].push(action.payload)
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchGames.pending, (state) => {
+      .addCase(fetchMatches.pending, (state) => {
         state.status = "loading"
         state.error = null
       })
-      .addCase(fetchGames.fulfilled, (state, action) => {
+      .addCase(fetchMatches.fulfilled, (state, action) => {
         state.status = "succeeded"
         state.items = action.payload.items
         state.byDate = action.payload.byDate
-        state.byId = action.payload.byId
-        state.lastFetched = action.payload.lastFetched
         state.error = null
       })
-      .addCase(fetchGames.rejected, (state, action) => {
+      .addCase(fetchMatches.rejected, (state, action) => {
         state.status = "failed"
         state.error = action.payload as string
-      })
-      .addCase(fetchGameById.fulfilled, (state, action) => {
-        // Add or update the game in our collections
-        const game = action.payload
-
-        // Update byId
-        state.byId[game.id] = game
-
-        // Check if we need to add to items
-        const existingIndex = state.items.findIndex((item) => item.id === game.id)
-        if (existingIndex >= 0) {
-          state.items[existingIndex] = game
-        } else {
-          state.items.push(game)
-        }
-
-        // Update byDate
-        const date = game.date
-        if (!state.byDate[date]) {
-          state.byDate[date] = []
-        }
-
-        const dateIndex = state.byDate[date].findIndex((item) => item.id === game.id)
-        if (dateIndex >= 0) {
-          state.byDate[date][dateIndex] = game
-        } else {
-          state.byDate[date].push(game)
-        }
       })
   },
 })
 
 // Export actions and reducer
-export const { clearGames, addGame } = gamesSlice.actions
-export default gamesSlice.reducer
-
+export const { clearMatches } = matchesSlice.actions
+export default matchesSlice.reducer

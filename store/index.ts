@@ -9,7 +9,7 @@ import eventsReducer from "./slices/eventsSlice"
 import gamesReducer from "./slices/gamesSlice"
 import practicesReducer from "./slices/practicesSlice"
 import coursesReducer from "./slices/coursesSlice"
-import matchesReducer from "./slices/matchesSlice"
+import matchesReducer from "./slices/gamesSlice"
 import teamsReducer from "./slices/teamsSlice" // Add teams reducer
 
 // Combine all reducers
