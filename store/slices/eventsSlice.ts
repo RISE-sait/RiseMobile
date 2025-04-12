@@ -91,7 +91,12 @@ const fetchWithRetry = async (url: string, token: string, params = {}, maxRetrie
 
 // Helper function to extract title from event data
 const extractTitle = (event: any): string => {
-  // First check for explicit title fields
+  // First check if we have a program with a name
+  if (event.program && event.program.name) {
+    return event.program.name
+  }
+
+  // Then check for explicit title fields
   if (event.title) return event.title
   if (event.name) return event.name
   if (event.program_name) return event.program_name
@@ -114,8 +119,8 @@ const extractTitle = (event: any): string => {
 // Helper function to determine event type
 export const determineEventType = (event: any): "practice" | "course" | "game" | "match" | "others" | "event" => {
   // First check if we have a program type
-  if (event.type) {
-    const programType = event.type.toLowerCase()
+  if (event.program && event.program.type) {
+    const programType = event.program.type.toLowerCase()
 
     if (programType === "match" || programType === "game") {
       return "match"
@@ -149,13 +154,7 @@ export const determineEventType = (event: any): "practice" | "course" | "game" |
   }
 
   // Check title for clues
-  const title = (
-    (event.program && event.program.name) ||
-    event.title ||
-    event.name ||
-    event.program_name ||
-    ""
-  ).toLowerCase()
+  const title = extractTitle(event).toLowerCase()
 
   if (title.includes("match") || title.includes("game") || title.includes("vs") || title.includes("versus")) {
     return "match"
@@ -265,16 +264,24 @@ const processEvents = (events: any[]): { items: CalendarItem[]; byDate: Record<s
 
     const title = extractTitle(event)
     const type = determineEventType(event)
+    const location = event.location?.name || "TBD"
+
+    // Log for debugging
+    console.log(`Processing event: ${event.id}`)
+    console.log(`- Title: ${title}`)
+    console.log(`- Type: ${type}`)
+    console.log(`- Location: ${location}`)
+    console.log(`- Date: ${date}, Time: ${time}`)
 
     const calendarItem: CalendarItem = {
       id: event.id,
       title: title,
       date: date,
-      time: formatTimeString(time),
+      time: time,
       type: type,
-      location: event.location?.name || "TBD",
+      location: location,
       description: event.description || "",
-      program_type: event.type || "",
+      program_type: event.program?.type || "",
     }
 
     items.push(calendarItem)
@@ -305,7 +312,7 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
       before: beforeDate,
     })
 
-    console.log(`Programs API response: ${response.data?.length || 0} events found`)
+    console.log(`Events API response: ${response.data?.length || 0} events found`)
 
     // Process all the events
     const { items, byDate } = processEvents(response.data)

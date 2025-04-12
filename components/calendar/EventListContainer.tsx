@@ -18,11 +18,12 @@ interface EventItem {
 
 interface EventListContainerProps {
   date: string
-  data: EventItem[]
+  data?: EventItem[]
   isLoading?: boolean
   error?: string | null
   onRetry?: () => void
   emptyMessage?: string
+  children?: React.ReactNode
 }
 
 // Helper function to map API types to display types
@@ -93,11 +94,12 @@ const mapTypeToValidType = (item: EventItem): "event" | "match" | "practice" | "
 
 const EventListContainer: React.FC<EventListContainerProps> = ({
   date,
-  data,
+  data = [],
   isLoading = false,
   error = null,
   onRetry,
   emptyMessage = "There are no events scheduled for this day.",
+  children,
 }) => {
   return (
     <View style={{ flex: 1, minHeight: 300 }}>
@@ -150,6 +152,8 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               </Text>
             )}
           </View>
+        ) : children ? (
+          children
         ) : (
           <FlatList
             data={data}

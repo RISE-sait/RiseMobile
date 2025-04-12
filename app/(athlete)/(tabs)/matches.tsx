@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native"
@@ -52,7 +54,7 @@ const MatchesScreen: React.FC = () => {
   }, [])
 
   // Filter matches by selected date
-  const filteredMatches = matches.filter((match) => dayjs(match.date).format("YYYY-MM-DD") === selectedDate)
+  const filteredMatches = matches.filter((match) => dayjs(match.created_at).format("YYYY-MM-DD") === selectedDate)
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate
@@ -153,4 +155,3 @@ const MatchesScreen: React.FC = () => {
 }
 
 export default MatchesScreen
-

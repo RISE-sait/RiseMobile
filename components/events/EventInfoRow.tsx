@@ -6,13 +6,17 @@ import { COLORS } from "@/constants/colors"
 interface EventInfoRowProps {
   icon: string
   text: string
+  subText?: string
 }
 
-const EventInfoRow: React.FC<EventInfoRowProps> = ({ icon, text }) => {
+const EventInfoRow: React.FC<EventInfoRowProps> = ({ icon, text, subText }) => {
   return (
     <View style={styles.container}>
       <FontAwesome5 name={icon} size={16} color={COLORS.primary} style={styles.icon} />
-      <Text style={styles.text}>{text}</Text>
+      <View style={styles.textContainer}>
+        <Text style={styles.text}>{text}</Text>
+        {subText && <Text style={styles.subText}>{subText}</Text>}
+      </View>
     </View>
   )
 }
@@ -20,19 +24,26 @@ const EventInfoRow: React.FC<EventInfoRowProps> = ({ icon, text }) => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
+    alignItems: "flex-start",
+    marginBottom: 16,
   },
   icon: {
-    marginRight: 12,
+    marginTop: 2,
     width: 20,
-    textAlign: "center",
+  },
+  textContainer: {
+    flex: 1,
+    marginLeft: 12,
   },
   text: {
-    color: COLORS.textSecondary,
+    color: COLORS.text,
     fontSize: 14,
+  },
+  subText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
   },
 })
 
 export default EventInfoRow
-

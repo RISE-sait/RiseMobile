@@ -30,6 +30,18 @@ import { COLORS } from "@/constants/colors"
 const { width } = Dimensions.get("window")
 
 // Define interfaces for our data
+interface Location {
+  id: string
+  name: string
+  address: string
+}
+
+interface User {
+  id: string
+  first_name: string
+  last_name: string
+}
+
 interface EventDetails {
   id: string
   title: string
@@ -37,10 +49,24 @@ interface EventDetails {
   date: string
   time: string
   location: string
+  locationAddress: string
   image: string
   organizer: string
   category: string
   status: string
+  capacity: number
+}
+
+interface ApiEventResponse {
+  id: string
+  location: Location
+  capacity: number
+  created_by: User
+  updated_by: User
+  start_at: string
+  end_at: string
+  customers: any[]
+  staff: any[]
 }
 
 const EventDetails: React.FC = () => {
@@ -81,49 +107,6 @@ const EventDetails: React.FC = () => {
     return id
   }
 
-  // Function to extract the title/name from different API response formats
-  const extractTitle = (data: any): string => {
-    // Check all possible name fields based on item type
-    if (data.title) return data.title
-    if (data.name) return data.name
-    if (data.practice_name) return data.practice_name
-    if (data.course_name) return data.course_name
-
-    // For events with practice_id, the practice_name might be the title
-    if (data.practice_id && data.practice_name) return data.practice_name
-
-    // Default fallback
-    return type === "practice" ? "Practice Session" : type === "course" ? "Course" : "Event"
-  }
-
-  // Function to extract the description from different API response formats
-  const extractDescription = (data: any): string => {
-    // Check all possible description fields
-    if (data.description) return data.description
-    if (data.details) return data.details
-    if (data.about) return data.about
-    if (data.info) return data.info
-    if (data.content) return data.content
-
-    // Check for notes or additional information
-    if (data.notes) return data.notes
-    if (data.additional_info) return data.additional_info
-
-    // For practices, the level and capacity might be useful information
-    if (type === "practice" && data.level && data.capacity) {
-      return `Level: ${data.level}\nCapacity: ${data.capacity} participants\n\n${data.description || ""}`
-    }
-
-    // Default fallback based on type
-    if (type === "practice") {
-      return "Join us for this practice session. Please arrive 15 minutes early and bring appropriate gear."
-    } else if (type === "course") {
-      return "This course is designed to help you improve your skills. All skill levels welcome."
-    } else {
-      return "Join us for this exciting event at RISE Basketball."
-    }
-  }
-
   const fetchEventDetails = async () => {
     setLoading(true)
     setError(null)
@@ -148,220 +131,145 @@ const EventDetails: React.FC = () => {
 
       // Clean the ID to remove any suffix
       const cleanedId = cleanId(id as string)
-      console.log(`Original ID: ${id}, Cleaned ID: ${cleanedId}`)
+      console.log(`Fetching event details for ID: ${cleanedId}`)
 
-      // Determine which endpoint to use based on the type
-      let endpoint = `/programs/${cleanedId}`
-      if (type === "practice" || type === "course" || type === "others") {
-        // These are all program types, so we use the programs endpoint
-        endpoint = `/programs/${cleanedId}`
-      } else if (type === "event") {
-        // Use events endpoint for explicit event types
-        endpoint = `/events/${cleanedId}`
-      } else if (type === "game" || type === "match") {
-        // Use games endpoint for game/match types
-        endpoint = `/games/${cleanedId}`
-      }
-
-      console.log(`Fetching details from ${endpoint}`)
-
-      // Fetch event details
-      const response = await axios.get(`${API_URL}${endpoint}`, {
+      // Only use the events endpoint
+      const response = await axios.get(`${API_URL}/events/${cleanedId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
 
       console.log("API Response:", response.data)
 
-      // Process the data based on the response format
-      const eventData = response.data
+      // Process the data from the API response
+      const eventData: ApiEventResponse = response.data
+
+      // Format the date and time from start_at and end_at
+      const startDate = parseDateTime(eventData.start_at)
+      const endDate = parseDateTime(eventData.end_at)
+
+      // Get the organizer name
+      const organizerName = eventData.created_by
+        ? `${eventData.created_by.first_name} ${eventData.created_by.last_name}`
+        : "RISE Basketball"
 
       // Transform API data to our EventDetails format
       const processedEvent: EventDetails = {
-        id: eventData.id || cleanedId,
-        title: extractTitle(eventData),
-        description: extractDescription(eventData),
-        date: processDate(eventData),
-        time: processTime(eventData),
-        location: eventData.location_name || "RISE Facility",
+        id: eventData.id,
+        title: getEventTitle(eventData, type as string),
+        description: getEventDescription(eventData, type as string),
+        date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
+        time: formatTimeRange(startDate, endDate),
+        location: eventData.location?.name || "RISE Facility",
+        locationAddress: eventData.location?.address || "",
         image:
-          eventData.image ||
           "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-        organizer: eventData.organizer || "RISE Basketball",
-        category: eventData.category || (type === "practice" ? "Practice" : type === "course" ? "Course" : "Event"),
-        status: getEventStatus(eventData.date || new Date().toISOString()),
+        organizer: organizerName,
+        category: getCategoryFromType(type as string),
+        status: getEventStatus(startDate, endDate),
+        capacity: eventData.capacity || 0,
       }
 
       setEvent(processedEvent)
-
-      // Check if user is registered for this event
-      // This would typically come from the API
       setRegistered(false)
     } catch (err: any) {
       console.error("Error fetching event details:", err.response?.data || err.message)
-
-      // Try to fetch from alternative endpoint if the first one failed
-      if (endpoint.includes("/events/")) {
-        try {
-          console.log(`Retrying with programs endpoint for ID: ${cleanedId}`)
-          const programResponse = await axios.get(`${API_URL}/programs/${cleanedId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-
-          console.log("Programs API Response:", programResponse.data)
-
-          // Process the data
-          const eventData = programResponse.data
-          // Transform API data to our EventDetails format
-          const processedEvent: EventDetails = {
-            id: eventData.id || cleanedId,
-            title: extractTitle(eventData),
-            description: extractDescription(eventData),
-            date: processDate(eventData),
-            time: processTime(eventData),
-            location: eventData.location_name || "RISE Facility",
-            image:
-              eventData.image ||
-              "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-            organizer: eventData.organizer || "RISE Basketball",
-            category: eventData.category || (type === "practice" ? "Practice" : type === "course" ? "Course" : "Event"),
-            status: getEventStatus(eventData.date || new Date().toISOString()),
-          }
-
-          setEvent(processedEvent)
-          setRegistered(false)
-          setLoading(false)
-          return
-        } catch (retryErr) {
-          console.error("Programs API retry error:", retryErr)
-          // Continue to fallback
-        }
-      } else if (endpoint.includes("/programs/")) {
-        try {
-          console.log(`Retrying with events endpoint for ID: ${cleanedId}`)
-          const eventsResponse = await axios.get(`${API_URL}/events/${cleanedId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-
-          console.log("Events API Response:", eventsResponse.data)
-
-          // Process the data
-          const eventData = eventsResponse.data
-          // Transform API data to our EventDetails format
-          const processedEvent: EventDetails = {
-            id: eventData.id || cleanedId,
-            title: extractTitle(eventData),
-            description: extractDescription(eventData),
-            date: processDate(eventData),
-            time: processTime(eventData),
-            location: eventData.location_name || "RISE Facility",
-            image:
-              eventData.image ||
-              "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-            organizer: eventData.organizer || "RISE Basketball",
-            category: eventData.category || (type === "practice" ? "Practice" : type === "course" ? "Course" : "Event"),
-            status: getEventStatus(eventData.date || new Date().toISOString()),
-          }
-
-          setEvent(processedEvent)
-          setRegistered(false)
-          setLoading(false)
-          return
-        } catch (retryErr) {
-          console.error("Events API retry error:", retryErr)
-          // Continue to fallback
-        }
-      }
-
       setError("Failed to load event details. Please try again.")
 
-      // For demo purposes, use mock data if API fails
+      // Use mock data as fallback
       fallbackToMockData()
     } finally {
       setLoading(false)
     }
   }
 
-  // Process date from various API formats
-  const processDate = (data: any): string => {
-    // Check for explicit date field
-    if (data.date) {
-      return dayjs(data.date).format("YYYY-MM-DD")
+  // Parse date time string from API
+  const parseDateTime = (dateTimeStr: string): Date | null => {
+    if (!dateTimeStr) return null
+
+    // Handle format like "2025-02-15 13:00:00 +0000 UTC"
+    const dateTimeParts = dateTimeStr.split(" ")
+    if (dateTimeParts.length >= 2) {
+      const datePart = dateTimeParts[0]
+      const timePart = dateTimeParts[1]
+
+      // Create a date string in ISO format
+      const isoString = `${datePart}T${timePart}`
+      return new Date(isoString)
     }
 
-    // Check for start_time field
-    if (data.start_time) {
-      return dayjs(data.start_time).format("YYYY-MM-DD")
-    }
-
-    // Check for session_start_at and day fields
-    if (data.session_start_at && data.day) {
-      const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
-      const dayIndex = days.indexOf(data.day.toUpperCase())
-
-      if (dayIndex !== -1) {
-        const today = dayjs()
-        const todayIndex = today.day()
-        const daysUntilNext = (dayIndex - todayIndex + 7) % 7
-
-        return today.add(daysUntilNext, "day").format("YYYY-MM-DD")
-      }
-    }
-
-    // Default to today's date
-    return dayjs().format("YYYY-MM-DD")
+    // Fallback to direct parsing
+    return new Date(dateTimeStr)
   }
 
-  // Process time from various API formats
-  const processTime = (data: any): string => {
-    // Check for explicit time field
-    if (data.time) {
-      return data.time
-    }
+  // Format time range from start and end dates
+  const formatTimeRange = (startDate: Date | null, endDate: Date | null): string => {
+    if (!startDate) return "TBD"
 
-    // Check for start_time and end_time fields
-    if (data.start_time && data.end_time) {
-      const start = formatTimeString(data.start_time)
-      const end = formatTimeString(data.end_time)
-      return `${start} - ${end}`
-    }
+    const startTime = formatTime(startDate)
 
-    // Check for session_start_at and session_end_at fields
-    if (data.session_start_at && data.session_end_at) {
-      const start = formatTimeString(data.session_start_at)
-      const end = formatTimeString(data.session_end_at)
-      return `${start} - ${end}`
-    }
+    if (!endDate) return startTime
 
-    // Check for just start time
-    if (data.start_time) {
-      return formatTimeString(data.start_time)
-    }
-
-    if (data.session_start_at) {
-      return formatTimeString(data.session_start_at)
-    }
-
-    // Default
-    return "TBD"
+    const endTime = formatTime(endDate)
+    return `${startTime} - ${endTime}`
   }
 
-  // Format time string from API
-  const formatTimeString = (timeString: string): string => {
-    if (!timeString) return "TBD"
+  // Format time to 12-hour format
+  const formatTime = (date: Date): string => {
+    const hours = date.getHours()
+    const minutes = date.getMinutes()
 
-    // Handle format like "18:30:00+00:00"
-    if (timeString.includes(":")) {
-      const timeParts = timeString.split(":")
-      const hour = Number.parseInt(timeParts[0], 10)
-      const minute = timeParts[1] ? Number.parseInt(timeParts[1], 10) : 0
+    const ampm = hours >= 12 ? "PM" : "AM"
+    const hour12 = hours % 12 || 12
 
-      const ampm = hour >= 12 ? "PM" : "AM"
-      const hour12 = hour % 12 || 12
+    return `${hour12}:${minutes.toString().padStart(2, "0")} ${ampm}`
+  }
 
-      return `${hour12}:${minute.toString().padStart(2, "0")} ${ampm}`
+  // Get event title based on available data
+  const getEventTitle = (data: ApiEventResponse, eventType: string): string => {
+    // For now, we'll use a generic title since the API response doesn't include a title
+    return eventType === "practice"
+      ? "Basketball Practice Session"
+      : eventType === "course"
+        ? "Basketball Skills Course"
+        : "Basketball Event"
+  }
+
+  // Get event description based on available data
+  const getEventDescription = (data: ApiEventResponse, eventType: string): string => {
+    // For now, we'll use a generic description since the API response doesn't include a description
+    if (eventType === "practice") {
+      return "Join us for this practice session focused on fundamentals and team play. Please arrive 15 minutes early and bring appropriate gear."
+    } else if (eventType === "course") {
+      return "This comprehensive course is designed to help players of all levels improve their basketball skills through structured training and personalized feedback."
+    } else {
+      return "Join us for our basketball event featuring teams from across the region. Compete for prizes and recognition!"
     }
+  }
 
-    return timeString
+  // Get category from event type
+  const getCategoryFromType = (eventType: string): string => {
+    switch (eventType) {
+      case "practice":
+        return "Practice"
+      case "course":
+        return "Course"
+      case "game":
+      case "match":
+        return "Game"
+      default:
+        return "Event"
+    }
+  }
+
+  // Determine event status based on start and end dates
+  const getEventStatus = (startDate: Date | null, endDate: Date | null): string => {
+    if (!startDate) return "Upcoming"
+
+    const now = new Date()
+
+    if (endDate && now > endDate) return "Past"
+    if (startDate <= now && (!endDate || now <= endDate)) return "Ongoing"
+    return "Upcoming"
   }
 
   // Fallback to mock data if API fails
@@ -397,23 +305,16 @@ const EventDetails: React.FC = () => {
       date: dayjs().add(3, "day").format("YYYY-MM-DD"),
       time: "9:00 AM - 6:00 PM",
       location: "Main Arena, RISE Facility",
+      locationAddress: "401, 33 St. NE, Calgary AB",
       image:
         "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
       organizer: "RISE Basketball",
       category,
       status: "Upcoming",
+      capacity: 100,
     }
 
     setEvent(mockEvent)
-  }
-
-  const getEventStatus = (date: string) => {
-    const eventDate = new Date(date)
-    const today = new Date()
-
-    if (eventDate < today) return "Past"
-    if (eventDate.toDateString() === today.toDateString()) return "Ongoing"
-    return "Upcoming"
   }
 
   const getStatusColor = (status: string) => {
@@ -520,8 +421,13 @@ const EventDetails: React.FC = () => {
             <View style={styles.infoSection}>
               <EventInfoRow icon="calendar" text={dayjs(event.date).format("dddd, MMMM D, YYYY")} />
               <EventInfoRow icon="clock" text={event.time} />
-              <EventInfoRow icon="map-marker-alt" text={event.location} />
+              <EventInfoRow
+                icon="map-marker-alt"
+                text={event.location}
+                subText={event.locationAddress ? event.locationAddress : undefined}
+              />
               <EventInfoRow icon="user" text={`Organized by: ${event.organizer}`} />
+              {event.capacity > 0 && <EventInfoRow icon="users" text={`Capacity: ${event.capacity} participants`} />}
             </View>
 
             <View style={styles.divider} />
@@ -538,7 +444,9 @@ const EventDetails: React.FC = () => {
                 <FontAwesome5 name="users" size={20} color={COLORS.primary} />
                 <View style={styles.infoTextContainer}>
                   <Text style={styles.infoLabel}>Participants</Text>
-                  <Text style={styles.infoValue}>Limited Capacity</Text>
+                  <Text style={styles.infoValue}>
+                    {event.capacity > 0 ? `Capacity: ${event.capacity}` : "Limited Capacity"}
+                  </Text>
                 </View>
               </View>
 
@@ -760,4 +668,3 @@ const styles = StyleSheet.create({
 })
 
 export default EventDetails
-

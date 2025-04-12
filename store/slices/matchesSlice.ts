@@ -206,4 +206,3 @@ const matchesSlice = createSlice({
 // Export actions and reducer
 export const { clearMatches, addMatch } = matchesSlice.actions
 export default matchesSlice.reducer
-
