@@ -21,9 +21,9 @@ definitions:
           $ref: '#/definitions/customer.WaiverSigningRequestDto'
         type: array
     required:
-    - age
-    - first_name
-    - last_name
+      - age
+      - first_name
+      - last_name
     type: object
   customer.AthleteResponseDto:
     properties:
@@ -55,9 +55,9 @@ definitions:
           $ref: '#/definitions/customer.WaiverSigningRequestDto'
         type: array
     required:
-    - age
-    - first_name
-    - last_name
+      - age
+      - first_name
+      - last_name
     type: object
   customer.MembershipPlansResponseDto:
     properties:
@@ -111,9 +111,9 @@ definitions:
         example: "+15141234567"
         type: string
     required:
-    - age
-    - first_name
-    - last_name
+      - age
+      - first_name
+      - last_name
     type: object
   customer.Response:
     properties:
@@ -160,7 +160,7 @@ definitions:
       waiver_url:
         type: string
     required:
-    - waiver_url
+      - waiver_url
     type: object
   event.CustomerResponseDto:
     properties:
@@ -206,11 +206,11 @@ definitions:
         example: 23:00:00+00:00
         type: string
     required:
-    - day
-    - program_end_at
-    - program_start_at
-    - session_end_time
-    - session_start_time
+      - day
+      - program_end_at
+      - program_start_at
+      - session_end_time
+      - session_start_time
     type: object
   event.ResponseDto:
     properties:
@@ -281,7 +281,7 @@ definitions:
       win_team:
         type: string
     required:
-    - name
+      - name
     type: object
   game.ResponseDto:
     properties:
@@ -363,8 +363,8 @@ definitions:
         example: "2023-10-05T07:00:00Z"
         type: string
     required:
-    - begin_time
-    - end_time
+      - begin_time
+      - end_time
     type: object
   identity.MembershipReadResponseDto:
     properties:
@@ -409,8 +409,8 @@ definitions:
       name:
         type: string
     required:
-    - address
-    - name
+      - address
+      - name
     type: object
   location.ResponseDto:
     properties:
@@ -430,7 +430,7 @@ definitions:
         example: Premium Membership
         type: string
     required:
-    - name
+      - name
     type: object
   membership.Response:
     properties:
@@ -458,9 +458,9 @@ definitions:
       price:
         type: string
     required:
-    - membership_id
-    - payment_frequency
-    - price
+      - membership_id
+      - payment_frequency
+      - price
     type: object
   membership_plan.PlanResponse:
     properties:
@@ -501,9 +501,9 @@ definitions:
       type:
         type: string
     required:
-    - level
-    - name
-    - type
+      - level
+      - name
+      - type
     type: object
   program.Response:
     properties:
@@ -527,7 +527,12 @@ definitions:
       payment_url:
         type: string
     type: object
-  purchase.SquareWebhookEventDto:
+  staff.CoachStatsResponseDto:
+    properties:
+      losses:
+        type: integer
+      wins:
+        type: integer
     type: object
   staff.RegistrationRequestDto:
     properties:
@@ -547,10 +552,10 @@ definitions:
       role:
         type: string
     required:
-    - age
-    - first_name
-    - last_name
-    - role
+      - age
+      - first_name
+      - last_name
+      - role
     type: object
   staff.RequestDto:
     properties:
@@ -559,11 +564,13 @@ definitions:
       role_name:
         type: string
     required:
-    - is_active
-    - role_name
+      - is_active
+      - role_name
     type: object
   staff.ResponseDto:
     properties:
+      coach_stats:
+        $ref: '#/definitions/staff.CoachStatsResponseDto'
       country_code:
         type: string
       created_at:
@@ -596,8 +603,8 @@ definitions:
       name:
         type: string
     required:
-    - capacity
-    - name
+      - capacity
+      - name
     type: object
   team.Response:
     properties:
@@ -620,15 +627,15 @@ paths:
   /auth:
     post:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Firebase token for user verification
-        in: header
-        name: Authorization
-        required: true
-        type: string
+        - description: Firebase token for user verification
+          in: header
+          name: Authorization
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: User authenticated successfully
@@ -645,21 +652,21 @@ paths:
             additionalProperties: true
             type: object
       tags:
-      - authentication
+        - authentication
   /auth/child/{id}:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Authenticates a user using Firebase token and returns a JWT token
         for the authenticated user
       parameters:
-      - description: Child ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Child ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: User authenticated successfully
@@ -676,15 +683,15 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Authenticate a user and return a JWT token
       tags:
-      - authentication
+        - authentication
   /barbers/services:
     get:
       description: Retrieve a list of all barber services
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -699,20 +706,20 @@ paths:
             type: object
       summary: Get all barber services
       tags:
-      - barber
+        - barber
     post:
       consumes:
-      - application/json
+        - application/json
       description: Create a new barber service with the provided details
       parameters:
-      - description: Create Barber Service Request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/haircut.CreateBarberServiceRequestDto'
+        - description: Create Barber Service Request
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: '#/definitions/haircut.CreateBarberServiceRequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Created
@@ -728,18 +735,18 @@ paths:
             type: object
       summary: Create a new barber service
       tags:
-      - barber
+        - barber
   /barbers/services/{id}:
     delete:
       description: Delete a barber service by its ID
       parameters:
-      - description: Barber Service ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Barber Service ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Updated successfully'
@@ -755,20 +762,20 @@ paths:
             type: object
       summary: Delete a barber service
       tags:
-      - barber
+        - barber
   /checkout/membership_plans/{id}:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Generates a payment link for purchasing a membership plan.
       parameters:
-      - description: Membership plan ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Membership plan ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Payment link generated successfully
@@ -785,27 +792,27 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Checkout a membership plan
       tags:
-      - purchases
+        - purchases
   /customers:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves a list of customers, optionally filtered by HubSpot IDs,
         with pagination support.
       parameters:
-      - description: 'Number of customers to retrieve (default: 20)'
-        in: query
-        name: limit
-        type: integer
-      - description: 'Number of customers to skip (default: 0)'
-        in: query
-        name: offset
-        type: integer
+        - description: 'Number of customers to retrieve (default: 20)'
+          in: query
+          name: limit
+          type: integer
+        - description: 'Number of customers to skip (default: 0)'
+          in: query
+          name: offset
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of customers
@@ -825,27 +832,27 @@ paths:
             type: object
       summary: Get customers
       tags:
-      - customers
+        - customers
   /customers/{customer_id}/athlete:
     patch:
       consumes:
-      - application/json
+        - application/json
       description: Updates customer statistics (wins, losses, etc.) for the specified
         customer ID
       parameters:
-      - description: Customer ID
-        in: path
-        name: customer_id
-        required: true
-        type: string
-      - description: Customer stats update data
-        in: body
-        name: update_body
-        required: true
-        schema:
-          $ref: '#/definitions/customer.StatsUpdateRequestDto'
+        - description: Customer ID
+          in: path
+          name: customer_id
+          required: true
+          type: string
+        - description: Customer stats update data
+          in: body
+          name: update_body
+          required: true
+          schema:
+            $ref: '#/definitions/customer.StatsUpdateRequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: Customer stats updated successfully
@@ -864,20 +871,20 @@ paths:
             type: object
       summary: Update customer statistics
       tags:
-      - customers
+        - customers
   /customers/{id}/children:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves a repository's children using the parent's ID
       parameters:
-      - description: Parent ID
-        in: path
-        name: email
-        required: true
-        type: string
+        - description: Parent ID
+          in: path
+          name: email
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Customer's children retrieved successfully
@@ -902,21 +909,21 @@ paths:
             type: object
       summary: Get a repository's children by parent ID
       tags:
-      - customers
+        - customers
   /customers/{id}/memberships:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves a list of membership plans associated with a specific
         customer, using the customer ID as a required parameter.
       parameters:
-      - description: Customer ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Customer ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of membership plans for the customer
@@ -941,19 +948,19 @@ paths:
             type: object
       summary: Get membership plans by customer
       tags:
-      - customers
+        - customers
   /events:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieve all events within a specific date range, with optional
         filters by course, location, game, and practice.
       parameters:
         - description: Start date of the events range (YYYY-MM-DD)
           example: '"2025-03-01"'
-        in: query
+          in: query
           name: after
-        type: string
+          type: string
         - description: End date of the events range (YYYY-MM-DD)
           example: '"2025-03-31"'
           in: query
@@ -971,11 +978,15 @@ paths:
           type: string
         - description: Filter by location ID (UUID format)
           example: '"550e8400-e29b-41d4-a716-446655440000"'
-        in: query
+          in: query
           name: location_id
-        type: string
+          type: string
+        - description: Program Type (game, practice, course, others)
+          in: query
+          name: program_type
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of events retrieved successfully
@@ -998,17 +1009,17 @@ paths:
         - events
     post:
       consumes:
-      - application/json
+        - application/json
       description: Registers a new event with the provided details.
       parameters:
         - description: Event details
-        in: body
+          in: body
           name: event
-        required: true
-        schema:
-          $ref: '#/definitions/event.RequestDto'
+          required: true
+          schema:
+            $ref: '#/definitions/event.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Event created successfully
@@ -1031,16 +1042,16 @@ paths:
   /events/{event_id}/customers/{customer_id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete an enrollment by ID
       parameters:
         - description: Enrollment ID
-        in: path
-        name: id
-        required: true
-        type: string
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Enrollment deleted successfully'
@@ -1060,26 +1071,26 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Delete an enrollment
       tags:
-      - enrollments
+        - enrollments
     post:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Event ID
-        in: path
-        name: event_id
-        required: true
-        type: string
-      - description: Customer ID
-        in: path
-        name: customer_id
-        required: true
-        type: string
+        - description: Event ID
+          in: path
+          name: event_id
+          required: true
+          type: string
+        - description: Customer ID
+          in: path
+          name: customer_id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Enrollment created successfully
@@ -1100,22 +1111,22 @@ paths:
   /events/{event_id}/staffs/{staff_id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Remove a staff member from an event using event_id and staff_id
         in the request body.
       parameters:
-      - description: Event ID
-        in: path
-        name: event_id
-        required: true
-        type: string
-      - description: Staff ID
-        in: path
-        name: staff_id
-        required: true
-        type: string
+        - description: Event ID
+          in: path
+          name: event_id
+          required: true
+          type: string
+        - description: Staff ID
+          in: path
+          name: staff_id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Staff successfully unassigned from event
@@ -1134,25 +1145,25 @@ paths:
             type: object
       summary: Unassign a staff member from an event
       tags:
-      - event_staff
+        - event_staff
     post:
       consumes:
-      - application/json
+        - application/json
       description: Assign a staff member to an event using event_id and staff_id in
         the request body.
       parameters:
-      - description: Event ID
-        in: path
-        name: event_id
-        required: true
-        type: string
-      - description: Staff ID
-        in: path
-        name: staff_id
-        required: true
-        type: string
+        - description: Event ID
+          in: path
+          name: event_id
+          required: true
+          type: string
+        - description: Staff ID
+          in: path
+          name: staff_id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Staff successfully assigned to event
@@ -1171,20 +1182,20 @@ paths:
             type: object
       summary: Assign a staff member to an event
       tags:
-      - event_staff
+        - event_staff
   /events/{id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Deletes an event by its ID.
       parameters:
-      - description: Event ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Event ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Event deleted successfully'
@@ -1208,19 +1219,19 @@ paths:
             type: object
       summary: Delete an event
       tags:
-      - events
+        - events
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves details of a specific event based on its ID.
       parameters:
-      - description: Event ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Event ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Event details retrieved successfully
@@ -1243,25 +1254,25 @@ paths:
             type: object
       summary: Get event details
       tags:
-      - events
+        - events
     put:
       consumes:
-      - application/json
+        - application/json
       description: Updates the details of an existing event.
       parameters:
-      - description: Event ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Updated event details
-        in: body
-        name: event
-        required: true
-        schema:
-          $ref: '#/definitions/event.RequestDto'
+        - description: Event ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Updated event details
+          in: body
+          name: event
+          required: true
+          schema:
+            $ref: '#/definitions/event.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Event updated successfully'
@@ -1285,13 +1296,13 @@ paths:
             type: object
       summary: Update an event
       tags:
-      - events
+        - events
   /games:
     get:
       consumes:
-      - application/json
+        - application/json
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of games retrieved successfully
@@ -1305,19 +1316,19 @@ paths:
             additionalProperties: true
             type: object
       tags:
-      - games
+        - games
     post:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Game details
-        in: body
-        name: game
-        required: true
-        schema:
-          $ref: '#/definitions/game.RequestDto'
+        - description: Game details
+          in: body
+          name: game
+          required: true
+          schema:
+            $ref: '#/definitions/game.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Game created successfully
@@ -1332,21 +1343,21 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       tags:
-      - games
+        - games
   /games/{id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Game ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Game ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Game deleted successfully'
@@ -1366,20 +1377,20 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       tags:
-      - games
+        - games
     get:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Game ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Game ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Game retrieved successfully
@@ -1401,24 +1412,24 @@ paths:
             additionalProperties: true
             type: object
       tags:
-      - games
+        - games
     put:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Game ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Game details
-        in: body
-        name: game
-        required: true
-        schema:
-          $ref: '#/definitions/game.RequestDto'
+        - description: Game ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Game details
+          in: body
+          name: game
+          required: true
+          schema:
+            $ref: '#/definitions/game.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: Game updated successfully
@@ -1438,22 +1449,22 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       tags:
-      - games
+        - games
   /haircuts:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves all haircut images from a folder in Google Cloud Storage.
         Optionally, specify a barber name to get images from that barber's folder.
       parameters:
-      - description: Barber name to filter images
-        in: query
-        name: barber
-        type: string
+        - description: Barber ID to filter images
+          in: query
+          name: barber_id
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of image URLs
@@ -1474,20 +1485,20 @@ paths:
               type: string
             type: object
       tags:
-      - haircut
+        - haircut
     post:
       consumes:
-      - multipart/form-data
+        - multipart/form-data
       description: Uploads a haircut image to Google Cloud Storage and returns the
         object URL.
       parameters:
-      - description: Haircut image to upload
-        in: formData
-        name: file
-        required: true
-        type: file
+        - description: Haircut image to upload
+          in: formData
+          name: file
+          required: true
+          type: file
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: File uploaded successfully
@@ -1507,35 +1518,37 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+        - Bearer: [ ]
       tags:
-      - haircut
+        - haircut
   /haircuts/events:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieve all haircut events, with optional filters by barber ID
         and customer ID.
       parameters:
-      - description: Start date of the events range (YYYY-MM-DD)
-        example: '"2025-03-01"'
-        in: query
-        name: after
-        type: string
-      - description: End date of the events range (YYYY-MM-DD)
-        example: '"2025-03-31"'
-        in: query
-        name: before
-        type: string
-      - description: Filter by barber ID
-        in: query
-        name: barber_id
-        type: string
-      - description: Filter by customer ID
-        in: query
-        name: customer_id
-        type: string
+        - description: Start date of the events range (YYYY-MM-DD)
+          example: '"2025-03-01"'
+          in: query
+          name: after
+          type: string
+        - description: End date of the events range (YYYY-MM-DD)
+          example: '"2025-03-31"'
+          in: query
+          name: before
+          type: string
+        - description: Filter by barber ID
+          in: query
+          name: barber_id
+          type: string
+        - description: Filter by customer ID
+          in: query
+          name: customer_id
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of haircut events retrieved successfully
@@ -1555,22 +1568,22 @@ paths:
             type: object
       summary: Get all haircut events
       tags:
-      - haircut
+        - haircut
     post:
       consumes:
-      - application/json
+        - application/json
       description: |-
         Registers a new haircut event with the provided details from request body.
         Requires an Authorization header containing the customer's JWT, ensuring only logged-in customers can make the request.
       parameters:
-      - description: Haircut event details
-        in: body
-        name: event
-        required: true
-        schema:
-          $ref: '#/definitions/haircut.RequestDto'
+        - description: Haircut event details
+          in: body
+          name: event
+          required: true
+          schema:
+            $ref: '#/definitions/haircut.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Haircut event created successfully
@@ -1587,22 +1600,22 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       tags:
-      - haircut
+        - haircut
   /haircuts/events/{id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Deletes a haircut event by its ID.
       parameters:
-      - description: Haircut event ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Haircut event ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Haircut event deleted successfully'
@@ -1622,19 +1635,19 @@ paths:
             additionalProperties: true
             type: object
       tags:
-      - haircut
+        - haircut
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves details of a specific haircut event based on its ID.
       parameters:
-      - description: Haircut event ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Haircut event ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Haircut event details retrieved successfully
@@ -1656,14 +1669,14 @@ paths:
             additionalProperties: true
             type: object
       tags:
-      - haircut
+        - haircut
   /locations:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves a list of all locations.
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of locations retrieved successfully
@@ -1678,20 +1691,20 @@ paths:
             type: object
       summary: Get all locations
       tags:
-      - locations
+        - locations
     post:
       consumes:
-      - application/json
+        - application/json
       description: Registers a new Location with the provided details.
       parameters:
-      - description: Location details
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/location.RequestDto'
+        - description: Location details
+          in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/location.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Location created successfully
@@ -1709,20 +1722,20 @@ paths:
             type: object
       summary: Create a new Location
       tags:
-      - locations
+        - locations
   /locations/{id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Deletes a Location by its UUID.
       parameters:
-      - description: Location UUID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Location UUID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Location deleted successfully'
@@ -1743,19 +1756,19 @@ paths:
             type: object
       summary: Delete a Location
       tags:
-      - locations
+        - locations
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves a Location by its unique identifier.
       parameters:
-      - description: Location UUID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Location UUID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Location retrieved successfully
@@ -1778,25 +1791,25 @@ paths:
             type: object
       summary: Get a Location by ID
       tags:
-      - locations
+        - locations
     put:
       consumes:
-      - application/json
+        - application/json
       description: Updates the details of an existing Location by its UUID.
       parameters:
-      - description: Location UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Updated Location details
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/location.RequestDto'
+        - description: Location UUID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Updated Location details
+          in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/location.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Location updated successfully'
@@ -1817,14 +1830,14 @@ paths:
             type: object
       summary: Update a Location
       tags:
-      - locations
+        - locations
   /memberships:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get a list of memberships
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: GetMemberships of memberships retrieved successfully
@@ -1839,20 +1852,20 @@ paths:
             type: object
       summary: Get a list of memberships
       tags:
-      - memberships
+        - memberships
     post:
       consumes:
-      - application/json
+        - application/json
       description: Create a new membership
       parameters:
-      - description: Membership details
-        in: body
-        name: membership
-        required: true
-        schema:
-          $ref: '#/definitions/membership.RequestDto'
+        - description: Membership details
+          in: body
+          name: membership
+          required: true
+          schema:
+            $ref: '#/definitions/membership.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Membership created successfully
@@ -1867,24 +1880,24 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Create a new membership
       tags:
-      - memberships
+        - memberships
   /memberships/{id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete a membership by ID
       parameters:
-      - description: Membership ID
-        example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Membership ID
+          example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Membership deleted successfully'
@@ -1904,23 +1917,23 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Delete a membership
       tags:
-      - memberships
+        - memberships
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get a membership by ID
       parameters:
-      - description: Membership ID
-        example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Membership ID
+          example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Membership retrieved successfully
@@ -1943,26 +1956,26 @@ paths:
             type: object
       summary: Get a membership by ID
       tags:
-      - memberships
+        - memberships
     put:
       consumes:
-      - application/json
+        - application/json
       description: Update a membership
       parameters:
-      - description: Membership ID
-        example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Membership details
-        in: body
-        name: membership
-        required: true
-        schema:
-          $ref: '#/definitions/membership.RequestDto'
+        - description: Membership ID
+          example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Membership details
+          in: body
+          name: membership
+          required: true
+          schema:
+            $ref: '#/definitions/membership.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Membership updated successfully'
@@ -1982,24 +1995,24 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Update a membership
       tags:
-      - memberships
+        - memberships
   /memberships/{id}/plans:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get membership plans by membership ID
       parameters:
-      - description: Membership ID
-        example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Membership ID
+          example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: GetMemberships of membership plans retrieved successfully
@@ -2024,21 +2037,21 @@ paths:
             type: object
       summary: Get membership plans by membership ID
       tags:
-      - membership-plans
+        - membership-plans
   /memberships/plans:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Create a new membership plan
       parameters:
-      - description: Membership plan details
-        in: body
-        name: plan
-        required: true
-        schema:
-          $ref: '#/definitions/membership_plan.PlanRequestDto'
+        - description: Membership plan details
+          in: body
+          name: plan
+          required: true
+          schema:
+            $ref: '#/definitions/membership_plan.PlanRequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Membership plan created successfully
@@ -2053,23 +2066,23 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Create a new membership plan
       tags:
-      - membership-plans
+        - membership-plans
   /memberships/plans/{id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete a membership plan by ID
       parameters:
-      - description: Plan ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Plan ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Membership plan deleted successfully'
@@ -2089,28 +2102,28 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Delete a membership plan
       tags:
-      - membership-plans
+        - membership-plans
     put:
       consumes:
-      - application/json
+        - application/json
       description: Update a membership plan
       parameters:
-      - description: Plan ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Membership plan details
-        in: body
-        name: plan
-        required: true
-        schema:
-          $ref: '#/definitions/membership_plan.PlanRequestDto'
+        - description: Plan ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Membership plan details
+          in: body
+          name: plan
+          required: true
+          schema:
+            $ref: '#/definitions/membership_plan.PlanRequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Membership plan updated successfully'
@@ -2130,18 +2143,18 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Update a membership plan
       tags:
-      - membership-plans
+        - membership-plans
   /memberships/plans/payment-frequencies:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves a list of available payment frequencies for membership
         plans.
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of payment frequencies
@@ -2158,14 +2171,19 @@ paths:
             type: object
       summary: Get payment frequencies for membership plans
       tags:
-      - membership-plans
+        - membership-plans
   /programs:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get a list of programs
+      parameters:
+        - description: Program Type (game, practice, course, others)
+          in: query
+          name: type
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Programs retrieved successfully
@@ -2180,20 +2198,20 @@ paths:
             type: object
       summary: Get a list of programs
       tags:
-      - programs
+        - programs
     post:
       consumes:
-      - application/json
+        - application/json
       description: Create a new program
       parameters:
-      - description: Program details
-        in: body
-        name: program
-        required: true
-        schema:
-          $ref: '#/definitions/program.RequestDto'
+        - description: Program details
+          in: body
+          name: program
+          required: true
+          schema:
+            $ref: '#/definitions/program.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Program created successfully
@@ -2211,22 +2229,22 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Create a new program
       tags:
-      - programs
+        - programs
   /programs/{id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Program ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Program ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Program deleted successfully'
@@ -2246,27 +2264,62 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       tags:
-      - programs
+        - programs
+    get:
+      consumes:
+        - application/json
+      parameters:
+        - description: Program ID
+          in: path
+          name: id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Programs retrieved successfully
+          schema:
+            items:
+              $ref: '#/definitions/program.Response'
+            type: array
+        "400":
+          description: 'Bad Request: Invalid ID'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 'Not Found: Program not found'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      tags:
+        - programs
     put:
       consumes:
-      - application/json
+        - application/json
       description: Update a program
       parameters:
-      - description: Program ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Program details
-        in: body
-        name: program
-        required: true
-        schema:
-          $ref: '#/definitions/program.RequestDto'
+        - description: Program ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Program details
+          in: body
+          name: program
+          required: true
+          schema:
+            $ref: '#/definitions/program.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Program updated successfully'
@@ -2287,14 +2340,14 @@ paths:
             type: object
       summary: Update a program
       tags:
-      - programs
+        - programs
   /programs/levels:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves a list of available program levels.
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Get program levels retrieved successfully
@@ -2308,60 +2361,27 @@ paths:
             additionalProperties: true
             type: object
       tags:
-      - programs
-  /purchases/square/webhook:
-    post:
-      consumes:
-      - application/json
-      description: Receives and processes payment updates from Square.
-      parameters:
-      - description: Square Webhook Event
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/purchase.SquareWebhookEventDto'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Webhook processed successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 'Bad Request: Invalid input'
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 'Internal Server Error: Failed to process webhook event'
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Handle Square Webhook
-      tags:
-      - purchases
+        - programs
   /register/athlete:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Registers a new athlete by verifying the Firebase token and creating
         an account based on the provided details.
       parameters:
-      - description: Athlete registration details
-        in: body
-        name: athlete
-        required: true
-        schema:
-          $ref: '#/definitions/customer.AthleteRegistrationRequestDto'
-      - description: Firebase token for user verification
-        in: header
-        name: Authorization
-        required: true
-        type: string
+        - description: Athlete registration details
+          in: body
+          name: athlete
+          required: true
+          schema:
+            $ref: '#/definitions/customer.AthleteRegistrationRequestDto'
+        - description: Firebase token for user verification
+          in: header
+          name: Authorization
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Athlete registered successfully
@@ -2381,27 +2401,27 @@ paths:
             type: object
       summary: Register a new athlete
       tags:
-      - registration
+        - registration
   /register/child:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Registers a new child account using the provided details and associates
         it with the parent based on the Firebase authentication token.
       parameters:
-      - description: Child account registration details
-        in: body
-        name: customer
-        required: true
-        schema:
-          $ref: '#/definitions/customer.ChildRegistrationRequestDto'
-      - description: Firebase token for user verification
-        in: header
-        name: Authorization
-        required: true
-        type: string
+        - description: Child account registration details
+          in: body
+          name: customer
+          required: true
+          schema:
+            $ref: '#/definitions/customer.ChildRegistrationRequestDto'
+        - description: Firebase token for user verification
+          in: header
+          name: Authorization
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Child account registered successfully
@@ -2426,27 +2446,27 @@ paths:
             type: object
       summary: Register a new child account and associate it with the parent
       tags:
-      - registration
+        - registration
   /register/parent:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Registers a new parent by verifying the Firebase token and creating
         an account based on the provided details.
       parameters:
-      - description: Parent registration details
-        in: body
-        name: parent
-        required: true
-        schema:
-          $ref: '#/definitions/customer.ParentRegistrationRequestDto'
-      - description: Firebase token for user verification
-        in: header
-        name: Authorization
-        required: true
-        type: string
+        - description: Parent registration details
+          in: body
+          name: parent
+          required: true
+          schema:
+            $ref: '#/definitions/customer.ParentRegistrationRequestDto'
+        - description: Firebase token for user verification
+          in: header
+          name: Authorization
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Parent registered successfully
@@ -2466,27 +2486,27 @@ paths:
             type: object
       summary: Register a new parent
       tags:
-      - registration
+        - registration
   /register/staff:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Creates a new staff account in the system using the provided registration
         details.
       parameters:
-      - description: Firebase token for user verification
-        in: header
-        name: firebase_token
-        required: true
-        type: string
-      - description: Staff registration details
-        in: body
-        name: staff
-        required: true
-        schema:
-          $ref: '#/definitions/staff.RegistrationRequestDto'
+        - description: Firebase token for user verification
+          in: header
+          name: firebase_token
+          required: true
+          type: string
+        - description: Staff registration details
+          in: body
+          name: staff
+          required: true
+          schema:
+            $ref: '#/definitions/staff.RegistrationRequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Staff registered successfully
@@ -2510,20 +2530,20 @@ paths:
             type: object
       summary: Register a new staff member
       tags:
-      - registration
+        - registration
   /staffs:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves staff members based on optional role filter.
       parameters:
-      - description: Role name to filter staff
-        example: '"Coach"'
-        in: query
-        name: role
-        type: string
+        - description: Role name to filter staff
+          example: '"Coach"'
+          in: query
+          name: role
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of staff members retrieved successfully
@@ -2543,21 +2563,21 @@ paths:
             type: object
       summary: Get a list of staff members
       tags:
-      - staff
+        - staff
   /staffs/{id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete a staff member by HubSpotId
       parameters:
-      - description: Staff HubSpotId
-        example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Staff HubSpotId
+          example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Staff deleted successfully'
@@ -2577,29 +2597,29 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Delete a staff member
       tags:
-      - staff
+        - staff
     put:
       consumes:
-      - application/json
+        - application/json
       description: Update a staff member
       parameters:
-      - description: Staff ID
-        example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Staff details
-        in: body
-        name: staff
-        required: true
-        schema:
-          $ref: '#/definitions/staff.RequestDto'
+        - description: Staff ID
+          example: '"f47ac10b-58cc-4372-a567-0e02b2c3d479"'
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Staff details
+          in: body
+          name: staff
+          required: true
+          schema:
+            $ref: '#/definitions/staff.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Staff updated successfully'
@@ -2619,16 +2639,16 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       summary: Update a staff member
       tags:
-      - staff
+        - staff
   /teams:
     get:
       consumes:
-      - application/json
+        - application/json
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Teams retrieved successfully
@@ -2642,19 +2662,19 @@ paths:
             additionalProperties: true
             type: object
       tags:
-      - teams
+        - teams
     post:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Team details
-        in: body
-        name: team
-        required: true
-        schema:
-          $ref: '#/definitions/team.RequestDto'
+        - description: Team details
+          in: body
+          name: team
+          required: true
+          schema:
+            $ref: '#/definitions/team.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Team created successfully
@@ -2672,21 +2692,21 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       tags:
-      - teams
+        - teams
   /teams/{id}:
     delete:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Team ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Team ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Team deleted successfully'
@@ -2706,26 +2726,26 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       tags:
-      - teams
+        - teams
     put:
       consumes:
-      - application/json
+        - application/json
       parameters:
-      - description: Team ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Team details
-        in: body
-        name: team
-        required: true
-        schema:
-          $ref: '#/definitions/team.RequestDto'
+        - description: Team ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Team details
+          in: body
+          name: team
+          required: true
+          schema:
+            $ref: '#/definitions/team.RequestDto'
       produces:
-      - application/json
+        - application/json
       responses:
         "204":
           description: 'No Content: Team updated successfully'
@@ -2745,9 +2765,9 @@ paths:
             additionalProperties: true
             type: object
       security:
-      - Bearer: []
+        - Bearer: [ ]
       tags:
-      - teams
+        - teams
 securityDefinitions:
   Bearer:
     in: header
