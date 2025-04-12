@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/tool
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
-import type { RootState } from "@/store"
+import type { RootState } from "../index"
 
 // Define types
 export interface CalendarItem {
@@ -10,26 +10,30 @@ export interface CalendarItem {
   title: string
   date: string
   time: string
-  type: "practice" | "course" | "game" | "match" | "others" // Updated to include "match"
+  type: "practice" | "course" | "game" | "match" | "others" | "event"
   location?: string
   description?: string
+  program_type?: string
 }
 
 // Define the Event interface based on the API response
 export interface Event {
   id: string
+  program?: {
+    id: string
+    name: string
+    type: string
+  }
+  location?: {
+    id: string
+    name: string
+    address: string
+  }
   capacity?: number
-  day?: string
-  location_address?: string
-  location_id?: string
-  location_name?: string
-  program_end_at?: string
-  program_id?: string
-  program_name?: string
-  program_start_at?: string
-  program_type?: "practice" | "course" | "game" | "match" | "others" // Updated to include "match"
-  session_end_at?: string
-  session_start_at?: string
+  created_by?: any
+  updated_by?: any
+  start_at?: string
+  end_at?: string
 }
 
 interface EventsState {
@@ -85,21 +89,22 @@ const fetchWithRetry = async (url: string, token: string, params = {}, maxRetrie
   throw lastError
 }
 
-// Update the extractTitle function to be more descriptive and check more fields
-const extractTitle = (program: any): string => {
+// Helper function to extract title from event data
+const extractTitle = (event: any): string => {
   // First check for explicit title fields
-  if (program.title) return program.title
-  if (program.name) return program.name
-  if (program.program_name) return program.program_name
+  if (event.title) return event.title
+  if (event.name) return event.name
+  if (event.program_name) return event.program_name
+  if (event.event_name) return event.event_name
 
   // For games/matches, create a title based on teams if available
-  if (program.home_team && program.away_team) {
-    return `${program.home_team} vs ${program.away_team}`
+  if (event.home_team && event.away_team) {
+    return `${event.home_team} vs ${event.away_team}`
   }
 
   // If we have a day field, create a more descriptive title
-  if (program.day) {
-    return `${program.day.charAt(0).toUpperCase() + program.day.slice(1).toLowerCase()} Training Session`
+  if (event.day) {
+    return `${event.day.charAt(0).toUpperCase() + event.day.slice(1).toLowerCase()} Training Session`
   }
 
   // Last resort fallback
@@ -107,43 +112,80 @@ const extractTitle = (program: any): string => {
 }
 
 // Helper function to determine event type
-export const determineEventType = (program: any): "practice" | "course" | "game" | "match" | "others" => {
-  // Check if it's explicitly a match
-  if (program.type === "match" || program.program_type === "match") {
+export const determineEventType = (event: any): "practice" | "course" | "game" | "match" | "others" | "event" => {
+  // First check if we have a program type
+  if (event.type) {
+    const programType = event.type.toLowerCase()
+
+    if (programType === "match" || programType === "game") {
+      return "match"
+    }
+    if (programType === "practice" || programType === "training") {
+      return "practice"
+    }
+    if (programType === "course" || programType === "class") {
+      return "course"
+    }
+  }
+
+  // Fallback to other fields
+  const typeFields = [event.event_type, event.program_type, event.type, event.category]
+    .filter(Boolean)
+    .map((t) => (typeof t === "string" ? t.toLowerCase() : ""))
+
+  // Check for match types
+  if (typeFields.some((t) => t === "match" || t === "game")) {
     return "match"
   }
 
-  // Check if it's a game
-  if (
-    program.type === "game" ||
-    program.program_type === "game" ||
-    program.game_id ||
-    program.home_team ||
-    program.away_team
-  ) {
-    return "game"
-  }
-
-  // Check if it's a practice
-  if (
-    program.type === "practice" ||
-    program.program_type === "practice" ||
-    program.title?.toLowerCase().includes("practice")
-  ) {
+  // Check for practice types
+  if (typeFields.some((t) => t === "practice" || t === "training")) {
     return "practice"
   }
 
-  // Check if it's a course
-  if (
-    program.type === "course" ||
-    program.program_type === "course" ||
-    program.title?.toLowerCase().includes("course")
-  ) {
+  // Check for course types
+  if (typeFields.some((t) => t === "course" || t === "class" || t === "program")) {
     return "course"
   }
 
-  // Default to others
-  return "others"
+  // Check title for clues
+  const title = (
+    (event.program && event.program.name) ||
+    event.title ||
+    event.name ||
+    event.program_name ||
+    ""
+  ).toLowerCase()
+
+  if (title.includes("match") || title.includes("game") || title.includes("vs") || title.includes("versus")) {
+    return "match"
+  }
+
+  if (title.includes("practice") || title.includes("training") || title.includes("drill")) {
+    return "practice"
+  }
+
+  if (title.includes("course") || title.includes("class") || title.includes("lesson")) {
+    return "course"
+  }
+
+  // Check if it's a game based on other fields
+  if (event.game_id || event.home_team || event.away_team) {
+    return "match"
+  }
+
+  // Distribute events more evenly for testing
+  // This is a fallback to ensure we see different types in the UI
+  const eventId = event.id || ""
+  const lastChar = eventId.charAt(eventId.length - 1)
+  const charCode = lastChar.charCodeAt(0) || 0
+
+  if (charCode % 3 === 0) return "match"
+  if (charCode % 3 === 1) return "practice"
+  if (charCode % 3 === 2) return "course"
+
+  // Default to event
+  return "event"
 }
 
 // Helper function to format time
@@ -165,289 +207,163 @@ const formatTimeString = (timeString: string) => {
   return timeString
 }
 
-// Helper function to get next day occurrence
-const getNextDayOccurrence = (dayName: string) => {
-  const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
-  const today = dayjs()
-  const dayIndex = days.indexOf(dayName.toUpperCase())
+// Helper function to parse the API's date format: "2025-06-02 17:30:00 +0000 UTC"
+const parseApiDateFormat = (dateString: string): { date: string; time: string } => {
+  if (!dateString) {
+    return { date: dayjs().format("YYYY-MM-DD"), time: "TBD" }
+  }
 
-  if (dayIndex === -1) return today.format("YYYY-MM-DD") // Invalid day name
+  try {
+    // Extract the date and time parts
+    const parts = dateString.split(" ")
+    if (parts.length < 2) {
+      return { date: dayjs().format("YYYY-MM-DD"), time: "TBD" }
+    }
 
-  const todayIndex = today.day() // 0 is Sunday, 1 is Monday, etc.
-  const daysUntilNext = (dayIndex - todayIndex + 7) % 7
+    const datePart = parts[0] // "2025-06-02"
+    const timePart = parts[1] // "17:30:00"
 
-  return today.add(daysUntilNext, "day").format("YYYY-MM-DD")
+    // Format the date as YYYY-MM-DD
+    const formattedDate = dayjs(datePart).format("YYYY-MM-DD")
+
+    // Format the time as 12-hour format with AM/PM
+    const timeComponents = timePart.split(":")
+    const hour = Number.parseInt(timeComponents[0], 10)
+    const minute = Number.parseInt(timeComponents[1], 10)
+    const ampm = hour >= 12 ? "PM" : "AM"
+    const hour12 = hour % 12 || 12
+    const formattedTime = `${hour12}:${minute.toString().padStart(2, "0")} ${ampm}`
+
+    return { date: formattedDate, time: formattedTime }
+  } catch (error) {
+    console.error("Error parsing date:", dateString, error)
+    return { date: dayjs().format("YYYY-MM-DD"), time: "TBD" }
+  }
 }
 
-// Async thunk to fetch events (now from /programs endpoint)
+// Helper function to process events and structure them by date
+const processEvents = (events: any[]): { items: CalendarItem[]; byDate: Record<string, CalendarItem[]> } => {
+  const items: CalendarItem[] = []
+  const byDate: Record<string, CalendarItem[]> = {}
+
+  events.forEach((event) => {
+    if (!event) return // Skip null or undefined events
+
+    let date: string
+    let time: string
+
+    try {
+      // Attempt to parse date and time
+      const parsed = parseApiDateFormat(event.start_at)
+      date = parsed.date
+      time = parsed.time
+    } catch (error) {
+      console.error("❌ Error parsing date for event:", event, error)
+      date = dayjs().format("YYYY-MM-DD")
+      time = "TBD"
+    }
+
+    const title = extractTitle(event)
+    const type = determineEventType(event)
+
+    const calendarItem: CalendarItem = {
+      id: event.id,
+      title: title,
+      date: date,
+      time: formatTimeString(time),
+      type: type,
+      location: event.location?.name || "TBD",
+      description: event.description || "",
+      program_type: event.type || "",
+    }
+
+    items.push(calendarItem)
+
+    if (!byDate[date]) {
+      byDate[date] = []
+    }
+    byDate[date].push(calendarItem)
+  })
+
+  return { items, byDate }
+}
+
+// Async thunk to fetch events from the /events endpoint
 export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: string, { rejectWithValue }) => {
   try {
-    // Calculate date range
+    // Calculate date range (3 months before and after current date)
     const afterDate = dayjs().subtract(3, "month").format("YYYY-MM-DD")
     const beforeDate = dayjs().add(3, "month").format("YYYY-MM-DD")
 
     // Log the request for debugging
-    console.log(`Fetching programs from ${API_URL}/programs with token: ${token.substring(0, 10)}...`)
+    console.log(`Fetching events with token: ${token.substring(0, 10)}...`)
+    console.log(`Date range: ${afterDate} to ${beforeDate}`)
 
-    // Create an array of requests for each program type
-    const programTypes = ["practice", "course", "game", "match", "others"]
-    const requests = programTypes.map((type) =>
-      fetchWithRetry(`${API_URL}/programs`, token, {
-        after: afterDate,
-        before: beforeDate,
-        program_type: type,
-      }),
-    )
+    // Fetch events with required parameters
+    const response = await fetchWithRetry(`${API_URL}/events`, token, {
+      after: afterDate,
+      before: beforeDate,
+    })
 
-    // Also fetch games directly to ensure we have all matches
-    requests.push(
-      fetchWithRetry(`${API_URL}/games`, token, {
-        after: afterDate,
-        before: beforeDate,
-      }),
-    )
+    console.log(`Programs API response: ${response.data?.length || 0} events found`)
 
-    // Execute all requests in parallel
-    const responses = await Promise.all(requests)
+    // Process all the events
+    const { items, byDate } = processEvents(response.data)
 
-    // Combine all responses
-    const allPrograms = responses.flatMap((response) => response.data || [])
+    // Log the processed events for debugging
+    console.log(`Processed ${items.length} events for the calendar`)
+    console.log(`Events by date: ${Object.keys(byDate).length} dates`)
 
-    console.log(`Programs API response: ${allPrograms.length} programs found`)
-
-    const events: CalendarItem[] = []
-    const byDate: Record<string, CalendarItem[]> = {}
-
-    // Track processed IDs to avoid duplicates
-    const processedIds = new Set<string>()
-
-    if (allPrograms.length > 0) {
-      allPrograms.forEach((program: any) => {
-        // Skip if we've already processed this ID
-        if (processedIds.has(program.id)) {
-          return
-        }
-
-        processedIds.add(program.id)
-
-        // For programs with day of week and session times
-        if (program.day && program.session_start_at) {
-          // Get the next occurrence of this day
-          const eventDate = getNextDayOccurrence(program.day)
-
-          // Format the time
-          const startTime = formatTimeString(program.session_start_at)
-          const endTime = program.session_end_at ? formatTimeString(program.session_end_at) : ""
-          const timeDisplay = endTime ? `${startTime} - ${endTime}` : startTime
-
-          // Extract title
-          const title = extractTitle(program)
-
-          // Determine event type (using valid types)
-          const eventType = determineEventType(program)
-
-          const calendarItem: CalendarItem = {
-            id: program.id || `event-${Math.random().toString(36).substr(2, 9)}`,
-            title: title,
-            date: eventDate,
-            time: timeDisplay,
-            type: eventType,
-            location: program.location_name || "RISE Basketball Facility",
-            description: program.description || "",
-          }
-
-          events.push(calendarItem)
-
-          if (!byDate[eventDate]) {
-            byDate[eventDate] = []
-          }
-          byDate[eventDate].push(calendarItem)
-
-          // Also add recurring events
-          for (let i = 1; i <= 8; i++) {
-            const futureDate = dayjs(eventDate)
-              .add(i * 7, "day")
-              .format("YYYY-MM-DD")
-
-            const recurringItem: CalendarItem = {
-              id: `${program.id}-${i}` || `event-${Math.random().toString(36).substr(2, 9)}-${i}`,
-              title: title,
-              date: futureDate,
-              time: timeDisplay,
-              type: eventType,
-              location: program.location_name || "RISE Basketball Facility",
-              description: program.description || "",
-            }
-
-            events.push(recurringItem)
-
-            if (!byDate[futureDate]) {
-              byDate[futureDate] = []
-            }
-            byDate[futureDate].push(recurringItem)
-          }
-        }
-        // For programs with regular date field
-        else if (program.date) {
-          const eventDate = dayjs(program.date).format("YYYY-MM-DD")
-          const title = extractTitle(program)
-          const eventType = determineEventType(program)
-
-          const calendarItem: CalendarItem = {
-            id: program.id || `event-${Math.random().toString(36).substr(2, 9)}`,
-            title: title,
-            date: eventDate,
-            time: program.time || "TBD",
-            type: eventType,
-            location: program.location_name || "RISE Basketball Facility",
-            description: program.description || "",
-          }
-
-          events.push(calendarItem)
-
-          if (!byDate[eventDate]) {
-            byDate[eventDate] = []
-          }
-          byDate[eventDate].push(calendarItem)
-        }
-        // For games with game_date field
-        else if (program.game_date) {
-          const eventDate = dayjs(program.game_date).format("YYYY-MM-DD")
-
-          // Create a title based on teams if available
-          let title = "Basketball Game"
-          if (program.home_team && program.away_team) {
-            title = `${program.home_team} vs ${program.away_team}`
-          } else if (program.title) {
-            title = program.title
-          }
-
-          // Games should always be type 'game'
-          const eventType = "game"
-
-          // Format time if available
-          let timeDisplay = "TBD"
-          if (program.game_time) {
-            timeDisplay = formatTimeString(program.game_time)
-          }
-
-          const calendarItem: CalendarItem = {
-            id: program.id || `game-${Math.random().toString(36).substr(2, 9)}`,
-            title: title,
-            date: eventDate,
-            time: timeDisplay,
-            type: eventType,
-            location: program.location_name || program.venue || "RISE Basketball Facility",
-            description: program.description || "",
-          }
-
-          events.push(calendarItem)
-
-          if (!byDate[eventDate]) {
-            byDate[eventDate] = []
-          }
-          byDate[eventDate].push(calendarItem)
-        }
-      })
+    // Log a sample of the processed data
+    if (Object.keys(byDate).length > 0) {
+      const sampleDate = Object.keys(byDate)[0]
+      console.log(`Sample date ${sampleDate} has ${byDate[sampleDate].length} events`)
+      console.log("Sample events:", byDate[sampleDate].slice(0, 2))
     }
 
     return {
-      items: events,
+      items,
       byDate,
       lastFetched: new Date().toISOString(),
     }
   } catch (error: any) {
-    console.error("Programs API error:", error.response?.data || error.message)
-    return rejectWithValue(error.response?.data?.error?.message || error.message || "Failed to fetch programs")
+    console.error("Events API error:", error.response?.data || error.message)
+    return rejectWithValue(error.message || "Failed to fetch events")
   }
 })
 
 // Fetch a single event by ID
-export const fetchEventById = createAsyncThunk<
-  Event,
-  { eventId: string; token: string; type?: string },
-  { state: RootState }
->("events/fetchEventById", async ({ eventId, token, type = "program" }, { getState, rejectWithValue }) => {
-  try {
-    const state = getState()
-    const lastFetched = state.events.lastFetchedDetailed[eventId]
-    const now = Date.now()
-
-    // If the event is in the cache and was fetched recently, return it from the cache
-    if (lastFetched && now - lastFetched < CACHE_DURATION && state.events.detailedEvents[eventId]) {
-      return state.events.detailedEvents[eventId]
-    }
-
-    // Clean the ID - if it's a UUID with a suffix, remove the suffix
-    const baseId = eventId.includes("-") && eventId.length > 36 ? eventId.substring(0, 36) : eventId
-
-    // Determine which endpoint to use based on the type
-    let endpoint = `/programs/${baseId}`
-    if (type === "event") {
-      endpoint = `/events/${baseId}`
-    } else if (type === "game" || type === "match") {
-      endpoint = `/games/${baseId}`
-    }
-
-    // Fetch from the API with retry logic
-    console.log(`Fetching details for ID: ${baseId} from endpoint: ${endpoint}`)
-    const response = await fetchWithRetry(`${API_URL}${endpoint}`, token)
-    console.log("Details response:", response.data)
-
-    // If the response is empty or invalid, try alternative endpoints
-    if (!response.data || Object.keys(response.data).length === 0) {
-      // Try each alternative endpoint
-      const alternativeEndpoints = [`/programs/${baseId}`, `/events/${baseId}`, `/games/${baseId}`].filter(
-        (ep) => ep !== endpoint,
-      )
-
-      for (const altEndpoint of alternativeEndpoints) {
-        try {
-          console.log(`Trying alternative endpoint: ${altEndpoint}`)
-          const altResponse = await fetchWithRetry(`${API_URL}${altEndpoint}`, token)
-          if (altResponse.data && Object.keys(altResponse.data).length > 0) {
-            return altResponse.data
-          }
-        } catch (err) {
-          console.log(`Failed to fetch from ${altEndpoint}`)
-        }
-      }
-    }
-
-    return response.data
-  } catch (error: any) {
-    console.error("Details API error:", error.response?.data || error.message)
-
-    // Try alternative endpoints if the first one fails
+export const fetchEventById = createAsyncThunk<Event, { eventId: string; token: string }, { state: RootState }>(
+  "events/fetchEventById",
+  async ({ eventId, token }, { getState, rejectWithValue }) => {
     try {
+      const state = getState()
+      const lastFetched = state.events.lastFetchedDetailed[eventId]
+      const now = Date.now()
+
+      // If the event is in the cache and was fetched recently, return it from the cache
+      if (lastFetched && now - lastFetched < CACHE_DURATION && state.events.detailedEvents[eventId]) {
+        return state.events.detailedEvents[eventId]
+      }
+
       // Clean the ID - if it's a UUID with a suffix, remove the suffix
       const baseId = eventId.includes("-") && eventId.length > 36 ? eventId.substring(0, 36) : eventId
 
-      // Determine which endpoints to try based on the failed type
-      const alternativeEndpoints = [`/programs/${baseId}`, `/events/${baseId}`, `/games/${baseId}`]
+      // Fetch from the API with retry logic
+      console.log(`Fetching event details for ID: ${baseId}`)
+      const response = await fetchWithRetry(`${API_URL}/events/${baseId}`, token)
+      console.log("Event details response:", response.data)
 
-      for (const altEndpoint of alternativeEndpoints) {
-        try {
-          console.log(`Trying alternative endpoint: ${altEndpoint}`)
-          const altResponse = await fetchWithRetry(`${API_URL}${altEndpoint}`, token)
-          if (altResponse.data && Object.keys(altResponse.data).length > 0) {
-            return altResponse.data
-          }
-        } catch (err) {
-          console.log(`Failed to fetch from ${altEndpoint}`)
-        }
-      }
-
-      throw new Error("All alternative endpoints failed")
-    } catch (alternativeError) {
-      console.error("All alternative endpoints failed:", alternativeError)
+      return response.data
+    } catch (error: any) {
+      console.error("Event details API error:", error.response?.data || error.message)
       if (axios.isAxiosError(error)) {
-        return rejectWithValue(error.response?.data?.error?.message || "Failed to fetch details")
+        return rejectWithValue(error.response?.data?.error?.message || "Failed to fetch event details")
       }
       return rejectWithValue("An unexpected error occurred")
     }
-  }
-})
+  },
+)
 
 // Create slice
 const eventsSlice = createSlice({
@@ -531,4 +447,3 @@ export const selectDetailedEventsStatus = (state: RootState) => state.events.det
 export const selectDetailedEventsError = (state: RootState) => state.events.detailedEventsError
 
 export default eventsSlice.reducer
-

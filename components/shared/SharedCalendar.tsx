@@ -11,8 +11,6 @@ import dayjs from "dayjs"
 import { useDispatch, useSelector } from "react-redux"
 import type { RootState } from "@/store"
 import { fetchEvents } from "@/store/slices/eventsSlice"
-import { fetchGames } from "@/store/slices/gamesSlice"
-import { fetchCourses } from "@/store/slices/coursesSlice"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
 import PageTitle from "@/components/PageTitle"
@@ -24,20 +22,6 @@ interface SharedCalendarProps {
   title?: string
   subtitle?: string
   childrenData?: any[]
-}
-
-// Helper function to map API types to display types
-const mapProgramTypeToDisplayType = (apiType: string): "event" | "match" | "practice" | "course" => {
-  switch (apiType.toLowerCase()) {
-    case "game":
-      return "match"
-    case "practice":
-      return "practice"
-    case "course":
-      return "course"
-    default:
-      return "event"
-  }
 }
 
 const SharedCalendar: React.FC<SharedCalendarProps> = ({
@@ -55,17 +39,10 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
   // Get calendar data from Redux store
   const reduxEvents = useSelector((state: RootState) => state.events)
-  const reduxGames = useSelector((state: RootState) => state.games)
-  const reduxCourses = useSelector((state: RootState) => state.courses)
 
   // Determine loading state
-  const isLoading =
-    reduxEvents.status === "loading" || reduxGames.status === "loading" || reduxCourses.status === "loading"
-
-  const error = reduxEvents.error || reduxGames.error || reduxCourses.error
-
-  // Combine all calendar items
-  const [calendarData, setCalendarData] = useState<{ [date: string]: any[] }>({})
+  const isLoading = reduxEvents.status === "loading"
+  const error = reduxEvents.error
 
   // Memoize the token retrieval to avoid recreating this function on every render
   const getToken = useCallback(async () => {
@@ -96,10 +73,8 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
         return
       }
 
-      // Dispatch the fetch actions
+      // Dispatch the fetch action for events
       dispatch(fetchEvents(token) as any)
-      dispatch(fetchGames(token) as any)
-      dispatch(fetchCourses(token) as any)
     } catch (err) {
       console.error("Error fetching calendar data:", err)
     }
@@ -109,101 +84,6 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   const handleRefresh = useCallback(() => {
     fetchCalendarData()
   }, [fetchCalendarData])
-
-  // Process data based on user role - with stable dependency array
-  useEffect(() => {
-    // Skip processing if we don't have data yet
-    if (!reduxEvents.items && !reduxGames.items && !reduxCourses.items) {
-      return
-    }
-
-    // Combine and process all calendar data
-    const combinedData: { [date: string]: any[] } = {}
-
-    // Process events
-    if (reduxEvents.items && Array.isArray(reduxEvents.items)) {
-      reduxEvents.items.forEach((event) => {
-        if (!event.date) return
-
-        if (!combinedData[event.date]) {
-          combinedData[event.date] = []
-        }
-
-        // For parent role, add child name to event title
-        let eventTitle = event.title
-        if (userRole === "parent" && childrenData.length > 0) {
-          // Assign event to a child (simplified logic)
-          const childIndex = Math.floor(Math.random() * childrenData.length)
-          eventTitle = `${childrenData[childIndex].firstName}: ${event.title}`
-        }
-
-        combinedData[event.date].push({
-          ...event,
-          title: eventTitle,
-          type: "event",
-        })
-      })
-    }
-
-    // Process games
-    if (reduxGames.items && Array.isArray(reduxGames.items)) {
-      reduxGames.items.forEach((game) => {
-        if (!game.date) return
-
-        if (!combinedData[game.date]) {
-          combinedData[game.date] = []
-        }
-
-        // For parent role, add child name to game title
-        let gameTitle = game.title
-        if (userRole === "parent" && childrenData.length > 0) {
-          // Assign game to a child (simplified logic)
-          const childIndex = Math.floor(Math.random() * childrenData.length)
-          gameTitle = `${childrenData[childIndex].firstName}: ${game.title}`
-        }
-
-        combinedData[game.date].push({
-          ...game,
-          title: gameTitle,
-          type: "match", // Games are displayed as matches
-        })
-      })
-    }
-
-    // Process courses/programs
-    if (reduxCourses.items && Array.isArray(reduxCourses.items)) {
-      reduxCourses.items.forEach((program) => {
-        if (!program.date) return
-
-        if (!combinedData[program.date]) {
-          combinedData[program.date] = []
-        }
-
-        // Map the API type to the correct display type
-        const displayType = mapProgramTypeToDisplayType(program.type || "course")
-
-        combinedData[program.date].push({
-          ...program,
-          type: displayType,
-        })
-      })
-    }
-
-    // Only update state if data has actually changed
-    setCalendarData((prevData) => {
-      // Simple length check to avoid deep comparison on every update
-      const prevDataKeys = Object.keys(prevData)
-      const newDataKeys = Object.keys(combinedData)
-
-      if (
-        prevDataKeys.length === newDataKeys.length &&
-        prevDataKeys.every((key) => prevData[key].length === (combinedData[key]?.length || 0))
-      ) {
-        return prevData // Return previous state to avoid re-render
-      }
-      return combinedData
-    })
-  }, [reduxEvents.items, reduxGames.items, reduxCourses.items, childrenData, userRole])
 
   // Animation and initial data fetch - only run once
   useEffect(() => {
@@ -219,8 +99,8 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
   // Memoize events for selected date
   const eventsForSelectedDate = useMemo(() => {
-    return calendarData[selectedDate] || []
-  }, [calendarData, selectedDate])
+    return reduxEvents.byDate[selectedDate] || []
+  }, [reduxEvents.byDate, selectedDate])
 
   // Memoize formatted date
   const formattedDate = useMemo(() => {
@@ -251,7 +131,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
         <View className="px-5 py-4">
           <CalendarCard
             selectedDate={selectedDate}
-            events={calendarData}
+            events={reduxEvents.byDate}
             onDayPress={(day) => setSelectedDate(day.dateString)}
           />
         </View>
@@ -271,4 +151,3 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 }
 
 export default SharedCalendar
-

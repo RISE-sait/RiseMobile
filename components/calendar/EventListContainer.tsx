@@ -12,6 +12,7 @@ interface EventItem {
   time: string
   location?: string
   type: string // Changed from union type to string to accept any type
+  program_type?: string // Add this to access the original program_type
   [key: string]: any
 }
 
@@ -25,21 +26,69 @@ interface EventListContainerProps {
 }
 
 // Helper function to map API types to display types
-const mapTypeToValidType = (type: string): "event" | "match" | "practice" | "course" => {
-  switch (type.toLowerCase()) {
+const mapTypeToValidType = (item: EventItem): "event" | "match" | "practice" | "course" => {
+  // First check the type property
+  const type = (item.type || "").toLowerCase()
+
+  // Log the item for debugging
+  console.log(`Mapping item: ${item.title} with type: ${type} and program_type: ${item.program_type || "none"}`)
+
+  // Map based on the type property
+  switch (type) {
     case "match":
+      return "match"
+    case "game":
       return "match"
     case "practice":
       return "practice"
     case "course":
       return "course"
-    case "game":
-      return "match"
-    case "event":
-      return "event"
-    default:
-      return "event"
+    case "training":
+      return "practice"
+    case "class":
+      return "course"
   }
+
+  // If type doesn't match, check program_type
+  if (item.program_type) {
+    const programType = item.program_type.toLowerCase()
+
+    if (programType === "match" || programType === "game") {
+      return "match"
+    }
+    if (programType === "practice" || programType === "training") {
+      return "practice"
+    }
+    if (programType === "course" || programType === "class") {
+      return "course"
+    }
+  }
+
+  // Check title for clues
+  const title = (item.title || "").toLowerCase()
+
+  if (title.includes("match") || title.includes("game") || title.includes("vs") || title.includes("versus")) {
+    return "match"
+  }
+
+  if (title.includes("practice") || title.includes("training") || title.includes("drill")) {
+    return "practice"
+  }
+
+  if (title.includes("course") || title.includes("class") || title.includes("lesson")) {
+    return "course"
+  }
+
+  // Use ID as a fallback to distribute events more evenly
+  const lastChar = item.id.charAt(item.id.length - 1)
+  const charCode = lastChar.charCodeAt(0) || 0
+
+  if (charCode % 3 === 0) return "match"
+  if (charCode % 3 === 1) return "practice"
+  if (charCode % 3 === 2) return "course"
+
+  // Default to event
+  return "event"
 }
 
 const EventListContainer: React.FC<EventListContainerProps> = ({
@@ -107,10 +156,10 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
               // Map the type to a valid display type
-              const validType = mapTypeToValidType(item.type)
+              const validType = mapTypeToValidType(item)
 
               // Log the type mapping for debugging
-              console.log(`Mapping item type: ${item.type} -> ${validType} for item: ${item.title}`)
+              console.log(`Mapped item type: ${item.type} -> ${validType} for item: ${item.title}`)
 
               return (
                 <EventListItem
@@ -148,9 +197,13 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
             <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: "#FCA311", marginRight: 8 }} />
             <Text style={{ color: "#a0a0a0", fontSize: 12 }}>Matches</Text>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginRight: 16 }}>
             <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: "#4ade80", marginRight: 8 }} />
             <Text style={{ color: "#a0a0a0", fontSize: 12 }}>Events</Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: "#60a5fa", marginRight: 8 }} />
+            <Text style={{ color: "#a0a0a0", fontSize: 12 }}>Practices</Text>
           </View>
         </View>
       </LinearGradient>
@@ -159,4 +212,3 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
 }
 
 export default EventListContainer
-

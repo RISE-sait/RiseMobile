@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { TouchableOpacity, Text, View } from "react-native"
 import { useRouter } from "expo-router"
@@ -9,8 +7,9 @@ interface EventListItemProps {
   id: string
   title: string
   time: string
-  location?: string
+  date?: string
   type: "event" | "match" | "practice" | "course"
+  location?: string
 }
 
 const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.glyphMap => {
@@ -22,6 +21,7 @@ const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.gl
   if (type === "course") return "book"
 
   // Then check title content for event type
+
   if (lowerTitle.includes("basketball")) return "basketball"
   if (lowerTitle.includes("training") || lowerTitle.includes("gym")) return "dumbbell"
   if (lowerTitle.includes("meeting")) return "users"
@@ -31,7 +31,7 @@ const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.gl
   return "calendar"
 }
 
-const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, location, type = "event" }) => {
+const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, date, type = "event", location }) => {
   const router = useRouter()
   const iconName = getEventIcon(title, type)
 
@@ -52,13 +52,22 @@ const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, location
           },
         })
         break
-      case "practice":
-        // For now, practices also go to event details
+      case "event":
+      default:
         router.push({
           pathname: `/screens/event-details/${id}`,
           params: {
             id: id,
-            type: type || "program",
+            type: "event",
+          },
+        })
+        break
+      case "practice":
+        router.push({
+          pathname: `/screens/event-details/${id}`,
+          params: {
+            id: id,
+            type: "practice",
           },
         })
         break
@@ -67,19 +76,10 @@ const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, location
           pathname: `/screens/event-details/${id}`,
           params: {
             id: id,
-            type: type || "program",
+            type: "course",
           },
         })
         break
-      case "event":
-      default:
-        router.push({
-          pathname: `/screens/event-details/${id}`,
-          params: {
-            id: id,
-            type: type || "program",
-          },
-        })
     }
   }
 
@@ -152,4 +152,3 @@ const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, location
 }
 
 export default EventListItem
-

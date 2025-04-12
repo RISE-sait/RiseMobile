@@ -92,9 +92,9 @@ const AthleteProfileScreen = () => {
         {/* Player Stats */}
         <View className="mt-6">
         <PlayerStatsCard 
-  overallRating={user?.overallRating ?? 0}
-  pointsPerGame={user?.pointsPerGame ?? 0}
-  assistsPerGame={user?.assistsPerGame ?? 0}
+        overallRating={user?.overallRating ?? 0}
+        pointsPerGame={user?.pointsPerGame ?? 0}
+        assistsPerGame={user?.assistsPerGame ?? 0}
 />
 
         </View>
