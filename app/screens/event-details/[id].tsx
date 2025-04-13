@@ -59,14 +59,17 @@ interface EventDetails {
 
 interface ApiEventResponse {
   id: string
-  location: Location
-  capacity: number
-  created_by: User
-  updated_by: User
-  start_at: string
-  end_at: string
-  customers: any[]
-  staff: any[]
+  name: string
+  description: string
+  type: string
+  created_at?: string
+  updated_at?: string
+  // Add these only if they exist
+  location?: Location
+  created_by?: User
+  start_at?: string
+  end_at?: string
+  capacity?: number
 }
 
 const EventDetails: React.FC = () => {
@@ -136,7 +139,6 @@ const EventDetails: React.FC = () => {
       const response = await axios.get(`${API_URL}/programs/${cleanedId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      
 
       console.log("API Response:", response.data)
 
@@ -144,8 +146,18 @@ const EventDetails: React.FC = () => {
       const eventData: ApiEventResponse = response.data
 
       // Format the date and time from start_at and end_at
-      const startDate = parseDateTime(eventData.start_at)
-      const endDate = parseDateTime(eventData.end_at)
+      const startDate = eventData.start_at
+      ? parseDateTime(eventData.start_at)
+      : eventData.created_at
+        ? parseDateTime(eventData.created_at)
+        : null
+    
+    const endDate = eventData.end_at
+      ? parseDateTime(eventData.end_at)
+      : eventData.created_at
+        ? parseDateTime(eventData.created_at)
+        : null
+    
 
       // Get the organizer name
       const organizerName = eventData.created_by
@@ -155,8 +167,8 @@ const EventDetails: React.FC = () => {
       // Transform API data to our EventDetails format
       const processedEvent: EventDetails = {
         id: eventData.id,
-        title: getEventTitle(eventData, type as string),
-        description: getEventDescription(eventData, type as string),
+        title: eventData.name || "RISE Event",
+        description: eventData.description || "No description provided.",
         date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
         time: formatTimeRange(startDate, endDate),
         location: eventData.location?.name || "RISE Facility",
@@ -164,7 +176,7 @@ const EventDetails: React.FC = () => {
         image:
           "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
         organizer: organizerName,
-        category: getCategoryFromType(type as string),
+        category: eventData.type || "Event",
         status: getEventStatus(startDate, endDate),
         capacity: eventData.capacity || 0,
       }
@@ -184,22 +196,9 @@ const EventDetails: React.FC = () => {
 
   // Parse date time string from API
   const parseDateTime = (dateTimeStr: string): Date | null => {
-    if (!dateTimeStr) return null
-
-    // Handle format like "2025-02-15 13:00:00 +0000 UTC"
-    const dateTimeParts = dateTimeStr.split(" ")
-    if (dateTimeParts.length >= 2) {
-      const datePart = dateTimeParts[0]
-      const timePart = dateTimeParts[1]
-
-      // Create a date string in ISO format
-      const isoString = `${datePart}T${timePart}`
-      return new Date(isoString)
-    }
-
-    // Fallback to direct parsing
-    return new Date(dateTimeStr)
+    return dateTimeStr ? new Date(dateTimeStr) : null
   }
+  
 
   // Format time range from start and end dates
   const formatTimeRange = (startDate: Date | null, endDate: Date | null): string => {
