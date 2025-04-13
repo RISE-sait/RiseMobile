@@ -27,7 +27,6 @@ import axios from "axios"
 import { API_URL } from "@/utils/api"
 import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 import { fetchTeams, selectTeamById, selectTeamsLoading } from "@/store/slices/teamsSlice"
-import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const { width } = Dimensions.get("window")
 
@@ -58,6 +57,22 @@ const MatchDetailsScreen = () => {
   const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
   const token = userData?.token
+
+  // Extract the ID from params and ensure it's a clean string
+  const rawId = id
+  // Log the raw ID we received
+  console.log(`MATCH DETAILS: Raw ID from params:`, rawId)
+
+  // Clean the ID - ensure it's a string and remove any query parameters
+  const programId =
+    typeof rawId === "string"
+      ? rawId.split("?")[0]
+      : Array.isArray(rawId)
+        ? rawId[0].split("?")[0]
+        : String(rawId).split("?")[0]
+
+  // Log the cleaned ID
+  console.log(`MATCH DETAILS: Cleaned programId for API requests: ${programId}`)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -98,11 +113,9 @@ const MatchDetailsScreen = () => {
       setLoading(true)
       setError(null)
 
-      if (token && id) {
+      if (token && programId) {
         try {
-          // A standard UUID is 36 characters (including hyphens)
-          const programId = typeof id === "string" ? id : String(id)
-          console.log(`Fetching game data with ID: ${programId}`)
+          console.log(`MATCH DETAILS: Fetching game data with programId: ${programId}`)
 
           // Fetch game data with retry logic
           let retries = 3
@@ -110,14 +123,17 @@ const MatchDetailsScreen = () => {
 
           while (retries > 0 && !gameData) {
             try {
+              console.log(`MATCH DETAILS: Attempt ${4 - retries} to fetch game data`)
               const gameResponse = await axios.get(`${API_URL}/programs/${programId}`, {
                 headers: { Authorization: `Bearer ${token}` },
               })
 
               if (gameResponse.data) {
                 gameData = gameResponse.data
+                console.log(`MATCH DETAILS: Successfully fetched game data:`, gameData)
               }
             } catch (err) {
+              console.error(`MATCH DETAILS: Error in attempt ${4 - retries}:`, err)
               retries--
               if (retries === 0) throw err
               // Wait before retrying (exponential backoff)
@@ -131,7 +147,7 @@ const MatchDetailsScreen = () => {
             setError("Could not fetch game data after multiple attempts")
           }
         } catch (error) {
-          console.error("Error fetching game data:", error)
+          console.error("MATCH DETAILS: Error fetching game data:", error)
           setError("Failed to load game data. Please try again.")
         } finally {
           setLoading(false)
@@ -139,12 +155,12 @@ const MatchDetailsScreen = () => {
       } else {
         setLoading(false)
         if (!token) setError("Authentication token is missing")
-        if (!id) setError("Game ID is missing")
+        if (!programId) setError("Game ID is missing")
       }
     }
 
     fetchGameData()
-  }, [id, token, dispatch, teamsLoading])
+  }, [programId, token, dispatch, teamsLoading, id])
 
   // Get team selectors at the component level
   const homeTeamId = game?.win_team
@@ -238,55 +254,6 @@ const MatchDetailsScreen = () => {
       steals: 10,
       blocks: 3,
     },
-  }
-
-  // Inside the fetchMatchDetails function
-  const fetchMatchDetails = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      // Get the user's auth token
-      const userString = await AsyncStorage.getItem("user")
-      if (!userString) {
-        setError("Authentication error. Please log in again.")
-        setLoading(false)
-        return
-      }
-
-      const user = JSON.parse(userString)
-      const token = user.token
-
-      if (!token) {
-        setError("Authentication token not found. Please log in again.")
-        setLoading(false)
-        return
-      }
-
-      // Clean the ID to remove any suffix
-      const cleanedId = cleanId(id as string)
-      console.log(`Fetching match details for ID: ${cleanedId}`)
-
-      // Always use the games endpoint for match details
-      const response = await axios.get(`${API_URL}/games/${cleanedId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      console.log("Match API Response:", response.data)
-
-      // Process the data
-      const matchData = response.data
-
-      // Transform API data to our MatchDetails format
-      // ... rest of the function
-    } catch (err) {
-      // ... error handling
-    }
-  }
-
-  const cleanId = (id: string) => {
-    // A standard UUID is 36 characters (including hyphens)
-    return id.length > 36 ? id.substring(0, 36) : id
   }
 
   return (
@@ -694,4 +661,3 @@ const styles = StyleSheet.create({
 })
 
 export default MatchDetailsScreen
-

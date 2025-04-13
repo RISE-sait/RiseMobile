@@ -14,6 +14,11 @@ export interface CalendarItem {
   location?: string
   description?: string
   program_type?: string
+  program?: {
+    id: string
+    name?: string
+    type?: string
+  }
 }
 
 // Define the Event interface based on the API response
@@ -282,6 +287,11 @@ const processEvents = (events: any[]): { items: CalendarItem[]; byDate: Record<s
       location: location,
       description: event.description || "",
       program_type: event.program?.type || "",
+      program: {
+        id: event.program?.id || "", // Ensure program ID is included
+        name: event.program?.name,
+        type: event.program?.type,
+      },
     }
 
     items.push(calendarItem)
@@ -454,3 +464,4 @@ export const selectDetailedEventsStatus = (state: RootState) => state.events.det
 export const selectDetailedEventsError = (state: RootState) => state.events.detailedEventsError
 
 export default eventsSlice.reducer
+

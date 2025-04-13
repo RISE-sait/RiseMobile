@@ -36,9 +36,6 @@ const mapTypeToValidType = (item: EventItem): "event" | "match" | "practice" | "
   // First check the type property
   const type = (item.type || "").toLowerCase()
 
-  // Log the item for debugging
-  console.log(`Mapping item: ${item.title} with type: ${type} and program_type: ${item.program_type || "none"}`)
-
   // Map based on the type property
   switch (type) {
     case "match":
@@ -167,9 +164,8 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               // Map the type to a valid display type
               const validType = mapTypeToValidType(item)
 
-              // Log the type mapping and item data for debugging
-              console.log(`Mapped item type: ${item.type} -> ${validType} for item: ${item.title}`)
-              console.log("Item in FlatList render:", item)
+              // Log the complete item for debugging
+              //console.log(`EVENT LIST: Item ID: ${item.id}, Type: ${validType}, Title: ${item.title}`)
 
               return (
                 <EventListItem

@@ -133,10 +133,10 @@ const EventDetails: React.FC = () => {
       const cleanedId = cleanId(id as string)
       console.log(`Fetching event details for ID: ${cleanedId}`)
 
-      // Only use the events endpoint
-      const response = await axios.get(`${API_URL}/events/${cleanedId}`, {
+      const response = await axios.get(`${API_URL}/programs/${cleanedId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      
 
       console.log("API Response:", response.data)
 
