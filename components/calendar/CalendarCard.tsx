@@ -29,8 +29,9 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ selectedDate, events, onDay
           dots.push({ key: "match", color: "#FCA311" })
         }
 
-        // Check for events (green dots)
-        if (dateEvents.some((event) => event.type === "event")) {
+        // Check for other event types (green dots)
+        // This includes course, practice, or any other type that's not match
+        if (dateEvents.some((event) => event.type !== "match")) {
           dots.push({ key: "event", color: "#4ade80" })
         }
 

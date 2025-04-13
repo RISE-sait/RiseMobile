@@ -101,8 +101,8 @@ const MatchDetailsScreen = () => {
       if (token && id) {
         try {
           // A standard UUID is 36 characters (including hyphens)
-          const matchId = typeof id === "string" && id.length > 36 ? id.substring(0, 36) : id
-          console.log(`Fetching game data with ID: ${matchId}`)
+          const programId = typeof id === "string" ? id : String(id)
+          console.log(`Fetching game data with ID: ${programId}`)
 
           // Fetch game data with retry logic
           let retries = 3
@@ -110,7 +110,7 @@ const MatchDetailsScreen = () => {
 
           while (retries > 0 && !gameData) {
             try {
-              const gameResponse = await axios.get(`${API_URL}/games/${matchId}`, {
+              const gameResponse = await axios.get(`${API_URL}/programs/${programId}`, {
                 headers: { Authorization: `Bearer ${token}` },
               })
 

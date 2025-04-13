@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux"
 import type { RootState } from "@/store"
 import { fetchEvents } from "@/store/slices/eventsSlice"
 import { fetchMatches } from "@/store/slices/gamesSlice"
+import type { Match } from "@/store/slices/gamesSlice"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
 import PageTitle from "@/components/PageTitle"
@@ -23,6 +24,17 @@ interface SharedCalendarProps {
   title?: string
   subtitle?: string
   childrenData?: any[]
+}
+
+// Define an interface for calendar events
+interface CalendarEvent {
+  id: string
+  title: string
+  date: string
+  time: string
+  type: string
+  location: string
+  description: string
 }
 
 const SharedCalendar: React.FC<SharedCalendarProps> = ({
@@ -40,12 +52,12 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
   // Get calendar data from Redux store
   const reduxEvents = useSelector((state: RootState) => state.events)
-  const reduxMatches = useSelector((state: RootState) => state.matches)
+  const reduxGames = useSelector((state: RootState) => state.games)
 
   // Determine loading state
-  const isLoading = reduxEvents.status === "loading" || reduxMatches.status === "loading"
+  const isLoading = reduxEvents.status === "loading" || reduxGames.status === "loading"
 
-  const error = reduxEvents.error || reduxMatches.error
+  const error = reduxEvents.error || reduxGames.error
 
   // Memoize the token retrieval to avoid recreating this function on every render
   const getToken = useCallback(async () => {
@@ -103,10 +115,10 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
   // Process matches data to organize by date
   const matchesByDate = useMemo(() => {
-    const byDate: Record<string, any[]> = {}
+    const byDate: Record<string, CalendarEvent[]> = {}
 
-    // Process matches from the matches slice
-    reduxMatches.items.forEach((match) => {
+    // Process matches from the games slice
+    reduxGames.items.forEach((match: Match) => {
       if (match.created_at) {
         // Parse the date string correctly
         const dateObj = dayjs(match.created_at)
@@ -131,7 +143,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
     })
 
     return byDate
-  }, [reduxMatches.items])
+  }, [reduxGames.items])
 
   // Combine all events and matches for the selected date
   const combinedEventsForSelectedDate = useMemo(() => {
@@ -156,6 +168,39 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
     })
 
     return combined
+  }, [reduxEvents.byDate, matchesByDate])
+
+  // Create marked dates for the calendar
+  const markedDates = useMemo(() => {
+    const marked: Record<string, { marked: boolean; dotColor: string }> = {}
+
+    // Add events from Redux
+    Object.keys(reduxEvents.byDate).forEach((date) => {
+      if (reduxEvents.byDate[date] && reduxEvents.byDate[date].length > 0) {
+        marked[date] = {
+          marked: true,
+          dotColor: "#4CAF50", // Green dot
+        }
+      }
+    })
+
+    // Add matches from Redux
+    Object.keys(matchesByDate).forEach((date) => {
+      if (matchesByDate[date] && matchesByDate[date].length > 0) {
+        marked[date] = {
+          marked: true,
+          dotColor: "#4CAF50", // Green dot
+        }
+      }
+    })
+
+    // Log for debugging
+    console.log(`Calendar has ${Object.keys(marked).length} dates with events`)
+    if (Object.keys(marked).length > 0) {
+      console.log("Sample marked date:", Object.keys(marked)[0])
+    }
+
+    return marked
   }, [reduxEvents.byDate, matchesByDate])
 
   // Memoize formatted date

@@ -13,6 +13,11 @@ interface EventItem {
   location?: string
   type: string // Changed from union type to string to accept any type
   program_type?: string // Add this to access the original program_type
+  program?: {
+    id: string
+    name?: string
+    type?: string
+  }
   [key: string]: any
 }
 
@@ -162,16 +167,18 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               // Map the type to a valid display type
               const validType = mapTypeToValidType(item)
 
-              // Log the type mapping for debugging
+              // Log the type mapping and item data for debugging
               console.log(`Mapped item type: ${item.type} -> ${validType} for item: ${item.title}`)
+              console.log("Item in FlatList render:", item)
 
               return (
                 <EventListItem
-                  id={item.id}
-                  title={item.title}
+                  eventId={item.id}
+                  title={item.title || item.name || "Untitled Event"}
                   time={item.time || "TBD"}
                   location={item.location}
                   type={validType}
+                  program={item.program}
                 />
               )
             }}

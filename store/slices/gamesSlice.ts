@@ -2,11 +2,16 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
+import type { RootState } from "../index"
 
 // Define types
 export interface Match {
   id: string
   name: string
+  title?: string // Add title field
+  date?: string // Add date field
+  time?: string // Add time field
+  location?: string // Add location field
   description?: string
   win_team?: string
   lose_team?: string
@@ -14,10 +19,9 @@ export interface Match {
   lose_score?: number
   created_at?: string
   updated_at?: string
-  // Add any other fields that might be in the API response
 }
 
-interface MatchesState {
+interface GamesState {
   items: Match[]
   byDate: Record<string, Match[]>
   status: "idle" | "loading" | "succeeded" | "failed"
@@ -25,7 +29,7 @@ interface MatchesState {
 }
 
 // Initial state
-const initialState: MatchesState = {
+const initialState: GamesState = {
   items: [],
   byDate: {},
   status: "idle",
@@ -33,7 +37,7 @@ const initialState: MatchesState = {
 }
 
 // Async thunk to fetch matches from the games endpoint
-export const fetchMatches = createAsyncThunk("matches/fetchMatches", async (token: string, { rejectWithValue }) => {
+export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token: string, { rejectWithValue }) => {
   try {
     console.log("Fetching games with token:", token.substring(0, 10) + "...")
 
@@ -44,47 +48,58 @@ export const fetchMatches = createAsyncThunk("matches/fetchMatches", async (toke
     console.log("Games API response:", response.data)
 
     // Process the games to organize by date and convert to Match format
-    const games = response.data
-    const matches: Match[] = games.map((game: any) => ({
-      id: game.id,
-      name: game.name || "Game",
-      description: game.description,
-      win_team: game.win_team,
-      lose_team: game.lose_team,
-      win_score: game.win_score,
-      lose_score: game.lose_score,
-      created_at: game.created_at,
-      updated_at: game.updated_at,
-    }))
+    const games = Array.isArray(response.data) ? response.data : []
+    const matches: Match[] = games.map((game: any) => {
+      // Extract date from created_at
+      let date = dayjs().format("YYYY-MM-DD")
+      let time = "TBD"
+
+      if (game.created_at) {
+        const dateObj = dayjs(game.created_at)
+        if (dateObj.isValid()) {
+          date = dateObj.format("YYYY-MM-DD")
+          time = dateObj.format("h:mm A")
+        }
+      }
+
+      return {
+        id: game.id || `game-${Math.random().toString(36).substr(2, 9)}`,
+        name: game.name || "Game",
+        title: game.name || "Game", // Add title field
+        date: date, // Add date field
+        time: time, // Add time field
+        location: game.location?.name || "RISE Basketball Facility", // Add location field
+        description: game.description || "",
+        win_team: game.win_team,
+        lose_team: game.lose_team,
+        win_score: game.win_score,
+        lose_score: game.lose_score,
+        created_at: game.created_at,
+        updated_at: game.updated_at,
+      }
+    })
 
     const byDate: Record<string, Match[]> = {}
 
     matches.forEach((match: Match) => {
-      if (match.created_at) {
-        // Parse the date string correctly
-        const dateObj = dayjs(match.created_at)
-        if (dateObj.isValid()) {
-          const dateStr = dateObj.format("YYYY-MM-DD")
-
-          if (!byDate[dateStr]) {
-            byDate[dateStr] = []
-          }
-
-          byDate[dateStr].push(match)
+      if (match.date) {
+        if (!byDate[match.date]) {
+          byDate[match.date] = []
         }
+        byDate[match.date].push(match)
       }
     })
 
     return { items: matches, byDate }
   } catch (error: any) {
     console.error("Games API error:", error.response?.data || error.message)
-    return rejectWithValue(error.message || "Failed to fetch games")
+    return rejectWithValue(error.response?.data?.message || error.message || "Failed to fetch games")
   }
 })
 
 // Create slice
-const matchesSlice = createSlice({
-  name: "matches",
+const gamesSlice = createSlice({
+  name: "games",
   initialState,
   reducers: {
     clearMatches: (state) => {
@@ -114,5 +129,11 @@ const matchesSlice = createSlice({
 })
 
 // Export actions and reducer
-export const { clearMatches } = matchesSlice.actions
-export default matchesSlice.reducer
+export const { clearMatches } = gamesSlice.actions
+export default gamesSlice.reducer
+
+// Selectors
+export const selectAllMatches = (state: RootState) => state.games.items
+export const selectMatchesByDate = (state: RootState, date: string) => state.games.byDate[date] || []
+export const selectMatchesStatus = (state: RootState) => state.games.status
+export const selectMatchesError = (state: RootState) => state.games.error

@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { Text, View, ScrollView, ActivityIndicator } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -7,7 +5,6 @@ import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import dayjs from "dayjs"
-// Add Redux imports
 import { useAppSelector } from "@/store/hooks"
 
 import images from "@/constants/images"
@@ -28,6 +25,17 @@ type User = {
   profileImage?: string
   countryCode: string
   token: string
+}
+
+// Define a common event interface to ensure type safety
+interface CommonEvent {
+  id: string
+  title: string
+  date: string
+  time: string
+  type: string
+  location?: string
+  description?: string
 }
 
 export default function AthleteHome() {
@@ -83,12 +91,25 @@ export default function AthleteHome() {
   useEffect(() => {
     const findUpcomingEvent = () => {
       try {
-        // Combine all event types from Redux
-        const allEvents = [
-          ...(Array.isArray(events) ? events.map((event) => ({ ...event, type: "event" })) : []),
-          ...(Array.isArray(games) ? games.map((game) => ({ ...game, type: "match" })) : []),
-          ...(Array.isArray(practices) ? practices.map((practice) => ({ ...practice, type: "practice" })) : []),
-          ...(Array.isArray(courses) ? courses.map((course) => ({ ...course, type: "course" })) : []),
+        // Safely map each event type to a common structure
+        const mapToCommonEvent = (item: any, type: string): CommonEvent => {
+          return {
+            id: item.id || "",
+            title: item.title || item.name || "Event",
+            date: item.date || dayjs().format("YYYY-MM-DD"),
+            time: item.time || "TBD",
+            type: type,
+            location: item.location || "RISE Basketball Facility",
+            description: item.description || "",
+          }
+        }
+
+        // Combine all event types from Redux with proper type checking
+        const allEvents: CommonEvent[] = [
+          ...(Array.isArray(events) ? events.map((event) => mapToCommonEvent(event, "event")) : []),
+          ...(Array.isArray(games) ? games.map((game) => mapToCommonEvent(game, "match")) : []),
+          ...(Array.isArray(practices) ? practices.map((practice) => mapToCommonEvent(practice, "practice")) : []),
+          ...(Array.isArray(courses) ? courses.map((course) => mapToCommonEvent(course, "course")) : []),
         ]
 
         // If we have events in Redux, use those
@@ -98,14 +119,26 @@ export default function AthleteHome() {
 
           // Filter upcoming events
           const upcoming = allEvents
-            .filter((event) => dayjs(event.date).isAfter(today) || dayjs(event.date).isSame(today))
+            .filter((event) => {
+              try {
+                return dayjs(event.date).isAfter(today) || dayjs(event.date).isSame(today)
+              } catch (e) {
+                console.error("Invalid date format:", event.date, e)
+                return false
+              }
+            })
             .sort((a, b) => {
-              // First sort by date
-              const dateComparison = dayjs(a.date).unix() - dayjs(b.date).unix()
-              if (dateComparison !== 0) return dateComparison
+              try {
+                // First sort by date
+                const dateComparison = dayjs(a.date).unix() - dayjs(b.date).unix()
+                if (dateComparison !== 0) return dateComparison
 
-              // If same date, sort by time
-              return (a.time || "").localeCompare(b.time || "")
+                // If same date, sort by time
+                return (a.time || "").localeCompare(b.time || "")
+              } catch (e) {
+                console.error("Error sorting events:", e)
+                return 0
+              }
             })
 
           if (upcoming.length > 0) {
@@ -222,9 +255,8 @@ export default function AthleteHome() {
         {upcomingEvent && <UpcomingCard event={upcomingEvent} />}
 
         {/* Navigation Buttons Section */}
-        <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route)} />
+        <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />
       </ScrollView>
     </SafeAreaView>
   )
 }
-

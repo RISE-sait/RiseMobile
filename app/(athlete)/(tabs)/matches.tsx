@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native"
@@ -23,7 +21,9 @@ const generateWeekDates = (): dayjs.Dayjs[] => {
 
 const MatchesScreen: React.FC = () => {
   const dispatch = useAppDispatch()
-  const { items: matches, status, error } = useAppSelector((state) => state.games)
+  const matches = useAppSelector((state) => state.games.items)
+  const status = useAppSelector((state) => state.games.status)
+  const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))

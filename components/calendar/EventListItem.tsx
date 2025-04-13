@@ -1,15 +1,22 @@
+"use client"
+
 import type React from "react"
 import { TouchableOpacity, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { FontAwesome6 } from "@expo/vector-icons"
 
 interface EventListItemProps {
-  id: string
+  eventId: string
   title: string
   time: string
   date?: string
   type: "event" | "match" | "practice" | "course"
   location?: string
+  program?: {
+    id: string
+    name?: string
+    type?: string
+  }
 }
 
 const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.glyphMap => {
@@ -21,7 +28,6 @@ const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.gl
   if (type === "course") return "book"
 
   // Then check title content for event type
-
   if (lowerTitle.includes("basketball")) return "basketball"
   if (lowerTitle.includes("training") || lowerTitle.includes("gym")) return "dumbbell"
   if (lowerTitle.includes("meeting")) return "users"
@@ -31,57 +37,30 @@ const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.gl
   return "calendar"
 }
 
-const EventListItem: React.FC<EventListItemProps> = ({ id, title, time, date, type = "event", location }) => {
+const EventListItem: React.FC<EventListItemProps> = ({
+  eventId,
+  title,
+  time,
+  date,
+  type = "event",
+  location,
+  program,
+}) => {
   const router = useRouter()
   const iconName = getEventIcon(title, type)
+  const isMatch = type.toLowerCase() === "match" || type.toLowerCase() === "game"
 
-  const handlePress = () => {
-    console.log(`Navigating to event: ${id}, type: ${type}`)
-
-    switch (type) {
-      case "match":
-        // Check if the ID has a suffix after the UUID (like -1)
-        // A standard UUID is 36 characters (including hyphens)
-        const matchId = id.length > 36 ? id.substring(0, 36) : id
-        console.log(`Navigating to match details with matchId: ${matchId}`)
-        router.push({
-          pathname: "screens/match-details/[id]",
-          params: {
-            id: matchId,
-            type: "match",
-          },
-        })
-        break
-      case "event":
-      default:
-        router.push({
-          pathname: `/screens/event-details/${id}`,
-          params: {
-            id: id,
-            type: "event",
-          },
-        })
-        break
-      case "practice":
-        router.push({
-          pathname: `/screens/event-details/${id}`,
-          params: {
-            id: id,
-            type: "practice",
-          },
-        })
-        break
-      case "course":
-        router.push({
-          pathname: `/screens/event-details/${id}`,
-          params: {
-            id: id,
-            type: "course",
-          },
-        })
-        break
-    }
+const handlePress = () => {
+  if (isMatch && program?.id) {
+    console.log(`Navigating to match with program ID: ${program.id}`)
+    router.push(`/screens/match-details/${program.id}?type=match`)
+  } else {
+    console.log(`Navigating to ${type} with event ID: ${eventId}`)
+    router.push(`/screens/event-details/${eventId}?type=${type}`)
   }
+}
+
+  
 
   // Determine background and text colors based on type
   const getBgColor = () => {

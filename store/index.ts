@@ -9,8 +9,17 @@ import eventsReducer from "./slices/eventsSlice"
 import gamesReducer from "./slices/gamesSlice"
 import practicesReducer from "./slices/practicesSlice"
 import coursesReducer from "./slices/coursesSlice"
-import matchesReducer from "./slices/gamesSlice"
-import teamsReducer from "./slices/teamsSlice" // Add teams reducer
+import teamsReducer from "./slices/teamsSlice"
+
+// Define the root state type
+export interface RootState {
+  user: ReturnType<typeof userReducer>
+  events: ReturnType<typeof eventsReducer>
+  games: ReturnType<typeof gamesReducer>
+  practices: ReturnType<typeof practicesReducer>
+  courses: ReturnType<typeof coursesReducer>
+  teams: ReturnType<typeof teamsReducer>
+}
 
 // Combine all reducers
 const rootReducer = combineReducers({
@@ -19,15 +28,14 @@ const rootReducer = combineReducers({
   games: gamesReducer,
   practices: practicesReducer,
   courses: coursesReducer,
-  matches: matchesReducer,
-  teams: teamsReducer, // Add teams to the root reducer
+  teams: teamsReducer,
 })
 
 // Configure persistence
 const persistConfig = {
   key: "root",
   storage: AsyncStorage,
-  whitelist: ["user", "events", "games", "practices", "courses", "matches", "teams"], // Add teams to whitelist
+  whitelist: ["user", "events", "games", "practices", "courses", "teams"],
 }
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)
@@ -47,5 +55,4 @@ export const store = configureStore({
 export const persistor = persistStore(store)
 
 // Export types
-export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
