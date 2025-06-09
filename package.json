@@ -36,11 +36,11 @@
     "expo-auth-session": "~6.0.3",
     "expo-blur": "~14.0.3",
     "expo-constants": "~17.0.8",
+    "expo-crypto": "^14.1.5",
     "expo-font": "~13.0.4",
     "expo-haptics": "~14.0.1",
     "expo-linear-gradient": "~14.0.2",
     "expo-linking": "~7.0.5",
-    "expo-random": "^14.0.1",
     "expo-router": "~4.0.19",
     "expo-splash-screen": "~0.29.22",
     "expo-status-bar": "~2.0.1",
@@ -74,8 +74,7 @@
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
     "react-redux": "^9.2.0",
-    "redux-persist": "^6.0.0",
-    "swagger": "^0.7.5"
+    "redux-persist": "^6.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
