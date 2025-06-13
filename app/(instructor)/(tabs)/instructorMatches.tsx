@@ -8,7 +8,6 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import MatchCard from "../../../components/events/MatchCard"
 import { StatusBar } from "expo-status-bar"
 import { FontAwesome6 } from "@expo/vector-icons"
-import { mockMatches } from "@/app/(athlete)/screens/matchesData"
 import GradientBackground from "@/components/barber/GradientBackground"
 
 const { width } = Dimensions.get("window")

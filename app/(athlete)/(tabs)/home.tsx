@@ -12,7 +12,6 @@ import GoToCards from "../../../components/GoToCards"
 import UpcomingCard from "@/components/events/UpcomingCard"
 import ProfileHeader from "@/components/profile/ProfileHeader"
 import QRCodeModal from "@/components/QRCodeModal"
-import { mockMatches } from "../screens/matchesData"
 
 // Define User Type
 type User = {

@@ -10,7 +10,6 @@ import UpcomingCard from "@/components/events/UpcomingCard"
 import QRCodeModal from "@/components/QRCodeModal"
 import GoToCards from "../../../components/GoToCards"
 import dayjs from "dayjs"
-import { mockMatches } from "@/app/(athlete)/screens/matchesData"
 import GradientBackground from "@/components/barber/GradientBackground"
 
 type User = {

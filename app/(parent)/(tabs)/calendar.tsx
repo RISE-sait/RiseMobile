@@ -9,8 +9,7 @@ import PageTitle from "@/components/PageTitle"
 import CalendarCard from "@/components/calendar/CalendarCard"
 import EventListContainer from "@/components/calendar/EventListContainer"
 import EventListItem from "@/components/calendar/EventListItem"
-import { mockEvents } from "@/app/(athlete)/screens/eventsData"
-import { mockMatches } from "@/app/(athlete)/screens/matchesData"
+
 
 const { width } = Dimensions.get("window")
 

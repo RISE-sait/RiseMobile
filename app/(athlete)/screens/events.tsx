@@ -1,13 +1,27 @@
-import React, { useState, useEffect } from "react";
-import { 
-  View, Text, FlatList, TouchableOpacity, Image, 
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  View, Text, FlatList, TouchableOpacity, Image,
   StyleSheet, RefreshControl, ActivityIndicator
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { mockEvents, Event } from "./eventsData";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchEvents } from "@/store/slices/eventsSlice";
+import { fetchMatches, Match } from "@/store/slices/gamesSlice";
+import type { RootState } from "@/store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import dayjs from "dayjs";
+
+export interface Event {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  image: string;
+}
 
 const EventsScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -16,89 +30,121 @@ const EventsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const router = useRouter();
-  
-  // Simulate API Call
+
+  const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.user.data);
+  const reduxEvents = useSelector((state: RootState) => state.events);
+  const reduxGames = useSelector((state: RootState) => state.games);
+
+  const getToken = useCallback(async () => {
+    let token = user?.token;
+    if (!token) {
+      const userString = await AsyncStorage.getItem("user");
+      if (userString) token = JSON.parse(userString).token;
+    }
+    return token;
+  }, [user?.token]);
+
+  const fetchData = useCallback(async () => {
+    const token = await getToken();
+    if (!token) return;
+    dispatch(fetchEvents(token) as any);
+    dispatch(fetchMatches(token) as any);
+  }, [dispatch, getToken]);
+
   useEffect(() => {
-    fetchEvents();
-  }, []);
-  
-  // Update filtered events when filter changes
+    setLoading(true);
+    fetchData().finally(() => {
+      setLoading(false);
+      setRefreshing(false);
+    });
+  }, [fetchData]);
+
+  useEffect(() => {
+    const allEvents: Event[] = [];
+
+    // Convert Redux events
+    Object.values(reduxEvents.byDate).forEach((eventGroup: any[]) => {
+      eventGroup.forEach((event) => {
+        allEvents.push({
+          id: event.id,
+          title: event.title,
+          date: event.date,
+          time: event.time || "TBD",
+          location: event.location || "TBD",
+          image: event.image || "https://via.placeholder.com/400x200",
+        });
+      });
+    });
+
+    // Convert Redux matches
+    reduxGames.items.forEach((match: Match) => {
+      if (match.created_at) {
+        const date = dayjs(match.created_at).format("YYYY-MM-DD");
+        const time = dayjs(match.created_at).format("h:mm A");
+        allEvents.push({
+          id: match.id,
+          title: match.name || `Match ${match.id.slice(0, 6)}`,
+          date,
+          time,
+          location: "RISE Basketball Court",
+          image: "https://via.placeholder.com/400x200",
+        });
+      }
+    });
+
+    setEvents(allEvents);
+  }, [reduxEvents.byDate, reduxGames.items]);
+
   useEffect(() => {
     filterEvents(activeFilter);
   }, [events, activeFilter]);
-  
-  const fetchEvents = () => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setEvents(mockEvents);
-      setLoading(false);
-      setRefreshing(false);
-    }, 1000);
-  };
-  
+
   const onRefresh = () => {
     setRefreshing(true);
-    fetchEvents();
+    fetchData().finally(() => setRefreshing(false));
   };
-  
+
   const filterEvents = (filter: string) => {
     if (filter === "All") {
       setFilteredEvents(events);
       return;
     }
-    
-    const filtered = events.filter(event => {
-      const status = getEventStatus(event.date);
-      return status === filter;
-    });
-    
+    const filtered = events.filter(event => getEventStatus(event.date) === filter);
     setFilteredEvents(filtered);
   };
-  
+
   const getEventStatus = (date: string) => {
     const eventDate = new Date(date);
     const today = new Date();
-    
-    if (eventDate < today) return "Past"; 
-    if (eventDate.toDateString() === today.toDateString()) return "Ongoing"; 
-    return "Upcoming"; 
+    if (eventDate < today) return "Past";
+    if (eventDate.toDateString() === today.toDateString()) return "Ongoing";
+    return "Upcoming";
   };
-  
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Upcoming":
-        return "#FCA311";
-      case "Ongoing":
-        return "#4CAF50";
-      case "Past":
-        return "#9E9E9E";
-      default:
-        return "#FCA311";
+      case "Upcoming": return "#FCA311";
+      case "Ongoing": return "#4CAF50";
+      case "Past": return "#9E9E9E";
+      default: return "#FCA311";
     }
   };
-  
+
   const renderEventItem = ({ item }: { item: Event }) => {
     const status = getEventStatus(item.date);
     const statusColor = getStatusColor(status);
-    
+
     return (
       <TouchableOpacity
         style={styles.eventCard}
         activeOpacity={0.9}
-        onPress={() => router.push({ 
-          pathname: "/(athlete)/screens/event-details/[id]", 
-          params: { id: item.id } 
+        onPress={() => router.push({
+          pathname: "/screens/event-details/[id]",
+          params: { id: item.id }
         })}
       >
-        {/* Event Image */}
-        <Image 
-          source={{ uri: item.image }} 
-          style={styles.eventImage} 
-          resizeMode="cover" 
-        />
-        
-        {/* Event Details */}
+        <Image source={{ uri: item.image }} style={styles.eventImage} resizeMode="cover" />
         <View style={styles.eventDetails}>
           <View style={styles.eventHeader}>
             <Text style={styles.eventTitle}>{item.title}</Text>
@@ -106,18 +152,15 @@ const EventsScreen: React.FC = () => {
               <Text style={[styles.statusText, { color: statusColor }]}>{status}</Text>
             </View>
           </View>
-          
           <View style={styles.eventInfo}>
             <View style={styles.infoRow}>
               <Ionicons name="calendar-outline" size={16} color="#FCA311" style={styles.infoIcon} />
               <Text style={styles.infoText}>{item.date}</Text>
             </View>
-            
             <View style={styles.infoRow}>
               <Ionicons name="time-outline" size={16} color="#FCA311" style={styles.infoIcon} />
               <Text style={styles.infoText}>{item.time}</Text>
             </View>
-            
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={16} color="#FCA311" style={styles.infoIcon} />
               <Text style={styles.infoText}>{item.location}</Text>
@@ -127,78 +170,55 @@ const EventsScreen: React.FC = () => {
       </TouchableOpacity>
     );
   };
-  
+
   const renderFilterChips = () => {
     const filters = ["All", "Upcoming", "Ongoing", "Past"];
-    
     return (
       <View style={styles.filtersContainer}>
-        {filters.map((filter) => (
+        {filters.map(filter => (
           <TouchableOpacity
             key={filter}
-            style={[
-              styles.filterChip,
-              activeFilter === filter && styles.activeFilterChip,
-            ]}
+            style={[styles.filterChip, activeFilter === filter && styles.activeFilterChip]}
             onPress={() => setActiveFilter(filter)}
           >
-            <Text
-              style={[
-                styles.filterChipText,
-                activeFilter === filter && styles.activeFilterChipText,
-              ]}
-            >
-              {filter}
-            </Text>
+            <Text style={[
+              styles.filterChipText,
+              activeFilter === filter && styles.activeFilterChipText
+            ]}>{filter}</Text>
           </TouchableOpacity>
         ))}
       </View>
     );
   };
-  
+
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="calendar-outline" size={50} color="#333" />
       <Text style={styles.emptyText}>No events found</Text>
       <Text style={styles.emptySubtext}>
-        {activeFilter !== "All" 
-          ? `There are no ${activeFilter.toLowerCase()} events` 
+        {activeFilter !== "All"
+          ? `There are no ${activeFilter.toLowerCase()} events`
           : "Check back later for upcoming events"}
       </Text>
-      
       {activeFilter !== "All" && (
-        <TouchableOpacity
-          style={styles.resetButton}
-          onPress={() => setActiveFilter("All")}
-        >
+        <TouchableOpacity style={styles.resetButton} onPress={() => setActiveFilter("All")}>
           <Text style={styles.resetButtonText}>Show All Events</Text>
         </TouchableOpacity>
       )}
     </View>
   );
-  
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
-      
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.replace("/(athlete)/(tabs)/home")}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(athlete)/(tabs)/home")}>
           <Ionicons name="chevron-back" size={24} color="#F0F0F0" />
         </TouchableOpacity>
-        
         <Text style={styles.headerTitle}>Events</Text>
-        
-        <View style={{ width: 40 }} /> 
+        <View style={{ width: 40 }} />
       </View>
-      
-      {/* Filter Chips */}
       {renderFilterChips()}
-      
-      {/* Events List */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FCA311" />
@@ -225,6 +245,7 @@ const EventsScreen: React.FC = () => {
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

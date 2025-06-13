@@ -11,7 +11,6 @@ import { LineChart } from "react-native-chart-kit"
 import BackButton from "@/components/buttons/BackButton"
 import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 import images from "@/constants/images"
-import { mockMatches } from "@/app/(athlete)/screens/matchesData"
 import dayjs from "dayjs"
 
 // Get screen dimensions

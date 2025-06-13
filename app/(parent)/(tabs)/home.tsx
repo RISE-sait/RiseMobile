@@ -13,7 +13,6 @@ import GoToCards from "../../../components/GoToCards"
 import UpcomingCard from "@/components/events/UpcomingCard"
 import ProfileHeader from "@/components/profile/ProfileHeader"
 import QRCodeModal from "@/components/QRCodeModal"
-import { mockMatches } from "@/app/(athlete)/screens/matchesData"
 import dayjs from "dayjs"
 import ChildrenCarousel from "../components/ChildrenCarousel"
 
