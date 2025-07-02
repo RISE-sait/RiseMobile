@@ -112,9 +112,9 @@ export default function ParentProfileScreen() {
                 onPress: () => router.push("/screens/membership"),
               },
               {
-                icon: "lock",
-                text: "Privacy & Security",
-                onPress: () => router.push("/screens/privacy"),
+                icon: "id-card", // you can use a FontAwesome icon like `id-card`
+                text: "My Parent ID",
+                onPress: () => router.push("/screens/parent-id"),
               },
               {
                 icon: "file-signature",

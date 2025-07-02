@@ -2,8 +2,18 @@ import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/tool
 import { loginUser } from "@/utils/api"
 
 // Define types
+export interface MembershipInfo {
+  membership_name: string
+  membership_description: string
+  membership_benefits: string
+  plan_name: string
+  start_date: string
+  renewal_date: string
+}
+
 export interface User {
   id: string
+  uuid?: string
   email: string
   firstName: string
   lastName: string
@@ -12,8 +22,11 @@ export interface User {
   profileImage?: string
   countryCode: string
   token: string
-  isAuthenticated?: boolean // Make this optional
+  isAuthenticated?: boolean
+  membership_info?: MembershipInfo
 }
+
+
 
 interface UserState {
   data: User | null

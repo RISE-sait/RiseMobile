@@ -1,6 +1,7 @@
 import axios from "axios";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, getAuth } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const API_URL = "https://api-461776259687.us-west2.run.app";
 
@@ -12,6 +13,27 @@ type User = {
   role: string;
   countryCode: string; //
   token: string;
+  firebaseId?: string; // ✅ Add firebaseId
+};
+
+export const refreshBackendJwt = async (): Promise<string> => {
+  const firebaseUser = getAuth().currentUser;
+  if (!firebaseUser) throw new Error("No user currently logged in.");
+
+  // 🔄 Refresh Firebase token
+  const firebaseToken = await firebaseUser.getIdToken(true); // true forces refresh
+
+  // 🌐 Exchange Firebase token for new backend JWT
+  const response = await axios.post(`${API_URL}/auth`, { email: firebaseUser.email }, {
+    headers: { Authorization: `Bearer ${firebaseToken}` }
+  });
+
+  const jwtToken = response.headers["authorization"]?.replace("Bearer ", "") || "";
+  if (!jwtToken) throw new Error("JWT not returned from backend.");
+
+  // 🧠 Store the new JWT
+  await AsyncStorage.setItem("authToken", jwtToken);
+  return jwtToken;
 };
 
 
@@ -30,27 +52,33 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     const firebaseUser = userCredential.user;
     if (!firebaseUser) throw new Error("Failed to authenticate with Firebase.");
 
-    // ✅ Retrieve Firebase Token
+    // ✅ Get Firebase Token
     const token = await firebaseUser.getIdToken();
     console.log("🔥 Firebase Token:", token);
 
-    // ✅ Send Firebase Token to API
+    // ✅ Call Go backend with Firebase token
     const response = await axios.post(`${API_URL}/auth`, { email }, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    console.log("API Response:", response.data); // Debug log ✅
+    // ✅ Extract JWT from the *response headers*
+    const authHeader = response.headers["authorization"];
+    const jwtToken = authHeader?.replace("Bearer ", "") || "";
 
-    // ✅ Fix: Ensure countryCode is included!
-    return { 
-      id: firebaseUser.uid, 
-      email: firebaseUser.email || email, 
-      firstName: response.data.first_name || "",  
-      lastName: response.data.last_name || "",    
-      role: response.data.role, 
-      countryCode: response.data.country_code || "US", // ✅ Now it will be saved correctly!
-      token 
+    console.log("✅ Extracted JWT from headers:", jwtToken);
+
+    // ✅ Return UUID from backend response as `id`
+    return {
+      id: response.data.id,
+      email: firebaseUser.email || email,
+      firstName: response.data.first_name || "",
+      lastName: response.data.last_name || "",
+      role: response.data.role,
+      countryCode: response.data.country_code || "US",
+      token: jwtToken, // ✅ Now this is set correctly!
+      firebaseId: firebaseUser.uid,
     };
+
   } catch (error) {
     console.error("Error logging in:", error);
     throw error;
@@ -58,18 +86,19 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 };
 
 
+
 //To register a child linked to a prent, you need to send the parent's token as a header in the request.
-// 🔹 **Register Child with API**
+//  **Register Child with API**
 export const registerChild = async (
   parentToken: string, // Parent's authentication token
   firstName: string,
   lastName: string,
-  age: number,
+  dob: string,
   countryCode: string
 ): Promise<any> => {
   try {
     const requestBody = {
-      age,
+      dob,
       first_name: firstName,
       last_name: lastName,
       country_code: countryCode,
@@ -108,7 +137,7 @@ export const registerUser = async (
   firstName: string,
   lastName: string,
   role: string,
-  age: number,
+  dob: string,
   phoneNumber: string,
   countryCode: string
 ): Promise<any> => {
@@ -137,7 +166,7 @@ export const registerUser = async (
     if (role === "athlete") {
       endpoint = "register/athlete";
       requestBody = {
-        age,
+        dob,
         first_name: firstName,
         last_name: lastName,
         phone_number: phoneNumber,
@@ -147,14 +176,18 @@ export const registerUser = async (
         waivers: [
           {
             is_waiver_signed: true,
-            waiver_url: `${API_URL}/swagger/index.html`,
+            waiver_url: `https://storage.googleapis.com/rise-sports/waivers/code.pdf`,
+          },
+          {
+            is_waiver_signed: true,
+            waiver_url: `https://storage.googleapis.com/rise-sports/waivers/tetris.pdf`, // example second waiver
           },
         ],
       };
     } else if (role === "parent") {
       endpoint = "register/parent";
       requestBody = {
-        age,
+        dob,
         first_name: firstName,
         last_name: lastName,
         phone_number: phoneNumber,
@@ -165,7 +198,7 @@ export const registerUser = async (
     } else if (role === "coach" || role === "instructor" || role === "barber") {
       endpoint = "register/staff";
       requestBody = {
-        age,
+        dob,
         first_name: firstName,
         last_name: lastName,
         role,
@@ -202,4 +235,80 @@ export const registerUser = async (
     console.error("❌ Registration failed in api.ts:", (error as any).response?.data || (error as any).message);
     throw error;
   }
+};
+
+
+export const getMembershipByCustomerId = async (customerId: string) => {
+  const firebaseUser = getAuth().currentUser;
+
+  if (!firebaseUser) {
+    console.warn("⚠️ Firebase user not ready. Skipping membership fetch.");
+    return [];
+  }
+
+  const token = await firebaseUser.getIdToken(true);
+  const response = await fetch(`${API_URL}/customers/${customerId}/memberships`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) throw new Error("Failed to fetch customer membership");
+  return response.json();
+};
+
+
+
+export const createPractice = async (data: any, jwt: string) => {
+  const response = await fetch(`${API_URL}/events/one-time`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err?.error?.message || "Failed to create practice");
+  }
+};
+
+export const createRecurringPractice = async (data: any, jwt: string) => {
+  const response = await fetch(`${API_URL}/events/recurring`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err?.error?.message || "Failed to create recurring practice");
+  }
+};
+
+
+export const getPracticePrograms = async () => {
+  const firebaseUser = getAuth().currentUser;
+  if (!firebaseUser) throw new Error("User not logged in");
+
+  const token = await firebaseUser.getIdToken(true);
+
+  const res = await fetch(`${API_URL}/programs?program_type=practice`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error?.message || "Failed to load programs");
+  }
+
+  return res.json(); // should return array of { id, name, ... }
 };

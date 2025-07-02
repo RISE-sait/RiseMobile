@@ -47,7 +47,7 @@ export const useSignupSubmission = (
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role,
-        age,
+        dateOfBirth: formData.dateOfBirth, // ✅ Corrected key-value pair
         fullPhoneNumber,
         country: formData.country.cca2,
       })
@@ -59,7 +59,7 @@ export const useSignupSubmission = (
         formData.firstName,
         formData.lastName,
         formData.role,
-        age,
+        formData.dateOfBirth,
         fullPhoneNumber,
         formData.country.cca2,
       )

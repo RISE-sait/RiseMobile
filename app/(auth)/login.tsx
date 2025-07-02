@@ -17,6 +17,10 @@ import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
 import { useDispatch } from "react-redux"
 import { setUser } from "@/store/slices/userSlice"
+import { setMembership } from "@/store/slices/membershipSlice"
+import type { User } from "@/store/slices/userSlice"
+
+
 
 // Components
 import { AnimatedLogo } from "@/components/auth/AnimatedLogo"
@@ -97,37 +101,31 @@ const LoginScreen = () => {
   }
 
   // Email/Password Login Handler
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      setIsLoading(true)
+const handleLogin = async (email: string, password: string) => {
+  try {
+    setIsLoading(true)
 
-      // Using the existing login function from useAuth
-      const user = await login(email, password)
+    const user = await login(email, password) as User;
+    console.log("User logged in:", user)
 
-      console.log("User logged in:", user)
-
-      // Store user in Redux
-      if (user) {
-        dispatch(
-          setUser({
-            ...user,
-            isAuthenticated: true, // Add isAuthenticated property
-          }),
-        )
+    if (user) {
+      dispatch(setUser({ ...user, isAuthenticated: true }))
+      if (user.membership_info) {
+        dispatch(setMembership(user.membership_info))
       }
-
-      // Note: Navigation is already handled in the login function in auth.ts
-    } catch (error) {
-      console.error("Failed to login:", error)
-      setErrors({ general: "Invalid email or password. Please try again." })
-      // Trigger haptic feedback for error
-      if (Platform.OS === "ios") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      }
-    } finally {
-      setIsLoading(false)
     }
+
+  } catch (error) {
+    console.error("Failed to login:", error)
+    setErrors({ general: "Invalid email or password. Please try again." })
+    if (Platform.OS === "ios") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+    }
+  } finally {
+    setIsLoading(false)
   }
+}
+
 
   return (
     <View style={styles.outerContainer}>

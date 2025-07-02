@@ -19,7 +19,7 @@ import { useSignupForm } from "@/hooks/auth/useSignupForm"
 import { useSignupAnimations } from "@/hooks/auth/useSignupAnimations"
 import { useSignupSubmission } from "@/hooks/auth/useSignupSubmission"
 
-// Import components
+// Import componentsA
 import { SignupLogo } from "@/components/auth/SignupLogo"
 import { SignupHeader } from "@/components/auth/SignupHeader"
 import { StepIndicator } from "@/components/auth/StepIndicator"

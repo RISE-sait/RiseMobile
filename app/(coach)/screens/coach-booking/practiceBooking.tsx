@@ -15,6 +15,8 @@ import {
   ActivityIndicator,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { getAuth } from "firebase/auth"
+import { createPractice, createRecurringPractice } from "@/utils/api" // adjust path
 import { useRouter } from "expo-router"
 import { Ionicons, MaterialIcons } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
@@ -29,6 +31,10 @@ import NotesInput from "@/components/practiceBooking/NotesInput"
 import ConfirmationModal from "@/components/practiceBooking/ConfirmationModal"
 import StepIndicator from "@/components/practiceBooking/StepIndicator"
 import FacilitySelector from "@/components/practiceBooking/FacilitySelector"
+import { API_URL } from "@/utils/api"
+import dayjs from "dayjs"
+import { getPracticePrograms } from "@/utils/api"; // or wherever you placed it
+
 
 // Define the types
 interface Team {
@@ -38,14 +44,15 @@ interface Team {
   icon: string
   image: string
 }
-
 interface PracticeType {
-  id: string
-  name: string
-  icon: string
-  description: string
-  duration: number
+  id: string;
+  name: string;
+  description?: string;
+  duration: number; // ✅ remove the ?
+  visibility?: string;
 }
+
+
 
 interface Facility {
   id: string
@@ -76,14 +83,7 @@ const teams: Team[] = [
   { id: "4", name: "All-Stars", players: 15, icon: "star", image: "https://source.unsplash.com/random/300x200/?basketball-stars" },
 ]
 
-const practiceTypes: PracticeType[] = [
-  { id: "1", name: "Full Team Practice", icon: "users", description: "Complete team training session", duration: 120 },
-  { id: "2", name: "Shooting Drills", icon: "bullseye", description: "Focus on shooting technique and accuracy", duration: 60 },
-  { id: "3", name: "Defense Training", icon: "shield-alt", description: "Defensive strategies and positioning", duration: 90 },
-  { id: "4", name: "Conditioning", icon: "running", description: "Physical fitness and endurance training", duration: 60 },
-  { id: "5", name: "Game Strategy", icon: "chess", description: "Playbook review and strategic planning", duration: 90 },
-  { id: "6", name: "Individual Skills", icon: "user-graduate", description: "One-on-one skill development", duration: 45 },
-]
+
 
 const facilities: Facility[] = [
   { id: "1", name: "Main Gym", type: "Indoor Court", icon: "building", availability: "high", image: "https://source.unsplash.com/random/300x200/?basketball-court" },
@@ -93,6 +93,10 @@ const facilities: Facility[] = [
 ]
 
 const CoachPracticeBooking = () => {
+  const [practiceTypes, setPracticeTypes] = useState<PracticeType[]>([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(true);
+  const [programsError, setProgramsError] = useState<string | null>(null);
+
   const router = useRouter()
 
   // Animations
@@ -163,6 +167,21 @@ const CoachPracticeBooking = () => {
   }, [date, selectedFacility])
 
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
+  useEffect(() => {
+  const fetchPrograms = async () => {
+    try {
+      const programs = await getPracticePrograms();
+      setPracticeTypes(programs);
+    } catch (error: any) {
+      setProgramsError(error.message || "Failed to load programs.");
+    } finally {
+      setLoadingPrograms(false);
+    }
+  };
+
+  fetchPrograms();
+}, []);
+
   
   useEffect(() => {
     setTimeSlots(generateTimeSlots)
@@ -263,38 +282,80 @@ const CoachPracticeBooking = () => {
   }
   
   const handleConfirmBooking = async () => {
-    setIsSubmitting(true)
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // Success
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      setIsSubmitting(false)
-      setShowConfirmation(false)
-      
-      // Show success message
-      Alert.alert(
-        "Practice Booked Successfully",
-        `Your practice has been scheduled for ${date.toDateString()} at ${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-        [
-          { 
-            text: "View Schedule", 
-            onPress: () => router.push("/(coach)/(tabs)/coachCalendar") 
-          },
-          { 
-            text: "Done", 
-            onPress: () => router.back() 
-          }
-        ]
-      )
-    } catch (error) {
-      setIsSubmitting(false)
-      Alert.alert("Error", "Failed to book practice. Please try again.")
-    }
-  }
+  setIsSubmitting(true);
 
+  try {
+    // 🔐 Firebase → JWT exchange
+    const firebaseUser = getAuth().currentUser;
+    if (!firebaseUser) throw new Error("No user is logged in.");
+
+    const firebaseToken = await firebaseUser.getIdToken(true);
+    const jwtResponse = await fetch(`${API_URL}/auth`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${firebaseToken}` },
+      body: JSON.stringify({ email: firebaseUser.email }),
+    });
+
+    const jwt = jwtResponse.headers.get("authorization")?.replace("Bearer ", "");
+    if (!jwt) throw new Error("Could not retrieve backend JWT");
+
+    // 🧱 Payload construction helpers
+    const getDayOfWeek = (date: Date) =>
+      ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][date.getDay()];
+
+    const formatTime = (date: Date) => date.toTimeString().split(" ")[0]; // "HH:mm:ss"
+
+    // 🎯 API request
+    if (isRecurring) {
+      const recurrenceStart = dayjs(startTime);
+      const recurrenceEnd = recurrenceStart.add(recurringOptions.occurrences - 1, "week");
+
+      const recurringPayload = {
+        day: getDayOfWeek(startTime),
+        event_start_at: formatTime(startTime),
+        event_end_at: formatTime(endTime),
+        location_id: selectedFacility?.id,
+        program_id: selectedPracticeType?.id,
+        team_id: selectedTeam?.id,
+        recurrence_start_at: recurrenceStart.toISOString(),
+        recurrence_end_at: recurrenceEnd.toISOString(),
+      };
+
+      await createRecurringPractice(recurringPayload, jwt);
+    } else {
+      const oneTimePayload = {
+        start_at: startTime.toISOString(),
+        end_at: endTime.toISOString(),
+        location_id: selectedFacility?.id,
+        program_id: selectedPracticeType?.id,
+        team_id: selectedTeam?.id,
+      };
+
+      await createPractice(oneTimePayload, jwt);
+    }
+
+    // ✅ Success UX
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setIsSubmitting(false);
+    setShowConfirmation(false);
+
+    Alert.alert(
+      "Practice Booked Successfully",
+      `Your practice has been scheduled for ${date.toDateString()} at ${startTime.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`,
+      [
+        { text: "View Schedule", onPress: () => router.push("/(coach)/(tabs)/coachCalendar") },
+        { text: "Done", onPress: () => router.back() },
+      ]
+    );
+  } catch (error) {
+    console.error("❌ Booking error:", error);
+    setIsSubmitting(false);
+    Alert.alert("Error", (error as Error).message || "Failed to book practice.");
+  }
+};
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />

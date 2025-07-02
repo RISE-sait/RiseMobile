@@ -21,7 +21,10 @@ export interface Event {
   time: string;
   location: string;
   image: string;
+  type: "game" | "match" | "practice" | "course" | "other";
+  program?: { id: string };
 }
+
 
 const EventsScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -73,9 +76,12 @@ const EventsScreen: React.FC = () => {
           time: event.time || "TBD",
           location: event.location || "TBD",
           image: event.image || "https://via.placeholder.com/400x200",
+          type: event.type || "other",
+          program: event.program?.id ? { id: event.program.id } : undefined,
         });
       });
     });
+
 
     // Convert Redux matches
     reduxGames.items.forEach((match: Match) => {
@@ -89,6 +95,8 @@ const EventsScreen: React.FC = () => {
           time,
           location: "RISE Basketball Court",
           image: "https://via.placeholder.com/400x200",
+          type: "match",
+          
         });
       }
     });
@@ -139,10 +147,23 @@ const EventsScreen: React.FC = () => {
       <TouchableOpacity
         style={styles.eventCard}
         activeOpacity={0.9}
-        onPress={() => router.push({
-          pathname: "/screens/event-details/[id]",
-          params: { id: item.id }
-        })}
+        onPress={() => {
+          if (item.type === "match") {
+            router.push({
+              pathname: "/screens/match-details/[id]",
+              params: { id: item.id },
+            });
+          } else {
+            router.push({
+              pathname: "/screens/event-details/[id]",
+              params: {
+                id: item.program?.id || item.id,
+                type: item.type,
+              },
+            });
+          }
+        }}
+
       >
         <Image source={{ uri: item.image }} style={styles.eventImage} resizeMode="cover" />
         <View style={styles.eventDetails}>

@@ -10,6 +10,9 @@ import UpcomingCard from "@/components/events/UpcomingCard";
 import QRCodeModal from "@/components/QRCodeModal";
 import GoToCards from "../../../components/GoToCards";
 import dayjs from "dayjs";
+import { useAppSelector } from "@/store/hooks";
+
+
 
 type User = {
   id: string;
@@ -32,6 +35,9 @@ export default function CoachHomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const matches = useAppSelector((state) => state.games.items) || [];
+  const practices = useAppSelector((state) => state.practices.items) || [];
+
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -51,6 +57,7 @@ export default function CoachHomeScreen() {
 
     fetchUser();
   }, []);
+  
 
   const toggleModal = () => {
     setModalVisible(!modalVisible);
@@ -60,9 +67,38 @@ export default function CoachHomeScreen() {
   const today = dayjs().format("YYYY-MM-DD");
 
   // Filter upcoming matches/practices **only in the future**
-  const upcomingEvent = mockMatches
-    .filter((match) => ["match", "practice"].includes(match.type) && dayjs(match.date).isAfter(today))
-    .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0];
+  // Map both matches and practices into a common format
+    const allEvents = [
+      ...matches.map((match) => ({ ...match, type: "match" })),
+      ...practices.map((practice) => ({ ...practice, type: "practice" })),
+];
+
+const mapToUpcomingCardFormat = (event: any) => ({
+  id: event.id,
+  date: event.date || dayjs().format("YYYY-MM-DD"),
+  homeTeam: event.homeTeam || "Home Team",
+  awayTeam: event.awayTeam || "Away Team",
+  status: "Upcoming" as "Upcoming", // ✅ Explicit literal
+  location: event.location || "RISE Basketball Facility",
+  description: event.description || event.title || "Upcoming Event",
+  homeLogo:
+    event.homeLogo ||
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
+  awayLogo:
+    event.awayLogo ||
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
+  bgImage:
+    event.bgImage ||
+    "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1170&q=80",
+  type: event.type,
+});
+
+
+
+const upcomingEvent = allEvents
+  .filter((event) => dayjs(event.date).isAfter(today))
+  .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0];
+
 
 
   const navigationOptions = [
@@ -106,7 +142,9 @@ export default function CoachHomeScreen() {
         </View>
 
         {/* Upcoming Game Section */}
-        {upcomingEvent && <UpcomingCard event={upcomingEvent} />}
+        {upcomingEvent && <UpcomingCard event={mapToUpcomingCardFormat(upcomingEvent)} />}
+
+
 
         {/* Navigation Buttons Section */}
         <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />

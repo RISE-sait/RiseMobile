@@ -3,10 +3,19 @@ import { View, Modal, Text, Image, Animated, TouchableOpacity } from "react-nati
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome6 } from "@expo/vector-icons";
 import QRCodeButton from "./buttons/QRCodeButton"; // ✅ Import the component
+import { useSelector } from "react-redux";
+import { RootState } from "@/store"; // update this path if different
+
 
 const QRCodeModal = () => {
   const [isModalVisible, setModalVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(350)).current; // Slightly larger modal
+  const userId = useSelector((state: RootState) => state.user.data?.id);
+  if (!userId) return null;
+
+  const qrData = `https://api-461776259687.us-west2.run.app/customers/checkin/${userId}`;
+
+
 
   const toggleModal = () => {
     if (!isModalVisible) {
@@ -53,9 +62,12 @@ const QRCodeModal = () => {
             <View className="bg-black-100/80 p-5 rounded-2xl border border-white-100/10 items-center">
               <LinearGradient colors={["#FCA311", "#FFD369"]} className="p-1 rounded-2xl">
                 <Image
-                  source={{ uri: "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=YourDataHere" }}
+                  source={{
+                    uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`,
+                  }}
                   className="w-56 h-56 rounded-lg"
                 />
+
               </LinearGradient>
             </View>
           </Animated.View>

@@ -137,7 +137,7 @@ export const useAuth = () => {
     firstName: string,
     lastName: string,
     role: string,
-    age: number,
+    dob: string, // ✅ Change from age:number → dob:string
     phoneNumber: string,
     countryCode: string,
   ) => {
@@ -153,7 +153,7 @@ export const useAuth = () => {
         firstName,
         lastName,
         role.toLowerCase(), // 🔹 Ensure lowercase role
-        age,
+        dob, // ✅ Correct argument
         phoneNumber,
         countryCode,
       )
@@ -178,7 +178,7 @@ export const useAuth = () => {
     parentToken: string, // ✅ Parent's Firebase token is required
     firstName: string,
     lastName: string,
-    age: number,
+    dob: string,
     countryCode: string,
   ): Promise<any> => {
     setIsLoading(true)
@@ -187,7 +187,7 @@ export const useAuth = () => {
       console.log("📢 Sending child registration request...")
 
       const requestBody = {
-        age,
+        dob,
         first_name: firstName,
         last_name: lastName,
         country_code: countryCode,

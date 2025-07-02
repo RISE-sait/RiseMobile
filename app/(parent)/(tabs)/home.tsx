@@ -7,6 +7,8 @@ import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as Haptics from "expo-haptics"
+import { useAppSelector } from "@/store/hooks"
+
 
 import images from "@/constants/images"
 import GoToCards from "../../../components/GoToCards"
@@ -56,6 +58,8 @@ export default function ParentHome() {
   const [isLoading, setIsLoading] = useState(true)
   const [children, setChildren] = useState(mockChildren)
   const fadeAnim = useRef(new Animated.Value(0)).current
+  const matches = useAppSelector((state) => state.games.items) || []
+  const practices = useAppSelector((state) => state.practices.items) || []
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -94,9 +98,40 @@ export default function ParentHome() {
   const today = dayjs().format("YYYY-MM-DD")
 
   // Filter upcoming matches/practices for all children
-  const upcomingEvent = mockMatches
-    .filter((match) => ["match", "practice"].includes(match.type) && dayjs(match.date).isAfter(today))
-    .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0]
+  const relevantEvents = [...matches, ...practices].filter((event) =>
+  children.some((child) => 
+    event.child_id === child.id || 
+    event.player_ids?.includes(child.id) || 
+    event.team_id === child.teamId // depending on how your data is structured
+  )
+)
+
+const upcomingEvent = relevantEvents
+  .filter((event) => dayjs(event.date).isAfter(today))
+  .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0]
+
+
+  const mapToUpcomingCardFormat = (event: any) => ({
+  id: event.id,
+  date: event.date || dayjs().format("YYYY-MM-DD"),
+  homeTeam: event.homeTeam || "Home Team",
+  awayTeam: event.awayTeam || "Away Team",
+  status: "Upcoming" as "Upcoming",
+  location: event.location || "RISE Basketball Facility",
+  description: `${children[0]?.firstName || "Child"}'s ${event.type}`,
+  homeLogo:
+    event.homeLogo ||
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
+  awayLogo:
+    event.awayLogo ||
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
+  bgImage:
+    event.bgImage ||
+    "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1170&q=80",
+  type: event.type,
+})
+
+
 
   const navigationOptions = [
     { label: "Family Management", route: "/screens/children", image: images.addPerson },
@@ -134,12 +169,12 @@ export default function ParentHome() {
         <View className="w-full px-5 mt-20">
           {user ? (
             <ProfileHeader
-              firstName={user.firstName}
-              lastName={user.lastName}
-              role={user.role}
-              profileImage={user.profileImage ? { uri: user.profileImage } : images.parentHeadshot}
+              firstName={user?.firstName || ""}
+              lastName={user?.lastName || ""}
+              role="Parent"
+              number="P"
+              profileImage={user?.profileImage ? { uri: user.profileImage } : images.parentHeadshot}
               countryCode={user?.countryCode}
-              teamLogo={images.teamLogo}
             />
           ) : (
             <Text className="text-white text-center">User data not available</Text>
@@ -154,12 +189,7 @@ export default function ParentHome() {
         {/* Upcoming Game Section */}
         {upcomingEvent && (
           <View className="mt-4">
-            <UpcomingCard
-              event={{
-                ...upcomingEvent,
-                description: `${children[0].firstName}'s ${upcomingEvent.type}`,
-              }}
-            />
+            <UpcomingCard event={mapToUpcomingCardFormat(upcomingEvent)} />
           </View>
         )}
 

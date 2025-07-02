@@ -3,50 +3,33 @@ import {
   View, 
   Text, 
   TouchableOpacity, 
-  ActivityIndicator, 
   Alert, 
-  ScrollView, 
   StyleSheet, 
   Animated, 
-  Dimensions,
-  Image,
-  RefreshControl
+  Dimensions,  
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { 
   faCrown, 
   faCalendarAlt, 
   faCreditCard, 
   faCheckCircle, 
-  faTimesCircle,
   faChevronRight,
   faHistory,
-  faUndo,
-  faBasketball,
-  faUserFriends,
-  faShieldAlt,
-  faTag
 } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import BackButton from "@/components/buttons/BackButton";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
+import dayjs from "dayjs";
+import { useDispatch } from "react-redux";
+import { setMembership } from "@/store/slices/membershipSlice";
+import { getMembershipByCustomerId } from "@/utils/api"; 
 
-// Define the structure of the membership data
-interface MembershipData {
-  membershipType: string;
-  status: string;
-  nextPaymentDate: string;
-  renewalCost: string;
-  startDate: string;
-  memberSince: string;
-  benefits: string[];
-  paymentMethod?: string;
-  autoRenewal: boolean;
-  membershipLevel: 'bronze' | 'silver' | 'gold' | 'platinum';
-  daysRemaining: number;
-}
+
+
 
 // Define the structure of a payment history item
 interface PaymentHistoryItem {
@@ -56,29 +39,24 @@ interface PaymentHistoryItem {
   status: 'completed' | 'pending' | 'failed';
 }
 
-// Mock API URL (Replace with your actual backend endpoint)
-const API_URL = "https://your-backend.com/api/membership";
+type MembershipLevel = "bronze" | "silver" | "gold" | "platinum";
 
-// Mock data for development (will be replaced by API data)
-const mockMembershipData: MembershipData = {
-  membershipType: "Premium",
-  status: "Active",
-  nextPaymentDate: "May 15, 2025",
-  renewalCost: "$49.99",
-  startDate: "January 15, 2025",
-  memberSince: "January 2023",
-  benefits: [
-    "Unlimited court access",
-    "Priority booking (24h advance)",
-    "Free equipment rental",
-    "Access to premium coaching",
-    "Discounted merchandise"
-  ],
-  paymentMethod: "Visa •••• 4242",
-  autoRenewal: true,
-  membershipLevel: 'gold',
-  daysRemaining: 23
+const getMembershipLevel = (planName: string): MembershipLevel => {
+  if (!planName) return "bronze"; // fallback
+
+  const lower = planName.toLowerCase();
+
+  if (lower.includes("platinum")) return "platinum";
+  if (lower.includes("gold")) return "gold";
+  if (lower.includes("silver")) return "silver";
+  if (lower.includes("tier 1") || lower.includes("girls u11") || lower.includes("full year"))
+    return "gold";
+
+  return "bronze";
 };
+
+
+
 
 const mockPaymentHistory: PaymentHistoryItem[] = [
   { id: '1', date: 'April 15, 2025', amount: '$49.99', status: 'completed' },
@@ -86,6 +64,10 @@ const mockPaymentHistory: PaymentHistoryItem[] = [
   { id: '3', date: 'February 15, 2025', amount: '$49.99', status: 'completed' },
   { id: '4', date: 'January 15, 2025', amount: '$49.99', status: 'completed' }
 ];
+
+
+
+
 
 // Membership level colors and gradients
 const membershipColors = {
@@ -114,107 +96,67 @@ const membershipColors = {
 const { width } = Dimensions.get('window');
 
 const MembershipScreen: React.FC = () => {
-  const [membership, setMembership] = useState<MembershipData | null>(null);
+   const dispatch = useDispatch();
+  const userId = useSelector((state: RootState) => state.user.data?.id); // ✅ inside component
+
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<boolean>(false);
+  const membership = useSelector((state: RootState) => state.membership.data);
+
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // Fetch membership data from API
-  const fetchMembershipData = async (isRefreshing = false) => {
-    if (isRefreshing) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setError(null);
-  
-    try {
-      // Retrieve authentication token (assumed stored in AsyncStorage)
-      const token = await AsyncStorage.getItem("authToken");
-  
-      if (!token) {
-        throw new Error("User not authenticated. No token found.");
+    useEffect(() => {
+    const fetchMembership = async () => {
+      if (!userId) return;
+
+      try {
+        const memberships = await getMembershipByCustomerId(userId);
+        if (memberships?.length > 0) {
+          dispatch(setMembership(memberships[0]));
+        }
+      } catch (error) {
+        console.error("❌ Error fetching membership:", error);
       }
-      
-      // For development, use mock data
-      // In production, uncomment the fetch code below
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Use mock data for now
-      setMembership(mockMembershipData);
-      setPaymentHistory(mockPaymentHistory);
-      
-      /* 
-      // Actual API call - uncomment when endpoint is ready
-      const response = await fetch(API_URL, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    };
+
+    fetchMembership();
+  }, [userId]);
+
   
-      if (!response.ok) {
-        throw new Error(`Failed to fetch membership details. Status: ${response.status}`);
-      }
-  
-      const data = await response.json();
-      setMembership(data.membership);
-      setPaymentHistory(data.paymentHistory || []);
-      */
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-  
-  // Animate elements when data is loaded
-  useEffect(() => {
-    if (membership && !loading) {
-      // Fade in and slide up animation
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]).start();
+
       
       // Progress bar animation
-      const progressValue = membership.daysRemaining / 30; // Assuming 30-day billing cycle
-      Animated.timing(progressAnim, {
-        toValue: progressValue > 1 ? 1 : progressValue,
-        duration: 1000,
-        useNativeDriver: false,
-      }).start();
-    }
-  }, [membership, loading]);
+      useEffect(() => {
+        if (membership) {
+          const daysRemaining = dayjs(membership.renewal_date).diff(dayjs(), "day");
+          const progressValue = daysRemaining / 30;
 
-  // Fetch membership details on screen load
-  useEffect(() => {
-    fetchMembershipData();
-  }, []);
+          Animated.parallel([
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 800,
+              useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+              toValue: 0,
+              duration: 800,
+              useNativeDriver: true,
+            }),
+          ]).start();
 
-  const onRefresh = () => {
-    fetchMembershipData(true);
-  };
+          Animated.timing(progressAnim, {
+            toValue: progressValue > 1 ? 1 : progressValue,
+            duration: 1000,
+            useNativeDriver: false,
+          }).start();
+        }
+      }, [membership]);
+
+
 
   const handleUpgradeMembership = () => {
     Alert.alert(
@@ -233,36 +175,17 @@ const MembershipScreen: React.FC = () => {
     );
   };
 
-  const toggleAutoRenewal = async () => {
-    if (!membership) return;
-    
-    try {
-      setMembership({
-        ...membership,
-        autoRenewal: !membership.autoRenewal
-      });
-      
-      // In production, you would make an API call here to update the setting
-      Alert.alert(
-        "Auto-Renewal Updated", 
-        membership.autoRenewal 
-          ? "Auto-renewal has been turned off. Your membership will expire on the next payment date." 
-          : "Auto-renewal has been turned on. Your membership will automatically renew."
-      );
-    } catch (error) {
-      Alert.alert("Error", "Failed to update auto-renewal setting. Please try again.");
-    }
-  };
-
+ 
   const renderMembershipCard = () => {
     if (!membership) return null;
     
-    const colors = membershipColors[membership.membershipLevel];
+const level = getMembershipLevel(membership.membership_plan_name);
+  const colors = membershipColors[level];
     
     return (
       <View style={styles.cardContainer}>
         <LinearGradient
-          colors={colors.gradient}
+          colors={colors.gradient as [ string, string]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.membershipCard}
@@ -271,28 +194,22 @@ const MembershipScreen: React.FC = () => {
             <View style={styles.membershipBadge}>
               <FontAwesomeIcon icon={faCrown} color="#FFFFFF" size={16} />
               <Text style={styles.membershipType}>
-                {membership.membershipType}
+                {membership.membership_name}
               </Text>
+
             </View>
-            <View style={[
-              styles.statusBadge, 
-              { backgroundColor: membership.status === "Active" ? "#32CD32" : "#FF4500" }
-            ]}>
-              <FontAwesomeIcon 
-                icon={membership.status === "Active" ? faCheckCircle : faTimesCircle} 
-                color="#FFFFFF" 
-                size={12} 
-              />
-              <Text style={styles.statusText}>{membership.status}</Text>
-            </View>
+            
           </View>
           
           <View style={styles.cardBody}>
-            <Text style={styles.memberSince}>Member since {membership.memberSince}</Text>
+<Text style={styles.memberSince}>
+  Member since {dayjs(membership.start_date).format("MMMM D, YYYY")}
+</Text>
             <View style={styles.membershipProgress}>
               <Text style={styles.daysRemainingText}>
-                {membership.daysRemaining} days remaining
-              </Text>
+  {dayjs(membership.renewal_date).diff(dayjs(), "day")} days remaining
+</Text>
+
               <View style={styles.progressBarContainer}>
                 <Animated.View 
                   style={[
@@ -311,11 +228,13 @@ const MembershipScreen: React.FC = () => {
           <View style={styles.cardFooter}>
             <View style={styles.footerItem}>
               <FontAwesomeIcon icon={faCalendarAlt} color="#FFFFFF" size={14} />
-              <Text style={styles.footerText}>Next payment: {membership.nextPaymentDate}</Text>
+<Text style={styles.footerText}>
+  Next payment: {dayjs(membership.renewal_date).format("MMMM D, YYYY")}
+</Text>
             </View>
             <View style={styles.footerItem}>
               <FontAwesomeIcon icon={faCreditCard} color="#FFFFFF" size={14} />
-              <Text style={styles.footerText}>{membership.renewalCost}/month</Text>
+<Text style={styles.footerText}>$49.99/month</Text>
             </View>
           </View>
         </LinearGradient>
@@ -323,66 +242,28 @@ const MembershipScreen: React.FC = () => {
     );
   };
 
-  const renderBenefits = () => {
-    if (!membership) return null;
-    
-    return (
-      <View style={styles.benefitsContainer}>
-        <Text style={styles.sectionTitle}>Membership Benefits</Text>
-        {membership.benefits.map((benefit, index) => (
-          <View key={index} style={styles.benefitItem}>
-            <FontAwesomeIcon icon={faCheckCircle} color="#32CD32" size={16} />
-            <Text style={styles.benefitText}>{benefit}</Text>
-          </View>
-        ))}
-      </View>
-    );
-  };
+const renderBenefits = () => {
+  if (!membership || typeof membership.membership_benefits !== "string") return null;
 
-  /*
-  const renderPaymentMethod = () => {
-    if (!membership) return null;
-    
-    return (
-      <View style={styles.paymentMethodContainer}>
-        <Text style={styles.sectionTitle}>Payment Details</Text>
-        
-        <View style={styles.paymentMethodCard}>
-          <View style={styles.paymentMethodHeader}>
-            <FontAwesomeIcon icon={faCreditCard} color="#FFFFFF" size={18} />
-            <Text style={styles.paymentMethodText}>
-              {membership.paymentMethod || "No payment method on file"}
-            </Text>
-          </View>
-          
-          <View style={styles.autoRenewalContainer}>
-            <View style={styles.autoRenewalTextContainer}>
-              <Text style={styles.autoRenewalLabel}>Auto-Renewal</Text>
-              <Text style={styles.autoRenewalDescription}>
-                {membership.autoRenewal 
-                  ? "Your membership will automatically renew" 
-                  : "Your membership will expire on the next payment date"}
-              </Text>
-            </View>
-            
-            <TouchableOpacity
-              style={[
-                styles.autoRenewalToggle,
-                { backgroundColor: membership.autoRenewal ? "#32CD32" : "#666666" }
-              ]}
-              onPress={toggleAutoRenewal}
-            >
-              <View style={[
-                styles.toggleCircle,
-                membership.autoRenewal ? styles.toggleCircleOn : {}
-              ]} />
-            </TouchableOpacity>
-          </View>
+  const benefits: string[] = membership.membership_benefits
+    .split("•")
+    .filter((b): b is string => Boolean(b && b.trim())); // Strong type-safe filter
+
+  return (
+    <View style={styles.benefitsContainer}>
+      <Text style={styles.sectionTitle}>Membership Benefits</Text>
+      {benefits.map((benefit: string, index: number) => (
+        <View key={index} style={styles.benefitItem}>
+          <FontAwesomeIcon icon={faCheckCircle} color="#32CD32" size={16} />
+          <Text style={styles.benefitText}>{benefit.trim()}</Text>
         </View>
-      </View>
-    );
-  };
-  */
+      ))}
+    </View>
+  );
+};
+
+
+
 
   const renderPaymentHistory = () => {
     if (!paymentHistory.length) return null;
@@ -452,38 +333,9 @@ const MembershipScreen: React.FC = () => {
         <Text style={styles.headerTitle}>Membership</Text>
       </View>
 
-      {/* Loading State */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
-          <Text style={styles.loadingText}>Loading membership details...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <FontAwesomeIcon icon={faTimesCircle} color="#FF4500" size={50} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => fetchMembershipData()}
-          >
-            <FontAwesomeIcon icon={faUndo} color="#FFFFFF" size={16} style={styles.retryIcon} />
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#FFD700"
-              colors={["#FFD700"]}
-            />
-          }
-        >
+      
+          
+        
           <Animated.View style={[
             styles.contentContainer,
             { 
@@ -523,8 +375,7 @@ const MembershipScreen: React.FC = () => {
             
             
           </Animated.View>
-        </ScrollView>
-      )}
+      
     </SafeAreaView>
   );
 };
