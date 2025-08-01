@@ -14,10 +14,10 @@ import { fetchEvents } from "@/store/slices/eventsSlice"
 import { fetchMatches } from "@/store/slices/gamesSlice"
 import type { Match } from "@/store/slices/gamesSlice"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-
 import PageTitle from "@/components/PageTitle"
 import CalendarCard from "@/components/calendar/CalendarCard"
 import EventListContainer from "@/components/calendar/EventListContainer"
+import { getAuth } from "firebase/auth"
 
 interface SharedCalendarProps {
   userRole: "athlete" | "coach" | "instructor" | "parent"
@@ -54,6 +54,9 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   const reduxEvents = useSelector((state: RootState) => state.events)
   const reduxGames = useSelector((state: RootState) => state.games)
 
+
+
+
   // Determine loading state
   const isLoading = reduxEvents.status === "loading" || reduxGames.status === "loading"
 
@@ -78,23 +81,24 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
     return token
   }, [user?.token])
 
-  // Memoize the fetch function to avoid recreating it on every render
-  const fetchCalendarData = useCallback(async () => {
-    try {
-      const token = await getToken()
-
-      if (!token) {
-        console.error("No auth token available")
-        return
-      }
-
-      // Dispatch the fetch actions for events and matches (from games endpoint)
-      dispatch(fetchEvents(token) as any)
-      dispatch(fetchMatches(token) as any)
-    } catch (err) {
-      console.error("Error fetching calendar data:", err)
+const fetchCalendarData = useCallback(async () => {
+  try {
+    const jwt = await AsyncStorage.getItem("authToken")
+    if (!jwt) {
+      console.error("❌ Missing backend JWT")
+      return
     }
-  }, [dispatch, getToken])
+
+    console.log("🪪 Backend JWT:", jwt)
+
+    dispatch(fetchEvents(jwt) as any)
+    dispatch(fetchMatches(jwt) as any)
+  } catch (err) {
+    console.error("Error fetching calendar data:", err)
+  }
+}, [dispatch])
+
+
 
   // Memoize the refresh handler
   const handleRefresh = useCallback(() => {
@@ -147,28 +151,29 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
   // Combine all events and matches for the selected date
   const combinedEventsForSelectedDate = useMemo(() => {
-    const events = reduxEvents.byDate[selectedDate] || []
-    const matches = matchesByDate[selectedDate] || []
+  const events = reduxEvents.byDate[selectedDate] || []
 
-    return [...events, ...matches]
-  }, [reduxEvents.byDate, matchesByDate, selectedDate])
 
-  // Combine all events and matches for the calendar display
-  const combinedCalendarEvents = useMemo(() => {
-    const allDates = {
-      ...reduxEvents.byDate,
-      ...matchesByDate,
-    }
+}, [reduxEvents.byDate, matchesByDate])
 
-    // Create a new object with combined events for each date
-    const combined: Record<string, any[]> = {}
+const combinedCalendarEvents = useMemo(() => {
+  const allDates = {
+    ...reduxEvents.byDate,
+    ...matchesByDate,
+  }
 
-    Object.keys(allDates).forEach((date) => {
-      combined[date] = [...(reduxEvents.byDate[date] || []), ...(matchesByDate[date] || [])]
-    })
+  const combined: Record<string, any[]> = {}
 
-    return combined
-  }, [reduxEvents.byDate, matchesByDate])
+  Object.keys(allDates).forEach((date) => {
+    combined[date] = [
+      ...(reduxEvents.byDate[date] || []),
+      ...(matchesByDate[date] || []),
+    ]
+  })
+
+  return combined
+}, [reduxEvents.byDate, matchesByDate])
+
 
   // Create marked dates for the calendar
   const markedDates = useMemo(() => {
@@ -220,7 +225,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
       default:
         return `No events scheduled for ${formattedDate}.`
     }
-  }, [userRole, formattedDate])
+}, [reduxEvents.byDate, matchesByDate])
 
   return (
     <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">

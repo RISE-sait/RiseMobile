@@ -9,8 +9,14 @@ interface Team {
   name: string
   players: number
   icon: string
-  image: string // Changed from string | undefined to string to match practiceBooking.tsx
+  image: string
+  coach: {
+    id: string
+    name: string
+    email: string
+  }
 }
+
 
 // Update the props interface to accept the setState function
 interface TeamSelectorProps {
@@ -20,6 +26,8 @@ interface TeamSelectorProps {
   hasError?: boolean
   errorMessage?: string
 }
+
+
 
 const TeamSelector: React.FC<TeamSelectorProps> = ({
   teams,

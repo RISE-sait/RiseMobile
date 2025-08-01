@@ -2,33 +2,9 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
-import type { RootState } from "../index"
+import type { RootState } from "@/store"
+import type { Match, GamesState } from "@/types"
 
-// Define types
-export interface Match {
-  id: string
-  name: string
-  title?: string // Add title field
-  date?: string // Add date field
-  time?: string // Add time field
-  location?: string // Add location field
-  description?: string
-  win_team?: string
-  lose_team?: string
-  win_score?: number
-  lose_score?: number
-  created_at?: string
-  updated_at?: string
-}
-
-interface GamesState {
-  items: Match[]
-  byDate: Record<string, Match[]>
-  status: "idle" | "loading" | "succeeded" | "failed"
-  error: string | null
-}
-
-// Initial state
 const initialState: GamesState = {
   items: [],
   byDate: {},
@@ -36,7 +12,6 @@ const initialState: GamesState = {
   error: null,
 }
 
-// Async thunk to fetch matches from the games endpoint
 export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token: string, { rejectWithValue }) => {
   try {
     console.log("Fetching games with token:", token.substring(0, 10) + "...")
@@ -47,10 +22,8 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
 
     console.log("Games API response:", response.data)
 
-    // Process the games to organize by date and convert to Match format
     const games = Array.isArray(response.data) ? response.data : []
     const matches: Match[] = games.map((game: any) => {
-      // Extract date from created_at
       let date = dayjs().format("YYYY-MM-DD")
       let time = "TBD"
 
@@ -65,10 +38,10 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
       return {
         id: game.id || `game-${Math.random().toString(36).substr(2, 9)}`,
         name: game.name || "Game",
-        title: game.name || "Game", // Add title field
-        date: date, // Add date field
-        time: time, // Add time field
-        location: game.location?.name || "RISE Basketball Facility", // Add location field
+        title: game.name || "Game",
+        date,
+        time,
+        location: game.location?.name || "RISE Basketball Facility",
         description: game.description || "",
         win_team: game.win_team,
         lose_team: game.lose_team,
@@ -80,8 +53,7 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
     })
 
     const byDate: Record<string, Match[]> = {}
-
-    matches.forEach((match: Match) => {
+    matches.forEach((match) => {
       if (match.date) {
         if (!byDate[match.date]) {
           byDate[match.date] = []
@@ -97,7 +69,6 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
   }
 })
 
-// Create slice
 const gamesSlice = createSlice({
   name: "games",
   initialState,
@@ -128,11 +99,9 @@ const gamesSlice = createSlice({
   },
 })
 
-// Export actions and reducer
 export const { clearMatches } = gamesSlice.actions
 export default gamesSlice.reducer
 
-// Selectors
 export const selectAllMatches = (state: RootState) => state.games.items
 export const selectMatchesByDate = (state: RootState, date: string) => state.games.byDate[date] || []
 export const selectMatchesStatus = (state: RootState) => state.games.status

@@ -1,38 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit"
 import { loginUser } from "@/utils/api"
-
-// Define types
-export interface MembershipInfo {
-  membership_name: string
-  membership_description: string
-  membership_benefits: string
-  plan_name: string
-  start_date: string
-  renewal_date: string
-}
-
-export interface User {
-  id: string
-  uuid?: string
-  email: string
-  firstName: string
-  lastName: string
-  role: string
-  jerseyNumber?: string
-  profileImage?: string
-  countryCode: string
-  token: string
-  isAuthenticated?: boolean
-  membership_info?: MembershipInfo
-}
-
-
-
-interface UserState {
-  data: User | null
-  status: "idle" | "loading" | "succeeded" | "failed"
-  error: string | null
-}
+import type { User, UserState } from "@/types"
 
 // Initial state
 const initialState: UserState = {

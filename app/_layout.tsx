@@ -1,3 +1,5 @@
+import { useEffect } from "react"
+import { refreshBackendJwt } from "@/utils/api"
 import { Stack } from "expo-router"
 import "./globals.css"
 import { useFonts } from "expo-font"
@@ -28,6 +30,27 @@ export default function RootLayout() {
     "Outfit-Thin": require("../assets/fonts/Outfit-Thin.ttf"),
     "ProtestStrike-Regular": require("../assets/fonts/ProtestStrike-Regular.ttf"),
   })
+
+   // ✅ Refresh backend JWT on mount + every 45 min
+  useEffect(() => {
+    const setupJwtRefresh = async () => {
+      try {
+        console.log("🔄 Refreshing backend JWT on startup")
+        await refreshBackendJwt()
+
+        const interval = setInterval(() => {
+          console.log("🔁 Refreshing backend JWT via interval")
+          refreshBackendJwt().catch((err) => console.warn("❌ Interval JWT refresh failed:", err))
+        }, 45 * 60 * 1000) // 45 minutes
+
+        return () => clearInterval(interval)
+      } catch (err) {
+        console.error("❌ Initial JWT refresh failed:", err)
+      }
+    }
+
+    setupJwtRefresh()
+  }, [])
 
   if (!fontsLoaded) {
     return (

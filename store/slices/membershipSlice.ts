@@ -1,22 +1,5 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit"
-
-interface MembershipInfo {
-  membership_description: string;
-  membership_name: string;
-  membership_plan_name: string;
-  membership_benefits: string;
-  price: string;
-  renewal_date: string;
-  start_date: string;
-  status: string;
-}
-
-
-interface MembershipState {
-  data: MembershipInfo | null
-  status: "idle" | "succeeded"
-  error: string | null
-}
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
+import type { MembershipInfo, MembershipState } from "@/types"
 
 const initialState: MembershipState = {
   data: null,

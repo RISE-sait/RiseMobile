@@ -105,7 +105,6 @@ const upcomingEvent = allEvents
     { label: "Team Roster", route: "/screens/teamRoster", image: images.teamRoster },
     { label: "Training Schedule", route: "/coachCalendar", image: images.schedules },
     { label: "Match History", route: "/screens/matchHistory", image: images.matchHistory },
-    { label: "Player Stats", route: "/screens/playerStats", image: images.playerStats },
   ];
 
   if (isLoading) {
@@ -131,7 +130,11 @@ const upcomingEvent = allEvents
               firstName={user.firstName}
               lastName={user.lastName}
               role={user.role}
-              number={user?.role === "Player" && user.jerseyNumber ? user.jerseyNumber.toString() : "CJ"} // ✅ Only for players
+                number={
+                  user?.role === "Player" && user.jerseyNumber
+                    ? user.jerseyNumber.toString()
+                    : `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase()
+                }
               profileImage={user.profileImage ? { uri: user.profileImage } : images.coachHeadshot}
               countryCode={user?.countryCode || "US"} // ✅ Ensure countryCode is always defined
               teamLogo={images.teamLogo}
@@ -140,9 +143,10 @@ const upcomingEvent = allEvents
             <Text className="text-white text-center">User data not available</Text>
           )}
         </View>
+        
 
         {/* Upcoming Game Section */}
-        {upcomingEvent && <UpcomingCard event={mapToUpcomingCardFormat(upcomingEvent)} />}
+        {upcomingEvent && <UpcomingCard  event={mapToUpcomingCardFormat(upcomingEvent)} />}
 
 
 

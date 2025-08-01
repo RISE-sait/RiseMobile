@@ -1,6 +1,4 @@
-"use client"
-
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,62 +10,31 @@ import {
   Platform,
   FlatList,
   Alert,
-  ActivityIndicator,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { getAuth } from "firebase/auth"
-import { createPractice, createRecurringPractice } from "@/utils/api" // adjust path
-import { useRouter } from "expo-router"
-import { Ionicons, MaterialIcons } from "@expo/vector-icons"
-import * as Haptics from "expo-haptics"
-import { COLORS } from "@/constants/colors"
-import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector"
-import TimeSlotSelector from "@/components/practiceBooking/TimeSlotSelector"
-import TeamSelector from "@/components/practiceBooking/TeamSelector"
-import PracticeTypeSelector from "@/components/practiceBooking/PracticeTypeSelector"
-import EquipmentSelector from "@/components/practiceBooking/EquipmentSelector"
-import RecurringOptions from "@/components/practiceBooking/RecurringOptions"
-import NotesInput from "@/components/practiceBooking/NotesInput"
-import ConfirmationModal from "@/components/practiceBooking/ConfirmationModal"
-import StepIndicator from "@/components/practiceBooking/StepIndicator"
-import FacilitySelector from "@/components/practiceBooking/FacilitySelector"
-import { API_URL } from "@/utils/api"
-import dayjs from "dayjs"
-import { getPracticePrograms } from "@/utils/api"; // or wherever you placed it
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { getAuth } from "firebase/auth";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { COLORS } from "@/constants/colors";
+import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector";
+import TeamSelector from "@/components/practiceBooking/TeamSelector";
+import RecurringOptions from "@/components/practiceBooking/RecurringOptions";
+import NotesInput from "@/components/practiceBooking/NotesInput";
+import ConfirmationModal from "@/components/practiceBooking/ConfirmationModal";
+import StepIndicator from "@/components/practiceBooking/StepIndicator";
+import { createPracticeThunk, createRecurringPracticeThunk } from "@/store/slices/practicesSlice";
+import { useAppDispatch } from "@/store/hooks";
+import { API_URL } from "@/utils/api";
+import { useSelector } from "react-redux"
+import { fetchTeams, selectTeamsForCoach, selectAllTeams } from "@/store/slices/teamsSlice"
+import { RootState } from "@/store"
+import type { CreatePracticePayload, CreateRecurringPracticePayload } from "@/types/practice"
+import dayjs from "dayjs";
+import type { Team } from "@/types/team"
+import { TeamDisplay } from "@/types/ui";
 
 
-// Define the types
-interface Team {
-  id: string
-  name: string
-  players: number
-  icon: string
-  image: string
-}
-interface PracticeType {
-  id: string;
-  name: string;
-  description?: string;
-  duration: number; // ✅ remove the ?
-  visibility?: string;
-}
-
-
-
-interface Facility {
-  id: string
-  name: string
-  type: string
-  icon: string
-  availability: string
-  image: string
-}
-
-interface TimeSlot {
-  time: string
-  availability: string
-  timestamp: number
-}
 
 interface RecurringOptionsType {
   weekly: boolean
@@ -76,28 +43,14 @@ interface RecurringOptionsType {
   occurrences: number
 }
 
-const teams: Team[] = [
-  { id: "1", name: "Varsity Team", players: 12, icon: "users", image: "https://source.unsplash.com/random/300x200/?basketball-team" },
-  { id: "2", name: "Junior Varsity", players: 10, icon: "users", image: "https://source.unsplash.com/random/300x200/?basketball-youth" },
-  { id: "3", name: "Development Squad", players: 8, icon: "child", image: "https://source.unsplash.com/random/300x200/?basketball-training" },
-  { id: "4", name: "All-Stars", players: 15, icon: "star", image: "https://source.unsplash.com/random/300x200/?basketball-stars" },
-]
 
-
-
-const facilities: Facility[] = [
-  { id: "1", name: "Main Gym", type: "Indoor Court", icon: "building", availability: "high", image: "https://source.unsplash.com/random/300x200/?basketball-court" },
-  { id: "2", name: "Practice Court", type: "Indoor Court", icon: "basketball-ball", availability: "medium", image: "https://source.unsplash.com/random/300x200/?gym" },
-  { id: "3", name: "Outdoor Court", type: "Outdoor Court", icon: "cloud-sun", availability: "high", image: "https://source.unsplash.com/random/300x200/?outdoor-basketball" },
-  { id: "4", name: "Fitness Center", type: "Training Facility", icon: "dumbbell", availability: "low", image: "https://source.unsplash.com/random/300x200/?fitness-center" },
-]
 
 const CoachPracticeBooking = () => {
-  const [practiceTypes, setPracticeTypes] = useState<PracticeType[]>([]);
-  const [loadingPrograms, setLoadingPrograms] = useState(true);
-  const [programsError, setProgramsError] = useState<string | null>(null);
 
   const router = useRouter()
+  const dispatch = useAppDispatch();
+
+
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -110,11 +63,7 @@ const CoachPracticeBooking = () => {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
   const [endTime, setEndTime] = useState(new Date(new Date().setHours(new Date().getHours() + 2)))
   const [showEndTimePicker, setShowEndTimePicker] = useState(false)
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
-  const [selectedPracticeType, setSelectedPracticeType] = useState<PracticeType | null>(null)
-  const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null)
-  const [showFacilityModal, setShowFacilityModal] = useState(false)
-  const [selectedEquipment, setSelectedEquipment] = useState<{ id: string; name: string }[]>([])
+  const [selectedTeam, setSelectedTeam] = useState<TeamDisplay | null>(null)
   const [isRecurring, setIsRecurring] = useState(false)
   const [recurringOptions, setRecurringOptions] = useState<RecurringOptionsType>({
     weekly: true,
@@ -124,68 +73,47 @@ const CoachPracticeBooking = () => {
   })
   const [notes, setNotes] = useState("")
   const [showConfirmation, setShowConfirmation] = useState(false)
-  const [showEquipmentModal, setShowEquipmentModal] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({})
+  
+  const user = useSelector((state: RootState) => state.user.data)
 
-  // Generate time slots based on selected date and facility
-  const generateTimeSlots = useMemo(() => {
-    // This would normally come from an API based on the selected date and facility
-    const slots: TimeSlot[] = []
-    const startHour = 6 // Start at 6 AM
-    const endHour = 22 // End at 10 PM
-    
-    // If we have a selected facility, adjust availability based on its general availability
-    const availabilityChance = selectedFacility ? 
-      (selectedFacility.availability === "high" ? 0.8 : 
-       selectedFacility.availability === "medium" ? 0.6 : 0.4) : 0.7
-    
-    for (let hour = startHour; hour < endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        // Skip times in the past for today
-        const slotTime = new Date(date)
-        slotTime.setHours(hour, minute)
-        
-        if (date.toDateString() === new Date().toDateString() && slotTime < new Date()) {
-          continue
-        }
-        
-        const time = `${hour % 12 || 12}:${minute === 0 ? "00" : minute} ${hour < 12 ? "AM" : "PM"}`
-        const availability = Math.random() > (1 - availabilityChance) ? 
-          (Math.random() > 0.5 ? "high" : "medium") : "low"
-        
-        slots.push({ 
-          time, 
-          availability,
-          timestamp: slotTime.getTime()
-        })
-      }
-    }
-    
-    return slots
-  }, [date, selectedFacility])
+  const coachTeams = useSelector((state: RootState) =>
+  user?.id ? selectTeamsForCoach(state, user.id) : []
+  )
 
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
-  useEffect(() => {
-  const fetchPrograms = async () => {
+
+
+
+
+
+useEffect(() => {
+  const fetchCoachTeams = async () => {
     try {
-      const programs = await getPracticePrograms();
-      setPracticeTypes(programs);
-    } catch (error: any) {
-      setProgramsError(error.message || "Failed to load programs.");
-    } finally {
-      setLoadingPrograms(false);
-    }
-  };
+      const firebaseUser = getAuth().currentUser
+      if (!firebaseUser) throw new Error("User not authenticated")
 
-  fetchPrograms();
-}, []);
+      const firebaseToken = await firebaseUser.getIdToken(true)
+      const jwtResponse = await fetch(`${API_URL}/auth`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${firebaseToken}` },
+        body: JSON.stringify({ email: firebaseUser.email }),
+      })
+
+      const jwt = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
+      if (!jwt) throw new Error("Failed to retrieve backend JWT")
+
+      dispatch(fetchTeams(jwt))
+    } catch (error) {
+      console.error("❌ Failed to fetch coach teams:", error)
+    }
+  }
+
+  fetchCoachTeams()
+}, [dispatch])
 
   
-  useEffect(() => {
-    setTimeSlots(generateTimeSlots)
-  }, [generateTimeSlots])
 
   useEffect(() => {
     Animated.parallel([
@@ -194,41 +122,15 @@ const CoachPracticeBooking = () => {
     ]).start()
   }, [])
 
-  // Update end time when start time or practice type changes
-  useEffect(() => {
-    if (selectedPracticeType) {
-      const newEndTime = new Date(startTime)
-      newEndTime.setMinutes(newEndTime.getMinutes() + selectedPracticeType.duration)
-      setEndTime(newEndTime)
-    }
-  }, [startTime, selectedPracticeType])
+
 
   const validateCurrentStep = () => {
     const errors: {[key: string]: string} = {}
     
-    if (currentStep === 1) {
-      if (!selectedFacility) {
-        errors.facility = "Please select a facility"
-      }
-      
-      // Check if the selected time range is valid
-      if (endTime <= startTime) {
-        errors.time = "End time must be after start time"
-      }
-      
-      // Check if the selected date is in the past
-      if (date < new Date(new Date().setHours(0, 0, 0, 0))) {
-        errors.date = "Cannot book practice in the past"
-      }
-    }
-    
+   
     if (currentStep === 2) {
       if (!selectedTeam) {
         errors.team = "Please select a team"
-      }
-      
-      if (!selectedPracticeType) {
-        errors.practiceType = "Please select a practice type"
       }
     }
     
@@ -264,98 +166,69 @@ const CoachPracticeBooking = () => {
     }
   }
   
-  const handleTimeSlotSelect = (slot: TimeSlot) => {
-    const slotDate = new Date(slot.timestamp)
-    setStartTime(slotDate)
-    
-    // If we have a practice type selected, set the end time based on duration
-    if (selectedPracticeType) {
-      const newEndTime = new Date(slotDate)
-      newEndTime.setMinutes(newEndTime.getMinutes() + selectedPracticeType.duration)
-      setEndTime(newEndTime)
-    } else {
-      // Default to 2 hours if no practice type selected
-      const newEndTime = new Date(slotDate)
-      newEndTime.setHours(newEndTime.getHours() + 2)
-      setEndTime(newEndTime)
-    }
-  }
+const formatTeamForDisplay = (team: Team) => ({
+  ...team,
+  players: 0, // or estimate if you later add roster
+  icon: "users",
+  image: `https://source.unsplash.com/random/300x200/?basketball-${team.id}`,
+})
+
+const payload: CreatePracticePayload = {
+  start_time: startTime.toISOString(),
+  end_time: endTime.toISOString(),
+  location_id: "e2d1cd76-592f-4c06-89ee-9027cfbbe9de", // replace with real location_id if available
+  court_id: "41870572-ecfa-441d-af09-d2d7ad9b654c", // replace with real court_id if available
+  status: "scheduled",
+  team_id: selectedTeam?.id ?? "",
+}
+
+
+
+const recurringPayload: CreateRecurringPracticePayload = {
+  day: dayjs(date).format("dddd").toUpperCase(), // e.g. "MONDAY"
+  event_start_at: startTime.toISOString(),
+  event_end_at: endTime.toISOString(),
+  location_id: "default",
+  team_id: selectedTeam?.id ?? "",
+  recurrence_start_at: dayjs(date).toISOString(),
+  recurrence_end_at: dayjs(date)
+    .add(recurringOptions.occurrences - 1, recurringOptions.weekly ? "week" : recurringOptions.biweekly ? "week" : "month")
+    .toISOString(),
+}
   
-  const handleConfirmBooking = async () => {
-  setIsSubmitting(true);
+const handleConfirmBooking = async () => {
+  if (!selectedTeam) {
+    Alert.alert("Missing Info", "Please select a team.")
+    return
+  }
 
   try {
-    // 🔐 Firebase → JWT exchange
-    const firebaseUser = getAuth().currentUser;
-    if (!firebaseUser) throw new Error("No user is logged in.");
+    setIsSubmitting(true)
 
-    const firebaseToken = await firebaseUser.getIdToken(true);
-    const jwtResponse = await fetch(`${API_URL}/auth`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${firebaseToken}` },
-      body: JSON.stringify({ email: firebaseUser.email }),
-    });
-
-    const jwt = jwtResponse.headers.get("authorization")?.replace("Bearer ", "");
-    if (!jwt) throw new Error("Could not retrieve backend JWT");
-
-    // 🧱 Payload construction helpers
-    const getDayOfWeek = (date: Date) =>
-      ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][date.getDay()];
-
-    const formatTime = (date: Date) => date.toTimeString().split(" ")[0]; // "HH:mm:ss"
-
-    // 🎯 API request
     if (isRecurring) {
-      const recurrenceStart = dayjs(startTime);
-      const recurrenceEnd = recurrenceStart.add(recurringOptions.occurrences - 1, "week");
-
-      const recurringPayload = {
-        day: getDayOfWeek(startTime),
-        event_start_at: formatTime(startTime),
-        event_end_at: formatTime(endTime),
-        location_id: selectedFacility?.id,
-        program_id: selectedPracticeType?.id,
-        team_id: selectedTeam?.id,
-        recurrence_start_at: recurrenceStart.toISOString(),
-        recurrence_end_at: recurrenceEnd.toISOString(),
-      };
-
-      await createRecurringPractice(recurringPayload, jwt);
+      await dispatch(createRecurringPracticeThunk(recurringPayload)).unwrap()
     } else {
-      const oneTimePayload = {
-        start_at: startTime.toISOString(),
-        end_at: endTime.toISOString(),
-        location_id: selectedFacility?.id,
-        program_id: selectedPracticeType?.id,
-        team_id: selectedTeam?.id,
-      };
-
-      await createPractice(oneTimePayload, jwt);
+      await dispatch(createPracticeThunk(payload)).unwrap()
     }
 
-    // ✅ Success UX
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setIsSubmitting(false);
-    setShowConfirmation(false);
+    setShowConfirmation(false)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
 
-    Alert.alert(
-      "Practice Booked Successfully",
-      `Your practice has been scheduled for ${date.toDateString()} at ${startTime.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`,
-      [
-        { text: "View Schedule", onPress: () => router.push("/(coach)/(tabs)/coachCalendar") },
-        { text: "Done", onPress: () => router.back() },
-      ]
-    );
+    Alert.alert("Success", "Your practice has been booked!")
+    router.back()
+
   } catch (error) {
-    console.error("❌ Booking error:", error);
-    setIsSubmitting(false);
-    Alert.alert("Error", (error as Error).message || "Failed to book practice.");
+    console.error("❌ Booking error:", error)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+    Alert.alert("Booking Failed", "Something went wrong. Please try again.")
+  } finally {
+    setIsSubmitting(false)
   }
-};
+}
+
+
+
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
@@ -384,37 +257,6 @@ const CoachPracticeBooking = () => {
               {/* Step 1: Facility, Date & Time Selection */}
               {currentStep === 1 && (
                 <>
-                  <TouchableOpacity 
-                    style={[
-                      styles.facilitySelector,
-                      selectedFacility ? styles.selectedFacilitySelector : null,
-                      formErrors.facility ? styles.errorInput : null
-                    ]} 
-                    onPress={() => setShowFacilityModal(true)}
-                  >
-                    <View style={styles.facilitySelectorContent}>
-                      {selectedFacility ? (
-                        <>
-                          <MaterialIcons name="location-on" size={24} color={COLORS.primary} />
-                          <View style={styles.facilityInfo}>
-                            <Text style={styles.facilityName}>{selectedFacility.name}</Text>
-                            <Text style={styles.facilityType}>{selectedFacility.type}</Text>
-                          </View>
-                        </>
-                      ) : (
-                        <>
-                          <MaterialIcons name="add-location-alt" size={24} color={COLORS.primary} />
-                          <Text style={styles.facilityPlaceholder}>Select Facility</Text>
-                        </>
-                      )}
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={COLORS.text} />
-                  </TouchableOpacity>
-                  
-                  {formErrors.facility && (
-                    <Text style={styles.errorText}>{formErrors.facility}</Text>
-                  )}
-
                   <DateTimeSelector
                     label="Date"
                     date={date}
@@ -425,19 +267,6 @@ const CoachPracticeBooking = () => {
                     hasError={!!formErrors.date}
                     errorMessage={formErrors.date}
                   />
-                  
-                  <View style={styles.timeSelectionContainer}>
-                    <Text style={styles.timeSelectionTitle}>Available Time Slots</Text>
-                    {timeSlots.length > 0 ? (
-                      <TimeSlotSelector 
-                        timeSlots={timeSlots} 
-                        selectTimeSlot={handleTimeSlotSelect}
-                        selectedTime={startTime.getTime()}
-                      />
-                    ) : (
-                      <Text style={styles.noTimeSlotsText}>No available time slots for this date</Text>
-                    )}
-                  </View>
                   
                   <View style={styles.timeRangeContainer}>
                     <DateTimeSelector
@@ -467,34 +296,22 @@ const CoachPracticeBooking = () => {
               {currentStep === 2 && (
                 <>
                   <TeamSelector 
-                    teams={teams} 
-                    selectedTeam={selectedTeam} 
+                    teams={coachTeams.map(formatTeamForDisplay)}
+                    selectedTeam={selectedTeam}
                     setSelectedTeam={setSelectedTeam}
                     hasError={!!formErrors.team}
                     errorMessage={formErrors.team}
                   />
-                  <PracticeTypeSelector
-                    practiceTypes={practiceTypes}
-                    selectedPracticeType={selectedPracticeType}
-                    setSelectedPracticeType={setSelectedPracticeType}
-                    hasError={!!formErrors.practiceType}
-                    errorMessage={formErrors.practiceType}
-                  />
+
+
+
+
                 </>
               )}
 
-              {/* Step 3: Equipment & Notes */}
+              {/* Step 3: Notes */}
               {currentStep === 3 && (
                 <>
-                  <TouchableOpacity style={styles.selectorButton} onPress={() => setShowEquipmentModal(true)}>
-                    <Text style={styles.selectorButtonText}>
-                      {selectedEquipment.length > 0
-                        ? `Selected Equipment (${selectedEquipment.length})`
-                        : "Select Equipment"}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={20} color={COLORS.text} />
-                  </TouchableOpacity>
-
                   <RecurringOptions
                     isRecurring={isRecurring}
                     setIsRecurring={setIsRecurring}
@@ -505,23 +322,6 @@ const CoachPracticeBooking = () => {
                   <NotesInput notes={notes} setNotes={setNotes} />
                 </>
               )}
-
-              {/* Equipment Selector Modal */}
-              <EquipmentSelector
-                selectedEquipment={selectedEquipment}
-                setSelectedEquipment={setSelectedEquipment}
-                showEquipmentModal={showEquipmentModal}
-                setShowEquipmentModal={setShowEquipmentModal}
-              />
-              
-              {/* Facility Selector Modal */}
-              <FacilitySelector
-                facilities={facilities}
-                selectedFacility={selectedFacility}
-                setSelectedFacility={setSelectedFacility}
-                visible={showFacilityModal}
-                onClose={() => setShowFacilityModal(false)}
-              />
             </Animated.View>
           )}
           contentContainerStyle={styles.scrollViewContent}
@@ -557,9 +357,7 @@ const CoachPracticeBooking = () => {
         startTime={startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         endTime={endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         team={selectedTeam ? selectedTeam.name : undefined}
-        practiceType={selectedPracticeType ? selectedPracticeType.name : undefined}
-        facility={selectedFacility ? selectedFacility.name : undefined}
-        equipment={selectedEquipment.map((eq) => eq.name)}
+        facility={"RISE Basketball Complex"}
         notes={notes}
         isRecurring={isRecurring}
         recurringDetails={isRecurring ? 
@@ -666,44 +464,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     fontWeight: "bold",
-  },
-  facilitySelector: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: COLORS.cardLight,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: "transparent",
-  },
-  selectedFacilitySelector: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
-  },
-  facilitySelectorContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  facilityInfo: {
-    marginLeft: 12,
-  },
-  facilityName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.text,
-  },
-  facilityType: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  facilityPlaceholder: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    marginLeft: 12,
   },
   timeSelectionContainer: {
     marginTop: 16,
