@@ -3,10 +3,11 @@
 import type React from "react"
 import { useState } from "react"
 import { View, Text, Image, TouchableOpacity } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
 import EventDetailsModal from "./EventDetailsModal"
 
 type UpcomingCardProps = {
-  event: {
+  event?: {
     id: string
     date: string
     homeTeam?: string
@@ -18,7 +19,7 @@ type UpcomingCardProps = {
     awayLogo?: any
     bgImage?: string
     type: "match" | "practice" | "class" | "meeting" | "event" | "course"
-  }
+  } | null
 }
 
 const getStatusColor = (status: string) => {
@@ -36,6 +37,30 @@ const getStatusColor = (status: string) => {
 
 const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
   const [modalVisible, setModalVisible] = useState(false)
+
+  // If no event, show fallback UI
+  if (!event) {
+    return (
+      <View className="w-full px-10 mt-10">
+        <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING EVENTS</Text>
+        <View className="bg-[#444444] h-32 rounded-xl overflow-hidden mt-3 flex justify-center items-center relative">
+          {/* Subtle background pattern/gradient */}
+          <View className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-60" />
+          
+          {/* Content */}
+          <View className="flex items-center justify-center space-y-2">
+            <Ionicons name="calendar-outline" size={32} color="#9CA3AF" />
+            <Text className="text-gray-400 font-Oswald-Medium text-lg text-center">
+              No upcoming events
+            </Text>
+            <Text className="text-gray-500 font-Oswald-Regular text-sm text-center px-4">
+              Check back later for new practices and matches
+            </Text>
+          </View>
+        </View>
+      </View>
+    )
+  }
 
   // Default background image if none provided
   const defaultBgImage =
@@ -121,4 +146,3 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
 }
 
 export default UpcomingCard
-

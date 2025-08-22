@@ -63,22 +63,68 @@ export default function CoachHomeScreen() {
     setModalVisible(!modalVisible);
   };
 
-  // Get today's date
-  const today = dayjs().format("YYYY-MM-DD");
+// Replace this section in your CoachHomeScreen component:
 
-  // Filter upcoming matches/practices **only in the future**
-  // Map both matches and practices into a common format
-    const allEvents = [
-      ...matches.map((match) => ({ ...match, type: "match" })),
-      ...practices.map((practice) => ({ ...practice, type: "practice" })),
+
+
+const today = dayjs(); // Keep as dayjs object, don't format to string
+// Add this debugging section right after your useEffect that fetches the user:
+
+useEffect(() => {
+  // Debug Redux data
+  console.log("🔍 DEBUG: Redux matches count:", matches.length);
+  console.log("🔍 DEBUG: Redux practices count:", practices.length);
+  console.log("🔍 DEBUG: Full matches array:", JSON.stringify(matches, null, 2));
+  console.log("🔍 DEBUG: Full practices array:", JSON.stringify(practices, null, 2));
+  
+  // Check if arrays exist but have different structure
+  if (matches.length > 0) {
+    console.log("🔍 DEBUG: First match structure:", Object.keys(matches[0]));
+    console.log("🔍 DEBUG: First match data:", matches[0]);
+  }
+  
+  if (practices.length > 0) {
+    console.log("🔍 DEBUG: First practice structure:", Object.keys(practices[0]));
+    console.log("🔍 DEBUG: First practice data:", practices[0]);
+  }
+}, [matches, practices]);
+
+// Also debug the mapping process:
+const allEvents = [
+  ...matches.map((match, index) => {
+    console.log(`🔍 DEBUG: Mapping match ${index}:`, match);
+    return { ...match, type: "match" };
+  }),
+  ...practices.map((practice, index) => {
+    console.log(`🔍 DEBUG: Mapping practice ${index}:`, practice);
+    return { ...practice, type: "practice" };
+  }),
 ];
+
+console.log("🔍 DEBUG: All events after mapping:", allEvents.length);
+console.log("🔍 DEBUG: All events data:", JSON.stringify(allEvents, null, 2));
+
+// Only get upcoming events (future + today) - no fallback to past events
+const upcomingEvent = allEvents
+  .filter((event) => {
+    const eventDate = dayjs(event.date);
+    const isToday = eventDate.isSame(today, 'day');
+    const isFuture = eventDate.isAfter(today, 'day');
+    
+    console.log(`Event ${event.id}: date=${event.date}, isToday=${isToday}, isFuture=${isFuture}, today=${today.format("YYYY-MM-DD")}`);
+    
+    return isToday || isFuture;
+  })
+  .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0];
+
+console.log("📢 Final upcoming event:", upcomingEvent);
 
 const mapToUpcomingCardFormat = (event: any) => ({
   id: event.id,
   date: event.date || dayjs().format("YYYY-MM-DD"),
   homeTeam: event.homeTeam || "Home Team",
   awayTeam: event.awayTeam || "Away Team",
-  status: "Upcoming" as "Upcoming", // ✅ Explicit literal
+  status: "Upcoming" as "Upcoming",
   location: event.location || "RISE Basketball Facility",
   description: event.description || event.title || "Upcoming Event",
   homeLogo:
@@ -93,11 +139,6 @@ const mapToUpcomingCardFormat = (event: any) => ({
   type: event.type,
 });
 
-
-
-const upcomingEvent = allEvents
-  .filter((event) => dayjs(event.date).isAfter(today))
-  .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0];
 
 
 
@@ -145,10 +186,8 @@ const upcomingEvent = allEvents
         </View>
         
 
-        {/* Upcoming Game Section */}
-        {upcomingEvent && <UpcomingCard  event={mapToUpcomingCardFormat(upcomingEvent)} />}
-
-
+        {/* Upcoming Game Section - Always render, component handles fallback */}
+        <UpcomingCard event={upcomingEvent ? mapToUpcomingCardFormat(upcomingEvent) : null} />
 
         {/* Navigation Buttons Section */}
         <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />
