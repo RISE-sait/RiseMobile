@@ -215,8 +215,10 @@ export default function AthleteHome() {
     { label: "Schedule", route: "/calendar", image: images.schedules },
     { label: "Events", route: "/screens/events", image: images.event },
     { label: "Membership", route: "/screens/membership", image: images.memberships },
-    { label: "Store", route: "/screens/store/store", image: images.stores },
   ]
+  
+  // 调试日志：确认我们在运动员主页
+  console.log("🏀 ATHLETE HOME: navigationOptions =", navigationOptions.map(opt => opt.label))
 
   if (isLoading) {
     return (

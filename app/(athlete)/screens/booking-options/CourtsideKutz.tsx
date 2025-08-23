@@ -15,9 +15,11 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { FontAwesome6 } from "@expo/vector-icons"
 import dayjs from "dayjs"
 import * as Haptics from "expo-haptics"
+import { useAppSelector } from "@/store/hooks"
 
 import CalendarCard from "@/components/calendar/CalendarCard"
 import BackButton from "@/components/buttons/BackButton"
+import { getHaircutAndBarberServices, createHaircutBooking } from "@/utils/api"
 
 // Define types for our data
 interface Barber {
@@ -196,10 +198,74 @@ const BarberBookingScreen = () => {
   const [bookingSuccess, setBookingSuccess] = useState(false)
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
+  
+  // Real data state
+  const [barbersData, setBarbersData] = useState<Barber[]>([])
+  const [servicesData, setServicesData] = useState<Service[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(40)).current
+  
+  // Get user token from Redux store
+  const user = useAppSelector((state) => state.user.data)
+
+  // Fetch real data from API
+  useEffect(() => {
+    const fetchHaircutData = async () => {
+      try {
+        setIsLoading(true)
+        setApiError(null)
+        
+        const data = await getHaircutAndBarberServices()
+        console.log("📢 Fetched haircut data:", data)
+        
+        // Transform API data to match our interface
+        // Note: This will need to be adjusted based on the actual API response structure
+        if (data && Array.isArray(data)) {
+          // Extract barbers and services from API response
+          // This is a placeholder - adjust based on actual API structure
+          const transformedBarbers = data.map((item: any, index: number) => ({
+            id: item.barber_id || `b${index + 1}`,
+            name: item.barber_name || `Barber ${index + 1}`,
+            image: item.barber_image || "https://images.squarespace-cdn.com/content/v1/5c4d7e227e3c3a6ec70a5ac7/1596359610389-QDVB9CXJRSWGSPPNUES6/IMG_8599.jpg",
+            rating: item.rating || 4.5,
+            specialties: item.specialties || ["General Services"],
+            availability: item.availability || ["9:00 AM", "10:00 AM", "11:00 AM", "1:00 PM", "2:00 PM", "3:00 PM"]
+          }))
+          
+          const transformedServices = data.map((item: any, index: number) => ({
+            id: item.service_id || `s${index + 1}`,
+            name: item.service_name || `Service ${index + 1}`,
+            icon: item.icon || "scissors",
+            price: item.price || 25,
+            duration: item.duration || 30,
+            description: item.description || "Professional service"
+          }))
+          
+          setBarbersData(transformedBarbers.length > 0 ? transformedBarbers : barbers)
+          setServicesData(transformedServices.length > 0 ? transformedServices : services)
+        } else {
+          // Fallback to mock data if API response is unexpected
+          console.log("📢 Using fallback mock data")
+          setBarbersData(barbers)
+          setServicesData(services)
+        }
+      } catch (error) {
+        console.error("❌ Error fetching haircut data:", error)
+        setApiError("Failed to load barber services. Using demo data.")
+        // Fallback to mock data on error
+        setBarbersData(barbers)
+        setServicesData(services)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchHaircutData()
+  }, [])
 
   // Update time slots when barber changes
   useEffect(() => {
@@ -278,17 +344,43 @@ const BarberBookingScreen = () => {
   }
 
   // Handle booking confirmation
-  const handleConfirmBooking = () => {
-    if (!selectedBarber || !selectedService || !selectedTime) return
+  const handleConfirmBooking = async () => {
+    if (!selectedBarber || !selectedService || !selectedTime || !user?.token) {
+      console.error("❌ Missing required data for booking")
+      return
+    }
 
     setIsBooking(true)
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Prepare booking details for API
+      const bookingDetails = {
+        barber_id: selectedBarber.id,
+        service_name: selectedService.name,
+        start_time: `${selectedDate} ${selectedTime}`,
+        duration: selectedService.duration,
+        price: selectedService.price,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        date: selectedDate,
+        time: selectedTime
+      }
+
+      console.log("📤 Creating haircut booking:", bookingDetails)
+      
+      // Call the real API
+      const response = await createHaircutBooking(bookingDetails, user.token)
+      
+      console.log("✅ Booking created successfully:", response)
       setIsBooking(false)
       setBookingSuccess(true)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-    }, 1500)
+    } catch (error) {
+      console.error("❌ Error creating booking:", error)
+      setIsBooking(false)
+      setApiError("Failed to create booking. Please try again.")
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+    }
   }
 
   // Handle next step
@@ -458,27 +550,43 @@ const BarberBookingScreen = () => {
   )
 
   // Render step 1: Select barber and service
-  const renderStep1 = () => (
-    <View className="flex-1">
-      <Text className="text-white-100 text-xl font-bold mb-4">Choose Your Barber</Text>
-      <FlatList
-        data={barbers}
-        renderItem={renderBarberItem}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }} // ✅ Prevents overlap issues
-      />
+  const renderStep1 = () => {
+    if (isLoading) {
+      return (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#FFD700" />
+          <Text className="text-white-100 mt-4">Loading barber services...</Text>
+        </View>
+      )
+    }
 
-      <Text className="text-white-100 text-xl font-bold mb-4">Select Service</Text>
-      <FlatList
-        data={services}
-        renderItem={renderServiceItem}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
+    return (
+      <View className="flex-1">
+        {apiError && (
+          <View className="bg-yellow-100/20 p-3 rounded-lg mb-4">
+            <Text className="text-yellow-400 text-sm">{apiError}</Text>
+          </View>
+        )}
+        
+        <Text className="text-white-100 text-xl font-bold mb-4">Choose Your Barber</Text>
+        <FlatList
+          data={barbersData}
+          renderItem={renderBarberItem}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }} // ✅ Prevents overlap issues
+        />
 
-      />
-    </View>
-  )
+        <Text className="text-white-100 text-xl font-bold mb-4">Select Service</Text>
+        <FlatList
+          data={servicesData}
+          renderItem={renderServiceItem}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
+    )
+  }
 
   // Render step 2: Select date and time
   const renderStep2 = () => (
@@ -660,6 +768,12 @@ const BarberBookingScreen = () => {
                     <Text className="text-gold-100 font-bold">${selectedService?.price}</Text>
                   </View>
                 </View>
+
+                {apiError && (
+                  <View className="bg-red-100/20 p-3 rounded-lg mb-4">
+                    <Text className="text-red-400 text-sm text-center">{apiError}</Text>
+                  </View>
+                )}
 
                 <TouchableOpacity
                   onPress={handleConfirmBooking}

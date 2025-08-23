@@ -203,3 +203,50 @@ export const registerUser = async (
     throw error;
   }
 };
+
+// 🔹 **Haircut Booking API Functions**
+
+// Get all haircut services and barbers
+export const getHaircutAndBarberServices = async (): Promise<any> => {
+  try {
+    const response = await axios.get(`${API_URL}/haircuts/services`);
+    console.log("✅ Haircut services fetched:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to fetch haircut services:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
+// Create a new haircut booking
+export const createHaircutBooking = async (bookingDetails: any, token: string): Promise<any> => {
+  try {
+    const response = await axios.post(`${API_URL}/haircuts/events`, bookingDetails, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    console.log("✅ Haircut booking created:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to create haircut booking:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
+// Get upcoming bookings for the authenticated user
+export const getUpcomingBookings = async (token: string): Promise<any> => {
+  try {
+    const response = await axios.get(`${API_URL}/bookings/upcoming`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+    console.log("✅ Upcoming bookings fetched:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to fetch upcoming bookings:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
