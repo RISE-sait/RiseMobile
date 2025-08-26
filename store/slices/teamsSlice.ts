@@ -2,23 +2,8 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import type { RootState } from "@/store"
+import type { Team, TeamsState } from "@/types"
 
-export interface Team {
-  id: string
-  name: string
-  capacity?: number
-  coach_id?: string
-  created_at?: string
-  updated_at?: string
-}
-
-interface TeamsState {
-  entities: Record<string, Team>
-  ids: string[]
-  loading: "idle" | "pending" | "succeeded" | "failed"
-  error: string | null
-  lastFetched: number | null
-}
 
 const initialState: TeamsState = {
   entities: {},
@@ -74,6 +59,10 @@ export const fetchTeams = createAsyncThunk("teams/fetchTeams", async (token: str
     return rejectWithValue("An unknown error occurred")
   }
 })
+
+export const selectTeamsForCoach = (state: RootState, coachId: string) =>
+  selectAllTeams(state).filter((team) => team.coach?.id === coachId)
+
 
 // Fetch a single team by ID
 export const fetchTeamById = createAsyncThunk(

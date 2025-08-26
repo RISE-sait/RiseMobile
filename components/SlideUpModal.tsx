@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Modal, View, Text, TouchableOpacity, Image, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { fetchQRCode } from "../app/utils/api"; // Import the API function
+import { fetchQRCode } from "@/utils/api"; // Import the API function
 
 interface SlideUpModalProps {
   visible: boolean;

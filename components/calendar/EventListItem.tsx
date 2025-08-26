@@ -51,15 +51,15 @@ const EventListItem: React.FC<EventListItemProps> = ({
  const isMatch = type.toLowerCase() === "match" || type.toLowerCase() === "game"
 
  const handlePress = () => {
-  if (isMatch && program?.id) {
-    // Navigate to match details with program ID
-    router.push(`/screens/match-details/${program.id}?type=match`)
+  if (isMatch) {
+    // Use the actual match ID (not program ID)
+    router.push(`/screens/match-details/${eventId}?type=match`)
   } else {
-    // Fallback to event details
     const idToUse = program?.id || eventId
     router.push(`/screens/event-details/${idToUse}?type=${type}`)
   }
 }
+
 
 
  // Determine background and text colors based on type

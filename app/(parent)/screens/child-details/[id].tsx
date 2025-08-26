@@ -11,7 +11,6 @@ import { LineChart } from "react-native-chart-kit"
 import BackButton from "@/components/buttons/BackButton"
 import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 import images from "@/constants/images"
-import { mockMatches } from "@/app/(athlete)/screens/matchesData"
 import dayjs from "dayjs"
 
 // Get screen dimensions
@@ -206,15 +205,7 @@ export default function ChildDetailsScreen() {
 
   // Get upcoming events for this child
   const today = dayjs().format("YYYY-MM-DD")
-  const upcomingEvents = mockMatches
-    .filter(
-      (match) =>
-        dayjs(match.date).isAfter(today) &&
-        // In a real app, filter by childId
-        (child.sport === "Basketball" ? match.type === "match" : match.type === "practice"),
-    )
-    .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())
-    .slice(0, 3)
+
 
   // Chart data for performance
   const chartData = {

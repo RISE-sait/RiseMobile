@@ -67,25 +67,10 @@ const upcomingBookings = [
 
 // Mock data for featured facilities
 const featuredFacilities = [
+
   {
     id: "1",
-    title: "New Recovery Suite",
-    description: "State-of-the-art recovery equipment now available",
-    image:
-      "https://images.unsplash.com/photo-1570691079236-4bca6c45d440?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    route: "/screens/booking-options/RecoveryRoom",
-  },
-  {
-    id: "2",
-    title: "Podcast Studio",
-    description: "Book time in our professional recording studio",
-    image:
-      "https://images.unsplash.com/photo-1589903308904-1010c2294adc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    route: "/screens/booking-options/PodcastRoom",
-  },
-  {
-    id: "3",
-    title: "Court Availability",
+    title: "Practice Sessions",
     description: "Check open slots for practice sessions",
     image:
       "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
@@ -96,47 +81,12 @@ const featuredFacilities = [
 // Booking options with availability status
 const bookingOptions = [
   {
-    title: "Practice",
+    title: "Practices",
     icon: "basketball-ball",
     route: "/screens/coach-booking/practiceBooking",
     availability: "High",
     color: "#FF7043",
-  },
-  {
-    title: "Wellness",
-    icon: "spa",
-    route: "/screens/comingSoon",
-    availability: "Medium",
-    color: "#66BB6A",
-  },
-  {
-    title: "Podcast Room",
-    icon: "microphone",
-    route: "/screens/comingSoon",
-    availability: "Low",
-    color: "#42A5F5",
-  },
-  {
-    title: "Recovery Room",
-    icon: "bed",
-    route: "/screens/comingSoon",
-    availability: "High",
-    color: "#AB47BC",
-  },
-  {
-    title: "Barber",
-    icon: "cut",
-    route: "/screens/booking-options/CourtsideKutz",
-    availability: "Medium",
-    color: "#FFA726",
-  },
-  {
-    title: "Gym",
-    icon: "dumbbell",
-    route: "/screens/comingSoon",
-    availability: "High",
-    color: "#EC407A",
-  },
+  }
   
 ]
 
@@ -181,18 +131,7 @@ const CoachBook = () => {
     }
   }
 
-  const getAvailabilityColor = (availability) => {
-    switch (availability) {
-      case "High":
-        return COLORS.success
-      case "Medium":
-        return COLORS.warning
-      case "Low":
-        return COLORS.danger
-      default:
-        return COLORS.textSecondary
-    }
-  }
+
 
   const renderFeaturedItem = ({ item, index }) => {
     const inputRange = [(index - 1) * cardWidth, index * cardWidth, (index + 1) * cardWidth]
@@ -489,12 +428,10 @@ const CoachBook = () => {
                         paddingHorizontal: 6,
                         paddingVertical: 2,
                         borderRadius: 4,
-                        backgroundColor: getAvailabilityColor(option.availability) + "20",
                       }}
                     >
                       <Text
                         style={{
-                          color: getAvailabilityColor(option.availability),
                           fontSize: 10,
                           fontWeight: "600",
                         }}

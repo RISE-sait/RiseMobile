@@ -7,11 +7,9 @@ import { COLORS } from "@/constants/colors"
 interface Facility {
   id: string
   name: string
-  type: string
-  icon: string
-  availability: string
-  image: string // Changed from string | undefined to string to match practiceBooking.tsx
+  address: string
 }
+
 
 // Update the props interface to accept the setState function
 interface FacilitySelectorProps {
@@ -62,33 +60,13 @@ const FacilitySelector: React.FC<FacilitySelectorProps> = ({
                   onClose()
                 }}
               >
-                {item.image ? (
-                  <Image source={{ uri: item.image }} style={styles.facilityImage} />
-                ) : (
-                  <View style={styles.facilityIconContainer}>
-                    <FontAwesome5 name={item.icon} size={24} color={COLORS.primary} />
-                  </View>
-                )}
+                <View style={styles.facilityIconContainer}>
+                  <FontAwesome5 name="building" size={24} color={COLORS.primary} />
+                </View>
+
 
                 <View style={styles.facilityDetails}>
                   <Text style={styles.facilityName}>{item.name}</Text>
-                  <Text style={styles.facilityType}>{item.type}</Text>
-
-                  <View style={styles.availabilityContainer}>
-                    <View
-                      style={[
-                        styles.availabilityIndicator,
-                        { backgroundColor: getAvailabilityColor(item.availability) },
-                      ]}
-                    />
-                    <Text style={styles.availabilityText}>
-                      {item.availability === "high"
-                        ? "High Availability"
-                        : item.availability === "medium"
-                          ? "Medium Availability"
-                          : "Low Availability"}
-                    </Text>
-                  </View>
                 </View>
 
                 {selectedFacility?.id === item.id && (

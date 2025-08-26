@@ -1,6 +1,7 @@
 import axios from "axios";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, getAuth } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const API_URL = "https://api-461776259687.us-west2.run.app";
 
@@ -14,6 +15,26 @@ type User = {
   countryCode: string;
   token: string;
   firebaseId: string;
+};
+
+export const refreshBackendJwt = async (): Promise<string> => {
+  const firebaseUser = getAuth().currentUser;
+  if (!firebaseUser) throw new Error("No user currently logged in.");
+
+  // 🔄 Refresh Firebase token
+  const firebaseToken = await firebaseUser.getIdToken(true); // true forces refresh
+
+  // 🌐 Exchange Firebase token for new backend JWT
+  const response = await axios.post(`${API_URL}/auth`, { email: firebaseUser.email }, {
+    headers: { Authorization: `Bearer ${firebaseToken}` }
+  });
+
+  const jwtToken = response.headers["authorization"]?.replace("Bearer ", "") || "";
+  if (!jwtToken) throw new Error("JWT not returned from backend.");
+
+  // 🧠 Store the new JWT
+  await AsyncStorage.setItem("authToken", jwtToken);
+  return jwtToken;
 };
 
 
@@ -32,11 +53,11 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     const firebaseUser = userCredential.user;
     if (!firebaseUser) throw new Error("Failed to authenticate with Firebase.");
 
-    // ✅ Retrieve Firebase Token
+    // ✅ Get Firebase Token
     const token = await firebaseUser.getIdToken();
     console.log("🔥 Firebase Token:", token);
 
-    // ✅ Send Firebase Token to API
+    // ✅ Call Go backend with Firebase token
     const response = await axios.post(`${API_URL}/auth`, { email }, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -66,18 +87,19 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 };
 
 
+
 //To register a child linked to a prent, you need to send the parent's token as a header in the request.
-// 🔹 **Register Child with API**
+//  **Register Child with API**
 export const registerChild = async (
   parentToken: string, // Parent's authentication token
   firstName: string,
   lastName: string,
-  age: number,
+  dob: string,
   countryCode: string
 ): Promise<any> => {
   try {
     const requestBody = {
-      age,
+      dob,
       first_name: firstName,
       last_name: lastName,
       country_code: countryCode,
@@ -116,7 +138,7 @@ export const registerUser = async (
   firstName: string,
   lastName: string,
   role: string,
-  age: number,
+  dob: string,
   phoneNumber: string,
   countryCode: string
 ): Promise<any> => {
@@ -145,7 +167,7 @@ export const registerUser = async (
     if (role === "athlete") {
       endpoint = "register/athlete";
       requestBody = {
-        age,
+        dob,
         first_name: firstName,
         last_name: lastName,
         phone_number: phoneNumber,
@@ -155,14 +177,18 @@ export const registerUser = async (
         waivers: [
           {
             is_waiver_signed: true,
-            waiver_url: `${API_URL}/swagger/index.html`,
+            waiver_url: `https://storage.googleapis.com/rise-sports/waivers/code.pdf`,
+          },
+          {
+            is_waiver_signed: true,
+            waiver_url: `https://storage.googleapis.com/rise-sports/waivers/tetris.pdf`, // example second waiver
           },
         ],
       };
     } else if (role === "parent") {
       endpoint = "register/parent";
       requestBody = {
-        age,
+        dob,
         first_name: firstName,
         last_name: lastName,
         phone_number: phoneNumber,
@@ -173,7 +199,7 @@ export const registerUser = async (
     } else if (role === "coach" || role === "instructor" || role === "barber") {
       endpoint = "register/staff";
       requestBody = {
-        age,
+        dob,
         first_name: firstName,
         last_name: lastName,
         role,
@@ -290,7 +316,6 @@ export const getPracticePrograms = async () => {
 export const getHaircutAndBarberServices = async (): Promise<any> => {
   try {
     const response = await axios.get(`${API_URL}/haircuts/services`);
-    console.log("✅ Haircut services fetched:", response.data);
     return response.data;
   } catch (error) {
     console.error("❌ Failed to fetch haircut services:", (error as any).response?.data || (error as any).message);
@@ -299,17 +324,14 @@ export const getHaircutAndBarberServices = async (): Promise<any> => {
 };
 
 // Create a new haircut booking
-export const createHaircutBooking = async (bookingDetails: any, token: string, userEmail?: string): Promise<any> => {
+export const createHaircutBooking = async (bookingDetails: any, token: string): Promise<any> => {
   try {
-    console.log("📤 Creating haircut booking:", bookingDetails);
-    
     const response = await axios.post(`${API_URL}/haircuts/events`, bookingDetails, {
       headers: {
         "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
-    console.log("✅ Haircut booking created:", response.data);
     return response.data;
   } catch (error) {
     console.error("❌ Failed to create haircut booking:", (error as any).response?.data || (error as any).message);
@@ -320,15 +342,12 @@ export const createHaircutBooking = async (bookingDetails: any, token: string, u
 // Get upcoming bookings for the authenticated user  
 export const getUpcomingBookings = async (token: string): Promise<any> => {
   try {
-    console.log("🔄 Fetching upcoming bookings");
-    
     const response = await axios.get(`${API_URL}/bookings/upcoming`, {
       headers: {
         "Authorization": `Bearer ${token}`,
       },
     });
     
-    console.log("✅ Upcoming bookings fetched:", response.data);
     return response.data;
   } catch (error) {
     console.error("❌ Failed to fetch upcoming bookings:", (error as any).response?.data || (error as any).message);

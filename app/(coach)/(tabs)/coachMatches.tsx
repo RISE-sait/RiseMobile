@@ -5,7 +5,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import MatchCard from "../../../components/events/MatchCard";
 import { StatusBar } from "expo-status-bar";
 import { FontAwesome6 } from "@expo/vector-icons";
-import { mockMatches } from '@/app/(athlete)/screens/matchesData';
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { fetchMatches } from "@/store/slices/gamesSlice"
+import EmptyState from "@/components/feedback/EmptyState"
+
 
 const { width } = Dimensions.get("window");
 
@@ -16,7 +21,11 @@ const generateWeekDates = (): dayjs.Dayjs[] => {
 };
 
 const CoachMatches: React.FC = () => {
-  const [matches] = useState(mockMatches);
+  const dispatch = useAppDispatch()
+  const matches = useAppSelector((state) => state.games.items)
+  const status = useAppSelector((state) => state.games.status)
+  const error = useAppSelector((state) => state.games.error)
+  const token = useAppSelector((state) => state.user.data?.token)
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [weekDates] = useState(generateWeekDates);
   const flatListRef = useRef<FlatList>(null);
@@ -38,8 +47,33 @@ const CoachMatches: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+  const fetchData = async () => {
+    let authToken = token
+
+    if (!authToken) {
+      try {
+        const userString = await AsyncStorage.getItem("user")
+        if (userString) {
+          const userData = JSON.parse(userString)
+          authToken = userData.token
+        }
+      } catch (err) {
+        console.error("Error getting token from AsyncStorage:", err)
+      }
+    }
+
+    if (authToken) {
+      dispatch(fetchMatches(authToken))
+    }
+  }
+
+  fetchData()
+}, [dispatch, token])
+
+
   const filteredMatches = matches.filter((match) =>
-    dayjs(match.date).format("YYYY-MM-DD") === selectedDate
+    dayjs(match.created_at).format("YYYY-MM-DD")
   );
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
@@ -52,6 +86,42 @@ const CoachMatches: React.FC = () => {
       : item.isSame(dayjs().add(1, "day"), "day")
       ? "Tomorrow"
       : item.format("DD MMM");
+
+      if (status === "loading") {
+  return (
+    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
+      <LoadingIndicator size="large" color="#FCA311" />
+      <Text className="text-white-100 mt-4">Loading matches...</Text>
+    </SafeAreaView>
+  )
+}
+
+if (status === "failed" && error) {
+  return (
+    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
+      <EmptyState
+        icon="exclamation-circle"
+        title="Error Loading Matches"
+        message={error}
+        actionLabel="Try Again"
+        onAction={async () => {
+          let authToken = token
+          if (!authToken) {
+            const userString = await AsyncStorage.getItem("user")
+            if (userString) {
+              authToken = JSON.parse(userString)?.token
+            }
+          }
+
+          if (authToken) {
+            dispatch(fetchMatches(authToken))
+          }
+        }}
+      />
+    </SafeAreaView>
+  )
+}
+
 
     return (
       <TouchableOpacity
@@ -88,8 +158,22 @@ const CoachMatches: React.FC = () => {
         {/* Header */}
         <View className="px-6 pb-4 border-b border-white-100/10 flex-row justify-between items-center">
           <Text className="text-white-100 text-3xl font-bold">Matches</Text>
-          <TouchableOpacity>
-            <Text className="text-gold-100 font-semibold">See All</Text>
+          <TouchableOpacity
+            onPress={async () => {
+              let authToken = token
+              if (!authToken) {
+                const userString = await AsyncStorage.getItem("user")
+                if (userString) {
+                  authToken = JSON.parse(userString)?.token
+                }
+              }
+
+              if (authToken) {
+                dispatch(fetchMatches(authToken))
+              }
+            }}
+          >
+            <Text className="text-gold-100 font-semibold">Refresh</Text>
           </TouchableOpacity>
         </View>
 

@@ -10,6 +10,8 @@ import gamesReducer from "./slices/gamesSlice"
 import practicesReducer from "./slices/practicesSlice"
 import coursesReducer from "./slices/coursesSlice"
 import teamsReducer from "./slices/teamsSlice"
+import membershipReducer from "./slices/membershipSlice"
+
 
 // Define the root state type
 export interface RootState {
@@ -19,6 +21,8 @@ export interface RootState {
   practices: ReturnType<typeof practicesReducer>
   courses: ReturnType<typeof coursesReducer>
   teams: ReturnType<typeof teamsReducer>
+  membership: ReturnType<typeof membershipReducer> 
+
 }
 
 // Combine all reducers
@@ -29,13 +33,14 @@ const rootReducer = combineReducers({
   practices: practicesReducer,
   courses: coursesReducer,
   teams: teamsReducer,
+  membership: membershipReducer,
 })
 
 // Configure persistence
 const persistConfig = {
   key: "root",
   storage: AsyncStorage,
-  whitelist: ["user", "events", "games", "practices", "courses", "teams"],
+  whitelist: ["user", "events", "games", "practices", "courses", "teams", "membership"], // Only persist these slices
 }
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)

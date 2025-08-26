@@ -10,7 +10,9 @@ import UpcomingCard from "@/components/events/UpcomingCard";
 import QRCodeModal from "@/components/QRCodeModal";
 import GoToCards from "../../../components/GoToCards";
 import dayjs from "dayjs";
-import { mockMatches } from '@/app/(athlete)/screens/matchesData';
+import { useAppSelector } from "@/store/hooks";
+
+
 
 type User = {
   id: string;
@@ -33,6 +35,9 @@ export default function CoachHomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const matches = useAppSelector((state) => state.games.items) || [];
+  const practices = useAppSelector((state) => state.practices.items) || [];
+
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -52,25 +57,95 @@ export default function CoachHomeScreen() {
 
     fetchUser();
   }, []);
+  
 
   const toggleModal = () => {
     setModalVisible(!modalVisible);
   };
 
-  // Get today's date
-  const today = dayjs().format("YYYY-MM-DD");
+// Replace this section in your CoachHomeScreen component:
 
-  // Filter upcoming matches/practices **only in the future**
-  const upcomingEvent = mockMatches
-    .filter((match) => ["match", "practice"].includes(match.type) && dayjs(match.date).isAfter(today))
-    .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0];
+
+
+const today = dayjs(); // Keep as dayjs object, don't format to string
+// Add this debugging section right after your useEffect that fetches the user:
+
+useEffect(() => {
+  // Debug Redux data
+  console.log("🔍 DEBUG: Redux matches count:", matches.length);
+  console.log("🔍 DEBUG: Redux practices count:", practices.length);
+  console.log("🔍 DEBUG: Full matches array:", JSON.stringify(matches, null, 2));
+  console.log("🔍 DEBUG: Full practices array:", JSON.stringify(practices, null, 2));
+  
+  // Check if arrays exist but have different structure
+  if (matches.length > 0) {
+    console.log("🔍 DEBUG: First match structure:", Object.keys(matches[0]));
+    console.log("🔍 DEBUG: First match data:", matches[0]);
+  }
+  
+  if (practices.length > 0) {
+    console.log("🔍 DEBUG: First practice structure:", Object.keys(practices[0]));
+    console.log("🔍 DEBUG: First practice data:", practices[0]);
+  }
+}, [matches, practices]);
+
+// Also debug the mapping process:
+const allEvents = [
+  ...matches.map((match, index) => {
+    console.log(`🔍 DEBUG: Mapping match ${index}:`, match);
+    return { ...match, type: "match" };
+  }),
+  ...practices.map((practice, index) => {
+    console.log(`🔍 DEBUG: Mapping practice ${index}:`, practice);
+    return { ...practice, type: "practice" };
+  }),
+];
+
+console.log("🔍 DEBUG: All events after mapping:", allEvents.length);
+console.log("🔍 DEBUG: All events data:", JSON.stringify(allEvents, null, 2));
+
+// Only get upcoming events (future + today) - no fallback to past events
+const upcomingEvent = allEvents
+  .filter((event) => {
+    const eventDate = dayjs(event.date);
+    const isToday = eventDate.isSame(today, 'day');
+    const isFuture = eventDate.isAfter(today, 'day');
+    
+    console.log(`Event ${event.id}: date=${event.date}, isToday=${isToday}, isFuture=${isFuture}, today=${today.format("YYYY-MM-DD")}`);
+    
+    return isToday || isFuture;
+  })
+  .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0];
+
+console.log("📢 Final upcoming event:", upcomingEvent);
+
+const mapToUpcomingCardFormat = (event: any) => ({
+  id: event.id,
+  date: event.date || dayjs().format("YYYY-MM-DD"),
+  homeTeam: event.homeTeam || "Home Team",
+  awayTeam: event.awayTeam || "Away Team",
+  status: "Upcoming" as "Upcoming",
+  location: event.location || "RISE Basketball Facility",
+  description: event.description || event.title || "Upcoming Event",
+  homeLogo:
+    event.homeLogo ||
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
+  awayLogo:
+    event.awayLogo ||
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
+  bgImage:
+    event.bgImage ||
+    "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1170&q=80",
+  type: event.type,
+});
+
+
 
 
   const navigationOptions = [
     { label: "Team Roster", route: "/screens/teamRoster", image: images.teamRoster },
     { label: "Training Schedule", route: "/coachCalendar", image: images.schedules },
     { label: "Match History", route: "/screens/matchHistory", image: images.matchHistory },
-    { label: "Player Stats", route: "/screens/playerStats", image: images.playerStats },
   ];
 
   if (isLoading) {
@@ -96,7 +171,11 @@ export default function CoachHomeScreen() {
               firstName={user.firstName}
               lastName={user.lastName}
               role={user.role}
-              number={user?.role === "Player" && user.jerseyNumber ? user.jerseyNumber.toString() : "CJ"} // ✅ Only for players
+                number={
+                  user?.role === "Player" && user.jerseyNumber
+                    ? user.jerseyNumber.toString()
+                    : `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase()
+                }
               profileImage={user.profileImage ? { uri: user.profileImage } : images.coachHeadshot}
               countryCode={user?.countryCode || "US"} // ✅ Ensure countryCode is always defined
               teamLogo={images.teamLogo}
@@ -105,9 +184,10 @@ export default function CoachHomeScreen() {
             <Text className="text-white text-center">User data not available</Text>
           )}
         </View>
+        
 
-        {/* Upcoming Game Section */}
-        {upcomingEvent && <UpcomingCard event={upcomingEvent} />}
+        {/* Upcoming Game Section - Always render, component handles fallback */}
+        <UpcomingCard event={upcomingEvent ? mapToUpcomingCardFormat(upcomingEvent) : null} />
 
         {/* Navigation Buttons Section */}
         <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />

@@ -124,7 +124,7 @@ const MatchDetailsScreen = () => {
           while (retries > 0 && !gameData) {
             try {
               console.log(`MATCH DETAILS: Attempt ${4 - retries} to fetch game data`)
-              const gameResponse = await axios.get(`${API_URL}/programs/${programId}`, {
+              const gameResponse = await axios.get(`${API_URL}/games/${programId}`, {
                 headers: { Authorization: `Bearer ${token}` },
               })
 
