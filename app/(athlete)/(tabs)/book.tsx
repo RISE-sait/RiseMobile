@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import {
   ScrollView,
   View,
@@ -11,12 +11,15 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  ActivityIndicator,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
+import { useRouter, useFocusEffect } from "expo-router"
 import { FontAwesome5, Ionicons, Feather, AntDesign } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 import { StatusBar } from "expo-status-bar"
+import { useAppSelector } from "@/store/hooks"
+import { getUpcomingBookings } from "@/utils/api"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
@@ -36,38 +39,9 @@ const COLORS = {
   info: "#2196F3",
 }
 
-// Mock data for upcoming bookings
-const upcomingBookings = [
-  {
-    id: "1",
-    type: "Drop-In",
-    location: "Main Basketball Court",
-    date: "Today",
-    time: "7:00 PM - 9:00 PM",
-    status: "Confirmed",
-    icon: "basketball-ball",
-  },
-  {
-    id: "2",
-    type: "Haircut",
-    location: "Courtside Kutz",
-    date: "Tomorrow",
-    time: "2:30 PM - 3:15 PM",
-    status: "Pending",
-    icon: "cut",
-  },
-  {
-    id: "3",
-    type: "Recovery",
-    location: "Recovery Room",
-    date: "Sat, Jun 15",
-    time: "11:00 AM - 12:00 PM",
-    status: "Confirmed",
-    icon: "bed",
-  },
-]
+// Upcoming bookings are now loaded from API - removed unused constant
 
-// Mock data for featured facilities
+// Featured facilities - filtered to show only Basketball Court and Courtside Kutz
 const featuredFacilities = [
   {
     id: "1",
@@ -85,17 +59,9 @@ const featuredFacilities = [
       "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
     route: "/screens/booking-options/CourtsideKutz",
   },
-  {
-    id: "3",
-    title: "Recovery Room",
-    description: "State-of-the-art recovery equipment now available",
-    image:
-      "https://images.unsplash.com/photo-1570691079236-4bca6c45d440?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    route: "/screens/booking-options/RecoveryRoom",
-  },
 ]
 
-// Booking options with availability status
+// Booking options with availability status - filtered to show only Basketball Court and Courtside Kutz
 const bookingOptions = [
   {
     title: "Basketball Court",
@@ -105,39 +71,11 @@ const bookingOptions = [
     color: "#FF7043",
   },
   {
-    title: "Gym",
-    icon: "dumbbell",
-    route: "/screens/comingSoon",
-    availability: "Medium",
-    color: "#66BB6A",
-  },
-  {
-    title: "Recovery Room",
-    icon: "bed",
-    route: "/screens/comingSoon",
-    availability: "Low",
-    color: "#42A5F5",
-  },
-  {
-    title: "Physiotherapy",
-    icon: "user-md",
-    route: "/screens/comingSoon",
-    availability: "Medium",
-    color: "#AB47BC",
-  },
-  {
     title: "Courtside Kutz",
     icon: "cut",
     route: "/screens/booking-options/CourtsideKutz",
     availability: "High",
     color: "#FFA726",
-  },
-  {
-    title: "Training Sessions",
-    icon: "running",
-    route: "/screens/comingSoon",
-    availability: "High",
-    color: "#EC407A",
   },
 ]
 
@@ -146,10 +84,123 @@ const AthleteBook = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredOptions, setFilteredOptions] = useState(bookingOptions)
   const scrollX = useRef(new Animated.Value(0)).current
+  
+  // Real upcoming bookings state
+  const [realUpcomingBookings, setRealUpcomingBookings] = useState<any[]>([])
+  const [isLoadingBookings, setIsLoadingBookings] = useState(true)
+  const [bookingsError, setBookingsError] = useState<string | null>(null)
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(50)).current
+  
+  // Get user from Redux store
+  const user = useAppSelector((state) => state.user.data)
+
+  // Fetch real upcoming bookings function
+  const fetchUpcomingBookings = useCallback(async () => {
+    if (!user?.token || !user?.id) {
+      setIsLoadingBookings(false)
+      return
+    }
+    
+    try {
+      setIsLoadingBookings(true)
+      setBookingsError(null)
+      
+      const bookings = await getUpcomingBookings(user.token)
+      
+      // Transform API data to match the expected format
+      // API returns: { haircuts: [...], playground: [...] }
+      let allBookings: any[] = []
+      
+      if (bookings && typeof bookings === 'object') {
+        // Extract haircut bookings
+        if (Array.isArray(bookings.haircuts)) {
+          allBookings = [...allBookings, ...bookings.haircuts]
+        }
+        
+        // Extract playground bookings  
+        if (Array.isArray(bookings.playground)) {
+          allBookings = [...allBookings, ...bookings.playground]
+        }
+      } else if (Array.isArray(bookings)) {
+        // Fallback for array format
+        allBookings = bookings
+      }
+      
+      if (allBookings.length > 0) {
+        const transformedBookings = allBookings.map((booking: any, index: number) => {
+          // Helper function to format datetime string to date and time
+          const parseDateTime = (dateTimeStr: string) => {
+            if (!dateTimeStr) return { date: "TBD", time: "TBD" }
+            
+            try {
+              // Parse "2025-08-30 09:30:00 -0600 -0600" format
+              const cleanDateStr = dateTimeStr.split(' -0600')[0] // Remove timezone part
+              const dateObj = new Date(cleanDateStr)
+              
+              if (isNaN(dateObj.getTime())) {
+                return { date: "TBD", time: "TBD" }
+              }
+              
+              const date = dateObj.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              }) // "Aug 30"
+              
+              const time = dateObj.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+              }) // "9:30 AM"
+              
+              return { date, time }
+            } catch (error) {
+              return { date: "TBD", time: "TBD" }
+            }
+          }
+          
+          const { date, time } = parseDateTime(booking.start_at)
+          
+          return {
+            id: booking.id || `booking-${index}`,
+            type: booking.barber_name ? "Haircut" : booking.service_name || booking.type || "Appointment",
+            location: booking.location || "Courtside Kutz", 
+            date: date,
+            time: time,
+            status: booking.status || "Confirmed",
+            icon: booking.barber_name || booking.service_name?.toLowerCase().includes('haircut') || booking.service_name?.toLowerCase().includes('cut') 
+                  ? "cut" 
+                  : booking.type?.toLowerCase().includes('basketball')
+                  ? "basketball-ball"
+                  : "calendar"
+          }
+        })
+        
+        setRealUpcomingBookings(transformedBookings)
+      } else {
+        setRealUpcomingBookings([])
+      }
+    } catch (error) {
+      setBookingsError("Failed to load upcoming bookings")
+      setRealUpcomingBookings([])
+    } finally {
+      setIsLoadingBookings(false)
+    }
+  }, [user?.token, user?.id])
+
+  // Fetch bookings on component mount and user changes
+  useEffect(() => {
+    fetchUpcomingBookings()
+  }, [fetchUpcomingBookings])
+  
+  // Refresh bookings when tab gains focus (user returns from booking flow)
+  useFocusEffect(
+    useCallback(() => {
+      fetchUpcomingBookings()
+    }, [fetchUpcomingBookings])
+  )
 
   useEffect(() => {
     // Start animations when component mounts
@@ -175,14 +226,14 @@ const AthleteBook = () => {
     }
   }, [searchQuery])
 
-  const handleOptionPress = (route) => {
+  const handleOptionPress = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     if (route) {
       router.push(route)
     }
   }
 
-  const getAvailabilityColor = (availability) => {
+  const getAvailabilityColor = (availability: string) => {
     switch (availability) {
       case "High":
         return COLORS.success
@@ -195,7 +246,7 @@ const AthleteBook = () => {
     }
   }
 
-  const renderFeaturedItem = ({ item, index }) => {
+  const renderFeaturedItem = ({ item, index }: { item: any; index: number }) => {
     const inputRange = [(index - 1) * cardWidth, index * cardWidth, (index + 1) * cardWidth]
 
     const opacity = scrollX.interpolate({
@@ -250,7 +301,7 @@ const AthleteBook = () => {
     )
   }
 
-  const renderUpcomingBooking = ({ item }) => {
+  const renderUpcomingBooking = ({ item }: { item: any }) => {
     const statusColor = item.status === "Confirmed" ? COLORS.success : COLORS.warning
 
     return (
@@ -400,33 +451,77 @@ const AthleteBook = () => {
           </View>
 
           {/* Upcoming Bookings */}
-          {upcomingBookings.length > 0 && (
-            <View style={{ marginBottom: 24 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  paddingHorizontal: 20,
-                  marginBottom: 12,
-                }}
-              >
-                <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Bookings</Text>
+          <View style={{ marginBottom: 24 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingHorizontal: 20,
+                marginBottom: 12,
+              }}
+            >
+              <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Bookings</Text>
+              {realUpcomingBookings.length > 0 && (
                 <TouchableOpacity>
                   <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
                 </TouchableOpacity>
-              </View>
+              )}
+            </View>
 
-              <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ paddingHorizontal: 20 }}>
+              {isLoadingBookings ? (
+                <View style={{ 
+                  backgroundColor: COLORS.card, 
+                  borderRadius: 12, 
+                  padding: 20, 
+                  alignItems: 'center' 
+                }}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={{ color: COLORS.textSecondary, marginTop: 8 }}>Loading your bookings...</Text>
+                </View>
+              ) : bookingsError ? (
+                <View style={{ 
+                  backgroundColor: COLORS.card, 
+                  borderRadius: 12, 
+                  padding: 20, 
+                  alignItems: 'center' 
+                }}>
+                  <FontAwesome5 name="exclamation-triangle" size={24} color={COLORS.warning} />
+                  <Text style={{ color: COLORS.textSecondary, marginTop: 8, textAlign: 'center' }}>
+                    {bookingsError}
+                  </Text>
+                </View>
+              ) : realUpcomingBookings.length > 0 ? (
                 <FlatList
-                  data={upcomingBookings}
+                  data={realUpcomingBookings}
                   renderItem={renderUpcomingBooking}
                   keyExtractor={(item) => item.id}
                   scrollEnabled={false}
                 />
-              </View>
+              ) : (
+                <View style={{ 
+                  backgroundColor: COLORS.card, 
+                  borderRadius: 12, 
+                  padding: 20, 
+                  alignItems: 'center' 
+                }}>
+                  <FontAwesome5 name="calendar-times" size={32} color={COLORS.textSecondary} />
+                  <Text style={{ color: COLORS.text, fontWeight: 'bold', marginTop: 12, fontSize: 16 }}>
+                    No Upcoming Bookings
+                  </Text>
+                  <Text style={{ 
+                    color: COLORS.textSecondary, 
+                    marginTop: 4, 
+                    textAlign: 'center',
+                    lineHeight: 20 
+                  }}>
+                    You don't have any upcoming appointments.{'\n'}Book a service below to get started!
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
+          </View>
 
           {/* All Booking Options */}
           <View style={{ marginBottom: 24 }}>

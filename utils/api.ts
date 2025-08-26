@@ -5,15 +5,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const API_URL = "https://api-461776259687.us-west2.run.app";
 
+
 type User = {
   id: string;
   email: string;
-  firstName: string;  // ✅ Add firstName
-  lastName: string;   // ✅ Add lastName
+  firstName: string;
+  lastName: string;
   role: string;
-  countryCode: string; //
+  countryCode: string;
   token: string;
-  firebaseId?: string; // ✅ Add firebaseId
+  firebaseId: string;
 };
 
 export const refreshBackendJwt = async (): Promise<string> => {
@@ -69,12 +70,12 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 
     // ✅ Return UUID from backend response as `id`
     return {
-      id: response.data.id,
+      id: (response.data as any).id,
       email: firebaseUser.email || email,
-      firstName: response.data.first_name || "",
-      lastName: response.data.last_name || "",
-      role: response.data.role,
-      countryCode: response.data.country_code || "US",
+      firstName: (response.data as any).first_name || "",
+      lastName: (response.data as any).last_name || "",
+      role: (response.data as any).role,
+      countryCode: (response.data as any).country_code || "US",
       token: jwtToken, // ✅ Now this is set correctly!
       firebaseId: firebaseUser.uid,
     };
@@ -115,7 +116,7 @@ export const registerChild = async (
     // ✅ Send request to API
     const response = await axios.post(`${API_URL}/register/child`, requestBody, {
       headers: {
-        "Authorization": `Bearer ${parentToken}`,
+        "firebase_token": parentToken,
         "Content-Type": "application/json",
       },
     });
@@ -237,7 +238,6 @@ export const registerUser = async (
   }
 };
 
-
 export const getMembershipByCustomerId = async (customerId: string) => {
   const firebaseUser = getAuth().currentUser;
 
@@ -257,8 +257,6 @@ export const getMembershipByCustomerId = async (customerId: string) => {
   if (!response.ok) throw new Error("Failed to fetch customer membership");
   return response.json();
 };
-
-
 
 export const createPractice = async (data: any, jwt: string) => {
   const response = await fetch(`${API_URL}/events/one-time`, {
@@ -292,7 +290,6 @@ export const createRecurringPractice = async (data: any, jwt: string) => {
   }
 };
 
-
 export const getPracticePrograms = async () => {
   const firebaseUser = getAuth().currentUser;
   if (!firebaseUser) throw new Error("User not logged in");
@@ -311,4 +308,49 @@ export const getPracticePrograms = async () => {
   }
 
   return res.json(); // should return array of { id, name, ... }
+};
+
+// 🔹 **Haircut Booking API Functions**
+
+// Get all haircut services and barbers
+export const getHaircutAndBarberServices = async (): Promise<any> => {
+  try {
+    const response = await axios.get(`${API_URL}/haircuts/services`);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to fetch haircut services:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
+// Create a new haircut booking
+export const createHaircutBooking = async (bookingDetails: any, token: string): Promise<any> => {
+  try {
+    const response = await axios.post(`${API_URL}/haircuts/events`, bookingDetails, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to create haircut booking:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
+// Get upcoming bookings for the authenticated user  
+export const getUpcomingBookings = async (token: string): Promise<any> => {
+  try {
+    const response = await axios.get(`${API_URL}/bookings/upcoming`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to fetch upcoming bookings:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
 };

@@ -15,9 +15,12 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { FontAwesome6 } from "@expo/vector-icons"
 import dayjs from "dayjs"
 import * as Haptics from "expo-haptics"
+import { useAppSelector } from "@/store/hooks"
 
 import CalendarCard from "@/components/calendar/CalendarCard"
 import BackButton from "@/components/buttons/BackButton"
+import { getHaircutAndBarberServices, createHaircutBooking } from "@/utils/api"
+import { useAuth } from "@/utils/auth"
 
 // Define types for our data
 interface Barber {
@@ -196,10 +199,130 @@ const BarberBookingScreen = () => {
   const [bookingSuccess, setBookingSuccess] = useState(false)
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
+  
+  // Real data state
+  const [barbersData, setBarbersData] = useState<Barber[]>([])
+  const [servicesData, setServicesData] = useState<Service[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(40)).current
+  
+  // Get user token from Redux store
+  const user = useAppSelector((state) => state.user.data)
+  
+  // Get auth functions
+  const { forceReLogin } = useAuth()
+
+  // Fetch real data from API
+  useEffect(() => {
+    const fetchHaircutData = async () => {
+      try {
+        setIsLoading(true)
+        setApiError(null)
+        
+        const data = await getHaircutAndBarberServices()
+        console.log("📢 Fetched haircut data:", data)
+        console.log("📢 Data structure check:")
+        if (Array.isArray(data) && data.length > 0) {
+          console.log("📢 First item structure:", JSON.stringify(data[0], null, 2))
+          console.log("📢 Total items received:", data.length)
+        }
+        
+        if (data && Array.isArray(data) && data.length > 0) {
+          const barbersMap = new Map<string, Barber>()
+          const servicesMap = new Map<string, Service>()
+
+          data.forEach((item: any, index: number) => {
+            console.log(`📢 Processing item ${index}:`, {
+              barber_id: item.barber_id,
+              barber_name: item.barber_name,
+              haircut_id: item.haircut_id,
+              haircut_name: item.haircut_name
+            })
+            
+            // De-duplicate barbers with stricter validation
+            const barberId = item.barber_id?.toString()
+            const barberName = item.barber_name?.trim()
+            
+            if (barberId && barberName && !barbersMap.has(barberId)) {
+              barbersMap.set(barberId, {
+                id: barberId,
+                name: barberName,
+                image: item.barber_image || "https://images.squarespace-cdn.com/content/v1/5c4d7e227e3c3a6ec70a5ac7/1596359610389-QDVB9CXJRSWGSPPNUES6/IMG_8599.jpg",
+                rating: item.rating || 4.5,
+                specialties: Array.isArray(item.specialties) ? item.specialties : ["General Services"],
+                // Corrected fallback availability to include half-hour slots
+                availability: Array.isArray(item.availability) && item.availability.length > 0 
+                  ? item.availability 
+                  : [
+                      "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", 
+                      "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM"
+                    ],
+              })
+              console.log(`📢 Added barber: ${barberName} with id: ${barberId}`)
+            } else if (!barberId) {
+              console.log(`⚠️ Item ${index} missing barber_id:`, item)
+            } else if (!barberName) {
+              console.log(`⚠️ Item ${index} missing barber_name:`, item)
+            } else {
+              console.log(`📢 Skipping duplicate barber: ${barberName} (id: ${barberId})`)
+            }
+
+            // De-duplicate services - using haircut_id and haircut_name from API
+            const serviceId = item.haircut_id?.toString()
+            const serviceName = item.haircut_name?.trim()
+            
+            if (serviceId && serviceName && !servicesMap.has(serviceId)) {
+              servicesMap.set(serviceId, {
+                id: serviceId,
+                name: serviceName,
+                icon: item.icon || "scissors",
+                price: typeof item.price === 'number' ? item.price : 25,
+                duration: typeof item.duration === 'number' ? item.duration : 30,
+                description: item.description?.trim() || "Professional service",
+              })
+              console.log(`📢 Added service: ${serviceName} with id: ${serviceId}`)
+            } else if (!serviceId) {
+              console.log(`⚠️ Item ${index} missing haircut_id:`, item)
+            } else if (!serviceName) {
+              console.log(`⚠️ Item ${index} missing haircut_name:`, item)
+            } else {
+              console.log(`📢 Skipping duplicate service: ${serviceName} (id: ${serviceId})`)
+            }
+          })
+
+          const uniqueBarbers = Array.from(barbersMap.values())
+          const uniqueServices = Array.from(servicesMap.values())
+          
+          console.log(`📢 Final results: ${uniqueBarbers.length} unique barbers, ${uniqueServices.length} unique services`)
+          console.log("📢 Unique barbers:", uniqueBarbers.map(b => ({ id: b.id, name: b.name })))
+          console.log("📢 Unique services:", uniqueServices.map(s => ({ id: s.id, name: s.name })))
+
+          setBarbersData(uniqueBarbers.length > 0 ? uniqueBarbers : barbers)
+          setServicesData(uniqueServices.length > 0 ? uniqueServices : services)
+
+        } else {
+          // Fallback to mock data if API response is unexpected
+          console.log("📢 Using fallback mock data")
+          setBarbersData(barbers)
+          setServicesData(services)
+        }
+      } catch (error) {
+        console.error("❌ Error fetching haircut data:", error)
+        setApiError("Failed to load barber services. Using demo data.")
+        // Fallback to mock data on error
+        setBarbersData(barbers)
+        setServicesData(services)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchHaircutData()
+  }, [])
 
   // Update time slots when barber changes
   useEffect(() => {
@@ -278,17 +401,76 @@ const BarberBookingScreen = () => {
   }
 
   // Handle booking confirmation
-  const handleConfirmBooking = () => {
-    if (!selectedBarber || !selectedService || !selectedTime) return
+  const handleConfirmBooking = async () => {
+    if (!selectedBarber || !selectedService || !selectedTime || !user?.token) {
+      console.error("❌ Missing required data for booking")
+      return
+    }
 
     setIsBooking(true)
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Helper function to convert 12-hour format to 24-hour format
+      const convertTo24Hour = (time12h: string) => {
+        const [time, modifier] = time12h.split(' ')
+        let [hours, minutes] = time.split(':')
+        if (hours === '12') {
+          hours = '00'
+        }
+        if (modifier === 'PM') {
+          hours = (parseInt(hours, 10) + 12).toString()
+        }
+        return `${hours.padStart(2, '0')}:${minutes}`
+      }
+
+      // Prepare booking details for API (match Swagger specification)
+      // Convert date and time to ISO format
+      const startDateTime = `${selectedDate}T${convertTo24Hour(selectedTime)}:00Z`
+      const duration = selectedService.duration || 30 // Default 30 minutes
+      const endDateTime = new Date(new Date(startDateTime).getTime() + duration * 60000).toISOString()
+      
+      const bookingDetails = {
+        barber_id: selectedBarber.id,
+        service_name: selectedService.name,
+        begin_time: startDateTime,
+        end_time: endDateTime
+      }
+
+      console.log("📤 Creating haircut booking:", bookingDetails)
+      
+      // Call the real API (pass user email for JWT refresh if needed)
+      const response = await createHaircutBooking(bookingDetails, user.token)
+      
+      console.log("✅ Booking created successfully:", response)
       setIsBooking(false)
       setBookingSuccess(true)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-    }, 1500)
+    } catch (error) {
+      console.error("❌ Error creating booking:", error)
+      setIsBooking(false)
+      
+      // Check if it's an authentication error (401)
+      if ((error as any).response?.status === 401) {
+        console.log("🚨 Authentication failed - backend JWT issue")
+        const errorMessage = (error as any).response?.data?.error?.message || "Authentication failed"
+        
+        if (errorMessage.includes("Invalid or expired token")) {
+          setApiError("Booking service is temporarily unavailable due to authentication issues. Please try again later or contact support.")
+        } else {
+          setApiError("Your session has expired. Please log in again to continue.")
+          // Optional: Automatically redirect to login after a delay
+          setTimeout(() => {
+            forceReLogin("Session expired. Please log in again to make bookings.")
+          }, 3000)
+        }
+        
+      } else {
+        // Other errors
+        setApiError("Failed to create booking. Please try again.")
+      }
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+    }
   }
 
   // Handle next step
@@ -458,27 +640,43 @@ const BarberBookingScreen = () => {
   )
 
   // Render step 1: Select barber and service
-  const renderStep1 = () => (
-    <View className="flex-1">
-      <Text className="text-white-100 text-xl font-bold mb-4">Choose Your Barber</Text>
-      <FlatList
-        data={barbers}
-        renderItem={renderBarberItem}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }} // ✅ Prevents overlap issues
-      />
+  const renderStep1 = () => {
+    if (isLoading) {
+      return (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#FFD700" />
+          <Text className="text-white-100 mt-4">Loading barber services...</Text>
+        </View>
+      )
+    }
 
-      <Text className="text-white-100 text-xl font-bold mb-4">Select Service</Text>
-      <FlatList
-        data={services}
-        renderItem={renderServiceItem}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
+    return (
+      <View className="flex-1">
+        {apiError && (
+          <View className="bg-yellow-100/20 p-3 rounded-lg mb-4">
+            <Text className="text-yellow-400 text-sm">{apiError}</Text>
+          </View>
+        )}
+        
+        <Text className="text-white-100 text-xl font-bold mb-4">Choose Your Barber</Text>
+        <FlatList
+          data={barbersData}
+          renderItem={renderBarberItem}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }} // ✅ Prevents overlap issues
+        />
 
-      />
-    </View>
-  )
+        <Text className="text-white-100 text-xl font-bold mb-4">Select Service</Text>
+        <FlatList
+          data={servicesData}
+          renderItem={renderServiceItem}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
+    )
+  }
 
   // Render step 2: Select date and time
   const renderStep2 = () => (
@@ -660,6 +858,12 @@ const BarberBookingScreen = () => {
                     <Text className="text-gold-100 font-bold">${selectedService?.price}</Text>
                   </View>
                 </View>
+
+                {apiError && (
+                  <View className="bg-red-100/20 p-3 rounded-lg mb-4">
+                    <Text className="text-red-400 text-sm text-center">{apiError}</Text>
+                  </View>
+                )}
 
                 <TouchableOpacity
                   onPress={handleConfirmBooking}
