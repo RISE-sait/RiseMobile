@@ -58,27 +58,23 @@ export default function AthleteHome() {
       try {
         // If we have user in Redux, use that
         if (reduxUser) {
-          console.log("📢 Using user from Redux:", reduxUser)
           setUser(reduxUser)
         } else {
           // Otherwise try to load from AsyncStorage (backward compatibility)
           const storedUser = await AsyncStorage.getItem("user")
           if (storedUser) {
             const parsedUser = JSON.parse(storedUser)
-            console.log("📢 Loaded user from AsyncStorage:", parsedUser)
 
             setUser({
               ...parsedUser,
               firstName: parsedUser.firstName || parsedUser.first_name || "",
               lastName: parsedUser.lastName || parsedUser.last_name || "",
-              countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
+              countryCode: parsedUser.countryCode || parsedUser.country_code || "US",
             })
-          } else {
-            console.log("⚠️ No user found in AsyncStorage.")
           }
         }
       } catch (error) {
-        console.error("❌ Error loading user:", error)
+        // Error loading user data
       } finally {
         setIsLoading(false)
       }
@@ -122,7 +118,6 @@ export default function AthleteHome() {
               try {
                 return dayjs(event.date).isAfter(today) || dayjs(event.date).isSame(today)
               } catch (e) {
-                console.error("Invalid date format:", event.date, e)
                 return false
               }
             })
@@ -135,14 +130,12 @@ export default function AthleteHome() {
                 // If same date, sort by time
                 return (a.time || "").localeCompare(b.time || "")
               } catch (e) {
-                console.error("Error sorting events:", e)
                 return 0
               }
             })
 
           if (upcoming.length > 0) {
             const nextEvent = upcoming[0]
-            console.log("📢 Next upcoming event:", nextEvent)
 
             // Convert to the format expected by UpcomingCard
             setUpcomingEvent({
@@ -169,7 +162,6 @@ export default function AthleteHome() {
         // Fall back to mock data if no events in Redux
         fallbackToMockData()
       } catch (error) {
-        console.error("❌ Error finding upcoming event:", error)
         fallbackToMockData()
       }
     }
@@ -180,32 +172,9 @@ export default function AthleteHome() {
   // Fallback to mock data if needed
   const fallbackToMockData = () => {
     try {
-      // Get today's date
-      const today = dayjs().format("YYYY-MM-DD")
-
-      // Filter upcoming matches/practices **only in the future**
-      const filteredMatches = mockMatches
-        .filter((match) => ["match", "practice"].includes(match.type) && dayjs(match.date).isAfter(today))
-        .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())
-
-      if (filteredMatches.length > 0) {
-        const nextEvent = filteredMatches[0]
-
-        // Ensure we're setting proper string values for image URIs
-        setUpcomingEvent({
-          ...nextEvent,
-          title: nextEvent.description,
-          // Use string URLs for images
-          homeLogo: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-          awayLogo: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-          bgImage:
-            "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-        })
-      } else {
-        setUpcomingEvent(null)
-      }
+      // No mock data available, just set to null
+      setUpcomingEvent(null)
     } catch (error) {
-      console.error("❌ Error in fallbackToMockData:", error)
       setUpcomingEvent(null)
     }
   }
@@ -214,7 +183,6 @@ export default function AthleteHome() {
     { label: "Schedule", route: "/calendar", image: images.schedules },
     { label: "Events", route: "/screens/events", image: images.event },
     { label: "Membership", route: "/screens/membership", image: images.memberships },
-    { label: "Store", route: "/screens/store/store", image: images.stores },
   ]
 
   if (isLoading) {
