@@ -100,37 +100,15 @@ const AthleteBook = () => {
   // Fetch real upcoming bookings function
   const fetchUpcomingBookings = useCallback(async () => {
     if (!user?.token || !user?.id) {
-      console.log("📢 No user authentication available for fetching bookings", { 
-        hasToken: !!user?.token, 
-        hasId: !!user?.id 
-      })
       setIsLoadingBookings(false)
       return
-    }
-
-    // Check if Firebase auth is ready to avoid timing issues
-    try {
-      const { getAuth } = await import('firebase/auth');
-      const auth = getAuth();
-      if (!auth.currentUser) {
-        console.log("🔄 Firebase auth not ready yet, will retry when user navigates to this tab");
-        setIsLoadingBookings(false);
-        return;
-      }
-    } catch (authError) {
-      console.warn("⚠️ Could not check Firebase auth state:", authError);
-      // Continue anyway, the API call will handle auth issues
     }
     
     try {
       setIsLoadingBookings(true)
       setBookingsError(null)
       
-      console.log("🔄 Fetching upcoming bookings for user:", user.id)
-      const bookings = await getUpcomingBookings(user.token, user.email)
-      console.log("📢 Fetched upcoming bookings:", bookings)
-      console.log("📢 Bookings data type:", typeof bookings)
-      console.log("📢 Bookings structure:", Object.keys(bookings || {}))
+      const bookings = await getUpcomingBookings(user.token)
       
       // Transform API data to match the expected format
       // API returns: { haircuts: [...], playground: [...] }
@@ -139,22 +117,17 @@ const AthleteBook = () => {
       if (bookings && typeof bookings === 'object') {
         // Extract haircut bookings
         if (Array.isArray(bookings.haircuts)) {
-          console.log("📢 Found haircut bookings:", bookings.haircuts.length)
           allBookings = [...allBookings, ...bookings.haircuts]
         }
         
         // Extract playground bookings  
         if (Array.isArray(bookings.playground)) {
-          console.log("📢 Found playground bookings:", bookings.playground.length)
           allBookings = [...allBookings, ...bookings.playground]
         }
       } else if (Array.isArray(bookings)) {
-        // Fallback for array format (old assumption)
-        console.log("📢 Bookings is array format (unexpected)")
+        // Fallback for array format
         allBookings = bookings
       }
-      
-      console.log("📢 Total bookings to process:", allBookings.length)
       
       if (allBookings.length > 0) {
         const transformedBookings = allBookings.map((booking: any, index: number) => {
@@ -168,7 +141,6 @@ const AthleteBook = () => {
               const dateObj = new Date(cleanDateStr)
               
               if (isNaN(dateObj.getTime())) {
-                console.warn("📅 Invalid date format:", dateTimeStr)
                 return { date: "TBD", time: "TBD" }
               }
               
@@ -185,7 +157,6 @@ const AthleteBook = () => {
               
               return { date, time }
             } catch (error) {
-              console.error("📅 Error parsing date:", dateTimeStr, error)
               return { date: "TBD", time: "TBD" }
             }
           }
@@ -207,20 +178,17 @@ const AthleteBook = () => {
           }
         })
         
-        console.log("📢 Transformed bookings:", transformedBookings)
         setRealUpcomingBookings(transformedBookings)
       } else {
-        console.log("📢 No bookings found")
         setRealUpcomingBookings([])
       }
     } catch (error) {
-      console.error("❌ Error fetching upcoming bookings:", error)
       setBookingsError("Failed to load upcoming bookings")
       setRealUpcomingBookings([])
     } finally {
       setIsLoadingBookings(false)
     }
-  }, [user?.token, user?.id, user?.email])
+  }, [user?.token, user?.id])
 
   // Fetch bookings on component mount and user changes
   useEffect(() => {
@@ -230,7 +198,6 @@ const AthleteBook = () => {
   // Refresh bookings when tab gains focus (user returns from booking flow)
   useFocusEffect(
     useCallback(() => {
-      console.log("📋 Book tab focused - refreshing upcoming bookings")
       fetchUpcomingBookings()
     }, [fetchUpcomingBookings])
   )

@@ -59,27 +59,23 @@ export default function AthleteHome() {
       try {
         // If we have user in Redux, use that
         if (reduxUser) {
-          console.log("📢 Using user from Redux:", reduxUser)
           setUser(reduxUser)
         } else {
           // Otherwise try to load from AsyncStorage (backward compatibility)
           const storedUser = await AsyncStorage.getItem("user")
           if (storedUser) {
             const parsedUser = JSON.parse(storedUser)
-            console.log("📢 Loaded user from AsyncStorage:", parsedUser)
 
             setUser({
               ...parsedUser,
               firstName: parsedUser.firstName || parsedUser.first_name || "",
               lastName: parsedUser.lastName || parsedUser.last_name || "",
-              countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
+              countryCode: parsedUser.countryCode || parsedUser.country_code || "US",
             })
-          } else {
-            console.log("⚠️ No user found in AsyncStorage.")
           }
         }
       } catch (error) {
-        console.error("❌ Error loading user:", error)
+        // Error loading user data
       } finally {
         setIsLoading(false)
       }
@@ -123,7 +119,6 @@ export default function AthleteHome() {
               try {
                 return dayjs(event.date).isAfter(today) || dayjs(event.date).isSame(today)
               } catch (e) {
-                console.error("Invalid date format:", event.date, e)
                 return false
               }
             })
@@ -136,14 +131,12 @@ export default function AthleteHome() {
                 // If same date, sort by time
                 return (a.time || "").localeCompare(b.time || "")
               } catch (e) {
-                console.error("Error sorting events:", e)
                 return 0
               }
             })
 
           if (upcoming.length > 0) {
             const nextEvent = upcoming[0]
-            console.log("📢 Next upcoming event:", nextEvent)
 
             // Convert to the format expected by UpcomingCard
             setUpcomingEvent({
@@ -170,7 +163,6 @@ export default function AthleteHome() {
         // Fall back to mock data if no events in Redux
         fallbackToMockData()
       } catch (error) {
-        console.error("❌ Error finding upcoming event:", error)
         fallbackToMockData()
       }
     }
@@ -206,7 +198,6 @@ export default function AthleteHome() {
         setUpcomingEvent(null)
       }
     } catch (error) {
-      console.error("❌ Error in fallbackToMockData:", error)
       setUpcomingEvent(null)
     }
   }
@@ -216,9 +207,6 @@ export default function AthleteHome() {
     { label: "Events", route: "/screens/events", image: images.event },
     { label: "Membership", route: "/screens/membership", image: images.memberships },
   ]
-  
-  // 调试日志：确认我们在运动员主页
-  console.log("🏀 ATHLETE HOME: navigationOptions =", navigationOptions.map(opt => opt.label))
 
   if (isLoading) {
     return (

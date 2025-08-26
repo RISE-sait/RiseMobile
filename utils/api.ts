@@ -4,58 +4,6 @@ import { auth } from "@/firebase/firebaseConfig";
 
 export const API_URL = "https://api-461776259687.us-west2.run.app";
 
-// Helper function to ensure we have a valid JWT token
-const ensureValidJWT = async (token: string, userEmail?: string): Promise<string> => {
-  console.log("🔍 Token check:", {
-    tokenLength: token.length,
-    firstChars: token.substring(0, 30) + "...",
-    hasEmail: !!userEmail
-  });
-  
-  // If token is very long (>900 chars), it's likely a Firebase token, not JWT
-  // Try to exchange it for JWT directly without relying on Firebase auth state
-  if (token.length > 900 && userEmail) {
-    console.log("🔄 Token seems to be Firebase token (length > 900), attempting direct exchange for JWT...");
-    
-    try {
-      const response = await axios.post(`${API_URL}/auth`, { email: userEmail }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // 🔧 JWT token is returned in response headers, not body!
-      const authHeader = response.headers['authorization'] || response.headers['Authorization'];
-      const jwtToken = authHeader?.replace(/^Bearer\s+/i, '');
-      
-      if (jwtToken && jwtToken !== authHeader) {
-        console.log("✅ Successfully exchanged Firebase token for JWT from response headers");
-        console.log("🔍 JWT length:", jwtToken.length);
-        return jwtToken;
-      } else {
-        // Fallback: try to get from response body (old method, likely to fail)
-        const bodyJwtToken = response.data.token || 
-                             response.data.jwt || 
-                             response.data.access_token ||
-                             response.data.jwt_token ||
-                             response.data.authToken ||
-                             response.data.accessToken;
-        
-        if (bodyJwtToken) {
-          console.log("✅ Found JWT in response body (unexpected but working)");
-          return bodyJwtToken;
-        }
-        
-        console.warn("⚠️ Auth endpoint didn't return JWT in headers or body, using original token");
-        console.warn("🔍 Auth response headers:", Object.keys(response.headers || {}));
-        console.warn("🔍 Auth response body fields:", Object.keys(response.data || {}));
-      }
-    } catch (error) {
-      console.error("❌ Failed to exchange Firebase token for JWT:", error);
-      console.warn("⚠️ Will use original token and let the API call handle the error");
-    }
-  }
-  
-  return token;
-};
 
 type User = {
   id: string;
