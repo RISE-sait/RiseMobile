@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import {
   ScrollView,
   View,
@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
+import { useRouter, useFocusEffect } from "expo-router"
 import { FontAwesome5, Ionicons, Feather, AntDesign } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 import { StatusBar } from "expo-status-bar"
@@ -39,8 +39,7 @@ const COLORS = {
   info: "#2196F3",
 }
 
-// Upcoming bookings will be loaded from API
-const upcomingBookings = []
+// Upcoming bookings are now loaded from API - removed unused constant
 
 // Featured facilities - filtered to show only Basketball Court and Courtside Kutz
 const featuredFacilities = [
@@ -98,53 +97,143 @@ const AthleteBook = () => {
   // Get user from Redux store
   const user = useAppSelector((state) => state.user.data)
 
-  // Fetch real upcoming bookings
-  useEffect(() => {
-    const fetchUpcomingBookings = async () => {
-      if (!user?.token) {
-        console.log("📢 No user token available for fetching bookings")
-        setIsLoadingBookings(false)
-        return
+  // Fetch real upcoming bookings function
+  const fetchUpcomingBookings = useCallback(async () => {
+    if (!user?.token || !user?.id) {
+      console.log("📢 No user authentication available for fetching bookings", { 
+        hasToken: !!user?.token, 
+        hasId: !!user?.id 
+      })
+      setIsLoadingBookings(false)
+      return
+    }
+
+    // Check if Firebase auth is ready to avoid timing issues
+    try {
+      const { getAuth } = await import('firebase/auth');
+      const auth = getAuth();
+      if (!auth.currentUser) {
+        console.log("🔄 Firebase auth not ready yet, will retry when user navigates to this tab");
+        setIsLoadingBookings(false);
+        return;
+      }
+    } catch (authError) {
+      console.warn("⚠️ Could not check Firebase auth state:", authError);
+      // Continue anyway, the API call will handle auth issues
+    }
+    
+    try {
+      setIsLoadingBookings(true)
+      setBookingsError(null)
+      
+      console.log("🔄 Fetching upcoming bookings for user:", user.id)
+      const bookings = await getUpcomingBookings(user.token, user.email)
+      console.log("📢 Fetched upcoming bookings:", bookings)
+      console.log("📢 Bookings data type:", typeof bookings)
+      console.log("📢 Bookings structure:", Object.keys(bookings || {}))
+      
+      // Transform API data to match the expected format
+      // API returns: { haircuts: [...], playground: [...] }
+      let allBookings: any[] = []
+      
+      if (bookings && typeof bookings === 'object') {
+        // Extract haircut bookings
+        if (Array.isArray(bookings.haircuts)) {
+          console.log("📢 Found haircut bookings:", bookings.haircuts.length)
+          allBookings = [...allBookings, ...bookings.haircuts]
+        }
+        
+        // Extract playground bookings  
+        if (Array.isArray(bookings.playground)) {
+          console.log("📢 Found playground bookings:", bookings.playground.length)
+          allBookings = [...allBookings, ...bookings.playground]
+        }
+      } else if (Array.isArray(bookings)) {
+        // Fallback for array format (old assumption)
+        console.log("📢 Bookings is array format (unexpected)")
+        allBookings = bookings
       }
       
-      try {
-        setIsLoadingBookings(true)
-        setBookingsError(null)
-        
-        const bookings = await getUpcomingBookings(user.token)
-        console.log("📢 Fetched upcoming bookings:", bookings)
-        
-        // Transform API data to match the expected format
-        // This may need adjustment based on actual API response structure
-        if (Array.isArray(bookings)) {
-          const transformedBookings = bookings.map((booking: any, index: number) => ({
+      console.log("📢 Total bookings to process:", allBookings.length)
+      
+      if (allBookings.length > 0) {
+        const transformedBookings = allBookings.map((booking: any, index: number) => {
+          // Helper function to format datetime string to date and time
+          const parseDateTime = (dateTimeStr: string) => {
+            if (!dateTimeStr) return { date: "TBD", time: "TBD" }
+            
+            try {
+              // Parse "2025-08-30 09:30:00 -0600 -0600" format
+              const cleanDateStr = dateTimeStr.split(' -0600')[0] // Remove timezone part
+              const dateObj = new Date(cleanDateStr)
+              
+              if (isNaN(dateObj.getTime())) {
+                console.warn("📅 Invalid date format:", dateTimeStr)
+                return { date: "TBD", time: "TBD" }
+              }
+              
+              const date = dateObj.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              }) // "Aug 30"
+              
+              const time = dateObj.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+              }) // "9:30 AM"
+              
+              return { date, time }
+            } catch (error) {
+              console.error("📅 Error parsing date:", dateTimeStr, error)
+              return { date: "TBD", time: "TBD" }
+            }
+          }
+          
+          const { date, time } = parseDateTime(booking.start_at)
+          
+          return {
             id: booking.id || `booking-${index}`,
-            type: booking.service_name || booking.type || "Appointment",
-            location: booking.location || "RISE Facility",
-            date: booking.date || booking.formatted_date || "TBD",
-            time: booking.time || booking.formatted_time || "TBD",
+            type: booking.barber_name ? "Haircut" : booking.service_name || booking.type || "Appointment",
+            location: booking.location || "Courtside Kutz", 
+            date: date,
+            time: time,
             status: booking.status || "Confirmed",
-            icon: booking.service_name?.toLowerCase().includes('haircut') || booking.service_name?.toLowerCase().includes('cut') 
+            icon: booking.barber_name || booking.service_name?.toLowerCase().includes('haircut') || booking.service_name?.toLowerCase().includes('cut') 
                   ? "cut" 
                   : booking.type?.toLowerCase().includes('basketball')
                   ? "basketball-ball"
                   : "calendar"
-          }))
-          setRealUpcomingBookings(transformedBookings)
-        } else {
-          setRealUpcomingBookings([])
-        }
-      } catch (error) {
-        console.error("❌ Error fetching upcoming bookings:", error)
-        setBookingsError("Failed to load upcoming bookings")
+          }
+        })
+        
+        console.log("📢 Transformed bookings:", transformedBookings)
+        setRealUpcomingBookings(transformedBookings)
+      } else {
+        console.log("📢 No bookings found")
         setRealUpcomingBookings([])
-      } finally {
-        setIsLoadingBookings(false)
       }
+    } catch (error) {
+      console.error("❌ Error fetching upcoming bookings:", error)
+      setBookingsError("Failed to load upcoming bookings")
+      setRealUpcomingBookings([])
+    } finally {
+      setIsLoadingBookings(false)
     }
-    
+  }, [user?.token, user?.id, user?.email])
+
+  // Fetch bookings on component mount and user changes
+  useEffect(() => {
     fetchUpcomingBookings()
-  }, [user?.token])
+  }, [fetchUpcomingBookings])
+  
+  // Refresh bookings when tab gains focus (user returns from booking flow)
+  useFocusEffect(
+    useCallback(() => {
+      console.log("📋 Book tab focused - refreshing upcoming bookings")
+      fetchUpcomingBookings()
+    }, [fetchUpcomingBookings])
+  )
 
   useEffect(() => {
     // Start animations when component mounts

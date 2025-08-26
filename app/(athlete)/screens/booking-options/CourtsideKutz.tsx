@@ -20,6 +20,7 @@ import { useAppSelector } from "@/store/hooks"
 import CalendarCard from "@/components/calendar/CalendarCard"
 import BackButton from "@/components/buttons/BackButton"
 import { getHaircutAndBarberServices, createHaircutBooking } from "@/utils/api"
+import { useAuth } from "@/utils/auth"
 
 // Define types for our data
 interface Barber {
@@ -211,6 +212,9 @@ const BarberBookingScreen = () => {
   
   // Get user token from Redux store
   const user = useAppSelector((state) => state.user.data)
+  
+  // Get auth functions
+  const { forceReLogin } = useAuth()
 
   // Fetch real data from API
   useEffect(() => {
@@ -221,32 +225,85 @@ const BarberBookingScreen = () => {
         
         const data = await getHaircutAndBarberServices()
         console.log("📢 Fetched haircut data:", data)
+        console.log("📢 Data structure check:")
+        if (Array.isArray(data) && data.length > 0) {
+          console.log("📢 First item structure:", JSON.stringify(data[0], null, 2))
+          console.log("📢 Total items received:", data.length)
+        }
         
-        // Transform API data to match our interface
-        // Note: This will need to be adjusted based on the actual API response structure
-        if (data && Array.isArray(data)) {
-          // Extract barbers and services from API response
-          // This is a placeholder - adjust based on actual API structure
-          const transformedBarbers = data.map((item: any, index: number) => ({
-            id: item.barber_id || `b${index + 1}`,
-            name: item.barber_name || `Barber ${index + 1}`,
-            image: item.barber_image || "https://images.squarespace-cdn.com/content/v1/5c4d7e227e3c3a6ec70a5ac7/1596359610389-QDVB9CXJRSWGSPPNUES6/IMG_8599.jpg",
-            rating: item.rating || 4.5,
-            specialties: item.specialties || ["General Services"],
-            availability: item.availability || ["9:00 AM", "10:00 AM", "11:00 AM", "1:00 PM", "2:00 PM", "3:00 PM"]
-          }))
+        if (data && Array.isArray(data) && data.length > 0) {
+          const barbersMap = new Map<string, Barber>()
+          const servicesMap = new Map<string, Service>()
+
+          data.forEach((item: any, index: number) => {
+            console.log(`📢 Processing item ${index}:`, {
+              barber_id: item.barber_id,
+              barber_name: item.barber_name,
+              haircut_id: item.haircut_id,
+              haircut_name: item.haircut_name
+            })
+            
+            // De-duplicate barbers with stricter validation
+            const barberId = item.barber_id?.toString()
+            const barberName = item.barber_name?.trim()
+            
+            if (barberId && barberName && !barbersMap.has(barberId)) {
+              barbersMap.set(barberId, {
+                id: barberId,
+                name: barberName,
+                image: item.barber_image || "https://images.squarespace-cdn.com/content/v1/5c4d7e227e3c3a6ec70a5ac7/1596359610389-QDVB9CXJRSWGSPPNUES6/IMG_8599.jpg",
+                rating: item.rating || 4.5,
+                specialties: Array.isArray(item.specialties) ? item.specialties : ["General Services"],
+                // Corrected fallback availability to include half-hour slots
+                availability: Array.isArray(item.availability) && item.availability.length > 0 
+                  ? item.availability 
+                  : [
+                      "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", 
+                      "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM"
+                    ],
+              })
+              console.log(`📢 Added barber: ${barberName} with id: ${barberId}`)
+            } else if (!barberId) {
+              console.log(`⚠️ Item ${index} missing barber_id:`, item)
+            } else if (!barberName) {
+              console.log(`⚠️ Item ${index} missing barber_name:`, item)
+            } else {
+              console.log(`📢 Skipping duplicate barber: ${barberName} (id: ${barberId})`)
+            }
+
+            // De-duplicate services - using haircut_id and haircut_name from API
+            const serviceId = item.haircut_id?.toString()
+            const serviceName = item.haircut_name?.trim()
+            
+            if (serviceId && serviceName && !servicesMap.has(serviceId)) {
+              servicesMap.set(serviceId, {
+                id: serviceId,
+                name: serviceName,
+                icon: item.icon || "scissors",
+                price: typeof item.price === 'number' ? item.price : 25,
+                duration: typeof item.duration === 'number' ? item.duration : 30,
+                description: item.description?.trim() || "Professional service",
+              })
+              console.log(`📢 Added service: ${serviceName} with id: ${serviceId}`)
+            } else if (!serviceId) {
+              console.log(`⚠️ Item ${index} missing haircut_id:`, item)
+            } else if (!serviceName) {
+              console.log(`⚠️ Item ${index} missing haircut_name:`, item)
+            } else {
+              console.log(`📢 Skipping duplicate service: ${serviceName} (id: ${serviceId})`)
+            }
+          })
+
+          const uniqueBarbers = Array.from(barbersMap.values())
+          const uniqueServices = Array.from(servicesMap.values())
           
-          const transformedServices = data.map((item: any, index: number) => ({
-            id: item.service_id || `s${index + 1}`,
-            name: item.service_name || `Service ${index + 1}`,
-            icon: item.icon || "scissors",
-            price: item.price || 25,
-            duration: item.duration || 30,
-            description: item.description || "Professional service"
-          }))
-          
-          setBarbersData(transformedBarbers.length > 0 ? transformedBarbers : barbers)
-          setServicesData(transformedServices.length > 0 ? transformedServices : services)
+          console.log(`📢 Final results: ${uniqueBarbers.length} unique barbers, ${uniqueServices.length} unique services`)
+          console.log("📢 Unique barbers:", uniqueBarbers.map(b => ({ id: b.id, name: b.name })))
+          console.log("📢 Unique services:", uniqueServices.map(s => ({ id: s.id, name: s.name })))
+
+          setBarbersData(uniqueBarbers.length > 0 ? uniqueBarbers : barbers)
+          setServicesData(uniqueServices.length > 0 ? uniqueServices : services)
+
         } else {
           // Fallback to mock data if API response is unexpected
           console.log("📢 Using fallback mock data")
@@ -353,23 +410,36 @@ const BarberBookingScreen = () => {
     setIsBooking(true)
 
     try {
-      // Prepare booking details for API
+      // Helper function to convert 12-hour format to 24-hour format
+      const convertTo24Hour = (time12h: string) => {
+        const [time, modifier] = time12h.split(' ')
+        let [hours, minutes] = time.split(':')
+        if (hours === '12') {
+          hours = '00'
+        }
+        if (modifier === 'PM') {
+          hours = (parseInt(hours, 10) + 12).toString()
+        }
+        return `${hours.padStart(2, '0')}:${minutes}`
+      }
+
+      // Prepare booking details for API (match Swagger specification)
+      // Convert date and time to ISO format
+      const startDateTime = `${selectedDate}T${convertTo24Hour(selectedTime)}:00Z`
+      const duration = selectedService.duration || 30 // Default 30 minutes
+      const endDateTime = new Date(new Date(startDateTime).getTime() + duration * 60000).toISOString()
+      
       const bookingDetails = {
         barber_id: selectedBarber.id,
         service_name: selectedService.name,
-        start_time: `${selectedDate} ${selectedTime}`,
-        duration: selectedService.duration,
-        price: selectedService.price,
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        date: selectedDate,
-        time: selectedTime
+        begin_time: startDateTime,
+        end_time: endDateTime
       }
 
       console.log("📤 Creating haircut booking:", bookingDetails)
       
-      // Call the real API
-      const response = await createHaircutBooking(bookingDetails, user.token)
+      // Call the real API (pass user email for JWT refresh if needed)
+      const response = await createHaircutBooking(bookingDetails, user.token, user.email)
       
       console.log("✅ Booking created successfully:", response)
       setIsBooking(false)
@@ -378,7 +448,27 @@ const BarberBookingScreen = () => {
     } catch (error) {
       console.error("❌ Error creating booking:", error)
       setIsBooking(false)
-      setApiError("Failed to create booking. Please try again.")
+      
+      // Check if it's an authentication error (401)
+      if ((error as any).response?.status === 401) {
+        console.log("🚨 Authentication failed - backend JWT issue")
+        const errorMessage = (error as any).response?.data?.error?.message || "Authentication failed"
+        
+        if (errorMessage.includes("Invalid or expired token")) {
+          setApiError("Booking service is temporarily unavailable due to authentication issues. Please try again later or contact support.")
+        } else {
+          setApiError("Your session has expired. Please log in again to continue.")
+          // Optional: Automatically redirect to login after a delay
+          setTimeout(() => {
+            forceReLogin("Session expired. Please log in again to make bookings.")
+          }, 3000)
+        }
+        
+      } else {
+        // Other errors
+        setApiError("Failed to create booking. Please try again.")
+      }
+      
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     }
   }

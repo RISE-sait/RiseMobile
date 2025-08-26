@@ -3,7 +3,7 @@ import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { loginUser, registerUser } from "./api" // Import API functions
 import { auth } from "@/firebase/firebaseConfig"
-import { GoogleAuthProvider, signInWithCredential, OAuthProvider } from "firebase/auth"
+import { GoogleAuthProvider, signInWithCredential, OAuthProvider, onAuthStateChanged, User as FirebaseUser } from "firebase/auth"
 import * as WebBrowser from "expo-web-browser"
 import * as Google from "expo-auth-session/providers/google"
 import * as AppleAuthentication from "expo-apple-authentication"
@@ -28,6 +28,8 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isAuthLoaded, setIsAuthLoaded] = useState(false)
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: "238537761671-vf9tu3vu85hnpm6r56bael9pm5b3k63b.apps.googleusercontent.com",
@@ -37,26 +39,105 @@ export const useAuth = () => {
     scopes: ["profile", "email"],
   })
 
-  // 🔹 Load user from AsyncStorage
+  // 🔹 Verify token validity with backend
+  const verifyTokenWithBackend = async (token: string, email: string): Promise<boolean> => {
+    try {
+      console.log("🔍 Verifying token with backend...")
+      // Try to get upcoming bookings as a way to verify token validity
+      const response = await axios.get(`${API_URL}/bookings/upcoming`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      console.log("✅ Token is valid - backend responded successfully")
+      return true
+    } catch (error) {
+      console.warn("⚠️ Token verification failed:", (error as any).response?.status)
+      return false
+    }
+  }
+
+  // 🔹 Refresh Firebase token and exchange for JWT
+  const refreshAndExchangeToken = async (firebaseUser: FirebaseUser): Promise<string | null> => {
+    try {
+      console.log("🔄 Refreshing Firebase token...")
+      const freshFirebaseToken = await firebaseUser.getIdToken(true) // Force refresh
+      console.log("✅ Got fresh Firebase token")
+      
+      // Exchange for JWT
+      console.log("🔄 Exchanging Firebase token for JWT...")
+      const response = await axios.post(`${API_URL}/auth`, 
+        { email: firebaseUser.email },
+        { headers: { Authorization: `Bearer ${freshFirebaseToken}` } }
+      )
+      
+      // 🔧 JWT token is returned in response headers, not body!
+      const authHeader = response.headers['authorization'] || response.headers['Authorization']
+      const jwtToken = authHeader?.replace(/^Bearer\s+/i, '')
+      
+      if (jwtToken && jwtToken !== authHeader) {
+        console.log("✅ Successfully got fresh JWT token from response headers")
+        return jwtToken
+      } else {
+        // Fallback: try to get from response body (old method)
+        const bodyJwtToken = response.data.token || response.data.jwt || response.data.access_token
+        if (bodyJwtToken) {
+          console.log("✅ Found JWT in response body (unexpected but working)")
+          return bodyJwtToken
+        }
+        
+        console.error("❌ No JWT returned from auth endpoint in headers or body")
+        console.warn("🔍 Available headers:", Object.keys(response.headers || {}))
+        console.warn("🔍 Available body fields:", Object.keys(response.data || {}))
+        return null
+      }
+    } catch (error) {
+      console.error("❌ Failed to refresh and exchange token:", error)
+      return null
+    }
+  }
+
+  // 🔹 Load user from AsyncStorage with token validation
   const loadUserFromStorage = async () => {
     try {
       const storedUser = await AsyncStorage.getItem("user")
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser)
-
         console.log("📢 Loaded stored user:", parsedUser)
+
+        // Verify token validity if Firebase user is available
+        if (firebaseUser && parsedUser.token) {
+          console.log("🔍 Verifying stored token validity...")
+          const isTokenValid = await verifyTokenWithBackend(parsedUser.token, parsedUser.email)
+          
+          if (!isTokenValid) {
+            console.log("⚠️ Stored token is invalid, attempting to refresh...")
+            const newToken = await refreshAndExchangeToken(firebaseUser)
+            
+            if (newToken) {
+              console.log("✅ Token refreshed successfully")
+              parsedUser.token = newToken
+              await saveUserToStorage(parsedUser) // Save the new token
+              setAuthError(null)
+            } else {
+              console.error("❌ Failed to refresh token, user needs to re-login")
+              setAuthError("Authentication expired. Please log in again.")
+              await AsyncStorage.removeItem("user")
+              setUser(null)
+              setIsAuthLoaded(true)
+              return
+            }
+          }
+        }
 
         setUser({
           ...parsedUser,
           firstName: parsedUser.firstName || (parsedUser.displayName?.split(" ")[0] ?? ""),
           lastName: parsedUser.lastName || (parsedUser.displayName?.split(" ")[1] ?? ""),
         })
-
-        // DO NOT navigate here - this causes the error
-        // Instead, the index.tsx file will handle navigation based on user state
+        setAuthError(null)
       }
     } catch (error) {
       console.error("❌ Failed to load user data:", error)
+      setAuthError("Failed to load authentication data")
     } finally {
       setIsAuthLoaded(true)
     }
@@ -392,31 +473,100 @@ export const useAuth = () => {
     }
   }
 
+  // 🔹 Force re-login when authentication fails
+  const forceReLogin = async (message: string = "Please log in again") => {
+    console.log("🚨 Forcing re-login:", message)
+    setAuthError(message)
+    setUser(null)
+    await AsyncStorage.removeItem("user")
+    await AsyncStorage.removeItem("authToken")
+    router.replace("/(auth)/login")
+  }
+
+  // 🔹 Check authentication status
+  const checkAuthStatus = async (): Promise<boolean> => {
+    if (!user || !firebaseUser) {
+      return false
+    }
+
+    try {
+      // Verify token is still valid
+      const isValid = await verifyTokenWithBackend(user.token, user.email)
+      if (!isValid) {
+        console.log("⚠️ Token invalid, attempting refresh...")
+        const newToken = await refreshAndExchangeToken(firebaseUser)
+        if (newToken) {
+          const updatedUser = { ...user, token: newToken }
+          setUser(updatedUser)
+          await saveUserToStorage(updatedUser)
+          return true
+        } else {
+          await forceReLogin("Your session has expired. Please log in again.")
+          return false
+        }
+      }
+      return true
+    } catch (error) {
+      console.error("❌ Auth status check failed:", error)
+      return false
+    }
+  }
+
   // 🔹 Logout Function
   const logout = async () => {
     try {
       await AsyncStorage.removeItem("user")
+      await AsyncStorage.removeItem("authToken")
       setUser(null)
+      setAuthError(null)
       router.replace("/(auth)/login")
     } catch (error) {
       console.error("Failed to log out:", error)
     }
   }
 
+  // 🔹 Firebase auth state listener
   useEffect(() => {
-    loadUserFromStorage()
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      console.log("🔥 Firebase auth state changed:", !!firebaseUser)
+      setFirebaseUser(firebaseUser)
+      
+      if (!firebaseUser) {
+        // Firebase user signed out, clear local data
+        setUser(null)
+        setAuthError(null)
+        AsyncStorage.removeItem("user")
+        AsyncStorage.removeItem("authToken")
+      }
+    })
+
+    return unsubscribe
   }, [])
+
+  // 🔹 Load user when Firebase user is available
+  useEffect(() => {
+    if (firebaseUser && !isAuthLoaded) {
+      loadUserFromStorage()
+    } else if (!firebaseUser && !isAuthLoaded) {
+      // No Firebase user, mark as loaded
+      setIsAuthLoaded(true)
+    }
+  }, [firebaseUser, isAuthLoaded])
 
   return {
     user,
     isLoading,
     isAuthLoaded,
+    authError,
+    firebaseUser,
     login,
     register,
     registerChild,
     loginWithGoogle,
     loginWithApple,
     logout,
+    checkAuthStatus,
+    forceReLogin,
   }
 }
 

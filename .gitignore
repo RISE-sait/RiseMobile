@@ -36,3 +36,11 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+tmp*.sh
+CLAUDE.md
+GEMINI.md
+.claude/
+*.md
+test-auth-flow.sh
+ios/
