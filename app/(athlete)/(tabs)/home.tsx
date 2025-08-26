@@ -172,30 +172,8 @@ export default function AthleteHome() {
   // Fallback to mock data if needed
   const fallbackToMockData = () => {
     try {
-      // Get today's date
-      const today = dayjs().format("YYYY-MM-DD")
-
-      // Filter upcoming matches/practices **only in the future**
-      const filteredMatches = mockMatches
-        .filter((match) => ["match", "practice"].includes(match.type) && dayjs(match.date).isAfter(today))
-        .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())
-
-      if (filteredMatches.length > 0) {
-        const nextEvent = filteredMatches[0]
-
-        // Ensure we're setting proper string values for image URIs
-        setUpcomingEvent({
-          ...nextEvent,
-          title: nextEvent.description,
-          // Use string URLs for images
-          homeLogo: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-          awayLogo: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-          bgImage:
-            "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-        })
-      } else {
-        setUpcomingEvent(null)
-      }
+      // No mock data available, just set to null
+      setUpcomingEvent(null)
     } catch (error) {
       setUpcomingEvent(null)
     }

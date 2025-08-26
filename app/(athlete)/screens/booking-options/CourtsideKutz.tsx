@@ -439,7 +439,7 @@ const BarberBookingScreen = () => {
       console.log("📤 Creating haircut booking:", bookingDetails)
       
       // Call the real API (pass user email for JWT refresh if needed)
-      const response = await createHaircutBooking(bookingDetails, user.token, user.email)
+      const response = await createHaircutBooking(bookingDetails, user.token)
       
       console.log("✅ Booking created successfully:", response)
       setIsBooking(false)

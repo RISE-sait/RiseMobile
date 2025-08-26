@@ -70,12 +70,12 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 
     // ✅ Return UUID from backend response as `id`
     return {
-      id: response.data.id,
+      id: (response.data as any).id,
       email: firebaseUser.email || email,
-      firstName: response.data.first_name || "",
-      lastName: response.data.last_name || "",
-      role: response.data.role,
-      countryCode: response.data.country_code || "US",
+      firstName: (response.data as any).first_name || "",
+      lastName: (response.data as any).last_name || "",
+      role: (response.data as any).role,
+      countryCode: (response.data as any).country_code || "US",
       token: jwtToken, // ✅ Now this is set correctly!
       firebaseId: firebaseUser.uid,
     };
