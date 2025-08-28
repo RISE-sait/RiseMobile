@@ -17,10 +17,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { FontAwesome6, Ionicons, MaterialIcons, MaterialCommunityIcons, AntDesign, Feather } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
+import { useRouter, useLocalSearchParams } from "expo-router"
 import * as Haptics from "expo-haptics"
-import players from "../data/players"
 import BackButton from "@/components/buttons/BackButton"
+import { getTeamById } from "@/utils/api"
+import { TeamResponse, ApiInternalDomainsTeamDtoRosterMemberInfo } from "@/app/api/Api"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const { width, height } = Dimensions.get("window")
 
@@ -62,10 +64,45 @@ const POSITION_NAMES = {
   C: "Center",
 }
 
+// Helper function to map API roster data to Player interface
+const mapRosterMemberToPlayer = (member: ApiInternalDomainsTeamDtoRosterMemberInfo, index: number): Player => ({
+  id: member.id || `player-${index}`,
+  firstName: member.name?.split(' ')[0] || "Unknown",
+  lastName: member.name?.split(' ').slice(1).join(' ') || "Player",
+  number: index + 1, // Since API doesn't have jersey numbers yet
+  position: "PG" as PlayerPosition, // Default position since API doesn't have this
+  height: "6'0\"", // Default height since API doesn't have this
+  weight: 180, // Default weight since API doesn't have this
+  age: 22, // Default age since API doesn't have this
+  experience: 2, // Default experience since API doesn't have this
+  college: "Unknown", // Default college since API doesn't have this
+  image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop", // Default image
+  status: "Active" as PlayerStatus, // Default status since API doesn't have this
+  stats: {
+    ppg: member.points || 0,
+    rpg: member.rebounds || 0,
+    apg: member.assists || 0,
+    spg: member.steals || 0,
+    bpg: 0, // API doesn't have blocks
+    fg: 0.45, // Default field goal percentage
+    threePt: 0.35, // Default three-point percentage
+    ft: 0.75, // Default free throw percentage
+    mpg: 25, // Default minutes per game
+    topg: 2, // Default turnovers
+  },
+})
+
 const TeamRoster: React.FC = () => {
+  // Get URL parameters
+  const params = useLocalSearchParams()
+  const teamId = params.teamId as string
+  const teamName = params.teamName as string
+
   // State
-  const [allPlayers, setAllPlayers] = useState<Player[]>(players)
-  const [filteredPlayers, setFilteredPlayers] = useState<Player[]>(players)
+  const [allPlayers, setAllPlayers] = useState<Player[]>([])
+  const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([])
+  const [teamData, setTeamData] = useState<TeamResponse | null>(null)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState<"all" | PlayerPosition>("all")
   const [sortBy, setSortBy] = useState<"name" | "number" | "ppg" | "position">("name")
@@ -176,20 +213,52 @@ const TeamRoster: React.FC = () => {
   }, [showPlayerModal])
 
   // Methods
-  const fetchPlayers = () => {
-    setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
+  const fetchPlayers = async () => {
+    try {
+      setLoading(true)
+      setApiError(null)
+
+      // Validate teamId is provided
+      if (!teamId) {
+        throw new Error("No team selected. Please go back and select a team.")
+      }
+
+      // Get user token from AsyncStorage
+      const storedUser = await AsyncStorage.getItem("user")
+      if (!storedUser) {
+        throw new Error("User not found. Please log in again.")
+      }
+      
+      const user = JSON.parse(storedUser)
+      const token = user.token || await AsyncStorage.getItem("authToken")
+      
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.")
+      }
+
+      // Fetch team data from API
+      const team = await getTeamById(teamId, token)
+      setTeamData(team)
+
+      // Map roster members to Player objects
+      const playersData = team.roster ? team.roster.map(mapRosterMemberToPlayer) : []
+      setAllPlayers(playersData)
+
+    } catch (error) {
+      console.error("Error fetching team data:", error)
+      setApiError((error as Error).message)
+      // Clear data on error - no fallback to mock data
+      setAllPlayers([])
+      setTeamData(null)
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
   }
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true)
-    // Simulate refresh
-    setTimeout(() => {
-      setRefreshing(false)
-    }, 1500)
+    await fetchPlayers()
+    setRefreshing(false)
   }
 
   const filterAndSortPlayers = () => {
@@ -315,7 +384,9 @@ const TeamRoster: React.FC = () => {
 
       <BackButton />
       <View style={styles.headerTitleContainer}>
-        <Text style={styles.headerTitle}>Team Roster</Text>
+        <Text style={styles.headerTitle}>
+          {teamData?.name || teamName || "Team Roster"}
+        </Text>
         <TouchableOpacity style={styles.infoButton} onPress={() => setShowPositionLegend(!showPositionLegend)}>
           <Ionicons name="information-circle-outline" size={22} color={COLORS.primary} />
         </TouchableOpacity>
@@ -523,14 +594,41 @@ const TeamRoster: React.FC = () => {
       )
     }
 
+    if (apiError) {
+      return (
+        <View style={styles.emptyContainer}>
+          <FontAwesome6 name="wifi-slash" size={50} color={COLORS.danger} />
+          <Text style={styles.emptyText}>Unable to load team data</Text>
+          <Text style={styles.emptySubtext}>Please check your connection and try again</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchPlayers}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )
+    }
+
+    // Check if it's due to filters
+    if (allPlayers.length > 0 && filteredPlayers.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <FontAwesome6 name="filter" size={50} color={COLORS.textSecondary} />
+          <Text style={styles.emptyText}>No players match your filters</Text>
+          <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
+          <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
+            <Text style={styles.resetButtonText}>Reset Filters</Text>
+          </TouchableOpacity>
+        </View>
+      )
+    }
+
+    // No players in team
     return (
       <View style={styles.emptyContainer}>
         <FontAwesome6 name="users-slash" size={50} color={COLORS.textSecondary} />
-        <Text style={styles.emptyText}>No players found</Text>
-        <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
-        <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
-          <Text style={styles.resetButtonText}>Reset Filters</Text>
-        </TouchableOpacity>
+        <Text style={styles.emptyText}>No players in this team</Text>
+        <Text style={styles.emptySubtext}>
+          {teamData?.name ? `${teamData.name} doesn't have any players yet` : "This team is empty"}
+        </Text>
       </View>
     )
   }
@@ -905,6 +1003,17 @@ const TeamRoster: React.FC = () => {
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {renderHeader()}
         {renderSearchBar()}
+        
+        {/* Show API error if present */}
+        {apiError && (
+          <View style={styles.errorContainer}>
+            <FontAwesome6 name="triangle-exclamation" size={16} color={COLORS.danger} />
+            <Text style={[styles.errorText, { color: COLORS.danger }]}>
+              Failed to load team data: {apiError}
+            </Text>
+          </View>
+        )}
+        
         {renderTeamStats()}
         {renderPositionTabs()}
         {renderPositionLegend()}
@@ -1005,6 +1114,21 @@ const styles = StyleSheet.create({
   },
   clearSearch: {
     padding: 5,
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: `${COLORS.danger}20`,
+    padding: 12,
+    marginTop: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.danger,
+  },
+  errorText: {
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
   },
   statsContainer: {
     marginTop: 16,
@@ -1221,6 +1345,18 @@ const styles = StyleSheet.create({
   resetButtonText: {
     color: COLORS.text,
     fontWeight: "bold",
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    color: "#000",
+    fontWeight: "bold",
+    fontSize: 16,
   },
   modalOverlay: {
     flex: 1,

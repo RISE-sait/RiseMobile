@@ -44,3 +44,4 @@ GEMINI.md
 *.md
 test-auth-flow.sh
 ios/
+tmpDocs/
