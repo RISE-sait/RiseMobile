@@ -238,6 +238,58 @@ export const registerUser = async (
   }
 };
 
+// 🔹 **Team API Functions**
+
+// Get all teams for the authenticated coach
+export const getTeams = async (token: string): Promise<any> => {
+  try {
+    const firebaseUser = getAuth().currentUser;
+    if (!firebaseUser) {
+      throw new Error("User not authenticated");
+    }
+
+    const firebaseToken = await firebaseUser.getIdToken(true);
+    
+    const response = await axios.get(`${API_URL}/secure/teams`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "firebase_token": firebaseToken,
+        "Content-Type": "application/json",
+      },
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to fetch teams:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
+// Get team details by ID including roster
+export const getTeamById = async (teamId: string, token: string): Promise<any> => {
+  try {
+    const firebaseUser = getAuth().currentUser;
+    if (!firebaseUser) {
+      throw new Error("User not authenticated");
+    }
+
+    const firebaseToken = await firebaseUser.getIdToken(true);
+    
+    const response = await axios.get(`${API_URL}/teams/${teamId}`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "firebase_token": firebaseToken,
+        "Content-Type": "application/json",
+      },
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Failed to fetch team ${teamId}:`, (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
 export const getMembershipByCustomerId = async (customerId: string) => {
   const firebaseUser = getAuth().currentUser;
 

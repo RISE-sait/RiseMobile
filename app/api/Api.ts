@@ -10,23 +10,25 @@
  * ---------------------------------------------------------------
  */
 
-export interface CourseRequestDto {
-  description?: string;
-  name: string;
-}
-
-export interface CourseResponseDto {
-  created_at?: string;
-  description?: string;
+export interface ApiInternalDomainsTeamDtoRosterMemberInfo {
+  assists?: number;
+  country?: string;
+  email?: string;
   id?: string;
+  losses?: number;
   name?: string;
-  updated_at?: string;
+  points?: number;
+  rebounds?: number;
+  steals?: number;
+  wins?: number;
 }
 
 export interface CustomerAthleteRegistrationRequestDto {
-  age: number;
   country_code?: string;
+  /** @example "2000-01-01" */
+  dob: string;
   first_name: string;
+  gender?: "M" | "F";
   has_consent_to_email_marketing?: boolean;
   has_consent_to_sms?: boolean;
   last_name: string;
@@ -45,23 +47,13 @@ export interface CustomerAthleteResponseDto {
 }
 
 export interface CustomerChildRegistrationRequestDto {
-  age: number;
   country_code?: string;
+  /** @example "2000-01-01" */
+  dob: string;
   first_name: string;
+  gender?: "M" | "F";
   last_name: string;
   waivers?: CustomerWaiverSigningRequestDto[];
-}
-
-export interface CustomerMembershipPlansResponseDto {
-  created_at?: string;
-  customer_id?: string;
-  id?: string;
-  membership_name?: string;
-  membership_plan_id?: string;
-  renewal_date?: string;
-  start_date?: string;
-  status?: string;
-  updated_at?: string;
 }
 
 export interface CustomerMembershipResponseDto {
@@ -73,9 +65,11 @@ export interface CustomerMembershipResponseDto {
 }
 
 export interface CustomerParentRegistrationRequestDto {
-  age: number;
   country_code?: string;
+  /** @example "2000-01-01" */
+  dob: string;
   first_name: string;
+  gender?: "M" | "F";
   has_consent_to_email_marketing?: boolean;
   has_consent_to_sms?: boolean;
   last_name: string;
@@ -84,9 +78,9 @@ export interface CustomerParentRegistrationRequestDto {
 }
 
 export interface CustomerResponse {
-  age?: number;
   athlete_info?: CustomerAthleteResponseDto;
   country_code?: string;
+  dob?: string;
   email?: string;
   first_name?: string;
   hubspot_id?: string;
@@ -110,69 +104,186 @@ export interface CustomerWaiverSigningRequestDto {
   waiver_url: string;
 }
 
-export interface EnrollmentCreateRequestDto {
-  customer_id: string;
-  event_id: string;
-}
-
-export interface EnrollmentResponseDto {
-  checked_in_at?: string;
-  created_at?: string;
-  customer_id?: string;
-  event_id?: string;
-  id?: string;
-  is_cancelled?: boolean;
-  updated_at?: string;
-}
-
-export interface EventRequestDto {
-  /** @example "00000000-0000-0000-0000-000000000000" */
-  course_id?: string;
+export interface EventCreateRequestDto {
+  /** @example 100 */
+  capacity?: number;
   /** @example "THURSDAY" */
-  day: string;
-  /** @example "00000000-0000-0000-0000-000000000000" */
-  game_id?: string;
+  day?: string;
+  /** @example "23:00:00+00:00" */
+  end_at: string;
   /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */
   location_id?: string;
   /** @example "f0e21457-75d4-4de6-b765-5ee13221fd72" */
-  practice_id?: string;
+  program_id?: string;
   /** @example "2023-10-05T07:00:00Z" */
-  program_end_at: string;
+  recurrence_end_at: string;
   /** @example "2023-10-05T07:00:00Z" */
-  program_start_at: string;
+  recurrence_start_at: string;
   /** @example "23:00:00+00:00" */
-  session_end_time: string;
-  /** @example "23:00:00+00:00" */
-  session_start_time: string;
+  start_at: string;
+  /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */
+  team_id?: string;
 }
 
-export interface EventResponseDto {
-  capacity?: number;
-  course_id?: string;
-  course_name?: string;
-  day?: string;
-  game_id?: string;
-  game_name?: string;
+export interface EventCustomerResponseDto {
+  email?: string;
+  first_name?: string;
+  gender?: string;
+  has_cancelled_enrollment?: boolean;
   id?: string;
-  location_address?: string;
-  location_id?: string;
-  location_name?: string;
-  practice_id?: string;
-  practice_name?: string;
-  program_end_at?: string;
-  program_start_at?: string;
+  last_name?: string;
+  phone?: string;
+}
+
+export interface EventDeleteRequestDto {
+  /** @minItems 1 */
+  ids: string[];
+}
+
+export interface EventEventResponseDto {
+  capacity?: number;
+  created_by?: EventPersonResponseDto;
+  customers?: EventCustomerResponseDto[];
+  end_at?: string;
+  id?: string;
+  location?: EventLocationInfo;
+  program?: EventProgramInfo;
+  staff?: EventStaffResponseDto[];
+  start_at?: string;
+  team?: EventTeamInfo;
+  updated_by?: EventPersonResponseDto;
+}
+
+export interface EventLocation {
+  address?: string;
+  id?: string;
+  name?: string;
+}
+
+export interface EventLocationInfo {
+  address?: string;
+  id?: string;
+  name?: string;
+}
+
+export interface EventPersonResponseDto {
+  first_name?: string;
+  id?: string;
+  last_name?: string;
+}
+
+export interface EventProgram {
+  id?: string;
+  name?: string;
+  type?: string;
+}
+
+export interface EventProgramInfo {
+  id?: string;
+  name?: string;
+  type?: string;
+}
+
+export interface EventScheduleResponseDto {
+  day?: string;
+  location?: EventLocation;
+  program?: EventProgram;
+  recurrence_end_at?: string;
+  recurrence_start_at?: string;
   session_end_at?: string;
   session_start_at?: string;
+  team?: EventTeam;
+}
+
+export interface EventStaffResponseDto {
+  email?: string;
+  first_name?: string;
+  gender?: string;
+  id?: string;
+  last_name?: string;
+  phone?: string;
+  role_name?: string;
+}
+
+export interface EventTeam {
+  id?: string;
+  name?: string;
+}
+
+export interface EventTeamInfo {
+  id?: string;
+  name?: string;
+}
+
+export interface EventUpdateEventsRequestDto {
+  /** @example 100 */
+  new_capacity?: number;
+  /** @example "23:00:00+00:00" */
+  new_event_end_at: string;
+  /** @example "21:00:00+00:00" */
+  new_event_start_at: string;
+  /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */
+  new_location_id?: string;
+  /** @example "f0e21457-75d4-4de6-b765-5ee13221fd72" */
+  new_program_id?: string;
+  /** @example "2023-10-05T07:00:00Z" */
+  new_recurrence_end_at: string;
+  /** @example "2023-10-05T07:00:00Z" */
+  new_recurrence_start_at: string;
+  /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */
+  new_team_id?: string;
+  /** @example 100 */
+  original_capacity?: number;
+  /** @example "13:00:00+00:00" */
+  original_event_end_at: string;
+  /** @example "10:00:00+00:00" */
+  original_event_start_at: string;
+  /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */
+  original_location_id?: string;
+  /** @example "f0e21457-75d4-4de6-b765-5ee13221fd72" */
+  original_program_id?: string;
+  /** @example "2023-10-05T07:00:00Z" */
+  original_recurrence_end_at: string;
+  /** @example "2023-10-05T07:00:00Z" */
+  original_recurrence_start_at: string;
+  /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */
+  original_team_id?: string;
+}
+
+export interface EventUpdateRequestDto {
+  /** @example 100 */
+  capacity?: number;
+  /** @example "2023-10-05T07:00:00Z" */
+  end_at: string;
+  /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */
+  location_id?: string;
+  /** @example "f0e21457-75d4-4de6-b765-5ee13221fd72" */
+  program_id?: string;
+  /** @example "2023-10-05T07:00:00Z" */
+  start_at: string;
+  /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */
+  team_id?: string;
 }
 
 export interface GameRequestDto {
-  name?: string;
+  description?: string;
+  lose_score?: number;
+  lose_team?: string;
+  name: string;
+  win_score?: number;
+  win_team?: string;
 }
 
 export interface GameResponseDto {
+  created_at?: string;
+  description?: string;
   id?: string;
+  lose_score?: number;
+  lose_team?: string;
   name?: string;
-  video_link?: string;
+  updated_at?: string;
+  win_score?: number;
+  win_team?: string;
 }
 
 export interface HaircutBarberServiceResponseDto {
@@ -211,9 +322,22 @@ export interface HaircutRequestDto {
   begin_time: string;
   /** @example "2023-10-05T07:00:00Z" */
   end_time: string;
+  /** @example "Haircut" */
+  service_name: string;
+}
+
+export interface IdentityAthleteResponseDto {
+  assists?: number;
+  losses?: number;
+  points?: number;
+  rebounds?: number;
+  steals?: number;
+  wins?: number;
 }
 
 export interface IdentityMembershipReadResponseDto {
+  membership_benefits?: string;
+  membership_description?: string;
   membership_name?: string;
   plan_name?: string;
   renewal_date?: string;
@@ -221,7 +345,8 @@ export interface IdentityMembershipReadResponseDto {
 }
 
 export interface IdentityUserAuthenticationResponseDto {
-  age?: number;
+  age?: string;
+  athlete_info?: IdentityAthleteResponseDto;
   country_code?: string;
   email?: string;
   first_name?: string;
@@ -253,6 +378,7 @@ export interface MembershipRequestDto {
 }
 
 export interface MembershipResponse {
+  benefits?: string;
   created_at?: string;
   description?: string;
   id?: string;
@@ -264,51 +390,59 @@ export interface MembershipPlanPlanRequestDto {
   amt_periods?: number;
   membership_id: string;
   name?: string;
-  payment_frequency: string;
-  price: string;
+  stripe_joining_fees_id?: string;
+  stripe_price_id: string;
 }
 
 export interface MembershipPlanPlanResponse {
   amt_periods?: number;
   created_at?: string;
   id?: string;
-  joining_fees?: string;
   membership_id?: string;
   name?: string;
-  payment_frequency?: string;
-  price?: string;
+  stripe_joining_fees_id?: string;
+  stripe_price_id?: string;
   updated_at?: string;
 }
 
-export interface PracticeLevelsResponse {
+export interface PaymentCheckoutResponseDto {
+  payment_url?: string;
+}
+
+export interface ProgramLevelsResponse {
   levels?: string[];
 }
 
-export interface PracticeRequestDto {
+export interface ProgramRequestDto {
+  capacity?: number;
   description?: string;
   level: string;
   name: string;
+  type: string;
 }
 
-export interface PracticeResponse {
+export interface ProgramResponse {
+  capacity?: number;
   created_at?: string;
   description?: string;
   id?: string;
   level?: string;
   name?: string;
+  type?: string;
   updated_at?: string;
 }
 
-export interface PurchaseCheckoutResponseDto {
-  payment_url?: string;
+export interface StaffCoachStatsResponseDto {
+  losses?: number;
+  wins?: number;
 }
 
-export type PurchaseSquareWebhookEventDto = object;
-
 export interface StaffRegistrationRequestDto {
-  age: number;
   country_code?: string;
+  /** @example "2000-01-01" */
+  dob: string;
   first_name: string;
+  gender?: "M" | "F";
   is_active_staff?: boolean;
   last_name: string;
   /** @example "+15141234567" */
@@ -322,6 +456,7 @@ export interface StaffRequestDto {
 }
 
 export interface StaffResponseDto {
+  coach_stats?: StaffCoachStatsResponseDto;
   country_code?: string;
   created_at?: string;
   email?: string;
@@ -335,17 +470,40 @@ export interface StaffResponseDto {
   updated_at?: string;
 }
 
+export interface TeamCoach {
+  email?: string;
+  id?: string;
+  name?: string;
+}
+
 export interface TeamRequestDto {
   capacity: number;
+  /** @example "faae4b3a-ad9f-463c-ae4b-3aad9fb63c9b" */
   coach_id?: string;
   name: string;
 }
 
 export interface TeamResponse {
   capacity?: number;
-  coach_id?: string;
+  coach?: TeamCoach;
   created_at?: string;
   id?: string;
   name?: string;
+  roster?: ApiInternalDomainsTeamDtoRosterMemberInfo[];
   updated_at?: string;
+}
+
+export interface UserUpdateRequestDto {
+  /** @example "US" */
+  country_alpha2_code: string;
+  /** @example "2000-01-01" */
+  dob: string;
+  email?: string;
+  first_name: string;
+  gender?: "M" | "F";
+  has_marketing_email_consent: boolean;
+  has_sms_consent: boolean;
+  last_name: string;
+  parent_id?: string;
+  phone?: string;
 }
