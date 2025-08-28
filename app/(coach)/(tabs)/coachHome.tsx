@@ -143,7 +143,7 @@ const mapToUpcomingCardFormat = (event: any) => ({
 
 
   const navigationOptions = [
-    { label: "Team Roster", route: "/screens/teamRoster", image: images.teamRoster },
+    { label: "Team Roster", route: "/screens/selectTeamForRoster", image: images.teamRoster },
     { label: "Training Schedule", route: "/coachCalendar", image: images.schedules },
     { label: "Match History", route: "/screens/matchHistory", image: images.matchHistory },
   ];
