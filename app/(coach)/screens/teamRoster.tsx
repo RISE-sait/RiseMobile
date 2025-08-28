@@ -438,16 +438,19 @@ const TeamRoster: React.FC = () => {
           <Text style={styles.statValue}>{teamStats.injuredPlayers}</Text>
           <Text style={styles.statLabel}>Injured</Text>
         </View>
+        {/* Temporarily hidden until backend supports player stats
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{teamStats.avgPPG.toFixed(1)}</Text>
           <Text style={styles.statLabel}>PPG</Text>
         </View>
+        */}
       </View>
     </View>
   )
 
   const renderPositionTabs = () => (
     <View>
+      {/* Temporarily hidden until backend supports position data
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -472,6 +475,7 @@ const TeamRoster: React.FC = () => {
           </TouchableOpacity>
         ))}
       </ScrollView>
+      */}
     </View>
   )
   
@@ -533,12 +537,15 @@ const TeamRoster: React.FC = () => {
             </Text>
 
             <View style={styles.playerDetailRow}>
+              {/* Temporarily hidden until backend supports position data
               <View style={styles.positionBadge}>
                 <Text style={styles.positionText}>{item.position}</Text>
               </View>
+              */}
               {getStatusBadge(item.status)}
             </View>
 
+            {/* Temporarily hidden until backend supports player stats
             <View style={styles.statsRow}>
               <View style={styles.statColumn}>
                 <Text style={styles.statValue}>{item.stats.ppg.toFixed(1)}</Text>
@@ -553,9 +560,10 @@ const TeamRoster: React.FC = () => {
                 <Text style={styles.statLabel}>APG</Text>
               </View>
             </View>
+            */}
           </View>
 
-          {/* Quick Actions */}
+          {/* Temporarily hidden until backend supports player actions
           <View style={styles.quickActions}>
             <TouchableOpacity
               style={styles.quickActionButton}
@@ -579,6 +587,7 @@ const TeamRoster: React.FC = () => {
               <Feather name="message-circle" size={22} color={COLORS.primary} />
             </TouchableOpacity>
           </View>
+          */}
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -874,6 +883,7 @@ const TeamRoster: React.FC = () => {
                   </View>
                 </View>
 
+                {/* Temporarily hidden until backend supports detailed player stats
                 <View style={styles.playerModalSection}>
                   <Text style={styles.playerModalSectionTitle}>Key Stats</Text>
                   <View style={styles.playerModalStatsGrid}>
@@ -913,6 +923,7 @@ const TeamRoster: React.FC = () => {
                     </View>
                   </View>
                 </View>
+                */}
 
                 {selectedPlayer.lastFiveGames && (
                   <View style={styles.playerModalSection}>
