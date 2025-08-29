@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/tool
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
-import { getAuth } from "firebase/auth"
+import { auth } from "@/firebase/firebaseConfig"
 import type { CalendarItem, PracticesState } from "@/types"
 import type { CreatePracticePayload } from "@/types/practice"
 
@@ -114,7 +114,7 @@ export const createPracticeThunk = createAsyncThunk<
   "practices/createPractice",
   async (payload, { rejectWithValue, dispatch }) => {
     try {
-      const firebaseUser = getAuth().currentUser
+      const firebaseUser = auth.currentUser
       if (!firebaseUser) throw new Error("No user is logged in.")
 
       const firebaseToken = await firebaseUser.getIdToken(true)
@@ -170,7 +170,7 @@ export const createRecurringPracticeThunk = createAsyncThunk<
   "practices/createRecurringPractice",
   async (payload, { rejectWithValue }) => {
     try {
-      const firebaseUser = getAuth().currentUser
+      const firebaseUser = auth.currentUser
       if (!firebaseUser) throw new Error("No user is logged in.")
 
       const firebaseToken = await firebaseUser.getIdToken(true)

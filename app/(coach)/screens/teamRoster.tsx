@@ -22,7 +22,8 @@ import * as Haptics from "expo-haptics"
 import BackButton from "@/components/buttons/BackButton"
 import { getTeamById } from "@/utils/api"
 import { TeamResponse, ApiInternalDomainsTeamDtoRosterMemberInfo } from "@/app/api/Api"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useSelector } from "react-redux"
+import type { RootState } from "@/store"
 
 const { width, height } = Dimensions.get("window")
 
@@ -97,6 +98,9 @@ const TeamRoster: React.FC = () => {
   const params = useLocalSearchParams()
   const teamId = params.teamId as string
   const teamName = params.teamName as string
+
+  // Get user from Redux store
+  const user = useSelector((state: RootState) => state.user.data)
 
   // State
   const [allPlayers, setAllPlayers] = useState<Player[]>([])
@@ -223,14 +227,8 @@ const TeamRoster: React.FC = () => {
         throw new Error("No team selected. Please go back and select a team.")
       }
 
-      // Get user token from AsyncStorage
-      const storedUser = await AsyncStorage.getItem("user")
-      if (!storedUser) {
-        throw new Error("User not found. Please log in again.")
-      }
-      
-      const user = JSON.parse(storedUser)
-      const token = user.token || await AsyncStorage.getItem("authToken")
+      // Get user token from Redux state
+      const token = user?.token
       
       if (!token) {
         throw new Error("Authentication token not found. Please log in again.")
