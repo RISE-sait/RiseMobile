@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
+import { useAuth } from "@/utils/auth";
 
 import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
@@ -31,6 +32,8 @@ const AthleteProfileScreen = () => {
   const router = useRouter();
   // ✅ Use Redux as primary data source
   const reduxUser = useSelector((state: RootState) => state.user.data);
+  // ✅ Get logout function from useAuth hook
+  const { logout } = useAuth();
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -79,8 +82,8 @@ const AthleteProfileScreen = () => {
 
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem("user");
-    router.replace("/(auth)/login");
+    // ✅ Use the comprehensive logout function from auth.ts instead of simple AsyncStorage removal
+    await logout();
   };
 
   if (!user) {
