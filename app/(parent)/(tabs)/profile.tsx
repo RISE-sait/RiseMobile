@@ -6,6 +6,8 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useSelector } from "react-redux"
+import type { RootState } from "@/store"
 import { useAuth } from "@/utils/auth"
 import ProfileHeader from "@/components/profile/ProfileHeader"
 import AccountSection from "@/components/profile/AccountSection"
@@ -30,9 +32,27 @@ export default function ParentProfileScreen() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  // ✅ Prioritize Redux data
+  const reduxUser = useSelector((state: RootState) => state.user.data)
+
   useEffect(() => {
     const loadUser = async () => {
       try {
+        // ✅ Prioritize Redux data
+        if (reduxUser) {
+          console.log("📢 Loaded user from Redux state:", reduxUser)
+          setUser({
+            ...reduxUser,
+            firstName: reduxUser.firstName || reduxUser.first_name || "",
+            lastName: reduxUser.lastName || reduxUser.last_name || "",
+            countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
+          })
+          setIsLoading(false)
+          return // ✅ Redux data available, return directly
+        }
+
+        // ⚠️ Only use AsyncStorage fallback when Redux data is not available
+        console.log("⚠️ Redux user not available, trying AsyncStorage fallback...")
         const storedUser = await AsyncStorage.getItem("user")
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser)
@@ -51,7 +71,7 @@ export default function ParentProfileScreen() {
     }
 
     loadUser()
-  }, [])
+  }, [reduxUser]) // ✅ Depend on reduxUser changes
 
   const handleLogout = async () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [

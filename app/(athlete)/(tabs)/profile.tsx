@@ -4,6 +4,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
 
 import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
@@ -27,16 +29,32 @@ type User = {
 
 const AthleteProfileScreen = () => {
   const router = useRouter();
+  // ✅ Use Redux as primary data source
+  const reduxUser = useSelector((state: RootState) => state.user.data);
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
   const loadUser = async () => {
     try {
+      // ✅ Prioritize Redux data
+      if (reduxUser) {
+        console.log("📢 Loaded user from Redux state:", reduxUser);
+        setUser({
+          ...reduxUser,
+          firstName: reduxUser.firstName || reduxUser.first_name || "",
+          lastName: reduxUser.lastName || reduxUser.last_name || "",
+          countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
+        });
+        return; // ✅ Redux data available, return directly
+      }
+
+      // ⚠️ Only use AsyncStorage fallback when Redux data is not available
+      console.log("⚠️ Redux user not available, trying AsyncStorage fallback...");
       const storedUser = await AsyncStorage.getItem("user");
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        console.log("📢 Loaded user from AsyncStorage:", parsedUser);
+        console.log("📢 Loaded user from AsyncStorage fallback:", parsedUser);
 
         setUser({
           ...parsedUser,
@@ -45,7 +63,7 @@ const AthleteProfileScreen = () => {
           countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
         });
       } else {
-        console.log("⚠️ No user found in AsyncStorage.");
+        console.log("⚠️ No user found in Redux or AsyncStorage.");
       }
     } catch (error) {
       console.error("❌ Error loading user:", error);
@@ -53,7 +71,7 @@ const AthleteProfileScreen = () => {
   };
 
   loadUser();
-}, []);
+}, [reduxUser]); // ✅ Depend on reduxUser changes
 
   
   

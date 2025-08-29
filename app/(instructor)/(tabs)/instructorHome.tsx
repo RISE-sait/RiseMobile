@@ -9,6 +9,7 @@ import ProfileHeader from "@/components/profile/ProfileHeader"
 import UpcomingCard from "@/components/events/UpcomingCard"
 import QRCodeModal from "@/components/QRCodeModal"
 import GoToCards from "../../../components/GoToCards"
+import { useAppSelector } from "@/store/hooks"
 import dayjs from "dayjs"
 import GradientBackground from "@/components/barber/GradientBackground"
 
@@ -28,6 +29,7 @@ type User = {
 
 export default function InstructorHomeScreen() {
   const router = useRouter()
+  const reduxUser = useAppSelector((state) => state.user.data)
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [modalVisible, setModalVisible] = useState(false)
@@ -35,11 +37,17 @@ export default function InstructorHomeScreen() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const storedUser = await AsyncStorage.getItem("user")
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser)
-          console.log("📢 Loaded user from AsyncStorage:", parsedUser)
-          setUser(parsedUser)
+        // If we have user in Redux, use that
+        if (reduxUser) {
+          setUser(reduxUser)
+        } else {
+          // Otherwise try to load from AsyncStorage (backward compatibility)
+          const storedUser = await AsyncStorage.getItem("user")
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser)
+            console.log("📢 Loaded user from AsyncStorage:", parsedUser)
+            setUser(parsedUser)
+          }
         }
       } catch (error) {
         console.error("❌ Error loading user data:", error)
@@ -49,7 +57,7 @@ export default function InstructorHomeScreen() {
     }
 
     fetchUser()
-  }, [])
+  }, [reduxUser])
 
   const toggleModal = () => {
     setModalVisible(!modalVisible)

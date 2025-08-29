@@ -27,6 +27,7 @@ import axios from "axios"
 import { API_URL } from "@/utils/api"
 import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 import { fetchTeams, selectTeamById, selectTeamsLoading } from "@/store/slices/teamsSlice"
+import { selectAllMatches } from "@/store/slices/gamesSlice"
 
 const { width } = Dimensions.get("window")
 
@@ -57,6 +58,9 @@ const MatchDetailsScreen = () => {
   const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
   const token = userData?.token
+  
+  // Get all matches from Redux store to find the specific match
+  const allMatches = useAppSelector(selectAllMatches)
 
   // Extract the ID from params and ensure it's a clean string
   const rawId = id
@@ -108,44 +112,37 @@ const MatchDetailsScreen = () => {
       dispatch(fetchTeams(token))
     }
 
-    // Fetch game data directly from API
+    // Fetch game data directly from API using /events endpoint
     const fetchGameData = async () => {
       setLoading(true)
       setError(null)
 
       if (token && programId) {
         try {
-          console.log(`MATCH DETAILS: Fetching game data with programId: ${programId}`)
-
-          // Fetch game data with retry logic
-          let retries = 3
-          let gameData = null
-
-          while (retries > 0 && !gameData) {
-            try {
-              console.log(`MATCH DETAILS: Attempt ${4 - retries} to fetch game data`)
-              const gameResponse = await axios.get(`${API_URL}/games/${programId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              })
-
-              if (gameResponse.data) {
-                gameData = gameResponse.data
-                console.log(`MATCH DETAILS: Successfully fetched game data:`, gameData)
-              }
-            } catch (err) {
-              console.error(`MATCH DETAILS: Error in attempt ${4 - retries}:`, err)
-              retries--
-              if (retries === 0) throw err
-              // Wait before retrying (exponential backoff)
-              await new Promise((resolve) => setTimeout(resolve, (3 - retries) * 1000))
-            }
+          console.log(`MATCH DETAILS: Fetching game data for programId: ${programId}`)
+          
+          // Call the correct API endpoint
+          const response = await axios.get(`${API_URL}/events/${programId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          
+          console.log(`MATCH DETAILS: Successfully fetched game data:`, response.data)
+          
+          // Transform API response to match existing GameData interface
+          const eventData = response.data
+          const transformedGame: GameData = {
+            id: eventData.id,
+            name: eventData.program?.name || eventData.name || "Basketball Match",
+            description: eventData.description || "Basketball event",
+            win_team: eventData.win_team || "Team A",
+            lose_team: eventData.lose_team || "Team B", 
+            win_score: eventData.win_score || 0,
+            lose_score: eventData.lose_score || 0,
+            created_at: eventData.start_at || eventData.created_at,
+            updated_at: eventData.updated_at
           }
-
-          if (gameData) {
-            setGame(gameData)
-          } else {
-            setError("Could not fetch game data after multiple attempts")
-          }
+          
+          setGame(transformedGame)
         } catch (error) {
           console.error("MATCH DETAILS: Error fetching game data:", error)
           setError("Failed to load game data. Please try again.")
