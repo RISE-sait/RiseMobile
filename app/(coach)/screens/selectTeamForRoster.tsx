@@ -16,8 +16,9 @@ import { useRouter } from "expo-router"
 import * as Haptics from "expo-haptics"
 import BackButton from "@/components/buttons/BackButton"
 import { TeamResponse } from "@/app/api/Api"
-import { getTeams } from "@/utils/api"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useSelector, useDispatch } from "react-redux"
+import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError } from "@/store/slices/teamsSlice"
+import type { RootState } from "@/store"
 
 const { width } = Dimensions.get("window")
 
@@ -37,11 +38,17 @@ const COLORS = {
 }
 
 const SelectTeamForRoster: React.FC = () => {
-  // State
-  const [teams, setTeams] = useState<TeamResponse[]>([])
-  const [loading, setLoading] = useState(true)
+  // Get user from Redux store
+  const user = useSelector((state: RootState) => state.user.data)
+  
+  // Get teams data from Redux store
+  const teams = useSelector(selectAllTeams)
+  const loading = useSelector(selectTeamsLoading) === 'loading'
+  const error = useSelector(selectTeamsError)
+  const dispatch = useDispatch()
+
+  // Local state for refreshing only
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -58,43 +65,17 @@ const SelectTeamForRoster: React.FC = () => {
       useNativeDriver: true,
     }).start()
 
-    // Fetch teams data
-    fetchTeams()
-  }, [])
-
-  // Methods
-  const fetchTeams = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // Get user token from AsyncStorage
-      const storedUser = await AsyncStorage.getItem("user")
-      if (!storedUser) {
-        throw new Error("User not found. Please log in again.")
-      }
-      
-      const user = JSON.parse(storedUser)
-      const token = user.token || await AsyncStorage.getItem("authToken")
-      
-      if (!token) {
-        throw new Error("Authentication token not found. Please log in again.")
-      }
-
-      const teamsData = await getTeams(token)
-      setTeams(Array.isArray(teamsData) ? teamsData : [])
-    } catch (error) {
-      console.error("Error fetching teams:", error)
-      setError((error as Error).message)
-      setTeams([])
-    } finally {
-      setLoading(false)
+    // Fetch teams data using Redux
+    if (user?.token) {
+      dispatch(fetchTeams(user.token))
     }
-  }
+  }, [dispatch, user?.token])
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await fetchTeams()
+    if (user?.token) {
+      await dispatch(fetchTeams(user.token))
+    }
     setRefreshing(false)
   }
 

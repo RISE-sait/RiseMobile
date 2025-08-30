@@ -13,11 +13,9 @@ import type { RootState } from "@/store"
 import { fetchEvents } from "@/store/slices/eventsSlice"
 import { fetchMatches } from "@/store/slices/gamesSlice"
 import type { Match } from "@/store/slices/gamesSlice"
-import AsyncStorage from "@react-native-async-storage/async-storage"
 import PageTitle from "@/components/PageTitle"
 import CalendarCard from "@/components/calendar/CalendarCard"
 import EventListContainer from "@/components/calendar/EventListContainer"
-import { getAuth } from "firebase/auth"
 
 interface SharedCalendarProps {
   userRole: "athlete" | "coach" | "instructor" | "parent"
@@ -62,41 +60,23 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
   const error = reduxEvents.error || reduxGames.error
 
-  // Memoize the token retrieval to avoid recreating this function on every render
-  const getToken = useCallback(async () => {
-    let token = user?.token
-
-    if (!token) {
-      try {
-        const userString = await AsyncStorage.getItem("user")
-        if (userString) {
-          const userData = JSON.parse(userString)
-          token = userData.token
-        }
-      } catch (err) {
-        console.error("Error getting token from AsyncStorage:", err)
-      }
-    }
-
-    return token
-  }, [user?.token])
 
 const fetchCalendarData = useCallback(async () => {
   try {
-    const jwt = await AsyncStorage.getItem("authToken")
+    const jwt = user?.token
     if (!jwt) {
-      console.error("❌ Missing backend JWT")
+      console.error("Missing backend JWT")
       return
     }
 
-    console.log("🪪 Backend JWT:", jwt)
+    console.log("Backend JWT:", jwt)
 
     dispatch(fetchEvents(jwt) as any)
     dispatch(fetchMatches(jwt) as any)
   } catch (err) {
     console.error("Error fetching calendar data:", err)
   }
-}, [dispatch])
+}, [dispatch, user?.token])
 
 
 
@@ -151,10 +131,11 @@ const fetchCalendarData = useCallback(async () => {
 
   // Combine all events and matches for the selected date
   const combinedEventsForSelectedDate = useMemo(() => {
-  const events = reduxEvents.byDate[selectedDate] || []
-
-
-}, [reduxEvents.byDate, matchesByDate])
+    const events = reduxEvents.byDate[selectedDate] || []
+    const matches = matchesByDate[selectedDate] || []
+    
+    return [...events, ...matches]
+  }, [reduxEvents.byDate, matchesByDate, selectedDate])
 
 const combinedCalendarEvents = useMemo(() => {
   const allDates = {
@@ -225,7 +206,7 @@ const combinedCalendarEvents = useMemo(() => {
       default:
         return `No events scheduled for ${formattedDate}.`
     }
-}, [reduxEvents.byDate, matchesByDate])
+  }, [userRole, formattedDate])
 
   return (
     <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">

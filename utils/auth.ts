@@ -3,13 +3,17 @@ import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { loginUser, registerUser } from "./api" // Import API functions
 import { auth } from "@/firebase/firebaseConfig"
-import { GoogleAuthProvider, signInWithCredential, OAuthProvider, onAuthStateChanged, User as FirebaseUser } from "firebase/auth"
+import { GoogleAuthProvider, signInWithCredential, OAuthProvider, onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth"
 import * as WebBrowser from "expo-web-browser"
 import * as Google from "expo-auth-session/providers/google"
 import * as AppleAuthentication from "expo-apple-authentication"
 import { makeRedirectUri } from "expo-auth-session"
 import axios from "axios"
 import { API_URL } from "./api"
+import { useDispatch, useSelector } from "react-redux"
+import type { RootState } from "@/store"
+import { setUser as setReduxUser, logout as reduxLogout } from "@/store/slices/userSlice"
+import { persistor } from "@/store"
 
 type User = {
   id: string
@@ -25,11 +29,16 @@ type User = {
 WebBrowser.maybeCompleteAuthSession()
 
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null)
+  const dispatch = useDispatch()
+  const reduxUser = useSelector((state: RootState) => state.user.data)
   const [isLoading, setIsLoading] = useState(false)
   const [isAuthLoaded, setIsAuthLoaded] = useState(false)
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
+  const [isLoadingFromStorage, setIsLoadingFromStorage] = useState(false) // 🔹 Prevent concurrent loading
+
+  // Use Redux user state as primary source of truth
+  const user = reduxUser
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: "238537761671-vf9tu3vu85hnpm6r56bael9pm5b3k63b.apps.googleusercontent.com",
@@ -42,12 +51,10 @@ export const useAuth = () => {
   // 🔹 Verify token validity with backend
   const verifyTokenWithBackend = async (token: string, email: string): Promise<boolean> => {
     try {
-      console.log("🔍 Verifying token with backend...")
       // Try to get upcoming bookings as a way to verify token validity
       const response = await axios.get(`${API_URL}/bookings/upcoming`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
-      console.log("✅ Token is valid - backend responded successfully")
       return true
     } catch (error) {
       console.warn("⚠️ Token verification failed:", (error as any).response?.status)
@@ -58,12 +65,9 @@ export const useAuth = () => {
   // 🔹 Refresh Firebase token and exchange for JWT
   const refreshAndExchangeToken = async (firebaseUser: FirebaseUser): Promise<string | null> => {
     try {
-      console.log("🔄 Refreshing Firebase token...")
       const freshFirebaseToken = await firebaseUser.getIdToken(true) // Force refresh
-      console.log("✅ Got fresh Firebase token")
       
       // Exchange for JWT
-      console.log("🔄 Exchanging Firebase token for JWT...")
       const response = await axios.post(`${API_URL}/auth`, 
         { email: firebaseUser.email },
         { headers: { Authorization: `Bearer ${freshFirebaseToken}` } }
@@ -74,19 +78,15 @@ export const useAuth = () => {
       const jwtToken = authHeader?.replace(/^Bearer\s+/i, '')
       
       if (jwtToken && jwtToken !== authHeader) {
-        console.log("✅ Successfully got fresh JWT token from response headers")
         return jwtToken
       } else {
         // Fallback: try to get from response body (old method)
         const bodyJwtToken = response.data.token || response.data.jwt || response.data.access_token
         if (bodyJwtToken) {
-          console.log("✅ Found JWT in response body (unexpected but working)")
           return bodyJwtToken
         }
         
-        console.error("❌ No JWT returned from auth endpoint in headers or body")
-        console.warn("🔍 Available headers:", Object.keys(response.headers || {}))
-        console.warn("🔍 Available body fields:", Object.keys(response.data || {}))
+        console.error("❌ No JWT returned from auth endpoint")
         return null
       }
     } catch (error) {
@@ -95,70 +95,67 @@ export const useAuth = () => {
     }
   }
 
-  // 🔹 Load user from AsyncStorage with token validation
+  // 🔹 Load user from Redux Persist only - no direct AsyncStorage access
   const loadUserFromStorage = async () => {
     try {
-      const storedUser = await AsyncStorage.getItem("user")
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser)
-        console.log("📢 Loaded stored user:", parsedUser)
-
-        // Verify token validity if Firebase user is available
-        if (firebaseUser && parsedUser.token) {
-          console.log("🔍 Verifying stored token validity...")
-          const isTokenValid = await verifyTokenWithBackend(parsedUser.token, parsedUser.email)
+      // 🔹 Use Redux user state as primary source, not AsyncStorage
+      if (reduxUser) {
+        // If Firebase user is available, verify token validity
+        if (firebaseUser && reduxUser.token) {
+          const isTokenValid = await verifyTokenWithBackend(reduxUser.token, reduxUser.email)
           
           if (!isTokenValid) {
-            console.log("⚠️ Stored token is invalid, attempting to refresh...")
             const newToken = await refreshAndExchangeToken(firebaseUser)
             
             if (newToken) {
-              console.log("✅ Token refreshed successfully")
-              parsedUser.token = newToken
-              await saveUserToStorage(parsedUser) // Save the new token
+              const updatedUser = { ...reduxUser, token: newToken }
+              dispatch(setReduxUser(updatedUser)) // ✅ Only update Redux, no AsyncStorage
               setAuthError(null)
             } else {
               console.error("❌ Failed to refresh token, user needs to re-login")
               setAuthError("Authentication expired. Please log in again.")
-              await AsyncStorage.removeItem("user")
-              setUser(null)
+              dispatch(reduxLogout()) // ✅ Only clear Redux
               setIsAuthLoaded(true)
               return
             }
           }
         }
 
-        setUser({
-          ...parsedUser,
-          firstName: parsedUser.firstName || (parsedUser.displayName?.split(" ")[0] ?? ""),
-          lastName: parsedUser.lastName || (parsedUser.displayName?.split(" ")[1] ?? ""),
-        })
+        const userToSet = {
+          ...reduxUser,
+          firstName: reduxUser.firstName || (reduxUser.displayName?.split(" ")[0] ?? ""),
+          lastName: reduxUser.lastName || (reduxUser.displayName?.split(" ")[1] ?? ""),
+        }
+        
+        // ✅ User is already in Redux from persist, just ensure it's properly set
+        if (JSON.stringify(reduxUser) !== JSON.stringify(userToSet)) {
+          dispatch(setReduxUser(userToSet))
+        }
+        
         setAuthError(null)
+        setIsAuthLoaded(true)
+      } else {
+        setIsAuthLoaded(true)
       }
     } catch (error) {
       console.error("❌ Failed to load user data:", error)
       setAuthError("Failed to load authentication data")
-    } finally {
       setIsAuthLoaded(true)
     }
   }
 
-  // 🔹 Save user data to AsyncStorage
-  const saveUserToStorage = async (userData: User) => {
+  // 🔹 Save user data to Redux only - Redux Persist handles AsyncStorage
+  const saveUserToRedux = async (userData: User) => {
     try {
-      console.log("📢 Saving user to AsyncStorage:", userData)
-
       if (!userData.countryCode) {
         console.warn("⚠️ Missing countryCode in userData, defaulting to 'US'")
         userData.countryCode = "US" // ✅ Prevent undefined values
       }
 
-      await AsyncStorage.setItem("user", JSON.stringify(userData))
-      await AsyncStorage.setItem("authToken", userData.token)
-
-      console.log("✅ User and Token saved successfully.")
+      // ✅ Only save to Redux - Redux Persist will handle AsyncStorage automatically
+      dispatch(setReduxUser(userData))
     } catch (error) {
-      console.error("❌ Failed to save user data:", error)
+      console.error("❌ Failed to save user data to Redux:", error)
     }
   }
 
@@ -166,35 +163,27 @@ export const useAuth = () => {
   const login = async (email: string, password: string): Promise<User> => {
     setIsLoading(true)
     try {
-      console.log("📢 Logging in...")
       const userData = await loginUser(email, password)
-      setUser(userData)
-      await saveUserToStorage(userData)
-
-      console.log("✅ Login successful:", userData)
+      dispatch(setReduxUser(userData))
+      await saveUserToRedux(userData)
 
       const userRole = userData.role.toLowerCase()
 
       // Now it's safe to navigate after login
       switch (userRole) {
         case "athlete":
-          console.log("🏀 Navigating to Athlete Home...")
           router.replace("/(athlete)/(tabs)/home")
           break
         case "instructor":
-          console.log("📚 Navigating to Instructor Home...")
           router.replace("/(instructor)/(tabs)/instructorHome")
           break
         case "coach":
-          console.log("🏆 Navigating to Coach Home...")
           router.replace("/(coach)/(tabs)/coachHome")
           break
         case "parent":
-          console.log("👨‍👩‍👧‍👦 Navigating to Parent Home...")
           router.replace("/(parent)/(tabs)/home")
           break
         case "barber":
-          console.log("💇 Navigating to Barber Home...")
           router.replace("/(barber)/(tabs)/home")
           break
         default:
@@ -225,8 +214,6 @@ export const useAuth = () => {
     setIsLoading(true)
 
     try {
-      console.log("📢 Sending registration request...")
-
       // ✅ Send registration request (DO NOT store user yet)
       const userData = await registerUser(
         email,
@@ -239,11 +226,9 @@ export const useAuth = () => {
         countryCode,
       )
 
-      console.log("✅ Registration request successful, awaiting approval...")
-
       // ❌ DO NOT automatically log the user in!
       // setUser(userData);
-      // await saveUserToStorage(userData);
+      // await saveUserToRedux(userData); // ❌ DO NOT automatically log the user in!
 
       // ✅ Instead, show verification pending screen
       return userData
@@ -265,8 +250,6 @@ export const useAuth = () => {
     setIsLoading(true)
 
     try {
-      console.log("📢 Sending child registration request...")
-
       const requestBody = {
         dob,
         first_name: firstName,
@@ -279,8 +262,6 @@ export const useAuth = () => {
           },
         ],
       }
-      console.log("📤 Child registration request body:", JSON.stringify(requestBody))
-      console.log("🔑 Using parent token:", parentToken.substring(0, 10) + "...")
 
       // ✅ Send request to API using parent's token
       const response = await axios.post(`${API_URL}/register/child`, requestBody, {
@@ -289,8 +270,6 @@ export const useAuth = () => {
           "Content-Type": "application/json",
         },
       })
-
-      console.log("✅ Child Registration Successful:", response.data)
       return response.data
     } catch (error) {
       console.error("❌ Child registration failed:", (error as any).response?.data || (error as any).message)
@@ -316,18 +295,23 @@ export const useAuth = () => {
 
         // ✅ Get Firebase Authentication Token
         const token = await firebaseUser.getIdToken()
-        console.log("🔥 Firebase Token:", token)
 
-        // ✅ Send Firebase Token to API for verification and user details
+        // ✅ Send Firebase Token to API for verification and get JWT
         const response = await axios.post(
           `${API_URL}/auth`,
           { email: firebaseUser.email },
           {
-            headers: { firebase_token: token },
+            headers: { Authorization: `Bearer ${token}` },
           },
         )
 
-        console.log("API Response:", response.data)
+        // ✅ Extract JWT from response headers (not Firebase token!)
+        const authHeader = response.headers['authorization'] || response.headers['Authorization']
+        const jwtToken = authHeader?.replace(/^Bearer\s+/i, '') || response.data.token
+
+        if (!jwtToken) {
+          throw new Error("No JWT token received from backend")
+        }
 
         // ✅ Extract user details from API response
         const userData: User = {
@@ -337,14 +321,12 @@ export const useAuth = () => {
           lastName: response.data.last_name || "",
           role: response.data.role.toLowerCase(), // Ensure lowercase role
           countryCode: response.data.country_code || "US",
-          token,
+          token: jwtToken, // ✅ Store JWT, not Firebase token
         }
 
-        // ✅ Save user in AsyncStorage
-        setUser(userData)
-        await saveUserToStorage(userData)
-
-        console.log("✅ Google Login Successful:", userData)
+        // ✅ Save user to Redux only - Redux Persist handles persistence
+        dispatch(setReduxUser(userData))
+        await saveUserToRedux(userData)
 
         // ✅ Redirect Based on Role
         switch (userData.role) {
@@ -413,18 +395,23 @@ export const useAuth = () => {
 
       // 🔹 Retrieve Firebase Authentication Token
       const token = await firebaseUser.getIdToken()
-      console.log("🔥 Apple Firebase Token:", token)
 
-      // 🔹 Send Firebase Token to API to get user details
+      // 🔹 Send Firebase Token to API to get JWT
       const response = await axios.post(
         `${API_URL}/auth`,
         { email: firebaseUser.email },
         {
-          headers: { firebase_token: token },
+          headers: { Authorization: `Bearer ${token}` },
         },
       )
 
-      console.log("API Response:", response.data)
+      // 🔹 Extract JWT from response headers (not Firebase token!)
+      const authHeader = response.headers['authorization'] || response.headers['Authorization']
+      const jwtToken = authHeader?.replace(/^Bearer\s+/i, '') || response.data.token
+
+      if (!jwtToken) {
+        throw new Error("No JWT token received from backend")
+      }
 
       // 🔹 Extract user details from API response
       const userData: User = {
@@ -434,14 +421,12 @@ export const useAuth = () => {
         lastName: response.data.last_name || "",
         role: response.data.role.toLowerCase(), // Ensure lowercase role
         countryCode: response.data.country_code || "US",
-        token,
+        token: jwtToken, // ✅ Store JWT, not Firebase token
       }
 
-      // 🔹 Save user in AsyncStorage
-      setUser(userData)
-      await saveUserToStorage(userData)
-
-      console.log("✅ Apple Login Successful:", userData)
+      // 🔹 Save user to Redux only - Redux Persist handles persistence
+      dispatch(setReduxUser(userData))
+      await saveUserToRedux(userData)
 
       // 🔹 Redirect Based on Role
       switch (userData.role) {
@@ -475,11 +460,31 @@ export const useAuth = () => {
 
   // 🔹 Force re-login when authentication fails
   const forceReLogin = async (message: string = "Please log in again") => {
-    console.log("🚨 Forcing re-login:", message)
     setAuthError(message)
-    setUser(null)
-    await AsyncStorage.removeItem("user")
-    await AsyncStorage.removeItem("authToken")
+    
+    try {
+      // 🔄 Multiple approaches to clear Redux Persist state
+      persistor.pause()
+      await persistor.purge()
+      await persistor.flush()
+      
+      // 🔄 Direct AsyncStorage key removal for Redux Persist
+      const allKeys = await AsyncStorage.getAllKeys()
+      const persistKeys = allKeys.filter(key => key.startsWith('persist:'))
+      for (const key of persistKeys) {
+        await AsyncStorage.removeItem(key)
+      }
+      
+      // Clear Redux state
+      dispatch(reduxLogout())
+      
+      // Clear AsyncStorage items manually (redundant after purge, but kept for safety)
+      await AsyncStorage.removeItem("user")
+      await AsyncStorage.removeItem("authToken")
+    } catch (error) {
+      console.error("❌ forceReLogin: Error during clearing:", error)
+    }
+    
     router.replace("/(auth)/login")
   }
 
@@ -493,12 +498,11 @@ export const useAuth = () => {
       // Verify token is still valid
       const isValid = await verifyTokenWithBackend(user.token, user.email)
       if (!isValid) {
-        console.log("⚠️ Token invalid, attempting refresh...")
         const newToken = await refreshAndExchangeToken(firebaseUser)
         if (newToken) {
           const updatedUser = { ...user, token: newToken }
-          setUser(updatedUser)
-          await saveUserToStorage(updatedUser)
+          dispatch(setReduxUser(updatedUser))
+          await saveUserToRedux(updatedUser)
           return true
         } else {
           await forceReLogin("Your session has expired. Please log in again.")
@@ -515,43 +519,77 @@ export const useAuth = () => {
   // 🔹 Logout Function
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem("user")
-      await AsyncStorage.removeItem("authToken")
-      setUser(null)
+      // 🔥 Sign out from Firebase first
+      if (auth.currentUser) {
+        await signOut(auth)
+      }
+      
+      // 🔄 Pause persistor first to prevent rehydration
+      persistor.pause()
+      
+      // 🔄 Clear Redux state FIRST while persistor is paused
+      dispatch(reduxLogout())
+      
+      // 🔄 Now purge the persisted data
+      await persistor.purge()
+      
+      // 🔄 Force flush to ensure purge is written
+      await persistor.flush()
+      
+      // 🔄 Direct AsyncStorage key removal for ALL persist keys
+      const currentKeys = await AsyncStorage.getAllKeys()
+      const persistKeys = currentKeys.filter(key => key.startsWith('persist:'))
+      for (const key of persistKeys) {
+        await AsyncStorage.removeItem(key)
+      }
+      
+      // 🔄 Clear ALL user-related keys including legacy ones
+      const userRelatedKeys = ['user', 'authToken', 'userToken', 'firebaseToken', 'jwt', 'token']
+      for (const key of userRelatedKeys) {
+        await AsyncStorage.removeItem(key)
+      }
+      
+      // 🔧 Wait a bit to ensure async operations complete
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Clear auth error state
       setAuthError(null)
+      
+      // Navigate to login
       router.replace("/(auth)/login")
     } catch (error) {
-      console.error("Failed to log out:", error)
+      console.error("❌ Failed to log out:", error)
     }
   }
 
   // 🔹 Firebase auth state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      console.log("🔥 Firebase auth state changed:", !!firebaseUser)
       setFirebaseUser(firebaseUser)
       
-      if (!firebaseUser) {
-        // Firebase user signed out, clear local data
-        setUser(null)
-        setAuthError(null)
-        AsyncStorage.removeItem("user")
-        AsyncStorage.removeItem("authToken")
-      }
+      // Don't clear user data automatically when Firebase user becomes null
+      // This happens during app restart and would cause the logout issue
     })
 
     return unsubscribe
-  }, [])
+  }, [isAuthLoaded, user])
 
-  // 🔹 Load user when Firebase user is available
+  // 🔹 Load user when Firebase user is available or on app start
   useEffect(() => {
-    if (firebaseUser && !isAuthLoaded) {
-      loadUserFromStorage()
-    } else if (!firebaseUser && !isAuthLoaded) {
-      // No Firebase user, mark as loaded
-      setIsAuthLoaded(true)
+    if (isLoadingFromStorage) {
+      return
     }
-  }, [firebaseUser, isAuthLoaded])
+    
+    if (firebaseUser && !isAuthLoaded) {
+      setIsLoadingFromStorage(true)
+      loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
+    } else if (!firebaseUser && !isAuthLoaded) {
+      // No Firebase user, but still try to load from storage first
+      // This handles the case where Firebase takes time to initialize
+      setIsLoadingFromStorage(true)
+      loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
+    }
+  }, [firebaseUser, isAuthLoaded, isLoadingFromStorage])
 
   return {
     user,

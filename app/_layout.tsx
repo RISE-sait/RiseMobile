@@ -31,26 +31,8 @@ export default function RootLayout() {
     "ProtestStrike-Regular": require("../assets/fonts/ProtestStrike-Regular.ttf"),
   })
 
-   // ✅ Refresh backend JWT on mount + every 45 min
-  useEffect(() => {
-    const setupJwtRefresh = async () => {
-      try {
-        console.log("🔄 Refreshing backend JWT on startup")
-        await refreshBackendJwt()
-
-        const interval = setInterval(() => {
-          console.log("🔁 Refreshing backend JWT via interval")
-          refreshBackendJwt().catch((err) => console.warn("❌ Interval JWT refresh failed:", err))
-        }, 45 * 60 * 1000) // 45 minutes
-
-        return () => clearInterval(interval)
-      } catch (err) {
-        console.error("❌ Initial JWT refresh failed:", err)
-      }
-    }
-
-    setupJwtRefresh()
-  }, [])
+   // ✅ JWT refresh is now handled by useAuth hook on-demand
+   // Removed global interval refresh to prevent conflicts with auth state management
 
   if (!fontsLoaded) {
     return (
