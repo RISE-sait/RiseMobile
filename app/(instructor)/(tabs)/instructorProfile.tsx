@@ -6,6 +6,8 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useSelector } from "react-redux"
+import type { RootState } from "@/store"
 
 import images from "@/constants/images"
 import ProfileHeader from "@/components/profile/ProfileHeader"
@@ -28,9 +30,26 @@ const InstructorProfileScreen = () => {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
 
+  // ✅ Prioritize Redux data
+  const reduxUser = useSelector((state: RootState) => state.user.data)
+
   useEffect(() => {
     const loadUser = async () => {
       try {
+        // ✅ Prioritize Redux data
+        if (reduxUser) {
+          console.log("📢 Loaded user from Redux state:", reduxUser)
+          setUser({
+            ...reduxUser,
+            firstName: reduxUser.firstName || reduxUser.first_name || "",
+            lastName: reduxUser.lastName || reduxUser.last_name || "",
+            countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
+          })
+          return // ✅ Redux data available, return directly
+        }
+
+        // ⚠️ Only use AsyncStorage fallback when Redux data is not available
+        console.log("⚠️ Redux user not available, trying AsyncStorage fallback...")
         const storedUser = await AsyncStorage.getItem("user")
 
         if (storedUser) {
@@ -52,7 +71,7 @@ const InstructorProfileScreen = () => {
     }
 
     loadUser()
-  }, [])
+  }, [reduxUser]) // ✅ Depend on reduxUser changes
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem("user")

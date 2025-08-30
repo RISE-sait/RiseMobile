@@ -12,7 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getAuth } from "firebase/auth";
+import { auth } from "@/firebase/firebaseConfig";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -91,7 +91,7 @@ const CoachPracticeBooking = () => {
 useEffect(() => {
   const fetchCoachTeams = async () => {
     try {
-      const firebaseUser = getAuth().currentUser
+      const firebaseUser = auth.currentUser
       if (!firebaseUser) throw new Error("User not authenticated")
 
       const firebaseToken = await firebaseUser.getIdToken(true)

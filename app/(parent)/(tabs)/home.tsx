@@ -54,6 +54,7 @@ const mockChildren = [
 
 export default function ParentHome() {
   const router = useRouter()
+  const reduxUser = useAppSelector((state) => state.user.data)
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [children, setChildren] = useState(mockChildren)
@@ -70,19 +71,30 @@ export default function ParentHome() {
 
     const loadUser = async () => {
       try {
-        const storedUser = await AsyncStorage.getItem("user")
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser)
-          console.log("📢 Loaded user from AsyncStorage:", parsedUser)
-
+        // If we have user in Redux, use that
+        if (reduxUser) {
           setUser({
-            ...parsedUser,
-            firstName: parsedUser.firstName || parsedUser.first_name || "",
-            lastName: parsedUser.lastName || parsedUser.last_name || "",
-            countryCode: parsedUser.countryCode || parsedUser.country_code || "US",
+            ...reduxUser,
+            firstName: reduxUser.firstName || reduxUser.first_name || "",
+            lastName: reduxUser.lastName || reduxUser.last_name || "",
+            countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
           })
         } else {
-          console.log("⚠️ No user found in AsyncStorage.")
+          // Otherwise try to load from AsyncStorage (backward compatibility)
+          const storedUser = await AsyncStorage.getItem("user")
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser)
+            console.log("📢 Loaded user from AsyncStorage:", parsedUser)
+
+            setUser({
+              ...parsedUser,
+              firstName: parsedUser.firstName || parsedUser.first_name || "",
+              lastName: parsedUser.lastName || parsedUser.last_name || "",
+              countryCode: parsedUser.countryCode || parsedUser.country_code || "US",
+            })
+          } else {
+            console.log("⚠️ No user found in AsyncStorage.")
+          }
         }
       } catch (error) {
         console.error("❌ Error loading user:", error)
@@ -92,7 +104,7 @@ export default function ParentHome() {
     }
 
     loadUser()
-  }, [])
+  }, [reduxUser])
 
   // Get today's date
   const today = dayjs().format("YYYY-MM-DD")

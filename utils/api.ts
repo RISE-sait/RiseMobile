@@ -1,5 +1,5 @@
 import axios from "axios";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, getAuth } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -18,7 +18,7 @@ type User = {
 };
 
 export const refreshBackendJwt = async (): Promise<string> => {
-  const firebaseUser = getAuth().currentUser;
+  const firebaseUser = auth.currentUser;
   if (!firebaseUser) throw new Error("No user currently logged in.");
 
   // 🔄 Refresh Firebase token
@@ -143,7 +143,6 @@ export const registerUser = async (
   countryCode: string
 ): Promise<any> => {
   try {
-    const auth = getAuth();
 
     // ✅ Create user in Firebase Authentication
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -243,19 +242,33 @@ export const registerUser = async (
 // Get all teams for the authenticated coach
 export const getTeams = async (token: string): Promise<any> => {
   try {
-    const firebaseUser = getAuth().currentUser;
-    if (!firebaseUser) {
-      throw new Error("User not authenticated");
+    const firebaseUser = auth.currentUser;
+    
+    // Try to get Firebase token if user is available, but don't require it
+    // Since testing shows this endpoint works with just JWT token
+    let firebaseToken = null;
+    if (firebaseUser) {
+      try {
+        firebaseToken = await firebaseUser.getIdToken(true);
+      } catch (firebaseError) {
+        console.warn("⚠️ Could not get Firebase token, proceeding with JWT only:", firebaseError);
+      }
+    } else {
+      console.warn("⚠️ Firebase user not available, proceeding with JWT only");
     }
-
-    const firebaseToken = await firebaseUser.getIdToken(true);
+    
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+    
+    // Add Firebase token if available
+    if (firebaseToken) {
+      headers["firebase_token"] = firebaseToken;
+    }
     
     const response = await axios.get(`${API_URL}/secure/teams`, {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "firebase_token": firebaseToken,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
     
     return response.data;
@@ -268,19 +281,33 @@ export const getTeams = async (token: string): Promise<any> => {
 // Get team details by ID including roster
 export const getTeamById = async (teamId: string, token: string): Promise<any> => {
   try {
-    const firebaseUser = getAuth().currentUser;
-    if (!firebaseUser) {
-      throw new Error("User not authenticated");
+    const firebaseUser = auth.currentUser;
+    
+    // Try to get Firebase token if user is available, but don't require it
+    // Since testing shows this endpoint works with just JWT token
+    let firebaseToken = null;
+    if (firebaseUser) {
+      try {
+        firebaseToken = await firebaseUser.getIdToken(true);
+      } catch (firebaseError) {
+        console.warn("⚠️ Could not get Firebase token, proceeding with JWT only:", firebaseError);
+      }
+    } else {
+      console.warn("⚠️ Firebase user not available, proceeding with JWT only");
     }
-
-    const firebaseToken = await firebaseUser.getIdToken(true);
+    
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+    
+    // Add Firebase token if available
+    if (firebaseToken) {
+      headers["firebase_token"] = firebaseToken;
+    }
     
     const response = await axios.get(`${API_URL}/teams/${teamId}`, {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "firebase_token": firebaseToken,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
     
     return response.data;
@@ -291,7 +318,7 @@ export const getTeamById = async (teamId: string, token: string): Promise<any> =
 };
 
 export const getMembershipByCustomerId = async (customerId: string) => {
-  const firebaseUser = getAuth().currentUser;
+  const firebaseUser = auth.currentUser;
 
   if (!firebaseUser) {
     console.warn("⚠️ Firebase user not ready. Skipping membership fetch.");
@@ -343,7 +370,7 @@ export const createRecurringPractice = async (data: any, jwt: string) => {
 };
 
 export const getPracticePrograms = async () => {
-  const firebaseUser = getAuth().currentUser;
+  const firebaseUser = auth.currentUser;
   if (!firebaseUser) throw new Error("User not logged in");
 
   const token = await firebaseUser.getIdToken(true);

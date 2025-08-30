@@ -18,8 +18,8 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import dayjs from "dayjs"
-import AsyncStorage from "@react-native-async-storage/async-storage"
 import axios from "axios"
+import { useAppSelector } from "@/store/hooks"
 import { FontAwesome5 } from "@expo/vector-icons"
 import EventImageHeader from "@/components/events/EventImageHeader"
 import BackButton from "@/components/buttons/BackButton"
@@ -75,6 +75,7 @@ interface ApiEventResponse {
 const EventDetails: React.FC = () => {
   const { id, type } = useLocalSearchParams()
   const router = useRouter()
+  const userData = useAppSelector((state) => state.user.data)
   const [event, setEvent] = useState<EventDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -115,16 +116,14 @@ const EventDetails: React.FC = () => {
     setError(null)
 
     try {
-      // Get the user's auth token
-      const userString = await AsyncStorage.getItem("user")
-      if (!userString) {
+      // Use the userData from component level (already available from useAppSelector on line 78)
+      if (!userData) {
         setError("Authentication error. Please log in again.")
         setLoading(false)
         return
       }
 
-      const user = JSON.parse(userString)
-      const token = user.token
+      const token = userData.token
 
       if (!token) {
         setError("Authentication token not found. Please log in again.")
@@ -362,6 +361,10 @@ const response = await axios.get(url, {
     )
   }
 
+  const handleRetry = () => {
+    fetchEventDetails()
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -377,7 +380,7 @@ const response = await axios.get(url, {
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar translucent style="light" />
         <Text style={styles.errorText}>{error || "Event not found"}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchEventDetails}>
+        <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </SafeAreaView>
