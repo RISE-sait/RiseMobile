@@ -14,21 +14,22 @@ const initialState: GamesState = {
 
 export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token: string, { rejectWithValue }) => {
   try {
-    console.log("Fetching events with token:", token.substring(0, 10) + "...")
+    console.log("Fetching secure games with token:", token.substring(0, 10) + "...")
 
-    const response = await axios.get(`${API_URL}/events?after=2024-01-01&before=2026-01-01`, {
+    // ✅ Use secure games endpoint instead of events to get user-specific matches  
+    const response = await axios.get(`${API_URL}/secure/games`, {
       headers: { Authorization: `Bearer ${token}` },
     })
 
-    console.log("Events API response:", response.data)
+    console.log("Secure games API response:", response.data)
 
-    const events = Array.isArray(response.data) ? response.data : []
-    const matches: Match[] = events.map((event: any) => {
+    const games = Array.isArray(response.data) ? response.data : []
+    const matches: Match[] = games.map((game: any) => {
       let date = dayjs().format("YYYY-MM-DD")
       let time = "TBD"
 
-      // Use start_at if available, otherwise fall back to created_at
-      const dateSource = event.start_at || event.created_at
+      // ✅ Use game_date if available, otherwise fall back to created_at
+      const dateSource = game.game_date || game.created_at
       if (dateSource) {
         const dateObj = dayjs(dateSource)
         if (dateObj.isValid()) {
@@ -38,19 +39,19 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
       }
 
       return {
-        id: event.id || `event-${Math.random().toString(36).substr(2, 9)}`,
-        name: event.program?.name || event.name || "Event",
-        title: event.program?.name || event.name || "Event",
+        id: game.id || `game-${Math.random().toString(36).substr(2, 9)}`,
+        name: game.name || `${game.home_team || "Team A"} vs ${game.away_team || "Team B"}`,
+        title: game.name || `${game.home_team || "Team A"} vs ${game.away_team || "Team B"}`,
         date,
         time,
-        location: event.location?.name || "RISE Basketball Facility",
-        description: event.description || "",
-        win_team: event.win_team,
-        lose_team: event.lose_team,
-        win_score: event.win_score,
-        lose_score: event.lose_score,
+        location: game.location || "RISE Basketball Facility",
+        description: game.description || "",
+        win_team: game.winner_team || game.win_team,
+        lose_team: game.loser_team || game.lose_team,
+        win_score: game.winner_score || game.win_score,
+        lose_score: game.loser_score || game.lose_score,
         created_at: dateSource,
-        updated_at: event.updated_at,
+        updated_at: game.updated_at,
       }
     })
 

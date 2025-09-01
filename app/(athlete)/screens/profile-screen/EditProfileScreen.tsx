@@ -32,6 +32,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient"
 import { Input } from "@/components/ui/input"
 import images from "@/constants/images"
+import { useSelector } from "react-redux"
+import type { RootState } from "@/store"
+import { useAuth } from "@/utils/auth"
 
 type User = {
   id: string
@@ -54,6 +57,9 @@ export default function EditProfileScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [user, setUser] = useState<User | null>(null)
+  
+  // ✅ Use Redux as primary data source
+  const reduxUser = useSelector((state: RootState) => state.user.data)
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -70,7 +76,7 @@ export default function EditProfileScreen() {
 
   useEffect(() => {
     loadUserData()
-  }, [])
+  }, [reduxUser]) // ✅ Depend on reduxUser changes
 
   useEffect(() => {
     if (!isLoading) {
@@ -93,13 +99,36 @@ export default function EditProfileScreen() {
   const loadUserData = async () => {
     try {
       setIsLoading(true)
+      
+      // ✅ Prioritize Redux data (same pattern as coachProfile.tsx)
+      if (reduxUser) {
+        console.log("📢 Loaded user from Redux state:", reduxUser)
+        const userData = {
+          ...reduxUser,
+          firstName: reduxUser.firstName || reduxUser.first_name || "",
+          lastName: reduxUser.lastName || reduxUser.last_name || "",
+          countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
+        }
+        setUser(userData)
+        
+        // Initialize form fields
+        setFirstName(userData.firstName)
+        setLastName(userData.lastName)
+        setEmail(userData.email || "")
+        setPhoneNumber(userData.phoneNumber || "")
+        setJerseyNumber(userData.jerseyNumber || "")
+        setPosition(userData.position || "")
+        setProfileImage(userData.profileImage || null)
+        return // ✅ Redux data available, return directly
+      }
 
-      // In a real app, you would fetch from your API
-      // For now, we'll use AsyncStorage as a mock
+      // ⚠️ Only use AsyncStorage fallback when Redux data is not available
+      console.log("⚠️ Redux user not available, trying AsyncStorage fallback...")
       const storedUser = await AsyncStorage.getItem("user")
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser)
+        console.log("📢 Loaded user from AsyncStorage fallback:", parsedUser)
         setUser(parsedUser)
 
         // Initialize form fields
@@ -111,28 +140,12 @@ export default function EditProfileScreen() {
         setPosition(parsedUser.position || "")
         setProfileImage(parsedUser.profileImage || null)
       } else {
-        // For demo purposes, create mock data if none exists
-        const mockUser = {
-          id: "1",
-          firstName: "John",
-          lastName: "Doe",
-          email: "john.doe@example.com",
-          role: "athlete",
-          phoneNumber: "555-123-4567",
-          jerseyNumber: "23",
-          position: "Point Guard",
-        }
-
-        setUser(mockUser)
-        setFirstName(mockUser.firstName)
-        setLastName(mockUser.lastName)
-        setEmail(mockUser.email)
-        setPhoneNumber(mockUser.phoneNumber || "")
-        setJerseyNumber(mockUser.jerseyNumber || "")
-        setPosition(mockUser.position || "")
+        console.log("⚠️ No user found in Redux or AsyncStorage.")
+        Alert.alert("Error", "Unable to load user data. Please try logging in again.")
+        router.back()
       }
     } catch (error) {
-      console.error("Error loading user data:", error)
+      console.error("❌ Error loading user data:", error)
       Alert.alert("Error", "Failed to load user data")
     } finally {
       setIsLoading(false)

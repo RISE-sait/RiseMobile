@@ -72,9 +72,48 @@ const CoachMatches: React.FC = () => {
 }, [dispatch, token])
 
 
-  const filteredMatches = matches.filter((match) =>
-    dayjs(match.created_at).format("YYYY-MM-DD")
-  );
+  // ✅ Filter matches by selected date - fixed the logic
+  const filteredMatches = matches.filter((match) => {
+    const matchDate = match.created_at ? dayjs(match.created_at).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD")
+    return matchDate === selectedDate
+  });
+
+  // ✅ Render loading state - moved to proper place
+  if (status === "loading") {
+    return (
+      <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
+        <LoadingIndicator size="large" color="#FCA311" />
+        <Text className="text-white-100 mt-4">Loading matches...</Text>
+      </SafeAreaView>
+    )
+  }
+
+  // ✅ Render error state - moved to proper place  
+  if (status === "failed" && error) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
+        <EmptyState
+          icon="exclamation-circle"
+          title="Error Loading Matches"
+          message={error}
+          actionLabel="Try Again"
+          onAction={async () => {
+            let authToken = token
+            if (!authToken) {
+              const userString = await AsyncStorage.getItem("user")
+              if (userString) {
+                authToken = JSON.parse(userString)?.token
+              }
+            }
+
+            if (authToken) {
+              dispatch(fetchMatches(authToken))
+            }
+          }}
+        />
+      </SafeAreaView>
+    )
+  }
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate;
@@ -86,41 +125,6 @@ const CoachMatches: React.FC = () => {
       : item.isSame(dayjs().add(1, "day"), "day")
       ? "Tomorrow"
       : item.format("DD MMM");
-
-      if (status === "loading") {
-  return (
-    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
-      <LoadingIndicator size="large" color="#FCA311" />
-      <Text className="text-white-100 mt-4">Loading matches...</Text>
-    </SafeAreaView>
-  )
-}
-
-if (status === "failed" && error) {
-  return (
-    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
-      <EmptyState
-        icon="exclamation-circle"
-        title="Error Loading Matches"
-        message={error}
-        actionLabel="Try Again"
-        onAction={async () => {
-          let authToken = token
-          if (!authToken) {
-            const userString = await AsyncStorage.getItem("user")
-            if (userString) {
-              authToken = JSON.parse(userString)?.token
-            }
-          }
-
-          if (authToken) {
-            dispatch(fetchMatches(authToken))
-          }
-        }}
-      />
-    </SafeAreaView>
-  )
-}
 
 
     return (
