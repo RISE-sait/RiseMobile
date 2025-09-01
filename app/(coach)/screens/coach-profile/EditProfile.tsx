@@ -29,6 +29,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Input } from "@/components/ui/input";
 import images from "@/constants/images";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
+import { useAuth } from "@/utils/auth";
 
 type User = {
   id: string;
@@ -52,6 +55,9 @@ export default function EditProfileScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   
+  // ✅ Use Redux as primary data source
+  const reduxUser = useSelector((state: RootState) => state.user.data);
+  
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -67,7 +73,7 @@ export default function EditProfileScreen() {
 
   useEffect(() => {
     loadUserData();
-  }, []);
+  }, [reduxUser]); // ✅ Depend on reduxUser changes
 
   useEffect(() => {
     if (!isLoading) {
@@ -90,10 +96,36 @@ export default function EditProfileScreen() {
   const loadUserData = async () => {
     try {
       setIsLoading(true);
+      
+      // ✅ Prioritize Redux data (same pattern as coachProfile.tsx)
+      if (reduxUser) {
+        console.log("📢 Loaded user from Redux state:", reduxUser);
+        const userData = {
+          ...reduxUser,
+          firstName: reduxUser.firstName || reduxUser.first_name || "",
+          lastName: reduxUser.lastName || reduxUser.last_name || "",
+          countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
+        };
+        setUser(userData);
+        
+        // Initialize form fields
+        setFirstName(userData.firstName);
+        setLastName(userData.lastName);
+        setEmail(userData.email || "");
+        setPhoneNumber(userData.phoneNumber || "");
+        setBio(userData.bio || "");
+        setProfileImage(userData.profileImage || null);
+        setTeamLogo(userData.teamLogo || null);
+        return; // ✅ Redux data available, return directly
+      }
+
+      // ⚠️ Only use AsyncStorage fallback when Redux data is not available
+      console.log("⚠️ Redux user not available, trying AsyncStorage fallback...");
       const storedUser = await AsyncStorage.getItem("user");
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
+        console.log("📢 Loaded user from AsyncStorage fallback:", parsedUser);
         setUser(parsedUser);
         
         // Initialize form fields
@@ -105,11 +137,12 @@ export default function EditProfileScreen() {
         setProfileImage(parsedUser.profileImage || null);
         setTeamLogo(parsedUser.teamLogo || null);
       } else {
-        Alert.alert("Error", "User data not found");
+        console.log("⚠️ No user found in Redux or AsyncStorage.");
+        Alert.alert("Error", "Unable to load user data. Please try logging in again.");
         router.back();
       }
     } catch (error) {
-      console.error("Error loading user data:", error);
+      console.error("❌ Error loading user data:", error);
       Alert.alert("Error", "Failed to load user data");
     } finally {
       setIsLoading(false);

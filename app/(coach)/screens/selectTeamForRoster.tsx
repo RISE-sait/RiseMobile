@@ -184,7 +184,7 @@ const SelectTeamForRoster: React.FC = () => {
           <FontAwesome6 name="triangle-exclamation" size={50} color={COLORS.danger} />
           <Text style={styles.emptyText}>Error loading teams</Text>
           <Text style={styles.emptySubtext}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchTeams}>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
