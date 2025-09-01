@@ -71,19 +71,27 @@ const EventsScreen: React.FC = () => {
     // Convert Redux events
     Object.values(reduxEvents.byDate).forEach((eventGroup: any[]) => {
       eventGroup.forEach((event) => {
-        // ✅ Only add event if we haven't seen this ID before
-        if (!seenEventIds.has(event.id)) {
-          seenEventIds.add(event.id);
-          allEvents.push({
-            id: event.id,
-            title: event.title,
-            date: event.date,
-            time: event.time || "TBD",
-            location: event.location || "TBD",
-            image: event.image || "https://via.placeholder.com/400x200",
-            type: event.type || "other",
-            program: event.program?.id ? { id: event.program.id } : undefined,
-          });
+        // ✅ Validate event ID exists and is unique
+        if (event.id && !seenEventIds.has(event.id)) {
+          // ✅ Validate date before adding to prevent "Invalid Date"
+          const eventDate = dayjs(event.date);
+          if (eventDate.isValid()) {
+            seenEventIds.add(event.id);
+            allEvents.push({
+              id: event.id,
+              title: event.title || "Untitled Event",
+              date: eventDate.format("YYYY-MM-DD"),
+              time: event.time || "TBD",
+              location: event.location || "TBD",
+              image: event.image || "https://via.placeholder.com/400x200",
+              type: event.type || "other",
+              program: event.program?.id ? { id: event.program.id } : undefined,
+            });
+          } else {
+            console.warn(`⚠️ Invalid date for event ${event.id}: ${event.date}`);
+          }
+        } else if (!event.id) {
+          console.warn(`⚠️ Event missing ID, skipping:`, event);
         }
       });
     });
@@ -91,7 +99,8 @@ const EventsScreen: React.FC = () => {
 
     // Convert Redux matches
     reduxGames.items.forEach((match: Match) => {
-      if (match.created_at) {
+      // ✅ Validate match ID exists and created_at exists
+      if (match.id && match.created_at) {
         const createdDate = dayjs(match.created_at);
         // ✅ Validate date before formatting to prevent "Invalid Date"
         if (createdDate.isValid()) {
@@ -113,6 +122,9 @@ const EventsScreen: React.FC = () => {
         } else {
           console.warn(`⚠️ Invalid date for match ${match.id}: ${match.created_at}`);
         }
+      } else {
+        if (!match.id) console.warn(`⚠️ Match missing ID, skipping:`, match);
+        if (!match.created_at) console.warn(`⚠️ Match missing created_at, skipping:`, match);
       }
     });
 
