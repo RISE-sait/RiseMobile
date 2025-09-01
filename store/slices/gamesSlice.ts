@@ -236,5 +236,4 @@ export const selectMatchesByDate = (state: RootState, date: string) => state.gam
 export const selectMatchesStatus = (state: RootState) => state.games.status
 export const selectMatchesError = (state: RootState) => state.games.error
 
-// Export both action creators (they're already exported above in the async thunk definitions)
-export { fetchMatches, fetchMatchHistory }
+// Note: fetchMatches and fetchMatchHistory are already exported above in the async thunk definitions

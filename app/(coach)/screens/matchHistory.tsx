@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -17,13 +17,22 @@ import { FontAwesome6, Ionicons, MaterialIcons, AntDesign } from "@expo/vector-i
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import dayjs from "dayjs";
-import mockMatches from "../data/matches";
 import { useMatchFilters } from '../../../hooks/useMatchFIlters';
 import BackButton from "@/components/buttons/BackButton";
+import { useAppDispatch, useAppSelector } from "../../../store/hooks";
+import { fetchMatchHistory, clearMatches } from "../../../store/slices/gamesSlice";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
 const MatchHistory: React.FC = () => {
+  // Redux state
+  const dispatch = useAppDispatch();
+  const matches = useAppSelector((state) => state.games.items);
+  const status = useAppSelector((state) => state.games.status);
+  const error = useAppSelector((state) => state.games.error);
+  const token = useAppSelector((state) => state.user.data?.token);
+  
   // Animation refs - separate animations for different purposes
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
   const modalFadeAnim = useRef(new Animated.Value(0)).current;
@@ -31,10 +40,48 @@ const MatchHistory: React.FC = () => {
   
   // Local state
   const [selectedMatch, setSelectedMatch] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   
-  // Use our custom hook for filtering
+  // Transform Redux matches to match the expected format for useMatchFilters hook
+  const transformedMatches = useMemo(() => {
+    console.log("📋 MATCH HISTORY: Transforming", matches.length, "matches");
+    console.log("📋 MATCH HISTORY: Raw matches:", matches);
+    
+    const transformed = matches.map(match => ({
+      id: match.id,
+      date: match.date || dayjs().format("YYYY-MM-DD"),
+      homeTeam: match.name || "Team A", // Use match name as team name
+      awayTeam: "vs Opponent", // API doesn't have away team, use generic
+      homeTeamLogo: "https://via.placeholder.com/40x40?text=T1",
+      awayTeamLogo: "https://via.placeholder.com/40x40?text=T2", 
+      homeScore: match.win_score || 0,
+      awayScore: match.lose_score || 0,
+      homeFG: 45, // Mock data for field goals %
+      awayFG: 42,
+      homeRebounds: 35, // Mock data for rebounds
+      awayRebounds: 30,
+      homeAssists: 20, // Mock data for assists
+      awayAssists: 18,
+      status: "completed" as const, // Historical matches are completed
+      venue: match.location || "RISE Basketball Facility",
+      league: match.program_type || "Basketball League",
+      mvp: {
+        id: "mvp1",
+        name: "Player MVP",
+        image: "https://via.placeholder.com/70x70?text=MVP",
+        points: 25,
+        assists: 8,
+        rebounds: 10
+      },
+      events: [],
+      highlights: []
+    }));
+    
+    console.log("📋 MATCH HISTORY: Transformed matches:", transformed);
+    return transformed;
+  }, [matches]);
+
+  // Use our custom hook for filtering - now using transformed matches
   const {
     showFilters,
     activeTab,
@@ -48,7 +95,7 @@ const MatchHistory: React.FC = () => {
     resetFilters,
     toggleLeagueFilter,
     updateTeamFilter,
-  } = useMatchFilters(mockMatches);
+  } = useMatchFilters(transformedMatches);
 
   // Header animation
   const headerHeight = scrollY.interpolate({
@@ -63,7 +110,7 @@ const MatchHistory: React.FC = () => {
     extrapolate: 'clamp',
   });
 
-  // Animate content on mount
+  // Animate content on mount and fetch data
   useEffect(() => {
     Animated.timing(contentFadeAnim, {
       toValue: 1,
@@ -71,9 +118,35 @@ const MatchHistory: React.FC = () => {
       useNativeDriver: true,
     }).start();
     
-    // Simulate fetching data
-    fetchMatches();
+    // Fetch historical matches when component mounts
+    fetchMatchHistory();
   }, []);
+
+  // Fetch historical matches function
+  const fetchMatchHistory = async () => {
+    console.log("📋 MATCH HISTORY: Starting to fetch match history...");
+    let authToken = token;
+
+    if (!authToken) {
+      try {
+        const userString = await AsyncStorage.getItem("user");
+        if (userString) {
+          const userData = JSON.parse(userString);
+          authToken = userData.token;
+        }
+      } catch (err) {
+        console.error("Error getting token from AsyncStorage:", err);
+      }
+    }
+
+    if (authToken) {
+      console.log("📋 MATCH HISTORY: Clearing matches and fetching history...");
+      dispatch(clearMatches());
+      dispatch(fetchMatchHistory(authToken));
+    } else {
+      console.log("📋 MATCH HISTORY: No auth token available");
+    }
+  };
 
   // Animate modal when showFilters changes
   useEffect(() => {
@@ -92,21 +165,10 @@ const MatchHistory: React.FC = () => {
     }
   }, [showFilters]);
 
-  const fetchMatches = async () => {
-    setLoading(true);
-    // In a real app, you would fetch from an API
-    // For now, we'll simulate a delay
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate refreshing data
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
+    await fetchMatchHistory();
+    setRefreshing(false);
   };
 
   const handleMatchPress = (id: string) => {
@@ -433,23 +495,46 @@ const MatchHistory: React.FC = () => {
   };
 
   const renderEmptyList = () => {
-    if (loading) {
+    if (status === "loading") {
       return (
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color="#FFD700" />
-          <Text style={styles.emptyText}>Loading matches...</Text>
+          <Text style={styles.emptyText}>Loading match history...</Text>
+        </View>
+      );
+    }
+
+    if (status === "failed" && error) {
+      return (
+        <View style={styles.emptyContainer}>
+          <FontAwesome6 name="exclamation-circle" size={50} color="#FF4444" />
+          <Text style={styles.emptyText}>Error Loading Match History</Text>
+          <Text style={styles.emptySubtext}>{error}</Text>
+          <TouchableOpacity style={styles.resetFiltersButton} onPress={handleRefresh}>
+            <Text style={styles.resetFiltersText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       );
     }
     
     return (
       <View style={styles.emptyContainer}>
-        <FontAwesome6 name="trophy" size={50} color="#333" />
-        <Text style={styles.emptyText}>No matches found</Text>
-        <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
-        <TouchableOpacity style={styles.resetFiltersButton} onPress={resetFilters}>
-          <Text style={styles.resetFiltersText}>Reset Filters</Text>
-        </TouchableOpacity>
+        <FontAwesome6 name="history" size={50} color="#333" />
+        <Text style={styles.emptyText}>No match history found</Text>
+        <Text style={styles.emptySubtext}>
+          {filteredMatches.length === 0 && matches.length > 0 
+            ? "Try adjusting your filters" 
+            : "You don't have any completed matches yet"}
+        </Text>
+        {filteredMatches.length === 0 && matches.length > 0 ? (
+          <TouchableOpacity style={styles.resetFiltersButton} onPress={resetFilters}>
+            <Text style={styles.resetFiltersText}>Reset Filters</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.resetFiltersButton} onPress={handleRefresh}>
+            <Text style={styles.resetFiltersText}>Refresh</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
