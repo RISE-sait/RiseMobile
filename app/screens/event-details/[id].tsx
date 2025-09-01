@@ -19,7 +19,8 @@ import { StatusBar } from "expo-status-bar"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import dayjs from "dayjs"
 import axios from "axios"
-import { useAppSelector } from "@/store/hooks"
+import { useAppSelector, useAppDispatch } from "@/store/hooks"
+import { fetchEventById as fetchEventByIdRedux, selectDetailedEventById } from "@/store/slices/eventsSlice"
 import { FontAwesome5 } from "@expo/vector-icons"
 import EventImageHeader from "@/components/events/EventImageHeader"
 import BackButton from "@/components/buttons/BackButton"
@@ -75,7 +76,13 @@ interface ApiEventResponse {
 const EventDetails: React.FC = () => {
   const { id, type } = useLocalSearchParams()
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
+  
+  // Try to get cached event from Redux first
+  const cachedEvent = useAppSelector((state) => selectDetailedEventById(state, id as string))
+  const eventsState = useAppSelector((state) => state.events)
+  
   const [event, setEvent] = useState<EventDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -116,7 +123,41 @@ const EventDetails: React.FC = () => {
     setError(null)
 
     try {
-      // Use the userData from component level (already available from useAppSelector on line 78)
+      // Check if event is already cached
+      if (cachedEvent) {
+        console.log("✅ Using cached event data:", cachedEvent.id)
+        
+        // Parse description for date/time info from cached event
+        let startDate = null
+        let endDate = null
+        if (cachedEvent.description) {
+          const parsed = parseEventFromDescription(cachedEvent.description, new Date())
+          startDate = parsed.startTime || parsed.eventDate
+          endDate = parsed.endTime
+          console.log("📅 Parsed from cached event description:", { startDate, endDate })
+        }
+        
+        // Transform cached Redux event to our EventDetails format
+        const processedEvent: EventDetails = {
+          id: cachedEvent.id,
+          title: cachedEvent.name || "RISE Event",
+          description: cachedEvent.description || "No description provided.",
+          date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
+          time: formatTimeRange(startDate, endDate),
+          location: "RISE Facility",
+          locationAddress: "",
+          image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+          organizer: "RISE Basketball",
+          category: cachedEvent.type || "Event",
+          status: getEventStatus(startDate, endDate),
+          capacity: cachedEvent.capacity || 0,
+        }
+        setEvent(processedEvent)
+        setLoading(false)
+        return
+      }
+
+      // Use the userData from component level
       if (!userData) {
         setError("Authentication error. Please log in again.")
         setLoading(false)
@@ -133,15 +174,56 @@ const EventDetails: React.FC = () => {
 
       // Clean the ID to remove any suffix
       const cleanedId = cleanId(id as string)
-      console.log(`Fetching event details for ID: ${cleanedId}`)
+      console.log(`🚀 Fetching event details via Redux for ID: ${cleanedId}`)
 
+      // Try Redux first (with caching)
+      if (type !== "practice" && type !== "course" && type !== "other") {
+        try {
+          const result = await dispatch(fetchEventByIdRedux({ eventId: cleanedId, token }))
+          if (fetchEventByIdRedux.fulfilled.match(result)) {
+            console.log("✅ Got event from Redux:", result.payload)
+            const eventData = result.payload
+            
+            // Parse description for date/time info
+            let startDate = null
+            let endDate = null
+            if (eventData.description) {
+              const parsed = parseEventFromDescription(eventData.description, new Date())
+              startDate = parsed.startTime || parsed.eventDate
+              endDate = parsed.endTime
+            }
+            
+            const processedEvent: EventDetails = {
+              id: eventData.id,
+              title: eventData.name || "RISE Event", 
+              description: eventData.description || "No description provided.",
+              date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
+              time: formatTimeRange(startDate, endDate),
+              location: "RISE Facility",
+              locationAddress: "",
+              image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+              organizer: "RISE Basketball", 
+              category: eventData.type || "Event",
+              status: getEventStatus(startDate, endDate),
+              capacity: eventData.capacity || 0,
+            }
+            setEvent(processedEvent)
+            setLoading(false)
+            return
+          }
+        } catch (reduxError) {
+          console.log("Redux fetch failed, falling back to direct API call:", reduxError)
+        }
+      }
+
+      // Fallback to direct API call for programs or if Redux fails
       const useProgramsEndpoint = type === "practice" || type === "course" || type === "other";
-const url = `${API_URL}/${useProgramsEndpoint ? "programs" : "events"}/${cleanedId}`;
+      const url = `${API_URL}/${useProgramsEndpoint ? "programs" : "events"}/${cleanedId}`;
 
-const response = await axios.get(url, {
-  headers: { Authorization: `Bearer ${token}` },
-});
-
+      console.log(`🔄 Fallback: Direct API call to ${url}`)
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       console.log("API Response:", response.data)
 
