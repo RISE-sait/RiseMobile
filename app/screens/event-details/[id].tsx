@@ -148,18 +148,32 @@ const response = await axios.get(url, {
       // Process the data from the API response
       const eventData: ApiEventResponse = response.data
 
-      // Format the date and time from start_at and end_at
-      const startDate = eventData.start_at
-      ? parseDateTime(eventData.start_at)
-      : eventData.created_at
-        ? parseDateTime(eventData.created_at)
-        : null
-    
-    const endDate = eventData.end_at
-      ? parseDateTime(eventData.end_at)
-      : eventData.created_at
-        ? parseDateTime(eventData.created_at)
-        : null
+      // First try to get dates from API fields
+      let startDate = eventData.start_at ? parseDateTime(eventData.start_at) : null
+      let endDate = eventData.end_at ? parseDateTime(eventData.end_at) : null
+      
+      // If no start_at/end_at, parse from description
+      if (!startDate && eventData.description) {
+        const fallbackDate = eventData.created_at ? parseDateTime(eventData.created_at) : new Date()
+        const parsed = parseEventFromDescription(eventData.description, fallbackDate)
+        startDate = parsed.startTime || parsed.eventDate
+        endDate = parsed.endTime
+        
+        console.log("✅ Parsed from description:", {
+          originalDescription: eventData.description,
+          extractedDate: parsed.eventDate,
+          extractedStartTime: parsed.startTime,
+          extractedEndTime: parsed.endTime
+        })
+      }
+      
+      // Final fallback to created_at if still no dates
+      if (!startDate && eventData.created_at) {
+        startDate = parseDateTime(eventData.created_at)
+      }
+      if (!endDate && eventData.created_at) {
+        endDate = parseDateTime(eventData.created_at)
+      }
     
 
       // Get the organizer name
@@ -200,6 +214,65 @@ const response = await axios.get(url, {
   // Parse date time string from API
   const parseDateTime = (dateTimeStr: string): Date | null => {
     return dateTimeStr ? new Date(dateTimeStr) : null
+  }
+
+  // Extract event details from description text
+  const parseEventFromDescription = (description: string, fallbackDate: Date | null) => {
+    // Extract date - look for patterns like "September 5", "Sept 5", etc.
+    const dateMatch = description.match(/(?:on\s+)?(\w+(?:ember|ary|ch|il|ay|ust|ober|vember|cember)?\s+\d{1,2})/i)
+    let eventDate = fallbackDate
+    
+    if (dateMatch) {
+      try {
+        // Try to parse the date with current year
+        const dateStr = `${dateMatch[1]} ${new Date().getFullYear()}`
+        const parsed = new Date(dateStr)
+        if (!isNaN(parsed.getTime())) {
+          eventDate = parsed
+          console.log(`📅 Successfully parsed date: ${dateMatch[1]} -> ${eventDate}`)
+        }
+      } catch (e) {
+        console.log("Could not parse date from description:", dateMatch[1])
+      }
+    } else {
+      console.log("⚠️ No date pattern found in description:", description)
+    }
+
+    // Extract time range - look for patterns like "7:30-9:30pm", "5:30-7:30pm", "from 7:30-9:30pm"
+    const timeMatch = description.match(/(?:from\s+)?(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*(pm|am)?/i)
+    let startTime = null
+    let endTime = null
+    
+    if (timeMatch && eventDate) {
+      try {
+        const startTimeStr = timeMatch[1]
+        const endTimeStr = timeMatch[2] 
+        const period = timeMatch[3]?.toLowerCase() || 'pm' // Default to PM for tryouts
+        
+        // Parse start time
+        const [startHour, startMin] = startTimeStr.split(':').map(Number)
+        let adjustedStartHour = startHour
+        if (period === 'pm' && startHour < 12) adjustedStartHour += 12
+        if (period === 'am' && startHour === 12) adjustedStartHour = 0
+        
+        startTime = new Date(eventDate)
+        startTime.setHours(adjustedStartHour, startMin, 0, 0)
+        
+        // Parse end time  
+        const [endHour, endMin] = endTimeStr.split(':').map(Number)
+        let adjustedEndHour = endHour
+        if (period === 'pm' && endHour < 12) adjustedEndHour += 12
+        if (period === 'am' && endHour === 12) adjustedEndHour = 0
+        
+        endTime = new Date(eventDate)
+        endTime.setHours(adjustedEndHour, endMin, 0, 0)
+        
+      } catch (e) {
+        console.log("Could not parse time from description:", timeMatch[0])
+      }
+    }
+    
+    return { eventDate, startTime, endTime }
   }
   
 
