@@ -22,7 +22,7 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
 
     // Use games endpoint to get upcoming matches/games directly
     // More efficient than fetching all games and filtering on frontend
-    const response = await axios.get(`${API_URL}/games`, {
+    const response = await axios.get(`${API_URL}/secure/games`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         upcoming: true // Get only upcoming games
@@ -101,7 +101,7 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
 
     // Use games endpoint to get past matches/games directly
     // More efficient than fetching all games and filtering on frontend  
-    const response = await axios.get(`${API_URL}/games`, {
+    const response = await axios.get(`${API_URL}/secure/games`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         past: true // Get only past games

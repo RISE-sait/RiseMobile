@@ -62,10 +62,10 @@ export const fetchPractices = createAsyncThunk(
         response_type: "date",
       })
 
-      const response = await axios.get(`${API_URL}/events?${params.toString()}`, {
+      const response = await axios.get(`${API_URL}/secure/events?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      console.log("🧪 Practices from secure endpoint:", response.data)
+      console.log("🧪 Practices from secure events endpoint:", response.data)
 
 
 
