@@ -29,6 +29,14 @@ export interface User {
   token: string
   isAuthenticated?: boolean
   membership_info?: MembershipInfo
+  phoneNumber?: string
+  position?: string
+  bio?: string
+  teamLogo?: string
+  // Backend API properties (snake_case) - for compatibility
+  first_name?: string
+  last_name?: string
+  country_code?: string
 }
 
 export interface UserState {

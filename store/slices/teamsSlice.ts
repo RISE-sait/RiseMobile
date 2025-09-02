@@ -31,7 +31,7 @@ export const fetchTeams = createAsyncThunk("teams/fetchTeams", async (token: str
 
     while (retries > 0 && !teamsData) {
       try {
-        const response = await axios.get(`${API_URL}/teams`, {
+        const response = await axios.get(`${API_URL}/secure/teams`, {
           headers: { Authorization: `Bearer ${token}` },
         })
 

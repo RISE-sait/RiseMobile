@@ -9,7 +9,8 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchEvents } from "@/store/slices/eventsSlice";
-import { fetchMatches, Match } from "@/store/slices/gamesSlice";
+import { fetchMatches } from "@/store/slices/gamesSlice";
+import type { Match } from "@/types";
 import type { RootState } from "@/store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import dayjs from "dayjs";
@@ -65,39 +66,65 @@ const EventsScreen: React.FC = () => {
 
   useEffect(() => {
     const allEvents: Event[] = [];
+    const seenEventIds = new Set<string>(); // ✅ Track seen event IDs to prevent duplicates
 
     // Convert Redux events
     Object.values(reduxEvents.byDate).forEach((eventGroup: any[]) => {
       eventGroup.forEach((event) => {
-        allEvents.push({
-          id: event.id,
-          title: event.title,
-          date: event.date,
-          time: event.time || "TBD",
-          location: event.location || "TBD",
-          image: event.image || "https://via.placeholder.com/400x200",
-          type: event.type || "other",
-          program: event.program?.id ? { id: event.program.id } : undefined,
-        });
+        // ✅ Validate event ID exists and is unique
+        if (event.id && !seenEventIds.has(event.id)) {
+          // ✅ Validate date before adding to prevent "Invalid Date"
+          const eventDate = dayjs(event.date);
+          if (eventDate.isValid()) {
+            seenEventIds.add(event.id);
+            allEvents.push({
+              id: event.id,
+              title: event.title || "Untitled Event",
+              date: eventDate.format("YYYY-MM-DD"),
+              time: event.time || "TBD",
+              location: event.location || "TBD",
+              image: event.image || "https://via.placeholder.com/400x200",
+              type: event.type || "other",
+              program: event.program?.id ? { id: event.program.id } : undefined,
+            });
+          } else {
+            console.warn(`⚠️ Invalid date for event ${event.id}: ${event.date}`);
+          }
+        } else if (!event.id) {
+          console.warn(`⚠️ Event missing ID, skipping:`, event);
+        }
       });
     });
 
 
     // Convert Redux matches
     reduxGames.items.forEach((match: Match) => {
-      if (match.created_at) {
-        const date = dayjs(match.created_at).format("YYYY-MM-DD");
-        const time = dayjs(match.created_at).format("h:mm A");
-        allEvents.push({
-          id: match.id,
-          title: match.name || `Match ${match.id.slice(0, 6)}`,
-          date,
-          time,
-          location: "RISE Basketball Court",
-          image: "https://via.placeholder.com/400x200",
-          type: "match",
-          
-        });
+      // ✅ Validate match ID exists and created_at exists
+      if (match.id && match.created_at) {
+        const createdDate = dayjs(match.created_at);
+        // ✅ Validate date before formatting to prevent "Invalid Date"
+        if (createdDate.isValid()) {
+          const date = createdDate.format("YYYY-MM-DD");
+          const time = createdDate.format("h:mm A");
+          // ✅ Also check for duplicate match IDs
+          if (!seenEventIds.has(match.id)) {
+            seenEventIds.add(match.id);
+            allEvents.push({
+              id: match.id,
+              title: match.name || `Match ${match.id.slice(0, 6)}`,
+              date,
+              time,
+              location: "RISE Basketball Court",
+              image: "https://via.placeholder.com/400x200",
+              type: "match",
+            });
+          }
+        } else {
+          console.warn(`⚠️ Invalid date for match ${match.id}: ${match.created_at}`);
+        }
+      } else {
+        if (!match.id) console.warn(`⚠️ Match missing ID, skipping:`, match);
+        if (!match.created_at) console.warn(`⚠️ Match missing created_at, skipping:`, match);
       }
     });
 
@@ -248,7 +275,7 @@ const EventsScreen: React.FC = () => {
       ) : (
         <FlatList
           data={filteredEvents}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => `${item.type}-${item.id}`}
           renderItem={renderEventItem}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}

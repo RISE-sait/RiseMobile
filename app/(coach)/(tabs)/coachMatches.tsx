@@ -8,7 +8,7 @@ import { FontAwesome6 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { fetchMatches } from "@/store/slices/gamesSlice"
+import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
 import EmptyState from "@/components/feedback/EmptyState"
 
 
@@ -64,6 +64,8 @@ const CoachMatches: React.FC = () => {
     }
 
     if (authToken) {
+      // Clear existing matches to force fresh fetch with new API
+      dispatch(clearMatches())
       dispatch(fetchMatches(authToken))
     }
   }
@@ -72,9 +74,49 @@ const CoachMatches: React.FC = () => {
 }, [dispatch, token])
 
 
-  const filteredMatches = matches.filter((match) =>
-    dayjs(match.created_at).format("YYYY-MM-DD")
-  );
+  // ✅ Filter matches by selected date - fixed the logic
+  const filteredMatches = matches.filter((match) => {
+    const matchDate = match.created_at ? dayjs(match.created_at).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD")
+    return matchDate === selectedDate
+  });
+
+  // ✅ Render loading state - moved to proper place
+  if (status === "loading") {
+    return (
+      <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
+        <LoadingIndicator size="large" color="#FCA311" />
+        <Text className="text-white-100 mt-4">Loading matches...</Text>
+      </SafeAreaView>
+    )
+  }
+
+  // ✅ Render error state - moved to proper place  
+  if (status === "failed" && error) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
+        <EmptyState
+          icon="exclamation-circle"
+          title="Error Loading Matches"
+          message={error}
+          actionLabel="Try Again"
+          onAction={async () => {
+            let authToken = token
+            if (!authToken) {
+              const userString = await AsyncStorage.getItem("user")
+              if (userString) {
+                authToken = JSON.parse(userString)?.token
+              }
+            }
+
+            if (authToken) {
+              dispatch(clearMatches())
+              dispatch(fetchMatches(authToken))
+            }
+          }}
+        />
+      </SafeAreaView>
+    )
+  }
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate;
@@ -86,41 +128,6 @@ const CoachMatches: React.FC = () => {
       : item.isSame(dayjs().add(1, "day"), "day")
       ? "Tomorrow"
       : item.format("DD MMM");
-
-      if (status === "loading") {
-  return (
-    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
-      <LoadingIndicator size="large" color="#FCA311" />
-      <Text className="text-white-100 mt-4">Loading matches...</Text>
-    </SafeAreaView>
-  )
-}
-
-if (status === "failed" && error) {
-  return (
-    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
-      <EmptyState
-        icon="exclamation-circle"
-        title="Error Loading Matches"
-        message={error}
-        actionLabel="Try Again"
-        onAction={async () => {
-          let authToken = token
-          if (!authToken) {
-            const userString = await AsyncStorage.getItem("user")
-            if (userString) {
-              authToken = JSON.parse(userString)?.token
-            }
-          }
-
-          if (authToken) {
-            dispatch(fetchMatches(authToken))
-          }
-        }}
-      />
-    </SafeAreaView>
-  )
-}
 
 
     return (
@@ -169,6 +176,7 @@ if (status === "failed" && error) {
               }
 
               if (authToken) {
+                dispatch(clearMatches())
                 dispatch(fetchMatches(authToken))
               }
             }}
@@ -189,21 +197,63 @@ if (status === "failed" && error) {
           getItemLayout={(_, index) => ({ length: 72, offset: 72 * index, index })}
         />
 
-        {/* Match Cards */}
-        <ScrollView className="px-4">
-          {filteredMatches.length ? (
-            filteredMatches.map((match) => (
+        {/* Match Cards or Empty State */}
+        {filteredMatches.length ? (
+          <ScrollView className="px-4">
+            {filteredMatches.map((match) => (
               <MatchCard key={match.id} match={match} />
-            ))
-          ) : (
-            <View className="mt-10 items-center">
-              <FontAwesome6 name="calendar-xmark" size={40} color="#555" />
-              <Text className="text-gray-400 mt-3 font-semibold">
-                No matches scheduled for this date.
+            ))}
+          </ScrollView>
+        ) : (
+          <View className="flex-1 justify-center items-center px-6 py-12 mt-20">
+            <FontAwesome6 name="calendar-days" size={60} color="#FFD700" />
+            <Text className="text-white text-xl font-semibold mt-4 text-center">
+              No Matches Found
+            </Text>
+            <Text className="text-gray-400 text-base mt-2 text-center leading-6">
+              You don't have any upcoming matches or tournaments scheduled.
+            </Text>
+            
+            {/* Helpful suggestions */}
+            <View className="mt-6 bg-gray-800/50 rounded-lg p-4 w-full max-w-sm">
+              <Text className="text-gray-300 text-sm text-center leading-5">
+                💡 To see matches here, you need to:
               </Text>
+              <View className="mt-3 space-y-2">
+                <Text className="text-gray-400 text-sm">
+                  • Be assigned to coach a team
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  • Have matches scheduled for your teams
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  • Register for tournaments or competitions
+                </Text>
+              </View>
             </View>
-          )}
-        </ScrollView>
+
+            {/* Action button */}
+            <TouchableOpacity
+              className="mt-6 bg-[#FFD700] px-6 py-3 rounded-lg"
+              onPress={async () => {
+                let authToken = token
+                if (!authToken) {
+                  const userString = await AsyncStorage.getItem("user")
+                  if (userString) {
+                    authToken = JSON.parse(userString)?.token
+                  }
+                }
+
+                if (authToken) {
+                  dispatch(clearMatches())
+                  dispatch(fetchMatches(authToken))
+                }
+              }}
+            >
+              <Text className="text-black font-semibold">Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </Animated.View>
     </SafeAreaView>
   );

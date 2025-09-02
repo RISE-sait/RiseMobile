@@ -113,29 +113,66 @@ export default function AthleteHome() {
           const today = dayjs().format("YYYY-MM-DD")
 
           // Filter upcoming events
-          const upcoming = allEvents
-            .filter((event) => {
-              try {
-                return dayjs(event.date).isAfter(today) || dayjs(event.date).isSame(today)
-              } catch (e) {
-                return false
-              }
+          const upcomingEvents = allEvents.filter((event) => {
+            try {
+              return dayjs(event.date).isAfter(today) || dayjs(event.date).isSame(today)
+            } catch (e) {
+              return false
+            }
+          })
+
+          console.log("🎯 P2-1: All upcoming events:", upcomingEvents.length)
+
+          // Prioritize Tryouts and Games according to PRD requirements
+          const prioritizeEvents = (events: CommonEvent[]): CommonEvent[] => {
+            // First priority: Tryouts and Games/Matches
+            const highPriorityEvents = events.filter((event) => {
+              const eventType = event.type?.toLowerCase() || ""
+              const eventTitle = event.title?.toLowerCase() || ""
+              
+              // Check for tryouts in type or title
+              const isTryout = eventType.includes("tryout") || eventTitle.includes("tryout")
+              // Check for games/matches in type
+              const isGame = eventType === "match" || eventType === "game" || eventType.includes("game")
+              
+              console.log(`Event ${event.id}: type="${eventType}", title="${eventTitle}", isTryout=${isTryout}, isGame=${isGame}`)
+              
+              return isTryout || isGame
             })
-            .sort((a, b) => {
+
+            console.log("🏆 P2-1: High priority events (Tryouts/Games):", highPriorityEvents.length)
+
+            if (highPriorityEvents.length > 0) {
+              return highPriorityEvents.sort((a, b) => {
+                try {
+                  // Sort by date first, then by time
+                  const dateComparison = dayjs(a.date).unix() - dayjs(b.date).unix()
+                  if (dateComparison !== 0) return dateComparison
+                  return (a.time || "").localeCompare(b.time || "")
+                } catch (e) {
+                  return 0
+                }
+              })
+            }
+
+            // Fallback: return all upcoming events sorted by date if no high priority events
+            console.log("📅 P2-1: Using fallback - all upcoming events")
+            return events.sort((a, b) => {
               try {
-                // First sort by date
                 const dateComparison = dayjs(a.date).unix() - dayjs(b.date).unix()
                 if (dateComparison !== 0) return dateComparison
-
-                // If same date, sort by time
                 return (a.time || "").localeCompare(b.time || "")
               } catch (e) {
                 return 0
               }
             })
+          }
 
-          if (upcoming.length > 0) {
-            const nextEvent = upcoming[0]
+          const prioritizedEvents = prioritizeEvents(upcomingEvents)
+
+          if (prioritizedEvents.length > 0) {
+            const nextEvent = prioritizedEvents[0]
+            console.log("✅ P2-1: Selected event:", nextEvent.title, "type:", nextEvent.type)
 
             // Convert to the format expected by UpcomingCard
             setUpcomingEvent({

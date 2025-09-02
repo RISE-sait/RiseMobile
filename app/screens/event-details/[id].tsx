@@ -19,7 +19,8 @@ import { StatusBar } from "expo-status-bar"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import dayjs from "dayjs"
 import axios from "axios"
-import { useAppSelector } from "@/store/hooks"
+import { useAppSelector, useAppDispatch } from "@/store/hooks"
+import { fetchEventById as fetchEventByIdRedux, selectDetailedEventById } from "@/store/slices/eventsSlice"
 import { FontAwesome5 } from "@expo/vector-icons"
 import EventImageHeader from "@/components/events/EventImageHeader"
 import BackButton from "@/components/buttons/BackButton"
@@ -75,7 +76,13 @@ interface ApiEventResponse {
 const EventDetails: React.FC = () => {
   const { id, type } = useLocalSearchParams()
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
+  
+  // Try to get cached event from Redux first
+  const cachedEvent = useAppSelector((state) => selectDetailedEventById(state, id as string))
+  const eventsState = useAppSelector((state) => state.events)
+  
   const [event, setEvent] = useState<EventDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -116,7 +123,41 @@ const EventDetails: React.FC = () => {
     setError(null)
 
     try {
-      // Use the userData from component level (already available from useAppSelector on line 78)
+      // Check if event is already cached
+      if (cachedEvent) {
+        console.log("✅ Using cached event data:", cachedEvent.id)
+        
+        // Parse description for date/time info from cached event
+        let startDate = null
+        let endDate = null
+        if (cachedEvent.description) {
+          const parsed = parseEventFromDescription(cachedEvent.description, new Date())
+          startDate = parsed.startTime || parsed.eventDate
+          endDate = parsed.endTime
+          console.log("📅 Parsed from cached event description:", { startDate, endDate })
+        }
+        
+        // Transform cached Redux event to our EventDetails format
+        const processedEvent: EventDetails = {
+          id: cachedEvent.id,
+          title: cachedEvent.name || "RISE Event",
+          description: cachedEvent.description || "No description provided.",
+          date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
+          time: formatTimeRange(startDate, endDate),
+          location: "RISE Facility",
+          locationAddress: "",
+          image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+          organizer: "RISE Basketball",
+          category: cachedEvent.type || "Event",
+          status: getEventStatus(startDate, endDate),
+          capacity: cachedEvent.capacity || 0,
+        }
+        setEvent(processedEvent)
+        setLoading(false)
+        return
+      }
+
+      // Use the userData from component level
       if (!userData) {
         setError("Authentication error. Please log in again.")
         setLoading(false)
@@ -133,33 +174,88 @@ const EventDetails: React.FC = () => {
 
       // Clean the ID to remove any suffix
       const cleanedId = cleanId(id as string)
-      console.log(`Fetching event details for ID: ${cleanedId}`)
+      console.log(`🚀 Fetching event details via Redux for ID: ${cleanedId}`)
 
+      // Try Redux first (with caching)
+      if (type !== "practice" && type !== "course" && type !== "other") {
+        try {
+          const result = await dispatch(fetchEventByIdRedux({ eventId: cleanedId, token }))
+          if (fetchEventByIdRedux.fulfilled.match(result)) {
+            console.log("✅ Got event from Redux:", result.payload)
+            const eventData = result.payload
+            
+            // Parse description for date/time info
+            let startDate = null
+            let endDate = null
+            if (eventData.description) {
+              const parsed = parseEventFromDescription(eventData.description, new Date())
+              startDate = parsed.startTime || parsed.eventDate
+              endDate = parsed.endTime
+            }
+            
+            const processedEvent: EventDetails = {
+              id: eventData.id,
+              title: eventData.name || "RISE Event", 
+              description: eventData.description || "No description provided.",
+              date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
+              time: formatTimeRange(startDate, endDate),
+              location: "RISE Facility",
+              locationAddress: "",
+              image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+              organizer: "RISE Basketball", 
+              category: eventData.type || "Event",
+              status: getEventStatus(startDate, endDate),
+              capacity: eventData.capacity || 0,
+            }
+            setEvent(processedEvent)
+            setLoading(false)
+            return
+          }
+        } catch (reduxError) {
+          console.log("Redux fetch failed, falling back to direct API call:", reduxError)
+        }
+      }
+
+      // Fallback to direct API call for programs or if Redux fails
       const useProgramsEndpoint = type === "practice" || type === "course" || type === "other";
-const url = `${API_URL}/${useProgramsEndpoint ? "programs" : "events"}/${cleanedId}`;
+      const url = `${API_URL}/${useProgramsEndpoint ? "programs" : "events"}/${cleanedId}`;
 
-const response = await axios.get(url, {
-  headers: { Authorization: `Bearer ${token}` },
-});
-
+      console.log(`🔄 Fallback: Direct API call to ${url}`)
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       console.log("API Response:", response.data)
 
       // Process the data from the API response
       const eventData: ApiEventResponse = response.data
 
-      // Format the date and time from start_at and end_at
-      const startDate = eventData.start_at
-      ? parseDateTime(eventData.start_at)
-      : eventData.created_at
-        ? parseDateTime(eventData.created_at)
-        : null
-    
-    const endDate = eventData.end_at
-      ? parseDateTime(eventData.end_at)
-      : eventData.created_at
-        ? parseDateTime(eventData.created_at)
-        : null
+      // First try to get dates from API fields
+      let startDate = eventData.start_at ? parseDateTime(eventData.start_at) : null
+      let endDate = eventData.end_at ? parseDateTime(eventData.end_at) : null
+      
+      // If no start_at/end_at, parse from description
+      if (!startDate && eventData.description) {
+        const fallbackDate = eventData.created_at ? parseDateTime(eventData.created_at) : new Date()
+        const parsed = parseEventFromDescription(eventData.description, fallbackDate)
+        startDate = parsed.startTime || parsed.eventDate
+        endDate = parsed.endTime
+        
+        console.log("✅ Parsed from description:", {
+          originalDescription: eventData.description,
+          extractedDate: parsed.eventDate,
+          extractedStartTime: parsed.startTime,
+          extractedEndTime: parsed.endTime
+        })
+      }
+      
+      // Final fallback to created_at if still no dates
+      if (!startDate && eventData.created_at) {
+        startDate = parseDateTime(eventData.created_at)
+      }
+      if (!endDate && eventData.created_at) {
+        endDate = parseDateTime(eventData.created_at)
+      }
     
 
       // Get the organizer name
@@ -200,6 +296,65 @@ const response = await axios.get(url, {
   // Parse date time string from API
   const parseDateTime = (dateTimeStr: string): Date | null => {
     return dateTimeStr ? new Date(dateTimeStr) : null
+  }
+
+  // Extract event details from description text
+  const parseEventFromDescription = (description: string, fallbackDate: Date | null) => {
+    // Extract date - look for patterns like "September 5", "Sept 5", etc.
+    const dateMatch = description.match(/(?:on\s+)?(\w+(?:ember|ary|ch|il|ay|ust|ober|vember|cember)?\s+\d{1,2})/i)
+    let eventDate = fallbackDate
+    
+    if (dateMatch) {
+      try {
+        // Try to parse the date with current year
+        const dateStr = `${dateMatch[1]} ${new Date().getFullYear()}`
+        const parsed = new Date(dateStr)
+        if (!isNaN(parsed.getTime())) {
+          eventDate = parsed
+          console.log(`📅 Successfully parsed date: ${dateMatch[1]} -> ${eventDate}`)
+        }
+      } catch (e) {
+        console.log("Could not parse date from description:", dateMatch[1])
+      }
+    } else {
+      console.log("⚠️ No date pattern found in description:", description)
+    }
+
+    // Extract time range - look for patterns like "7:30-9:30pm", "5:30-7:30pm", "from 7:30-9:30pm"
+    const timeMatch = description.match(/(?:from\s+)?(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*(pm|am)?/i)
+    let startTime = null
+    let endTime = null
+    
+    if (timeMatch && eventDate) {
+      try {
+        const startTimeStr = timeMatch[1]
+        const endTimeStr = timeMatch[2] 
+        const period = timeMatch[3]?.toLowerCase() || 'pm' // Default to PM for tryouts
+        
+        // Parse start time
+        const [startHour, startMin] = startTimeStr.split(':').map(Number)
+        let adjustedStartHour = startHour
+        if (period === 'pm' && startHour < 12) adjustedStartHour += 12
+        if (period === 'am' && startHour === 12) adjustedStartHour = 0
+        
+        startTime = new Date(eventDate)
+        startTime.setHours(adjustedStartHour, startMin, 0, 0)
+        
+        // Parse end time  
+        const [endHour, endMin] = endTimeStr.split(':').map(Number)
+        let adjustedEndHour = endHour
+        if (period === 'pm' && endHour < 12) adjustedEndHour += 12
+        if (period === 'am' && endHour === 12) adjustedEndHour = 0
+        
+        endTime = new Date(eventDate)
+        endTime.setHours(adjustedEndHour, endMin, 0, 0)
+        
+      } catch (e) {
+        console.log("Could not parse time from description:", timeMatch[0])
+      }
+    }
+    
+    return { eventDate, startTime, endTime }
   }
   
 

@@ -36,6 +36,57 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Input } from "@/components/ui/input"
 import images from "@/constants/images"
 import { COLORS } from "@/constants/colors"
+import { useSelector, useDispatch } from "react-redux"
+import type { RootState } from "@/store"
+import { updateProfile } from "@/store/slices/userSlice"
+import { API_URL } from "@/utils/api"
+import axios from "axios"
+
+// 📱 Phone number utility functions
+const formatPhoneForDisplay = (phone: string): string => {
+  if (!phone) return ""
+  
+  // Remove all non-digits
+  const cleaned = phone.replace(/\D/g, "")
+  
+  // For 10-digit numbers, format as (xxx) xxx-xxxx
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
+  }
+  // For 11-digit numbers starting with 1, format as (xxx) xxx-xxxx
+  else if (cleaned.length === 11 && cleaned.startsWith("1")) {
+    return `(${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`
+  }
+  
+  return phone // Return original if format is unusual
+}
+
+const handlePhoneChange = (text: string, setPhoneNumber: (value: string) => void) => {
+  // Format as user types for better UX
+  const formatted = formatPhoneForDisplay(text)
+  setPhoneNumber(formatted)
+}
+
+const formatPhoneForStorage = (phone: string): string => {
+  if (!phone) return ""
+  
+  const cleaned = phone.replace(/\D/g, "") // Remove all non-digits
+  
+  // For Canadian/US numbers (10 digits), add +1 prefix
+  if (cleaned.length === 10) {
+    return `+1${cleaned}`
+  }
+  // For 11-digit numbers starting with 1, add + prefix
+  else if (cleaned.length === 11 && cleaned.startsWith("1")) {
+    return `+${cleaned}`
+  }
+  // If already has + prefix, return as is
+  else if (phone.startsWith("+")) {
+    return phone
+  }
+  
+  return phone // Return original if format is unusual
+}
 
 type User = {
   id: string
@@ -59,6 +110,10 @@ export default function EditProfileScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [user, setUser] = useState<User | null>(null)
+  
+  // ✅ Use Redux as primary data source
+  const reduxUser = useSelector((state: RootState) => state.user.data)
+  const dispatch = useDispatch()
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -80,7 +135,7 @@ export default function EditProfileScreen() {
 
   useEffect(() => {
     loadUserData()
-  }, [])
+  }, [reduxUser]) // ✅ Depend on reduxUser changes
 
   useEffect(() => {
     if (!isLoading) {
@@ -103,20 +158,49 @@ export default function EditProfileScreen() {
   const loadUserData = async () => {
     try {
       setIsLoading(true)
+      
+      // ✅ Prioritize Redux data (same pattern as other EditProfile components)
+      if (reduxUser) {
+        console.log("📢 Loaded user from Redux state:", reduxUser)
+        const userData = {
+          ...reduxUser,
+          firstName: reduxUser.firstName || reduxUser.first_name || "",
+          lastName: reduxUser.lastName || reduxUser.last_name || "",
+          countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
+        }
+        setUser(userData)
+        
+        // Initialize common form fields
+        setFirstName(userData.firstName)
+        setLastName(userData.lastName)
+        setEmail(userData.email || "")
+        // ✅ Format phone for user-friendly display
+        setPhoneNumber(formatPhoneForDisplay(userData.phoneNumber || ""))
+        setProfileImage(userData.profileImage || null)
 
-      // In a real app, you would fetch from your API
-      // For now, we'll use AsyncStorage as a mock
+        // Initialize role-specific fields
+        setJerseyNumber(userData.jerseyNumber || "")
+        setPosition(userData.position || "")
+        setSpecialties(userData.specialties || [])
+        setExperience(userData.experience || "")
+        return // ✅ Redux data available, return directly
+      }
+
+      // ⚠️ Only use AsyncStorage fallback when Redux data is not available
+      console.log("⚠️ Redux user not available, trying AsyncStorage fallback...")
       const storedUser = await AsyncStorage.getItem("user")
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser)
+        console.log("📢 Loaded user from AsyncStorage fallback:", parsedUser)
         setUser(parsedUser)
 
         // Initialize common form fields
-        setFirstName(parsedUser.firstName || "")
-        setLastName(parsedUser.lastName || "")
+        setFirstName(parsedUser.firstName || parsedUser.first_name || "")
+        setLastName(parsedUser.lastName || parsedUser.last_name || "")
         setEmail(parsedUser.email || "")
-        setPhoneNumber(parsedUser.phoneNumber || "")
+        // ✅ Format phone for user-friendly display
+        setPhoneNumber(formatPhoneForDisplay(parsedUser.phoneNumber || ""))
         setProfileImage(parsedUser.profileImage || null)
 
         // Initialize role-specific fields
@@ -125,12 +209,12 @@ export default function EditProfileScreen() {
         setSpecialties(parsedUser.specialties || [])
         setExperience(parsedUser.experience || "")
       } else {
-        // If no user data, redirect back
-        Alert.alert("Error", "User data not found")
+        console.log("⚠️ No user found in Redux or AsyncStorage.")
+        Alert.alert("Error", "Unable to load user data. Please try logging in again.")
         router.back()
       }
     } catch (error) {
-      console.error("Error loading user data:", error)
+      console.error("❌ Error loading user data:", error)
       Alert.alert("Error", "Failed to load user data")
     } finally {
       setIsLoading(false)
@@ -159,13 +243,58 @@ export default function EditProfileScreen() {
     try {
       setIsSaving(true)
 
-      // Create base updated user object with common fields
+      if (!user?.id || !user?.token) {
+        Alert.alert("Error", "User authentication information is missing")
+        return
+      }
+
+      // ✅ Call backend API to update user profile
+      console.log("🔄 Updating user profile via API...")
+      
+      // ✅ Format phone number for storage (international format)
+      console.log("📱 Display phone number:", phoneNumber)
+      const formattedPhone = formatPhoneForStorage(phoneNumber)
+      console.log("📱 Storage phone number:", formattedPhone)
+
+      // Prepare API request payload according to user.UpdateRequestDto schema
+      const updatePayload: any = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim(),
+        country_alpha2_code: user.countryCode || "US",
+        // Required fields with defaults
+        dob: "2000-01-01", // TODO: Add DOB field to form if needed
+        has_marketing_email_consent: false,
+        has_sms_consent: false,
+      }
+
+      // ✅ Only include phone if it's provided and formatted correctly
+      if (formattedPhone) {
+        updatePayload.phone = formattedPhone
+      }
+
+      console.log("📦 Final API payload:", JSON.stringify(updatePayload, null, 2))
+
+      const response = await axios.put(
+        `${API_URL}/users/${user.id}`,
+        updatePayload,
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+
+      console.log("✅ Profile updated successfully:", response.data)
+
+      // Create updated user object with response data
       const updatedUser: User = {
-        ...user!,
-        firstName,
-        lastName,
-        email,
-        phoneNumber,
+        ...user,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),  
+        email: email.trim(),
+        phoneNumber: phoneNumber?.trim(),
         profileImage,
       }
 
@@ -178,15 +307,27 @@ export default function EditProfileScreen() {
         updatedUser.experience = experience
       }
 
-      // In a real app, you would send this to your API
-      // For now, we'll just save to AsyncStorage
+      // ✅ Update Redux store with new user data
+      dispatch(updateProfile(updatedUser))
+      
+      // Update AsyncStorage with new data for offline access
       await AsyncStorage.setItem("user", JSON.stringify(updatedUser))
 
       // Show success message
       Alert.alert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }])
-    } catch (error) {
-      console.error("Error saving user data:", error)
-      Alert.alert("Error", "Failed to save profile changes")
+    } catch (error: any) {
+      console.error("❌ Error updating user profile:", error.response?.data || error.message)
+      
+      let errorMessage = "Failed to save profile changes"
+      if (error.response?.status === 401) {
+        errorMessage = "Authentication failed. Please log in again."
+      } else if (error.response?.status === 400) {
+        errorMessage = "Invalid profile data. Please check your information."
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      }
+      
+      Alert.alert("Error", errorMessage)
     } finally {
       setIsSaving(false)
     }
@@ -375,10 +516,11 @@ export default function EditProfileScreen() {
                 </View>
                 <Input
                   value={phoneNumber}
-                  onChangeText={setPhoneNumber}
+                  onChangeText={(text) => handlePhoneChange(text, setPhoneNumber)}
                   keyboardType="phone-pad"
                   inputStyle={styles.input}
                   placeholderTextColor={COLORS.textSecondary}
+                  placeholder="(604) 123-4567"
                 />
               </View>
             </View>
