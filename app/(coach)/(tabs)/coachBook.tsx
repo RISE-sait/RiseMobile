@@ -85,16 +85,30 @@ const CoachBook = () => {
   const practicesStatus = useSelector((state: RootState) => state.practices.status)
   const eventsItems = useSelector((state: RootState) => state.events.items)
   const eventsStatus = useSelector((state: RootState) => state.events.status)
+  const currentUser = useSelector((state: RootState) => state.user.data)
 
-  // Transform API data into upcomingBookings format
+  // Transform API data into upcomingBookings format - Coach booking view should only show coach-related bookings
   const upcomingBookings = useMemo(() => {
-    console.log("📋 COACH BOOKING: Transforming data");
+    console.log("📋 COACH BOOKING: Transforming data for coach view");
     console.log("📋 Practices:", practicesItems.length, "Events:", eventsItems.length);
+    console.log("📋 Current user:", currentUser?.id, currentUser?.role);
     
     const today = dayjs();
-    const futureItems = [...practicesItems, ...eventsItems].filter(item => {
+    
+    // Only show practices for coach booking page (coach-created practices)
+    // Filter out general events that coaches shouldn't see in booking context
+    const coachRelevantItems = [
+      ...practicesItems,
+      // Future: Add haircut bookings or other coach-specific bookings here
+      // ...haircutBookings
+    ];
+    
+    const futureItems = coachRelevantItems.filter(item => {
       const itemDate = dayjs(item.date);
-      return itemDate.isAfter(today, 'day') || itemDate.isSame(today, 'day');
+      const isFuture = itemDate.isAfter(today, 'day') || itemDate.isSame(today, 'day');
+      
+      console.log(`📋 Coach Item ${item.id}: date=${item.date}, isFuture=${isFuture}`);
+      return isFuture;
     });
 
     const transformedBookings = futureItems.map(item => {
@@ -139,9 +153,9 @@ const CoachBook = () => {
       return dateA - dateB;
     }).slice(0, 5); // Limit to 5 most recent bookings
 
-    console.log("📋 Transformed bookings:", transformedBookings.length);
+    console.log("📋 Transformed coach bookings:", transformedBookings.length);
     return transformedBookings;
-  }, [practicesItems, eventsItems]);
+  }, [practicesItems, currentUser]);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -176,9 +190,9 @@ const CoachBook = () => {
           return;
         }
 
-        console.log("🔄 Fetching booking data...");
+        console.log("🔄 Fetching coach booking data (practices only)...");
         
-        // Fetch upcoming practices and events
+        // Only fetch practices for coach booking page - coaches should only see their practices here
         const today = dayjs().format("YYYY-MM-DD");
         const futureDate = dayjs().add(2, "months").format("YYYY-MM-DD");
 
@@ -186,9 +200,8 @@ const CoachBook = () => {
           dispatch(fetchPractices({ token, after: today, before: futureDate }));
         }
         
-        if (eventsStatus === "idle") {
-          dispatch(fetchEvents(token));
-        }
+        // Note: Removed fetchEvents() - coach booking page should only show practices
+        // Future: Add haircut bookings or other coach-specific booking fetches here
 
       } catch (error) {
         console.error("❌ Error fetching booking data:", error);
@@ -196,7 +209,7 @@ const CoachBook = () => {
     };
 
     fetchBookingData();
-  }, [dispatch, practicesStatus, eventsStatus]);
+  }, [dispatch, practicesStatus]);
 
   useEffect(() => {
     // Start animations when component mounts
@@ -458,7 +471,7 @@ const CoachBook = () => {
             </View>
 
             <View style={{ paddingHorizontal: 20 }}>
-              {(practicesStatus === "loading" || eventsStatus === "loading") ? (
+              {practicesStatus === "loading" ? (
                 <View style={{ padding: 20, alignItems: "center" }}>
                   <Text style={{ color: COLORS.textSecondary, fontSize: 14 }}>Loading bookings...</Text>
                 </View>
