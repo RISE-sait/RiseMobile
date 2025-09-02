@@ -111,9 +111,9 @@ const allEvents = [
 console.log("🔍 DEBUG: All events after mapping:", allEvents.length);
 console.log("🔍 DEBUG: All events data:", JSON.stringify(allEvents, null, 2));
 
-// Only get upcoming events (future + today) - no fallback to past events
-const upcomingEvent = allEvents
-  .filter((event) => {
+// P2-1: Optimized event prioritization for coaches
+const getUpcomingEvent = () => {
+  const upcomingEvents = allEvents.filter((event) => {
     const eventDate = dayjs(event.date);
     const isToday = eventDate.isSame(today, 'day');
     const isFuture = eventDate.isAfter(today, 'day');
@@ -121,10 +121,47 @@ const upcomingEvent = allEvents
     console.log(`Event ${event.id}: date=${event.date}, isToday=${isToday}, isFuture=${isFuture}, today=${today.format("YYYY-MM-DD")}`);
     
     return isToday || isFuture;
-  })
-  .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0];
+  });
 
-console.log("📢 Final upcoming event:", upcomingEvent);
+  console.log("🎯 P2-1 Coach: All upcoming events:", upcomingEvents.length);
+
+  // Prioritize Tryouts and Games according to PRD requirements
+  const prioritizeEvents = (events) => {
+    // First priority: Tryouts and Games/Matches  
+    const highPriorityEvents = events.filter((event) => {
+      const eventType = event.type?.toLowerCase() || "";
+      const eventTitle = event.title?.toLowerCase() || event.name?.toLowerCase() || "";
+      
+      // Check for tryouts in type or title
+      const isTryout = eventType.includes("tryout") || eventTitle.includes("tryout");
+      // Check for games/matches in type
+      const isGame = eventType === "match" || eventType === "game" || eventType.includes("game");
+      
+      console.log(`Coach Event ${event.id}: type="${eventType}", title="${eventTitle}", isTryout=${isTryout}, isGame=${isGame}`);
+      
+      return isTryout || isGame;
+    });
+
+    console.log("🏆 P2-1 Coach: High priority events (Tryouts/Games):", highPriorityEvents.length);
+
+    if (highPriorityEvents.length > 0) {
+      return highPriorityEvents.sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix());
+    }
+
+    // Fallback: return all upcoming events sorted by date if no high priority events
+    console.log("📅 P2-1 Coach: Using fallback - all upcoming events");
+    return events.sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix());
+  };
+
+  const prioritizedEvents = prioritizeEvents(upcomingEvents);
+  const selectedEvent = prioritizedEvents[0] || null;
+  
+  console.log("✅ P2-1 Coach: Selected event:", selectedEvent?.title || selectedEvent?.name || "none", "type:", selectedEvent?.type || "none");
+  
+  return selectedEvent;
+};
+
+const upcomingEvent = getUpcomingEvent();
 
 const mapToUpcomingCardFormat = (event: any) => ({
   id: event.id,
