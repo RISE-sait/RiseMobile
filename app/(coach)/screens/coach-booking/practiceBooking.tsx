@@ -12,6 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth } from "@/firebase/firebaseConfig";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -92,19 +93,35 @@ useEffect(() => {
   const fetchCoachTeams = async () => {
     try {
       const firebaseUser = auth.currentUser
-      if (!firebaseUser) throw new Error("User not authenticated")
+      if (!firebaseUser) {
+        console.log("⚠️ No authenticated Firebase user found")
+        return
+      }
 
-      const firebaseToken = await firebaseUser.getIdToken(true)
-      const jwtResponse = await fetch(`${API_URL}/auth`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${firebaseToken}` },
-        body: JSON.stringify({ email: firebaseUser.email }),
-      })
+      // Get token from AsyncStorage first (faster)
+      let token = await AsyncStorage.getItem("jwtToken")
+      
+      if (!token) {
+        // Fallback to Firebase token exchange
+        const firebaseToken = await firebaseUser.getIdToken(true)
+        const jwtResponse = await fetch(`${API_URL}/auth`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${firebaseToken}` },
+          body: JSON.stringify({ email: firebaseUser.email }),
+        })
+        
+        token = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
+        if (token) {
+          await AsyncStorage.setItem("jwtToken", token)
+        }
+      }
 
-      const jwt = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
-      if (!jwt) throw new Error("Failed to retrieve backend JWT")
+      if (!token) {
+        console.error("❌ Failed to get authentication token")
+        return
+      }
 
-      dispatch(fetchTeams(jwt))
+      dispatch(fetchTeams(token))
     } catch (error) {
       console.error("❌ Failed to fetch coach teams:", error)
     }

@@ -7,7 +7,7 @@ import MatchCard from "../../../components/events/MatchCard"
 import { StatusBar } from "expo-status-bar"
 import { FontAwesome6 } from "@expo/vector-icons"
 import { useAppDispatch, useAppSelector } from "../../../store/hooks"
-import { fetchMatches } from "../../../store/slices/gamesSlice"
+import { fetchMatches, clearMatches } from "../../../store/slices/gamesSlice"
 import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
 import EmptyState from "../../../components/feedback/EmptyState"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -49,6 +49,7 @@ const MatchesScreen: React.FC = () => {
       }
 
       if (authToken) {
+        dispatch(clearMatches())
         dispatch(fetchMatches(authToken))
       }
     }
@@ -77,6 +78,11 @@ const MatchesScreen: React.FC = () => {
     const matchDate = match.created_at ? dayjs(match.created_at).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD")
     return matchDate === selectedDate
   })
+
+  // Debug logging
+  console.log("🔍 DEBUG: Matches status:", status)
+  console.log("🔍 DEBUG: Total matches:", matches.length)
+  console.log("🔍 DEBUG: Filtered matches for", selectedDate, ":", filteredMatches.length)
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate
@@ -146,6 +152,7 @@ const MatchesScreen: React.FC = () => {
               }
 
               if (authToken) {
+                dispatch(clearMatches())
                 dispatch(fetchMatches(authToken))
               }
             }
@@ -183,6 +190,7 @@ const MatchesScreen: React.FC = () => {
                 }
 
                 if (authToken) {
+                  dispatch(clearMatches())
                   dispatch(fetchMatches(authToken))
                 }
               }
@@ -206,17 +214,71 @@ const MatchesScreen: React.FC = () => {
           getItemLayout={(_, index) => ({ length: 72, offset: 72 * index, index })}
         />
 
-        {/* Match Cards */}
-        <ScrollView className="px-4">
-          {filteredMatches.length ? (
-            filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)
-          ) : (
-            <View className="mt-10 items-center">
-              <FontAwesome6 name="calendar-xmark" size={40} color="#555" />
-              <Text className="text-gray-400 mt-3 font-semibold">No matches scheduled for this date.</Text>
+        {/* Match Cards or Empty State */}
+        {filteredMatches.length ? (
+          <ScrollView className="px-4">
+            {filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)}
+          </ScrollView>
+        ) : (
+          <View className="flex-1 justify-center items-center px-6 py-12">
+            <FontAwesome6 name="calendar-days" size={60} color="#FFD700" />
+            <Text className="text-white text-xl font-semibold mt-4 text-center">
+              No Matches Found
+            </Text>
+            <Text className="text-gray-400 text-base mt-2 text-center leading-6">
+              You don't have any upcoming matches or tournaments scheduled.
+            </Text>
+            
+            {/* Helpful suggestions */}
+            <View className="mt-6 bg-gray-800/50 rounded-lg p-4 w-full max-w-sm">
+              <Text className="text-gray-300 text-sm text-center leading-5">
+                💡 To see matches here, you need to:
+              </Text>
+              <View className="mt-3 space-y-2">
+                <Text className="text-gray-400 text-sm">
+                  • Be registered for a team or program
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  • Have matches scheduled for your teams
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  • Participate in tournaments or competitions
+                </Text>
+              </View>
             </View>
-          )}
-        </ScrollView>
+
+            {/* Action button */}
+            <TouchableOpacity
+              className="mt-6 bg-[#FFD700] px-6 py-3 rounded-lg"
+              onPress={() => {
+                const fetchData = async () => {
+                  let authToken = token
+
+                  if (!authToken) {
+                    try {
+                      const userString = await AsyncStorage.getItem("user")
+                      if (userString) {
+                        const userData = JSON.parse(userString)
+                        authToken = userData.token
+                      }
+                    } catch (err) {
+                      console.error("Error getting token from AsyncStorage:", err)
+                    }
+                  }
+
+                  if (authToken) {
+                    dispatch(clearMatches())
+                    dispatch(fetchMatches(authToken))
+                  }
+                }
+
+                fetchData()
+              }}
+            >
+              <Text className="text-black font-semibold">Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   )
