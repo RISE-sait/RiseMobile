@@ -62,7 +62,7 @@ export const fetchPractices = createAsyncThunk(
         response_type: "date",
       })
 
-      const response = await axios.get(`${API_URL}/secure/events?${params.toString()}`, {
+      const response = await axios.get(`${API_URL}/events?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       console.log("🧪 Practices from secure endpoint:", response.data)
@@ -128,7 +128,7 @@ export const createPracticeThunk = createAsyncThunk<
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
       const response = await axios.post(
-        `${API_URL}/practices`,
+        `${API_URL}/events/one-time`,
         payload, 
         {
           headers: { Authorization: `Bearer ${jwt}` },
@@ -184,7 +184,7 @@ export const createRecurringPracticeThunk = createAsyncThunk<
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
       await axios.post(
-        `${API_URL}/practices/recurring`,
+        `${API_URL}/events/recurring`,
         {
           day: payload.day,
           practice_start_at: payload.event_start_at,

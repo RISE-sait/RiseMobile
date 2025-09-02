@@ -22,7 +22,7 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
 
     // Use secure events endpoint with after parameter to get future matches only
     // Backend automatically filters by user role (coach/athlete) through participant_id
-    const response = await axios.get(`${API_URL}/secure/events`, {
+    const response = await axios.get(`${API_URL}/events`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         after: currentDate
@@ -111,7 +111,7 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
 
     // Use secure events endpoint with before parameter to get historical matches
     // Backend automatically filters by user role (coach/athlete) through participant_id
-    const response = await axios.get(`${API_URL}/secure/events`, {
+    const response = await axios.get(`${API_URL}/events`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         before: currentDate
