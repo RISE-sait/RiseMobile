@@ -75,7 +75,7 @@ const MatchesScreen: React.FC = () => {
 
   // Filter matches by selected date
   const filteredMatches = matches.filter((match) => {
-    const matchDate = match.created_at ? dayjs(match.created_at).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD")
+    const matchDate = match.date || dayjs().format("YYYY-MM-DD")
     return matchDate === selectedDate
   })
 

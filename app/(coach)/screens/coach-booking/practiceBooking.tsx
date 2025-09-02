@@ -219,9 +219,46 @@ const handleConfirmBooking = async () => {
     return
   }
 
+  if (!user?.id) {
+    Alert.alert("Error", "User not found. Please log in again.")
+    return
+  }
+
   try {
     setIsSubmitting(true)
 
+    // Get authentication token
+    let token = await AsyncStorage.getItem("jwtToken")
+    
+    if (!token) {
+      const firebaseUser = auth.currentUser
+      if (!firebaseUser) {
+        Alert.alert("Authentication Error", "Please log in again.")
+        return
+      }
+
+      const firebaseToken = await firebaseUser.getIdToken(true)
+      const jwtResponse = await fetch(`${API_URL}/auth`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${firebaseToken}` },
+        body: JSON.stringify({ email: firebaseUser.email }),
+      })
+      
+      token = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
+      if (token) {
+        await AsyncStorage.setItem("jwtToken", token)
+      }
+    }
+
+    if (!token) {
+      Alert.alert("Authentication Error", "Failed to get authentication token.")
+      return
+    }
+
+    // For now, we're creating practices instead of booking existing ones
+    // TODO: When backend provides practice events to book, use POST /checkout/events/{practiceId}
+    // with request body: { "athlete_ids": [user.id], "discount_code": "" }
+    
     if (isRecurring) {
       await dispatch(createRecurringPracticeThunk(recurringPayload)).unwrap()
     } else {
@@ -231,7 +268,7 @@ const handleConfirmBooking = async () => {
     setShowConfirmation(false)
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
 
-    Alert.alert("Success", "Your practice has been booked!")
+    Alert.alert("Success", "Your practice has been created!")
     router.back()
 
   } catch (error) {
