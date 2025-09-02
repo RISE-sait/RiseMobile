@@ -119,11 +119,11 @@ const MatchHistory: React.FC = () => {
     }).start();
     
     // Fetch historical matches when component mounts
-    fetchMatchHistory();
+    loadMatchHistory();
   }, []);
 
   // Fetch historical matches function
-  const fetchMatchHistory = async () => {
+  const loadMatchHistory = async () => {
     console.log("📋 MATCH HISTORY: Starting to fetch match history...");
     let authToken = token;
 
@@ -167,7 +167,7 @@ const MatchHistory: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchMatchHistory();
+    await loadMatchHistory();
     setRefreshing(false);
   };
 
