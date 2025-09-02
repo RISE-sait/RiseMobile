@@ -193,8 +193,8 @@ const formatTeamForDisplay = (team: Team) => ({
 const payload: CreatePracticePayload = {
   start_time: startTime.toISOString(),
   end_time: endTime.toISOString(),
-  location_id: "e2d1cd76-592f-4c06-89ee-9027cfbbe9de", // replace with real location_id if available
-  court_id: "41870572-ecfa-441d-af09-d2d7ad9b654c", // replace with real court_id if available
+  location_id: "default", // Use default instead of hardcoded UUID
+  court_id: "default", // Use default instead of hardcoded UUID  
   status: "scheduled",
   team_id: selectedTeam?.id ?? "",
 }
@@ -271,10 +271,23 @@ const handleConfirmBooking = async () => {
     Alert.alert("Success", "Your practice has been created!")
     router.back()
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Booking error:", error)
+    console.error("❌ Error details:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      payload: isRecurring ? recurringPayload : payload
+    })
+    
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-    Alert.alert("Booking Failed", "Something went wrong. Please try again.")
+    
+    const errorMessage = error.response?.data?.message || 
+                        error.response?.data?.error || 
+                        error.message || 
+                        "Something went wrong. Please try again."
+    
+    Alert.alert("Booking Failed", `Error: ${errorMessage}`)
   } finally {
     setIsSubmitting(false)
   }
