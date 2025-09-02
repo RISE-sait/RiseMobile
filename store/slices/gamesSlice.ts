@@ -20,22 +20,27 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
     // Get current date for filtering future matches
     const currentDate = dayjs().format('YYYY-MM-DD')
 
-    // Use games endpoint to get upcoming matches/games directly
-    // More efficient than fetching all games and filtering on frontend
-    const response = await axios.get(`${API_URL}/secure/games`, {
+    // Use secure events endpoint with after parameter for future matches only
+    // Backend filters by user role, frontend filters for game/match types
+    const response = await axios.get(`${API_URL}/secure/events`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
-        upcoming: true // Get only upcoming games
+        after: currentDate // Get events after current date
       }
     })
 
-    console.log("Games API response:", response.data)
+    console.log("Secure events API response:", response.data)
 
-    const games = Array.isArray(response.data) ? response.data : []
+    const events = Array.isArray(response.data) ? response.data : []
     
-    // Games endpoint already returns only game/match data
-    // No need for complex filtering since /games is specific to matches
-    const matches: Match[] = games.map((game: any) => {
+    // Filter for competitive events (games, matches, tournaments)
+    const gameEvents = events.filter((event: any) => {
+      const programType = event.program?.type?.toLowerCase()
+      const relevantTypes = ['tournament', 'game', 'match', 'competition', 'tryouts']
+      return relevantTypes.some(type => programType?.includes(type))
+    })
+    
+    const matches: Match[] = gameEvents.map((game: any) => {
       let date = dayjs().format("YYYY-MM-DD")
       let time = "TBD"
 
@@ -83,7 +88,7 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
       }
     })
 
-    console.log(`Processed ${matches.length} matches from ${games.length} total games`)
+    console.log(`Processed ${matches.length} matches from ${gameEvents.length} game events (${events.length} total events)`)
     return { items: matches, byDate }
   } catch (error: any) {
     console.error("Games API error:", error.response?.data || error.message)
@@ -99,22 +104,27 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
     // Get current date for filtering past matches
     const currentDate = dayjs().format('YYYY-MM-DD')
 
-    // Use games endpoint to get past matches/games directly
-    // More efficient than fetching all games and filtering on frontend  
-    const response = await axios.get(`${API_URL}/secure/games`, {
+    // Use secure events endpoint with before parameter for historical matches
+    // Backend filters by user role, frontend filters for game/match types
+    const response = await axios.get(`${API_URL}/secure/events`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
-        past: true // Get only past games
+        before: currentDate // Get events before current date
       }
     })
 
     console.log("Match history API response:", response.data)
 
-    const games = Array.isArray(response.data) ? response.data : []
+    const events = Array.isArray(response.data) ? response.data : []
     
-    // Games endpoint already returns only game/match data
-    // No need for complex filtering since /games is specific to matches
-    const matches: Match[] = games.map((game: any) => {
+    // Filter for competitive events (games, matches, tournaments) 
+    const gameEvents = events.filter((event: any) => {
+      const programType = event.program?.type?.toLowerCase()
+      const relevantTypes = ['tournament', 'game', 'match', 'competition']
+      return relevantTypes.some(type => programType?.includes(type))
+    })
+    
+    const matches: Match[] = gameEvents.map((game: any) => {
       let date = dayjs().format("YYYY-MM-DD")
       let time = "TBD"
 
