@@ -60,9 +60,9 @@ interface EventDetails {
 
 interface ApiEventResponse {
   id: string
-  name: string
-  description: string
-  type: string
+  name?: string
+  description?: string
+  type?: string
   created_at?: string
   updated_at?: string
   // Add these only if they exist
@@ -71,6 +71,12 @@ interface ApiEventResponse {
   start_at?: string
   end_at?: string
   capacity?: number
+  // Practice-specific fields from /secure/events endpoint
+  program?: {
+    id: string
+    name: string
+    type?: string
+  }
 }
 
 const EventDetails: React.FC = () => {
@@ -217,7 +223,14 @@ const EventDetails: React.FC = () => {
       }
 
       // Fallback to direct API call for programs or if Redux fails
-      const useProgramsEndpoint = type === "practice" || type === "course" || type === "other";
+      if (type === "practice") {
+        // Practices don't have individual detail endpoints, use fallback data
+        console.log("🏀 Practice type detected, using fallback mock data")
+        fallbackToMockData()
+        return
+      }
+      
+      const useProgramsEndpoint = type === "course" || type === "other";
       const url = `${API_URL}/${useProgramsEndpoint ? "programs" : "events"}/${cleanedId}`;
 
       console.log(`🔄 Fallback: Direct API call to ${url}`)
@@ -266,8 +279,8 @@ const EventDetails: React.FC = () => {
       // Transform API data to our EventDetails format
       const processedEvent: EventDetails = {
         id: eventData.id,
-        title: eventData.name || "RISE Event",
-        description: eventData.description || "No description provided.",
+        title: eventData.name || eventData.program?.name || (type === "practice" ? "Practice Session" : "RISE Event"),
+        description: eventData.description || (type === "practice" ? `${eventData.program?.name || "Practice"} session` : "No description provided."),
         date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
         time: formatTimeRange(startDate, endDate),
         location: eventData.location?.name || "RISE Facility",
