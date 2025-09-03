@@ -15,37 +15,36 @@ const initialState: GamesState = {
 // Fetch upcoming matches for Matches tab
 export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token: string, { rejectWithValue, getState }) => {
   try {
-    console.log("Fetching secure games with token:", token.substring(0, 10) + "...")
+    console.log("🎯 DEBUG: Fetching secure games with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
+    console.log("🎯 DEBUG: Token length:", token ? token.length : 0)
 
     // Get current date for filtering future matches
     const currentDate = dayjs().format('YYYY-MM-DD')
 
-    // Use secure events endpoint with after parameter for future matches only
-    // Backend filters by user role, frontend filters for game/match types
-    const response = await axios.get(`${API_URL}/secure/events`, {
+    // Use secure/games endpoint for user-specific matches
+    // Include authorization header for user-specific filtering
+    const response = await axios.get(`${API_URL}/secure/games`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
-        after: currentDate // Get events after current date
+        // Add any supported filters here
       }
     })
 
-    console.log("Secure events API response:", response.data)
+    console.log("🎯 DEBUG: Games API response status:", response.status)
+    console.log("🎯 DEBUG: Games API response data:", response.data)
+    console.log("🎯 DEBUG: Games API response data type:", typeof response.data, Array.isArray(response.data) ? "array" : "not array")
 
-    const events = Array.isArray(response.data) ? response.data : []
+    const games = Array.isArray(response.data) ? response.data : []
     
-    // Filter for competitive events (games, matches, tournaments)
-    const gameEvents = events.filter((event: any) => {
-      const programType = event.program?.type?.toLowerCase()
-      const relevantTypes = ['tournament', 'game', 'match', 'competition', 'tryouts']
-      return relevantTypes.some(type => programType?.includes(type))
-    })
+    // Games endpoint returns game data directly
+    console.log("🎯 DEBUG: Current time:", dayjs().format("YYYY-MM-DD HH:mm:ss"))
     
-    const matches: Match[] = gameEvents.map((game: any) => {
+    const matches: Match[] = games.map((game: any) => {
       let date = dayjs().format("YYYY-MM-DD")
       let time = "TBD"
 
-      // Use start_at from game, fall back to created_at
-      const dateSource = game.start_at || game.created_at
+      // Use start_time from game, fall back to created_at
+      const dateSource = game.start_time || game.created_at
       if (dateSource) {
         const dateObj = dayjs(dateSource)
         if (dateObj.isValid()) {
@@ -56,17 +55,17 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
 
       return {
         id: game.id || `game-${Math.random().toString(36).substr(2, 9)}`,
-        name: game.program?.name || game.name || "Event",
-        title: game.program?.name || game.name || "Event",
+        name: `${game.home_team_name || 'Team 1'} vs ${game.away_team_name || 'Team 2'}`,
+        title: `${game.home_team_name || 'Team 1'} vs ${game.away_team_name || 'Team 2'}`,
         date,
         time,
-        location: game.location?.name || "RISE Basketball Facility",
-        description: game.program?.description || game.description || "",
-        // For games, these fields might not exist, so we'll leave them undefined
-        win_team: undefined,
-        lose_team: undefined,
-        win_score: undefined,
-        lose_score: undefined,
+        location: game.location_name || "RISE Basketball Facility", 
+        description: game.description || `Game scheduled for ${date}`,
+        // Games may have score fields
+        win_team: game.winner_team,
+        lose_team: game.loser_team,  
+        win_score: game.winner_score,
+        lose_score: game.loser_score,
         created_at: dateSource,
         updated_at: game.updated_at,
         // Add game-specific fields
@@ -88,7 +87,10 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
       }
     })
 
-    console.log(`Processed ${matches.length} matches from ${gameEvents.length} game events (${events.length} total events)`)
+    console.log(`🎯 DEBUG: Processed ${matches.length} matches from ${games.length} total games`)
+    matches.forEach((match, index) => {
+      console.log(`🎯 DEBUG: Match ${index + 1}: ${match.name} on ${match.date} at ${match.time}`)
+    })
     return { items: matches, byDate }
   } catch (error: any) {
     console.error("Games API error:", error.response?.data || error.message)
@@ -99,36 +101,37 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
 // Fetch match history for Match History tab  
 export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", async (token: string, { rejectWithValue }) => {
   try {
-    console.log("Fetching match history with token:", token.substring(0, 10) + "...")
+    console.log("🎯 DEBUG: Fetching match history with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
 
     // Get current date for filtering past matches
     const currentDate = dayjs().format('YYYY-MM-DD')
 
-    // Use secure events endpoint with before parameter for historical matches
-    // Backend filters by user role, frontend filters for game/match types
-    const response = await axios.get(`${API_URL}/secure/events`, {
+    // Use secure/games endpoint for user-specific historical matches  
+    // Include authorization header for user-specific filtering
+    const response = await axios.get(`${API_URL}/secure/games`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
-        before: currentDate // Get events before current date
+        // Add any supported filters here
       }
     })
 
-    console.log("Match history API response:", response.data)
+    console.log("🎯 DEBUG: Match history API response status:", response.status)
+    console.log("🎯 DEBUG: Match history API response data:", response.data)
 
-    const events = Array.isArray(response.data) ? response.data : []
+    const games = Array.isArray(response.data) ? response.data : []
     
-    // Filter for competitive events (games, matches, tournaments) 
-    const gameEvents = events.filter((event: any) => {
-      const programType = event.program?.type?.toLowerCase()
-      const relevantTypes = ['tournament', 'game', 'match', 'competition']
-      return relevantTypes.some(type => programType?.includes(type))
+    // Games endpoint returns game data directly, filter for past games
+    const currentDateTime = dayjs()
+    const pastGames = games.filter((game: any) => {
+      const gameDate = dayjs(game.start_time || game.created_at || game.updated_at)
+      return gameDate.isBefore(currentDateTime)
     })
     
-    const matches: Match[] = gameEvents.map((game: any) => {
+    const matches: Match[] = pastGames.map((game: any) => {
       let date = dayjs().format("YYYY-MM-DD")
       let time = "TBD"
 
-      const dateSource = game.start_at || game.created_at
+      const dateSource = game.start_time || game.created_at
       if (dateSource) {
         const dateObj = dayjs(dateSource)
         if (dateObj.isValid()) {
@@ -139,18 +142,20 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
 
       return {
         id: game.id || `game-${Math.random().toString(36).substr(2, 9)}`,
-        name: game.program?.name || game.name || "Match",
-        title: game.program?.name || game.name || "Match",
+        name: `${game.home_team_name || 'Team 1'} vs ${game.away_team_name || 'Team 2'}`,
+        title: `${game.home_team_name || 'Team 1'} vs ${game.away_team_name || 'Team 2'}`,
         date,
         time,
-        location: game.location?.name || "RISE Basketball Facility",
-        description: game.program?.description || game.description || "",
-        win_team: undefined, // Historical matches might have this data
-        lose_team: undefined,
-        win_score: undefined,
-        lose_score: undefined,
+        location: game.location_name || "RISE Basketball Facility",
+        description: game.description || `Match scheduled for ${date}`,
+        // Games may have score fields
+        win_team: game.winner_team,
+        lose_team: game.loser_team,
+        win_score: game.winner_score,
+        lose_score: game.loser_score,
         created_at: dateSource,
         updated_at: game.updated_at,
+        // Add game-specific fields
         program_type: game.program?.type,
         location_address: game.location?.address,
         start_at: game.start_at,
@@ -169,7 +174,7 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
       }
     })
 
-    console.log(`Processed ${matches.length} historical matches from ${games.length} total games`)
+    console.log(`Processed ${matches.length} historical matches from ${pastGames.length} past games (${games.length} total games)`)
     return { items: matches, byDate }
   } catch (error: any) {
     console.error("Match history API error:", error.response?.data || error.message)
