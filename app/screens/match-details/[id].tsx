@@ -112,7 +112,7 @@ const MatchDetailsScreen = () => {
       dispatch(fetchTeams(token))
     }
 
-    // Fetch game data directly from API using /events endpoint
+    // Fetch game data directly from API using /games endpoint
     const fetchGameData = async () => {
       setLoading(true)
       setError(null)
@@ -121,25 +121,25 @@ const MatchDetailsScreen = () => {
         try {
           console.log(`MATCH DETAILS: Fetching game data for programId: ${programId}`)
           
-          // Call the correct API endpoint
-          const response = await axios.get(`${API_URL}/events/${programId}`, {
+          // Call the correct API endpoint for games
+          const response = await axios.get(`${API_URL}/games/${programId}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           
           console.log(`MATCH DETAILS: Successfully fetched game data:`, response.data)
           
-          // Transform API response to match existing GameData interface
-          const eventData = response.data
+          // Transform API response from games endpoint to match existing GameData interface
+          const gameData = response.data
           const transformedGame: GameData = {
-            id: eventData.id,
-            name: eventData.program?.name || eventData.name || "Basketball Match",
-            description: eventData.description || "Basketball event",
-            win_team: eventData.win_team || "Team A",
-            lose_team: eventData.lose_team || "Team B", 
-            win_score: eventData.win_score || 0,
-            lose_score: eventData.lose_score || 0,
-            created_at: eventData.start_at || eventData.created_at,
-            updated_at: eventData.updated_at
+            id: gameData.id,
+            name: `${gameData.home_team_name || 'Home'} vs ${gameData.away_team_name || 'Away'}`,
+            description: gameData.description || `Match between ${gameData.home_team_name} and ${gameData.away_team_name}`,
+            win_team: gameData.home_team_name || "Home Team",
+            lose_team: gameData.away_team_name || "Away Team", 
+            win_score: gameData.winner_score || 0,
+            lose_score: gameData.loser_score || 0,
+            created_at: gameData.start_time || gameData.created_at,
+            updated_at: gameData.updated_at
           }
           
           setGame(transformedGame)
