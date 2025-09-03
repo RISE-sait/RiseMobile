@@ -1,5 +1,7 @@
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
+
+console.log("🏀🏀🏀 MATCHES FILE LOADED - ATHLETE ROLE 🏀🏀🏀")
 import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native"
 import dayjs from "dayjs"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -15,21 +17,54 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 const { width } = Dimensions.get("window")
 
 const generateWeekDates = (): dayjs.Dayjs[] => {
-  const today = dayjs()
-  return Array.from({ length: 17 }, (_, i) => today.add(i - 8, "day"))
+  // Generate extended date range to include August test data (2025-08-02 to 2025-08-04)
+  const today = dayjs();
+  const testDataStart = dayjs("2025-08-02");
+  const startDate = testDataStart.isBefore(today.subtract(8, "day")) ? testDataStart : today.subtract(8, "day");
+  const endDate = today.add(8, "day");
+  const totalDays = endDate.diff(startDate, "day") + 1;
+  
+  return Array.from({ length: totalDays }, (_, i) => startDate.add(i, "day"));
 }
 
 const MatchesScreen: React.FC = () => {
+  console.log("🏀 MATCHES COMPONENT STARTED")
   const dispatch = useAppDispatch()
   const matches = useAppSelector((state) => state.games.items)
   const status = useAppSelector((state) => state.games.status)
   const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
+  console.log("🏀 MATCHES COMPONENT: Redux hooks loaded successfully")
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))
   const [weekDates] = useState(generateWeekDates)
   const flatListRef = useRef<FlatList>(null)
   const fadeAnim = useRef(new Animated.Value(0)).current
+
+  // Reusable token getter with fallback logic
+  const getAuthToken = async (): Promise<string | null> => {
+    let authToken = token
+    
+    if (!authToken) {
+      try {
+        // Try to get token from user object first
+        const userString = await AsyncStorage.getItem("user")
+        if (userString) {
+          const userData = JSON.parse(userString)
+          authToken = userData.token
+        }
+        
+        // Fallback: try to get JWT token directly
+        if (!authToken) {
+          authToken = await AsyncStorage.getItem("jwtToken")
+        }
+      } catch (err) {
+        console.error("Error getting token from AsyncStorage:", err)
+      }
+    }
+    
+    return authToken
+  }
 
   useEffect(() => {
     // Fetch matches when component mounts
@@ -38,10 +73,16 @@ const MatchesScreen: React.FC = () => {
 
       if (!authToken) {
         try {
+          // Try to get token from user object first
           const userString = await AsyncStorage.getItem("user")
           if (userString) {
             const userData = JSON.parse(userString)
             authToken = userData.token
+          }
+          
+          // Fallback: try to get JWT token directly
+          if (!authToken) {
+            authToken = await AsyncStorage.getItem("jwtToken")
           }
         } catch (err) {
           console.error("Error getting token from AsyncStorage:", err)
@@ -79,10 +120,13 @@ const MatchesScreen: React.FC = () => {
     return matchDate === selectedDate
   })
 
-  // Debug logging
-  console.log("🔍 DEBUG: Matches status:", status)
-  console.log("🔍 DEBUG: Total matches:", matches.length)
-  console.log("🔍 DEBUG: Filtered matches for", selectedDate, ":", filteredMatches.length)
+  // Debug logging - MATCHES PAGE
+  console.log("🏀 DEBUG: MATCHES PAGE component rendering")
+  console.log("🏀 DEBUG: MATCHES PAGE status:", status)
+  console.log("🏀 DEBUG: MATCHES PAGE Total matches:", matches.length)
+  console.log("🏀 DEBUG: MATCHES PAGE Selected date:", selectedDate)
+  console.log("🏀 DEBUG: MATCHES PAGE Week dates count:", weekDates.length)
+  console.log("🏀 DEBUG: MATCHES PAGE Filtered matches for", selectedDate, ":", filteredMatches.length)
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate
@@ -137,19 +181,7 @@ const MatchesScreen: React.FC = () => {
           actionLabel="Try Again"
           onAction={() => {
             const fetchData = async () => {
-              let authToken = token
-
-              if (!authToken) {
-                try {
-                  const userString = await AsyncStorage.getItem("user")
-                  if (userString) {
-                    const userData = JSON.parse(userString)
-                    authToken = userData.token
-                  }
-                } catch (err) {
-                  console.error("Error getting token from AsyncStorage:", err)
-                }
-              }
+              const authToken = await getAuthToken()
 
               if (authToken) {
                 dispatch(clearMatches())
@@ -175,19 +207,7 @@ const MatchesScreen: React.FC = () => {
           <TouchableOpacity
             onPress={() => {
               const fetchData = async () => {
-                let authToken = token
-
-                if (!authToken) {
-                  try {
-                    const userString = await AsyncStorage.getItem("user")
-                    if (userString) {
-                      const userData = JSON.parse(userString)
-                      authToken = userData.token
-                    }
-                  } catch (err) {
-                    console.error("Error getting token from AsyncStorage:", err)
-                  }
-                }
+                const authToken = await getAuthToken()
 
                 if (authToken) {
                   dispatch(clearMatches())
@@ -252,19 +272,7 @@ const MatchesScreen: React.FC = () => {
               className="mt-6 bg-[#FFD700] px-6 py-3 rounded-lg"
               onPress={() => {
                 const fetchData = async () => {
-                  let authToken = token
-
-                  if (!authToken) {
-                    try {
-                      const userString = await AsyncStorage.getItem("user")
-                      if (userString) {
-                        const userData = JSON.parse(userString)
-                        authToken = userData.token
-                      }
-                    } catch (err) {
-                      console.error("Error getting token from AsyncStorage:", err)
-                    }
-                  }
+                  const authToken = await getAuthToken()
 
                   if (authToken) {
                     dispatch(clearMatches())
