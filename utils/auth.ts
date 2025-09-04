@@ -40,7 +40,7 @@ export const useAuth = () => {
   // Use Redux user state as primary source of truth
   const user = reduxUser
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
+  const [, , promptAsync] = Google.useAuthRequest({
     clientId: "238537761671-vf9tu3vu85hnpm6r56bael9pm5b3k63b.apps.googleusercontent.com",
     redirectUri: makeRedirectUri({
       native: "myapp://redirect",
@@ -52,7 +52,7 @@ export const useAuth = () => {
   const verifyTokenWithBackend = async (token: string, email: string): Promise<boolean> => {
     try {
       // Try to get upcoming bookings as a way to verify token validity
-      const response = await axios.get(`${API_URL}/bookings/upcoming`, {
+      await axios.get(`${API_URL}/bookings/upcoming`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       return true
