@@ -62,10 +62,13 @@ export const fetchPractices = createAsyncThunk(
         response_type: "date",
       })
 
-      const response = await axios.get(`${API_URL}/secure/events?${params.toString()}`, {
+      const response = await axios.get(`${API_URL}/secure/schedule?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      console.log("🧪 Practices from secure events endpoint:", response.data)
+      console.log("🧪 Practices from secure schedule endpoint:", response.data)
+      
+      // Extract only practices data from the schedule response
+      const practicesData = response.data.practices || []
 
 
 
@@ -74,18 +77,18 @@ export const fetchPractices = createAsyncThunk(
       const byDate: Record<string, CalendarItem[]> = {}
       const byId: Record<string, CalendarItem> = {}
 
-      for (const event of response.data)  {
-        const startDate = dayjs(event.start_at).format("YYYY-MM-DD")
-        const time = dayjs(event.start_at).format("HH:mm")
+      for (const practice of practicesData)  {
+        const startDate = dayjs(practice.start_time).format("YYYY-MM-DD")
+        const time = dayjs(practice.start_time).format("HH:mm")
 
         const item: CalendarItem = {
-          id: event.id,
-          title: event.program?.name || "Practice",
+          id: practice.id,
+          title: extractTitle(practice),
           date: startDate,
           time,
           type: "practice",
-          location: event.location?.name || "RISE Basketball Facility",
-          description: `${event.program?.name || "Practice"} at ${event.location?.name || "RISE Basketball Facility"}`,
+          location: practice.location?.name || "RISE Basketball Facility",
+          description: `${extractTitle(practice)} at ${practice.location?.name || "RISE Basketball Facility"}`,
         }
 
         items.push(item)
@@ -128,7 +131,7 @@ export const createPracticeThunk = createAsyncThunk<
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
       const response = await axios.post(
-        `${API_URL}/events/one-time`,
+        `${API_URL}/practices`,
         payload, 
         {
           headers: { Authorization: `Bearer ${jwt}` },
@@ -184,7 +187,7 @@ export const createRecurringPracticeThunk = createAsyncThunk<
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
       await axios.post(
-        `${API_URL}/events/recurring`,
+        `${API_URL}/practices/recurring`,
         {
           day: payload.day,
           practice_start_at: payload.event_start_at,
