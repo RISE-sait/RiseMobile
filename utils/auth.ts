@@ -488,32 +488,83 @@ export const useAuth = () => {
     router.replace("/(auth)/login")
   }
 
-  // 🔹 Check authentication status
-  const checkAuthStatus = async (): Promise<boolean> => {
-    if (!user || !firebaseUser) {
-      return false
-    }
-
+  // 🔹 Get valid token (centralized token management)
+  const getValidToken = async (): Promise<string | null> => {
     try {
-      // Verify token is still valid
-      const isValid = await verifyTokenWithBackend(user.token, user.email)
-      if (!isValid) {
+      // Try Redux user token first
+      if (user?.token) {
+        const isValid = await verifyTokenWithBackend(user.token, user.email)
+        if (isValid) {
+          return user.token
+        }
+      }
+
+      // If no valid token from Redux, try Firebase user
+      if (firebaseUser) {
         const newToken = await refreshAndExchangeToken(firebaseUser)
         if (newToken) {
           const updatedUser = { ...user, token: newToken }
           dispatch(setReduxUser(updatedUser))
           await saveUserToRedux(updatedUser)
-          return true
-        } else {
-          await forceReLogin("Your session has expired. Please log in again.")
-          return false
+          return newToken
         }
       }
-      return true
+
+      // If still no token, check Firebase auth state
+      if (auth.currentUser) {
+        const newToken = await refreshAndExchangeToken(auth.currentUser)
+        if (newToken) {
+          // If no Redux user but Firebase user exists, create minimal user object
+          if (!user) {
+            const minimalUser = {
+              id: auth.currentUser.uid,
+              email: auth.currentUser.email || '',
+              firstName: '',
+              lastName: '',
+              role: '',
+              countryCode: 'US',
+              token: newToken
+            }
+            dispatch(setReduxUser(minimalUser))
+          } else {
+            const updatedUser = { ...user, token: newToken }
+            dispatch(setReduxUser(updatedUser))
+          }
+          return newToken
+        }
+      }
+
+      console.error("❌ Unable to obtain valid token")
+      return null
     } catch (error) {
-      console.error("❌ Auth status check failed:", error)
-      return false
+      console.error("❌ getValidToken failed:", error)
+      return null
     }
+  }
+
+  // 🔹 Get valid Firebase token (for endpoints that require Firebase token)
+  const getValidFirebaseToken = async (): Promise<string | null> => {
+    try {
+      if (firebaseUser) {
+        return await firebaseUser.getIdToken(true)
+      }
+      
+      if (auth.currentUser) {
+        return await auth.currentUser.getIdToken(true)
+      }
+
+      console.error("❌ No Firebase user available")
+      return null
+    } catch (error) {
+      console.error("❌ getValidFirebaseToken failed:", error)
+      return null
+    }
+  }
+
+  // 🔹 Check authentication status
+  const checkAuthStatus = async (): Promise<boolean> => {
+    const token = await getValidToken()
+    return token !== null
   }
 
   // 🔹 Logout Function
@@ -605,6 +656,8 @@ export const useAuth = () => {
     logout,
     checkAuthStatus,
     forceReLogin,
+    getValidToken,
+    getValidFirebaseToken,
   }
 }
 

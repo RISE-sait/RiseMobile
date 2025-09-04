@@ -12,8 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { auth } from "@/firebase/firebaseConfig";
+import { useAuth } from "@/utils/auth";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -29,6 +28,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { API_URL } from "@/utils/api";
 import { useSelector } from "react-redux"
 import { fetchTeams, selectTeamsForCoach, selectAllTeams } from "@/store/slices/teamsSlice"
+import { selectCurrentUser } from "@/store/selectors/userSelectors"
 import { RootState } from "@/store"
 import type { CreatePracticePayload, CreateRecurringPracticePayload } from "@/types/practice"
 import dayjs from "dayjs";
@@ -50,6 +50,7 @@ const CoachPracticeBooking = () => {
 
   const router = useRouter()
   const dispatch = useAppDispatch();
+  const { getValidToken } = useAuth();
 
 
 
@@ -78,7 +79,7 @@ const CoachPracticeBooking = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({})
   
-  const user = useSelector((state: RootState) => state.user.data)
+  const user = useSelector(selectCurrentUser)
 
   const coachTeams = useSelector((state: RootState) =>
   user?.id ? selectTeamsForCoach(state, user.id) : []
@@ -98,24 +99,8 @@ useEffect(() => {
         return
       }
 
-      // Get token from AsyncStorage first (faster)
-      let token = await AsyncStorage.getItem("jwtToken")
-      
-      if (!token) {
-        // Fallback to Firebase token exchange
-        const firebaseToken = await firebaseUser.getIdToken(true)
-        const jwtResponse = await fetch(`${API_URL}/auth`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${firebaseToken}` },
-          body: JSON.stringify({ email: firebaseUser.email }),
-        })
-        
-        token = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
-        if (token) {
-          await AsyncStorage.setItem("jwtToken", token)
-        }
-      }
-
+      // Use centralized token management
+      const token = await getValidToken()
       if (!token) {
         console.error("❌ Failed to get authentication token")
         return
@@ -233,35 +218,8 @@ const handleConfirmBooking = async () => {
   try {
     setIsSubmitting(true)
 
-    // Get authentication token
-    let token = await AsyncStorage.getItem("jwtToken")
-    
-    // If no token in AsyncStorage, try using the token from Redux user state
-    if (!token && user?.token) {
-      token = user.token
-      console.log("🔍 Using token from Redux user state")
-    }
-    
-    if (!token) {
-      const firebaseUser = auth.currentUser
-      if (!firebaseUser) {
-        Alert.alert("Authentication Error", "Please log in again.")
-        return
-      }
-
-      const firebaseToken = await firebaseUser.getIdToken(true)
-      const jwtResponse = await fetch(`${API_URL}/auth`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${firebaseToken}` },
-        body: JSON.stringify({ email: firebaseUser.email }),
-      })
-      
-      token = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
-      if (token) {
-        await AsyncStorage.setItem("jwtToken", token)
-      }
-    }
-
+    // Use centralized token management
+    const token = await getValidToken()
     if (!token) {
       Alert.alert("Authentication Error", "Failed to get authentication token.")
       return
