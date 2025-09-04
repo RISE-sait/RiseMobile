@@ -190,11 +190,12 @@ const formatTeamForDisplay = (team: Team) => ({
   image: `https://source.unsplash.com/random/300x200/?basketball-${team.id}`,
 })
 
+// Create payload with proper IDs - use real location/court IDs from existing data
 const payload: CreatePracticePayload = {
   start_time: startTime.toISOString(),
   end_time: endTime.toISOString(),
-  location_id: "default", // Use default instead of hardcoded UUID
-  court_id: "default", // Use default instead of hardcoded UUID  
+  location_id: "626d44dd-6a98-42df-8fec-a36179da506f", // Rise Facility- Calgary Central Sportsplex
+  court_id: "9dda472d-6176-47b3-ab25-18b17be0c0f5", // Court 1
   status: "scheduled",
   team_id: selectedTeam?.id ?? "",
 }
@@ -203,10 +204,12 @@ const payload: CreatePracticePayload = {
 
 const recurringPayload: CreateRecurringPracticePayload = {
   day: dayjs(date).format("dddd").toUpperCase(), // e.g. "MONDAY"
-  event_start_at: startTime.toISOString(),
-  event_end_at: endTime.toISOString(),
-  location_id: "default",
+  practice_start_at: dayjs(startTime).format("HH:mm:ss+00:00"), // Format as time only: "21:28:43+00:00"
+  practice_end_at: dayjs(endTime).format("HH:mm:ss+00:00"), // Format as time only: "23:28:43+00:00"
+  location_id: "626d44dd-6a98-42df-8fec-a36179da506f", // Rise Facility- Calgary Central Sportsplex
+  court_id: "9dda472d-6176-47b3-ab25-18b17be0c0f5", // Court 1
   team_id: selectedTeam?.id ?? "",
+  status: "scheduled" as const,
   recurrence_start_at: dayjs(date).toISOString(),
   recurrence_end_at: dayjs(date)
     .add(recurringOptions.occurrences - 1, recurringOptions.weekly ? "week" : recurringOptions.biweekly ? "week" : "month")
@@ -219,7 +222,10 @@ const handleConfirmBooking = async () => {
     return
   }
 
+  console.log("🔍 DEBUG: User object:", JSON.stringify(user, null, 2))
+  
   if (!user?.id) {
+    console.error("❌ Booking error: No user is logged in.")
     Alert.alert("Error", "User not found. Please log in again.")
     return
   }
@@ -229,6 +235,12 @@ const handleConfirmBooking = async () => {
 
     // Get authentication token
     let token = await AsyncStorage.getItem("jwtToken")
+    
+    // If no token in AsyncStorage, try using the token from Redux user state
+    if (!token && user?.token) {
+      token = user.token
+      console.log("🔍 Using token from Redux user state")
+    }
     
     if (!token) {
       const firebaseUser = auth.currentUser
