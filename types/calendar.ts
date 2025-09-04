@@ -18,13 +18,13 @@ export interface Location {
   address?: string
 }
 
-export interface Team {
+export interface ScheduleTeam {
   id: string
   name: string
   logo_url?: string
 }
 
-export interface User {
+export interface ScheduleUser {
   id: string
   first_name: string
   last_name: string
@@ -62,9 +62,9 @@ export interface ScheduleEventApi extends BaseScheduleApiItem {
   description?: string
   capacity?: number
   program?: Program
-  team?: Team
-  created_by: User
-  updated_by?: User
+  team?: ScheduleTeam
+  created_by: ScheduleUser
+  updated_by?: ScheduleUser
   customers: any[] // Customer booking data
   staff: any[] // Staff assignments
   location?: Location
@@ -175,7 +175,7 @@ export interface UnifiedScheduleItem {
   // Metadata
   created_at: string
   updated_at: string
-  created_by?: User
+  created_by?: ScheduleUser
   
   // Raw API data for advanced usage
   raw: ScheduleEventApi | ScheduleGameApi | SchedulePracticeApi
