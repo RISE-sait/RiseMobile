@@ -23,10 +23,12 @@ export interface CreatePracticePayload {
 
 export interface CreateRecurringPracticePayload {
   day: string
-  event_start_at: string
-  event_end_at: string
+  practice_start_at: string
+  practice_end_at: string
   location_id: string
+  court_id: string
   team_id: string
+  status: "scheduled" | "cancelled" | "completed"
   recurrence_start_at: string
   recurrence_end_at: string
 }
