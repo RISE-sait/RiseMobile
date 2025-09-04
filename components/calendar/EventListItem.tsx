@@ -52,11 +52,15 @@ const EventListItem: React.FC<EventListItemProps> = ({
 
  const handlePress = () => {
   if (isMatch) {
-    // Use the actual match ID (not program ID)
-    router.push(`/screens/match-details/${eventId}?type=match`)
+    // Use the actual match ID (not program ID) - calls GET /games/{id}
+    router.push(`/screens/match-details/${eventId}`)
+  } else if (type === "practice") {
+    // Navigate to dedicated practice details page - calls GET /practices/{id}
+    router.push(`/screens/practice-details/${eventId}`)
   } else {
+    // For events and other types - calls GET /events/{id}
     const idToUse = program?.id || eventId
-    router.push(`/screens/event-details/${idToUse}?type=${type}`)
+    router.push(`/screens/event-details/${idToUse}`)
   }
 }
 

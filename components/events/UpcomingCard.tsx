@@ -42,7 +42,7 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
   if (!event) {
     return (
       <View className="w-full px-10 mt-10">
-        <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING EVENTS</Text>
+        <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING EVENT</Text>
         <View className="bg-[#444444] h-32 rounded-xl overflow-hidden mt-3 flex justify-center items-center relative">
           {/* Subtle background pattern/gradient */}
           <View className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-60" />
@@ -82,7 +82,7 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
     <>
       <TouchableOpacity onPress={() => setModalVisible(true)} activeOpacity={0.8}>
         <View className="w-full px-10 mt-10">
-          <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING {event.type.toUpperCase()}</Text>
+          <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING EVENT</Text>
           <View className="bg-[#444444] h-32 rounded-xl overflow-hidden mt-3 flex justify-center items-center relative">
             <Image
               source={{ uri: bgImageUri }}

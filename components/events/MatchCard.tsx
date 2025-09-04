@@ -59,7 +59,8 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
   const awayLogo = "https://via.placeholder.com/100"
 
   const handlePress = () => {
-    router.push(`/screens/match-details/${match.id}?type=game`)
+    // Navigate to match details - calls GET /games/{id}
+    router.push(`/screens/match-details/${match.id}`)
   }
   
 
