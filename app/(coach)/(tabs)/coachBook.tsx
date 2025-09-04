@@ -17,7 +17,7 @@ import * as Haptics from "expo-haptics"
 import { StatusBar } from "expo-status-bar"
 import { useSelector, useDispatch } from "react-redux"
 import { RootState, AppDispatch } from "@/store"
-import { fetchPractices } from "@/store/slices/practicesSlice"
+import { fetchPractices, clearPractices } from "@/store/slices/practicesSlice"
 import { fetchEvents } from "@/store/slices/eventsSlice" 
 import { auth } from "@/firebase/firebaseConfig"
 import { API_URL } from "@/utils/api"
@@ -79,6 +79,7 @@ const CoachBook = () => {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(50)).current
+  const hasInitializedData = useRef(false)
 
   // Redux state
   const practicesItems = useSelector((state: RootState) => state.practices.items)
@@ -129,7 +130,7 @@ const CoachBook = () => {
       if (item.type === "match" || item.type === "game") {
         type = "Match";
         icon = "trophy";
-      } else if (item.type === "course" || item.type === "class") {
+      } else if (item.type === "course") {
         type = "Class";
         icon = "chalkboard-teacher";
       } else if (item.type === "event") {
@@ -160,6 +161,11 @@ const CoachBook = () => {
   // Fetch data on component mount
   useEffect(() => {
     const fetchBookingData = async () => {
+      // Prevent multiple fetches
+      if (hasInitializedData.current) {
+        return;
+      }
+
       try {
         const firebaseUser = auth.currentUser;
         if (!firebaseUser) {
@@ -179,7 +185,7 @@ const CoachBook = () => {
             body: JSON.stringify({ email: firebaseUser.email }),
           });
           
-          token = jwtResponse.headers.get("authorization")?.replace("Bearer ", "");
+          token = jwtResponse.headers.get("authorization")?.replace("Bearer ", "") || null;
           if (token) {
             await AsyncStorage.setItem("jwtToken", token);
           }
@@ -192,13 +198,17 @@ const CoachBook = () => {
 
         console.log("🔄 Fetching coach booking data (practices only)...");
         
-        // Only fetch practices for coach booking page - coaches should only see their practices here
+        // Only fetch practices for coach booking page if not already loaded
         const today = dayjs().format("YYYY-MM-DD");
         const futureDate = dayjs().add(2, "months").format("YYYY-MM-DD");
 
-        if (practicesStatus === "idle") {
+        // Only fetch if we haven't loaded practices yet or if it's been idle for too long
+        if (practicesStatus === "idle" || practicesItems.length === 0) {
           dispatch(fetchPractices({ token, after: today, before: futureDate }));
         }
+        
+        // Mark as initialized to prevent repeated fetches
+        hasInitializedData.current = true;
         
         // Note: Removed fetchEvents() - coach booking page should only show practices
         // Future: Add haircut bookings or other coach-specific booking fetches here
@@ -209,7 +219,7 @@ const CoachBook = () => {
     };
 
     fetchBookingData();
-  }, [dispatch, practicesStatus]);
+  }, [dispatch]); // Only depend on dispatch which is stable
 
   useEffect(() => {
     // Start animations when component mounts
@@ -235,16 +245,16 @@ const CoachBook = () => {
     }
   }, [searchQuery])
 
-  const handleOptionPress = (route) => {
+  const handleOptionPress = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     if (route) {
-      router.push(route)
+      router.push(route as any)
     }
   }
 
 
 
-  const renderFeaturedItem = ({ item, index }) => {
+  const renderFeaturedItem = ({ item, index }: { item: any, index: number }) => {
     const inputRange = [(index - 1) * cardWidth, index * cardWidth, (index + 1) * cardWidth]
 
     const opacity = scrollX.interpolate({
@@ -301,7 +311,7 @@ const CoachBook = () => {
 
 
 
-  const renderUpcomingBooking = ({ item }) => {
+  const renderUpcomingBooking = ({ item }: { item: any }) => {
     const statusColor = item.status === "Confirmed" ? COLORS.success : COLORS.warning
 
     return (
@@ -315,7 +325,13 @@ const CoachBook = () => {
           alignItems: "center",
         }}
         activeOpacity={0.8}
-        onPress={() => {}}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          console.log("📋 Practice clicked:", item.id, item.type);
+          
+          // Navigate to dedicated practice details page using real API
+          router.push(`/screens/practice-details/${item.id}`);
+        }}
       >
         <View
           style={{
@@ -479,7 +495,7 @@ const CoachBook = () => {
                 <FlatList
                   data={upcomingBookings}
                   renderItem={renderUpcomingBooking}
-                  keyExtractor={(item) => item.id}
+                  keyExtractor={(item) => item.id || `${item.type}-${item.date}-${item.time}`}
                   scrollEnabled={false}
                 />
               ) : (
