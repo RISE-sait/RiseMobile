@@ -175,17 +175,24 @@ const EventsScreen: React.FC = () => {
         style={styles.eventCard}
         activeOpacity={0.9}
         onPress={() => {
-          if (item.type === "match") {
+          if (item.type === "match" || item.type === "game") {
+            // Navigate to match details - calls GET /games/{id}
             router.push({
               pathname: "/screens/match-details/[id]",
               params: { id: item.id },
             });
+          } else if (item.type === "practice") {
+            // Navigate to practice details - calls GET /practices/{id}
+            router.push({
+              pathname: "/screens/practice-details/[id]",
+              params: { id: item.id },
+            });
           } else {
+            // Navigate to event details - calls GET /events/{id}
             router.push({
               pathname: "/screens/event-details/[id]",
               params: {
                 id: item.program?.id || item.id,
-                type: item.type,
               },
             });
           }
