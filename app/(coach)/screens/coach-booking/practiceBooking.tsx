@@ -50,7 +50,7 @@ const CoachPracticeBooking = () => {
 
   const router = useRouter()
   const dispatch = useAppDispatch();
-  const { getValidToken } = useAuth();
+  const { getValidToken, firebaseUser } = useAuth();
 
 
 
@@ -93,7 +93,6 @@ const CoachPracticeBooking = () => {
 useEffect(() => {
   const fetchCoachTeams = async () => {
     try {
-      const firebaseUser = auth.currentUser
       if (!firebaseUser) {
         console.log("⚠️ No authenticated Firebase user found")
         return
@@ -113,7 +112,7 @@ useEffect(() => {
   }
 
   fetchCoachTeams()
-}, [dispatch])
+}, [dispatch, firebaseUser, getValidToken])
 
   
 
