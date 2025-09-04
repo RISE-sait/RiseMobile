@@ -18,11 +18,12 @@ import { StatusBar } from "expo-status-bar"
 import { useSelector, useDispatch } from "react-redux"
 import { RootState, AppDispatch } from "@/store"
 import { fetchPractices, clearPractices } from "@/store/slices/practicesSlice"
-import { fetchEvents } from "@/store/slices/eventsSlice" 
-import { auth } from "@/firebase/firebaseConfig"
+import { fetchEvents } from "@/store/slices/eventsSlice"
+import { selectPracticesItems, selectPracticesStatus, selectUpcomingPractices } from "@/store/selectors/practicesSelectors"
+import { selectCurrentUser } from "@/store/selectors/userSelectors"
+import { useAuth } from "@/utils/auth"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
-import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
@@ -72,6 +73,7 @@ const bookingOptions = [
 const CoachBook = () => {
   const router = useRouter()
   const dispatch = useDispatch<AppDispatch>()
+  const { getValidToken } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredOptions, setFilteredOptions] = useState(bookingOptions)
   const scrollX = useRef(new Animated.Value(0)).current
@@ -81,12 +83,13 @@ const CoachBook = () => {
   const translateY = useRef(new Animated.Value(50)).current
   const hasInitializedData = useRef(false)
 
-  // Redux state
-  const practicesItems = useSelector((state: RootState) => state.practices.items)
-  const practicesStatus = useSelector((state: RootState) => state.practices.status)
+  // Redux state with memoized selectors
+  const practicesItems = useSelector(selectPracticesItems)
+  const practicesStatus = useSelector(selectPracticesStatus)
+  const upcomingPractices = useSelector(selectUpcomingPractices)
   const eventsItems = useSelector((state: RootState) => state.events.items)
   const eventsStatus = useSelector((state: RootState) => state.events.status)
-  const currentUser = useSelector((state: RootState) => state.user.data)
+  const currentUser = useSelector(selectCurrentUser)
 
   // Transform API data into upcomingBookings format - Coach booking view should only show coach-related bookings
   const upcomingBookings = useMemo(() => {
@@ -167,30 +170,8 @@ const CoachBook = () => {
       }
 
       try {
-        const firebaseUser = auth.currentUser;
-        if (!firebaseUser) {
-          console.log("⚠️ No authenticated user found");
-          return;
-        }
-
-        // Get token from AsyncStorage first (faster)
-        let token = await AsyncStorage.getItem("jwtToken");
-        
-        if (!token) {
-          // Fallback to Firebase token exchange
-          const firebaseToken = await firebaseUser.getIdToken(true);
-          const jwtResponse = await fetch(`${API_URL}/auth`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${firebaseToken}` },
-            body: JSON.stringify({ email: firebaseUser.email }),
-          });
-          
-          token = jwtResponse.headers.get("authorization")?.replace("Bearer ", "") || null;
-          if (token) {
-            await AsyncStorage.setItem("jwtToken", token);
-          }
-        }
-
+        // Use centralized token management
+        const token = await getValidToken();
         if (!token) {
           console.error("❌ Failed to get authentication token");
           return;

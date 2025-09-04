@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit"
 import axios from "axios"
-import { API_URL } from "@/utils/api"
+import { API_URL, refreshBackendJwt } from "@/utils/api"
 import dayjs from "dayjs"
 import { auth } from "@/firebase/firebaseConfig"
 import type { CalendarItem, PracticesState } from "@/types"
@@ -117,17 +117,8 @@ export const createPracticeThunk = createAsyncThunk<
   "practices/createPractice",
   async (payload, { rejectWithValue, dispatch }) => {
     try {
-      const firebaseUser = auth.currentUser
-      if (!firebaseUser) throw new Error("No user is logged in.")
-
-      const firebaseToken = await firebaseUser.getIdToken(true)
-      const jwtResponse = await fetch(`${API_URL}/auth`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${firebaseToken}` },
-        body: JSON.stringify({ email: firebaseUser.email }),
-      })
-
-      const jwt = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
+      // Use centralized JWT refresh instead of manual token exchange
+      const jwt = await refreshBackendJwt()
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
       const response = await axios.post(
@@ -173,17 +164,8 @@ export const createRecurringPracticeThunk = createAsyncThunk<
   "practices/createRecurringPractice",
   async (payload, { rejectWithValue }) => {
     try {
-      const firebaseUser = auth.currentUser
-      if (!firebaseUser) throw new Error("No user is logged in.")
-
-      const firebaseToken = await firebaseUser.getIdToken(true)
-      const jwtResponse = await fetch(`${API_URL}/auth`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${firebaseToken}` },
-        body: JSON.stringify({ email: firebaseUser.email }),
-      })
-
-      const jwt = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
+      // Use centralized JWT refresh instead of manual token exchange
+      const jwt = await refreshBackendJwt()
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
       await axios.post(
