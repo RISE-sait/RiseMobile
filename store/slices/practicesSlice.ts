@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/tool
 import axios from "axios"
 import { API_URL, refreshBackendJwt } from "@/utils/api"
 import dayjs from "dayjs"
-import { auth } from "@/firebase/firebaseConfig"
+// import { auth } from "@/firebase/firebaseConfig" // No longer needed with centralized token management
 import type { CalendarItem, PracticesState } from "@/types"
 import type { CreatePracticePayload } from "@/types/practice"
 
@@ -68,7 +68,8 @@ export const fetchPractices = createAsyncThunk(
       console.log("🧪 Practices from secure schedule endpoint:", response.data)
       
       // Extract only practices data from the schedule response
-      const practicesData = response.data.practices || []
+      const responseData = response.data as any
+      const practicesData = responseData.practices || []
 
 
 
@@ -129,8 +130,9 @@ export const createPracticeThunk = createAsyncThunk<
         }
       )
 
+      const responseData = response.data as any
       const item: CalendarItem = {
-        id: response.data.id, // no fallback
+        id: responseData.id, // no fallback
         title: "Practice", // fallback title
         date: dayjs(payload.start_time).format("YYYY-MM-DD"),
         time: dayjs(payload.start_time).format("HH:mm"),
