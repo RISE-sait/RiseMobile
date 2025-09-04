@@ -21,6 +21,7 @@ import dayjs from "dayjs"
 import axios from "axios"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import { fetchEventById as fetchEventByIdRedux, selectDetailedEventById } from "@/store/slices/eventsSlice"
+import { RootState } from "@/store"
 import { FontAwesome5 } from "@expo/vector-icons"
 import EventImageHeader from "@/components/events/EventImageHeader"
 import BackButton from "@/components/buttons/BackButton"
@@ -89,12 +90,52 @@ const EventDetails: React.FC = () => {
   const cachedEvent = useAppSelector((state) => selectDetailedEventById(state, id as string))
   const eventsState = useAppSelector((state) => state.events)
   
+  // Get practices from Redux store
+  const practicesItems = useAppSelector((state: RootState) => state.practices.items)
+  const practicesById = useAppSelector((state: RootState) => state.practices.byId)
+  
   const [event, setEvent] = useState<EventDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [registered, setRegistered] = useState(false)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
+
+  // Function to get practice data from Redux store
+  const getPracticeDataFromStore = (practiceId: string): EventDetails | null => {
+    // First try to get from byId mapping
+    let practice = practicesById[practiceId]
+    
+    // If not found, try to find in items array
+    if (!practice) {
+      practice = practicesItems.find(item => item.id === practiceId) || undefined
+    }
+    
+    if (!practice) {
+      console.log(`⚠️ Practice with ID ${practiceId} not found in Redux store`)
+      return null
+    }
+    
+    console.log("✅ Found practice in Redux store:", practice)
+    
+    // Transform practice data to EventDetails format
+    const eventDetails: EventDetails = {
+      id: practice.id,
+      title: practice.title || "Practice Session",
+      description: practice.description || "Practice session focused on skill development and team coordination.",
+      date: practice.date || dayjs().format("YYYY-MM-DD"),
+      time: practice.time || "TBD",
+      location: practice.location || "RISE Basketball Facility",
+      locationAddress: "401, 33 St. NE, Calgary AB", // Default address since not in CalendarItem
+      image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+      organizer: "RISE Basketball",
+      category: "Practice",
+      status: "Upcoming", // TODO: Calculate based on date
+      capacity: 0, // Default capacity since not in CalendarItem
+    }
+    
+    return eventDetails
+  }
 
   useEffect(() => {
     // Start animations
@@ -224,8 +265,19 @@ const EventDetails: React.FC = () => {
 
       // Fallback to direct API call for programs or if Redux fails
       if (type === "practice") {
-        // Practices don't have individual detail endpoints, use fallback data
-        console.log("🏀 Practice type detected, using fallback mock data")
+        // For practices, try to get data from Redux store first
+        console.log("🏀 Practice type detected, trying to get from Redux store")
+        
+        // Try to get practice data from Redux store using the ID
+        const practiceFromStore = getPracticeDataFromStore(cleanedId)
+        if (practiceFromStore) {
+          console.log("✅ Found practice data in Redux store:", practiceFromStore)
+          setEvent(practiceFromStore)
+          setLoading(false)
+          return
+        }
+        
+        console.log("⚠️ Practice not found in Redux store, using fallback mock data")
         fallbackToMockData()
         return
       }
