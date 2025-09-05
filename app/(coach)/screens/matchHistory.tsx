@@ -165,6 +165,7 @@ const MatchHistory: React.FC = () => {
   };
 
   // Use our custom hook for filtering - now using transformed matches
+  // Backend now handles past/upcoming filtering via API filter parameter
   const {
     showFilters,
     activeTab,
@@ -206,9 +207,9 @@ const MatchHistory: React.FC = () => {
     loadMatchHistory();
   }, []);
 
-  // Fetch historical matches function
+  // Fetch historical matches function - now using backend filter
   const loadMatchHistory = async () => {
-    console.log("📋 MATCH HISTORY: Starting to fetch match history...");
+    console.log("📋 MATCH HISTORY: Starting to fetch match history (backend filtered)...");
     let authToken = token;
 
     if (!authToken) {
@@ -224,7 +225,7 @@ const MatchHistory: React.FC = () => {
     }
 
     if (authToken) {
-      console.log("📋 MATCH HISTORY: Clearing matches and fetching history...");
+      console.log("📋 MATCH HISTORY: Clearing matches and fetching history (using backend filter=past)...");
       dispatch(clearMatches());
       dispatch(fetchMatchHistory(authToken));
     } else {

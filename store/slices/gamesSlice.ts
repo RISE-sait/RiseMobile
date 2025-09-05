@@ -15,18 +15,15 @@ const initialState: GamesState = {
 // Fetch upcoming matches for Matches tab
 export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token: string, { rejectWithValue, getState }) => {
   try {
-    console.log("🎯 DEBUG: Fetching secure games with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
+    console.log("🎯 DEBUG: Fetching upcoming games with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
     console.log("🎯 DEBUG: Token length:", token ? token.length : 0)
 
-    // Get current date for filtering future matches
-    const currentDate = dayjs().format('YYYY-MM-DD')
-
-    // Use secure/games endpoint for user-specific matches
-    // Include authorization header for user-specific filtering
-    const response = await axios.get(`${API_URL}/secure/games`, {
+    // Use /games endpoint with backend filter for upcoming matches
+    // Conner added filter parameter: "upcoming" | "past"
+    const response = await axios.get(`${API_URL}/games`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
-        // Add any supported filters here
+        filter: "upcoming" // Backend filter for future matches
       }
     })
 
@@ -110,15 +107,12 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
   try {
     console.log("🎯 DEBUG: Fetching match history with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
 
-    // Get current date for filtering past matches
-    const currentDate = dayjs().format('YYYY-MM-DD')
-
-    // Use secure/games endpoint for user-specific historical matches  
-    // Include authorization header for user-specific filtering
-    const response = await axios.get(`${API_URL}/secure/games`, {
+    // Use /games endpoint with backend filter for past matches
+    // Conner added filter parameter: "upcoming" | "past"
+    const response = await axios.get(`${API_URL}/games`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
-        // Add any supported filters here
+        filter: "past" // Backend filter for historical matches
       }
     })
 
@@ -127,12 +121,8 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
 
     const games = Array.isArray(response.data) ? response.data : []
     
-    // Games endpoint returns game data directly, filter for past games
-    const currentDateTime = dayjs()
-    const pastGames = games.filter((game: any) => {
-      const gameDate = dayjs(game.start_time || game.created_at || game.updated_at)
-      return gameDate.isBefore(currentDateTime)
-    })
+    // No need for frontend filtering - backend already returns only past games
+    const pastGames = games
     
     const matches: Match[] = pastGames.map((game: any) => {
       let date = dayjs().format("YYYY-MM-DD")
