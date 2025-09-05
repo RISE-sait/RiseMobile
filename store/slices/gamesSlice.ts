@@ -73,7 +73,14 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
         location_address: game.location?.address,
         start_at: game.start_at,
         end_at: game.end_at,
-        capacity: game.capacity
+        capacity: game.capacity,
+        // Store original team names from API for proper team name display
+        home_team_name: game.home_team_name,
+        away_team_name: game.away_team_name,
+        home_team_logo_url: game.home_team_logo_url,
+        away_team_logo_url: game.away_team_logo_url,
+        home_score: game.home_score,
+        away_score: game.away_score
       }
     })
 
@@ -160,7 +167,14 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
         location_address: game.location?.address,
         start_at: game.start_at,
         end_at: game.end_at,
-        capacity: game.capacity
+        capacity: game.capacity,
+        // Store original team names from API for proper team name display
+        home_team_name: game.home_team_name,
+        away_team_name: game.away_team_name,
+        home_team_logo_url: game.home_team_logo_url,
+        away_team_logo_url: game.away_team_logo_url,
+        home_score: game.home_score,
+        away_score: game.away_score
       }
     })
 
