@@ -77,13 +77,13 @@ const MatchHistory: React.FC = () => {
         id: match.id,
         date: match.date || dayjs().format("YYYY-MM-DD"),
         // Always prioritize individual team names from API over combined name field
-        homeTeam: (match as any).home_team_name || (hasNewStructure ? "Home Team" : match.name || "Team A"),
-        awayTeam: (match as any).away_team_name || (hasNewStructure ? "Away Team" : "Opponent"),
-        homeTeamLogo: hasNewStructure ? (match as any).home_team_logo_url || "https://via.placeholder.com/40x40?text=H" : "https://via.placeholder.com/40x40?text=T1",
-        awayTeamLogo: hasNewStructure ? (match as any).away_team_logo_url || "https://via.placeholder.com/40x40?text=A" : "https://via.placeholder.com/40x40?text=T2",
+        homeTeam: match.home_team_name || (hasNewStructure ? "Home Team" : "Team A"),
+        awayTeam: match.away_team_name || (hasNewStructure ? "Away Team" : "Team B"),
+        homeTeamLogo: match.home_team_logo_url || "https://via.placeholder.com/40x40?text=H",
+        awayTeamLogo: match.away_team_logo_url || "https://via.placeholder.com/40x40?text=A",
         // Use real scores from API
-        homeScore: hasNewStructure ? (match as any).home_score || 0 : match.win_score || 0,
-        awayScore: hasNewStructure ? (match as any).away_score || 0 : match.lose_score || 0,
+        homeScore: match.home_score || match.win_score || 0,
+        awayScore: match.away_score || match.lose_score || 0,
         status: dayjs(match.date || dayjs().format("YYYY-MM-DD")).isBefore(dayjs(), 'day') 
           ? "completed" as const 
           : dayjs(match.date || dayjs().format("YYYY-MM-DD")).isSame(dayjs(), 'day') 
@@ -131,8 +131,8 @@ const MatchHistory: React.FC = () => {
       // Use the new API structure
       return {
         id: originalMatch.id,
-        homeTeamName: originalMatch.home_team_name,
-        awayTeamName: originalMatch.away_team_name,
+        homeTeamName: originalMatch.home_team_name || "Home Team",
+        awayTeamName: originalMatch.away_team_name || "Away Team",
         homeScore: originalMatch.home_score || 0,
         awayScore: originalMatch.away_score || 0,
         locationName: originalMatch.location_name,
