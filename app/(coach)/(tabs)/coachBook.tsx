@@ -476,7 +476,7 @@ const CoachBook = () => {
                 <FlatList
                   data={upcomingBookings}
                   renderItem={renderUpcomingBooking}
-                  keyExtractor={(item) => item.id || `${item.type}-${item.date}-${item.time}`}
+                  keyExtractor={(item, index) => item.id || `booking-${item.type}-${item.date}-${item.time}-${index}`}
                   scrollEnabled={false}
                 />
               ) : (
