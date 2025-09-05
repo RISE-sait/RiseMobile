@@ -23,10 +23,12 @@ import { selectPracticesItems, selectPracticesStatus, selectUpcomingPractices } 
 import { selectCurrentUser } from "@/store/selectors/userSelectors"
 import { useAuth } from "@/utils/auth"
 import { API_URL } from "@/utils/api"
+import { navigateToDetails } from "@/utils/navigation"
 import dayjs from "dayjs"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
+
 
 // Define color constants
 const COLORS = {
@@ -91,75 +93,78 @@ const CoachBook = () => {
   const eventsStatus = useSelector((state: RootState) => state.events.status)
   const currentUser = useSelector(selectCurrentUser)
 
-  // Transform API data into upcomingBookings format - Coach booking view should only show coach-related bookings
+  // Get upcoming practices directly from API data without unnecessary transformations
   const upcomingBookings = useMemo(() => {
-    console.log("📋 COACH BOOKING: Transforming data for coach view");
-    console.log("📋 Practices:", practicesItems.length, "Events:", eventsItems.length);
+    console.log("📋 COACH BOOKING DEBUG START ===");
+    console.log("📋 Raw practices data:", practicesItems);
+    console.log("📋 Practices count:", practicesItems.length);
+    console.log("📋 Practices status:", practicesStatus);
     console.log("📋 Current user:", currentUser?.id, currentUser?.role);
     
     const today = dayjs();
+    console.log("📋 Today:", today.format("YYYY-MM-DD HH:mm"));
     
-    // Only show practices for coach booking page (coach-created practices)
-    // Filter out general events that coaches shouldn't see in booking context
-    const coachRelevantItems = [
-      ...practicesItems,
-      // Future: Add haircut bookings or other coach-specific bookings here
-      // ...haircutBookings
-    ];
-    
-    const futureItems = coachRelevantItems.filter(item => {
-      const itemDate = dayjs(item.date);
-      const isFuture = itemDate.isAfter(today, 'day') || itemDate.isSame(today, 'day');
+    // Filter for upcoming practices only - use date field from CalendarItem
+    const upcomingPractices = practicesItems.filter(practice => {
+      // Use date and time from CalendarItem format
+      const practiceDateTime = dayjs(`${practice.date} ${practice.time}`, 'YYYY-MM-DD HH:mm');
+      const isUpcoming = practiceDateTime.isAfter(today, 'day') || practiceDateTime.isSame(today, 'day');
       
-      console.log(`📋 Coach Item ${item.id}: date=${item.date}, isFuture=${isFuture}`);
-      return isFuture;
-    });
-
-    const transformedBookings = futureItems.map(item => {
-      // Determine relative date display
-      const itemDate = dayjs(item.date);
-      let dateDisplay = item.date;
-      if (itemDate.isSame(today, 'day')) {
-        dateDisplay = "Today";
-      } else if (itemDate.isSame(today.add(1, 'day'), 'day')) {
-        dateDisplay = "Tomorrow";
-      } else {
-        dateDisplay = itemDate.format("ddd, MMM DD");
-      }
-
-      // Determine booking type and icon
-      let type = "Practice";
-      let icon = "basketball-ball";
-      if (item.type === "match" || item.type === "game") {
-        type = "Match";
-        icon = "trophy";
-      } else if (item.type === "course") {
-        type = "Class";
-        icon = "chalkboard-teacher";
-      } else if (item.type === "event") {
-        type = "Event";
-        icon = "calendar-check";
-      }
-
-      return {
-        id: item.id,
-        type,
-        location: item.location || "RISE Basketball Facility",
-        date: dateDisplay,
-        time: item.time || "TBD",
-        status: "Confirmed", // Default status
-        icon,
-      };
+      console.log(`📋 Practice ${practice.id}:`);
+      console.log(`   - date: ${practice.date}, time: ${practice.time}`);
+      console.log(`   - title: ${practice.title}, location: ${practice.location}`);
+      console.log(`   - practiceDateTime: ${practiceDateTime.format("YYYY-MM-DD HH:mm")}`);
+      console.log(`   - isUpcoming: ${isUpcoming}`);
+      
+      return isUpcoming && practice.id; // Only include practices with valid IDs
     }).sort((a, b) => {
-      // Sort by date, with today first
-      const dateA = a.date === "Today" ? 0 : a.date === "Tomorrow" ? 1 : 2;
-      const dateB = b.date === "Today" ? 0 : b.date === "Tomorrow" ? 1 : 2;
-      return dateA - dateB;
-    }).slice(0, 5); // Limit to 5 most recent bookings
+      // Sort by date and time (earliest first)
+      const dateA = dayjs(`${a.date} ${a.time}`, 'YYYY-MM-DD HH:mm');
+      const dateB = dayjs(`${b.date} ${b.time}`, 'YYYY-MM-DD HH:mm');
+      return dateA.valueOf() - dateB.valueOf();
+    }).slice(0, 5); // Limit to 5 most recent
 
-    console.log("📋 Transformed coach bookings:", transformedBookings.length);
-    return transformedBookings;
-  }, [practicesItems, currentUser]);
+    console.log("📋 Final upcoming practices:", upcomingPractices);
+    console.log("📋 Final count:", upcomingPractices.length);
+    console.log("📋 COACH BOOKING DEBUG END ===");
+    return upcomingPractices;
+  }, [practicesItems, currentUser, practicesStatus]);
+
+  // Force refresh function for debugging
+  const forceRefreshData = async () => {
+    try {
+      console.log("🔄 FORCE REFRESH START ===");
+      console.log("🔄 Current practices status:", practicesStatus);
+      console.log("🔄 Current practices count:", practicesItems.length);
+      console.log("🔄 Clearing cache and fetching fresh data...");
+      
+      // Clear existing data
+      dispatch(clearPractices());
+      
+      const token = await getValidToken();
+      if (!token) {
+        console.error("❌ Failed to get authentication token");
+        return;
+      }
+
+      const today = dayjs().format("YYYY-MM-DD");
+      const futureDate = dayjs().add(2, "months").format("YYYY-MM-DD");
+      
+      console.log("🔄 FORCE REFRESH: Fetching practices with params:");
+      console.log("🔄   - token: [REDACTED]");
+      console.log("🔄   - after:", today);
+      console.log("🔄   - before:", futureDate);
+      console.log("🔄   - API URL: /secure/schedule?after=" + today + "&before=" + futureDate + "&program_type=practice&response_type=date");
+      
+      dispatch(fetchPractices({ token, after: today, before: futureDate }));
+      
+      // Reset initialization flag
+      hasInitializedData.current = false;
+      console.log("🔄 FORCE REFRESH: Dispatch complete, waiting for results...");
+    } catch (error) {
+      console.error("❌ Error in force refresh:", error);
+    }
+  };
 
   // Fetch data on component mount
   useEffect(() => {
@@ -293,7 +298,31 @@ const CoachBook = () => {
 
 
   const renderUpcomingBooking = ({ item }: { item: any }) => {
-    const statusColor = item.status === "Confirmed" ? COLORS.success : COLORS.warning
+    // Use CalendarItem data format - item comes from Redux store
+    console.log("📋 Rendering practice item:", item);
+    
+    // Format date from CalendarItem format
+    const practiceDate = dayjs(item.date);
+    const today = dayjs();
+    
+    // Date display
+    let dateDisplay = "Unknown";
+    if (practiceDate.isValid()) {
+      if (practiceDate.isSame(today, 'day')) {
+        dateDisplay = "Today";
+      } else if (practiceDate.isSame(today.add(1, 'day'), 'day')) {
+        dateDisplay = "Tomorrow";
+      } else {
+        dateDisplay = practiceDate.format("ddd, MMM DD");
+      }
+    }
+    
+    // Time display from CalendarItem
+    const timeDisplay = item.time || "TBD";
+    
+    // Use CalendarItem title and location
+    const displayTitle = item.title || "Practice Session";
+    const displayLocation = item.location;
 
     return (
       <TouchableOpacity
@@ -308,10 +337,14 @@ const CoachBook = () => {
         activeOpacity={0.8}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          console.log("📋 Practice clicked:", item.id, item.type);
+          console.log("📋 Booking item clicked:", item.id, displayTitle, "type:", item.type);
           
-          // Navigate to dedicated practice details page using real API
-          router.push(`/screens/practice-details/${item.id}`);
+          // Navigate to appropriate detail page using robust navigation
+          const success = navigateToDetails(router, item.type, item.id, currentUser?.role);
+          
+          if (!success) {
+            console.warn("⚠️ Navigation failed, used fallback route");
+          }
         }}
       >
         <View
@@ -325,32 +358,31 @@ const CoachBook = () => {
             marginRight: 16,
           }}
         >
-          <FontAwesome5 name={item.icon} size={24} color={COLORS.primary} />
+          <FontAwesome5 name="basketball-ball" size={24} color={COLORS.primary} />
         </View>
 
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: "bold" }}>{item.type}</Text>
-            <View
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 4,
-                backgroundColor: statusColor + "20",
-              }}
-            >
-              <Text style={{ color: statusColor, fontSize: 12, fontWeight: "600" }}>{item.status}</Text>
-            </View>
+            <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: "bold" }}>
+              {displayTitle}
+            </Text>
+            <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: "600" }}>
+              Scheduled
+            </Text>
           </View>
 
-          <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginTop: 2 }}>{item.location}</Text>
+          {displayLocation && (
+            <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginTop: 2 }}>
+              {displayLocation}
+            </Text>
+          )}
 
           <View style={{ flexDirection: "row", marginTop: 8, alignItems: "center" }}>
             <Ionicons name="calendar-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginLeft: 4 }}>{item.date}</Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginLeft: 4 }}>{dateDisplay}</Text>
             <View style={{ width: 1, height: 12, backgroundColor: COLORS.textSecondary, marginHorizontal: 8 }} />
             <Ionicons name="time-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginLeft: 4 }}>{item.time}</Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginLeft: 4 }}>{timeDisplay}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -460,11 +492,24 @@ const CoachBook = () => {
               }}
             >
               <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Bookings</Text>
-              {upcomingBookings.length > 0 && (
-                <TouchableOpacity>
-                  <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                {upcomingBookings.length > 0 && (
+                  <TouchableOpacity style={{ marginRight: 12 }}>
+                    <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={forceRefreshData}
+                  style={{
+                    backgroundColor: COLORS.cardDark,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 6
+                  }}
+                >
+                  <Text style={{ color: COLORS.primary, fontSize: 12 }}>🔄</Text>
                 </TouchableOpacity>
-              )}
+              </View>
             </View>
 
             <View style={{ paddingHorizontal: 20 }}>
@@ -493,6 +538,20 @@ const CoachBook = () => {
                   <Text style={{ color: COLORS.textSecondary, fontSize: 14, textAlign: "center" }}>
                     You don't have any scheduled practices or events coming up.
                   </Text>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: COLORS.primary,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      marginTop: 12
+                    }}
+                    onPress={forceRefreshData}
+                  >
+                    <Text style={{ color: COLORS.background, fontSize: 14, fontWeight: "600" }}>
+                      🔄 Refresh Data
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>

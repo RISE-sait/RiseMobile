@@ -84,12 +84,12 @@ export const fetchPractices = createAsyncThunk(
 
         const item: CalendarItem = {
           id: practice.id,
-          title: extractTitle(practice),
+          title: practice.team_name || extractTitle(practice),
           date: startDate,
           time,
           type: "practice",
-          location: practice.location?.name || "RISE Basketball Facility",
-          description: `${extractTitle(practice)} at ${practice.location?.name || "RISE Basketball Facility"}`,
+          location: practice.location_name || practice.location?.name || "TBD",
+          description: `${practice.team_name || extractTitle(practice)} practice${practice.location_name ? ' at ' + practice.location_name : ''}`,
         }
 
         items.push(item)
