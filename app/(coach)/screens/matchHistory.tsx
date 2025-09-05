@@ -76,9 +76,9 @@ const MatchHistory: React.FC = () => {
       return {
         id: match.id,
         date: match.date || dayjs().format("YYYY-MM-DD"),
-        // Use real team names from API if available
-        homeTeam: hasNewStructure ? (match as any).home_team_name || "Home Team" : match.name || "Team A",
-        awayTeam: hasNewStructure ? (match as any).away_team_name || "Away Team" : "Opponent",
+        // Always prioritize individual team names from API over combined name field
+        homeTeam: (match as any).home_team_name || (hasNewStructure ? "Home Team" : match.name || "Team A"),
+        awayTeam: (match as any).away_team_name || (hasNewStructure ? "Away Team" : "Opponent"),
         homeTeamLogo: hasNewStructure ? (match as any).home_team_logo_url || "https://via.placeholder.com/40x40?text=H" : "https://via.placeholder.com/40x40?text=T1",
         awayTeamLogo: hasNewStructure ? (match as any).away_team_logo_url || "https://via.placeholder.com/40x40?text=A" : "https://via.placeholder.com/40x40?text=T2",
         // Use real scores from API
