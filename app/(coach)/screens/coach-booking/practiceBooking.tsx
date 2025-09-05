@@ -35,6 +35,18 @@ import dayjs from "dayjs";
 import type { Team } from "@/types/team"
 import { TeamDisplay } from "@/types/ui";
 
+// Default booking configuration - extracted from hardcoded values for better maintainability
+// TODO: Replace with dynamic location/court selection from API endpoints:
+//   - GET /locations - to fetch available locations
+//   - GET /courts - to fetch available courts for selected location
+//   - Add LocationSelector and CourtSelector components
+const DEFAULT_BOOKING_CONFIG = {
+  LOCATION_ID: "626d44dd-6a98-42df-8fec-a36179da506f", // Rise Facility- Calgary Central Sportsplex
+  COURT_ID: "9dda472d-6176-47b3-ab25-18b17be0c0f5", // Court 1
+  LOCATION_NAME: "Rise Facility- Calgary Central Sportsplex",
+  COURT_NAME: "Court 1",
+} as const;
+
 
 
 interface RecurringOptionsType {
@@ -174,31 +186,6 @@ const formatTeamForDisplay = (team: Team) => ({
   image: `https://source.unsplash.com/random/300x200/?basketball-${team.id}`,
 })
 
-// Create payload with proper IDs - use real location/court IDs from existing data
-const payload: CreatePracticePayload = {
-  start_time: startTime.toISOString(),
-  end_time: endTime.toISOString(),
-  location_id: "626d44dd-6a98-42df-8fec-a36179da506f", // Rise Facility- Calgary Central Sportsplex
-  court_id: "9dda472d-6176-47b3-ab25-18b17be0c0f5", // Court 1
-  status: "scheduled",
-  team_id: selectedTeam?.id ?? "",
-}
-
-
-
-const recurringPayload: CreateRecurringPracticePayload = {
-  day: dayjs(date).format("dddd").toUpperCase(), // e.g. "MONDAY"
-  practice_start_at: dayjs(startTime).format("HH:mm:ss+00:00"), // Format as time only: "21:28:43+00:00"
-  practice_end_at: dayjs(endTime).format("HH:mm:ss+00:00"), // Format as time only: "23:28:43+00:00"
-  location_id: "626d44dd-6a98-42df-8fec-a36179da506f", // Rise Facility- Calgary Central Sportsplex
-  court_id: "9dda472d-6176-47b3-ab25-18b17be0c0f5", // Court 1
-  team_id: selectedTeam?.id ?? "",
-  status: "scheduled" as const,
-  recurrence_start_at: dayjs(date).toISOString(),
-  recurrence_end_at: dayjs(date)
-    .add(recurringOptions.occurrences - 1, recurringOptions.weekly ? "week" : recurringOptions.biweekly ? "week" : "month")
-    .toISOString(),
-}
   
 const handleConfirmBooking = async () => {
   if (!selectedTeam) {
@@ -223,6 +210,49 @@ const handleConfirmBooking = async () => {
       Alert.alert("Authentication Error", "Failed to get authentication token.")
       return
     }
+
+    // Fix date booking issue: Combine selected date with selected times
+    const combinedStartDateTime = dayjs(date)
+      .hour(dayjs(startTime).hour())
+      .minute(dayjs(startTime).minute())
+      .second(0)
+      .millisecond(0);
+
+    const combinedEndDateTime = dayjs(date)
+      .hour(dayjs(endTime).hour())
+      .minute(dayjs(endTime).minute())
+      .second(0)
+      .millisecond(0);
+
+    console.log("🔍 DEBUG Date Booking Logic:");
+    console.log("Selected date:", dayjs(date).format("YYYY-MM-DD"));
+    console.log("Selected start time:", dayjs(startTime).format("HH:mm"));
+    console.log("Combined start datetime:", combinedStartDateTime.format("YYYY-MM-DD HH:mm"));
+    console.log("Combined end datetime:", combinedEndDateTime.format("YYYY-MM-DD HH:mm"));
+
+    // Create payloads with proper date/time combination
+    const payload: CreatePracticePayload = {
+      start_time: combinedStartDateTime.toISOString(),
+      end_time: combinedEndDateTime.toISOString(),
+      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
+      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
+      status: "scheduled",
+      team_id: selectedTeam?.id ?? "",
+    };
+
+    const recurringPayload: CreateRecurringPracticePayload = {
+      day: dayjs(date).format("dddd").toUpperCase(), // e.g. "MONDAY"
+      practice_start_at: combinedStartDateTime.format("HH:mm:ss+00:00"), // Use combined time: "21:28:43+00:00"
+      practice_end_at: combinedEndDateTime.format("HH:mm:ss+00:00"), // Use combined time: "23:28:43+00:00"
+      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
+      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
+      team_id: selectedTeam?.id ?? "",
+      status: "scheduled" as const,
+      recurrence_start_at: combinedStartDateTime.toISOString(), // Use combined date for recurrence start
+      recurrence_end_at: dayjs(date)
+        .add(recurringOptions.occurrences - 1, recurringOptions.weekly ? "week" : recurringOptions.biweekly ? "week" : "month")
+        .toISOString(),
+    };
 
     // For now, we're creating practices instead of booking existing ones
     // TODO: When backend provides practice events to book, use POST /checkout/events/{practiceId}
@@ -393,7 +423,7 @@ const handleConfirmBooking = async () => {
         startTime={startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         endTime={endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         team={selectedTeam ? selectedTeam.name : undefined}
-        facility={"RISE Basketball Complex"}
+        facility={DEFAULT_BOOKING_CONFIG.LOCATION_NAME}
         notes={notes}
         isRecurring={isRecurring}
         recurringDetails={isRecurring ? 
