@@ -85,10 +85,25 @@ const MatchHistory: React.FC = () => {
         // Use real scores from API
         homeScore: match.home_score || match.win_score || 0,
         awayScore: match.away_score || match.lose_score || 0,
-        // Determine status from API status field, fallback to date logic
-        status: (match.status && match.status.toLowerCase() === "live") ? "live" as const :
-                (match.status && match.status.toLowerCase() === "upcoming") ? "upcoming" as const :
-                "completed" as const,
+        // Determine status based on current time vs match start/end time
+        status: (() => {
+          const now = dayjs();
+          const startTime = dayjs(match.start_time);
+          const endTime = dayjs(match.end_time);
+          
+          // 🧪 TESTING: Temporarily treat Sep 5th match as live for testing
+          if (match.start_time && match.start_time.includes('2025-09-05')) {
+            return "live" as const;
+          }
+          
+          if (now.isAfter(endTime)) {
+            return "completed" as const;
+          } else if (now.isBetween(startTime, endTime, null, '[]')) {
+            return "live" as const;
+          } else {
+            return "upcoming" as const;
+          }
+        })(),
         venue: hasNewStructure ? (match as any).location_name || "RISE Basketball Facility" : match.location || "RISE Basketball Facility",
         league: "Basketball League",
         // Add fields expected by useMatchFilters
@@ -113,6 +128,13 @@ const MatchHistory: React.FC = () => {
       };
     });
     
+    // Log status breakdown for debugging
+    const statusCounts = {
+      upcoming: transformed.filter(m => m.status === "upcoming").length,
+      live: transformed.filter(m => m.status === "live").length,
+      completed: transformed.filter(m => m.status === "completed").length
+    };
+    console.log("📋 MATCH HISTORY: Status breakdown:", statusCounts);
     console.log("📋 MATCH HISTORY: Transformed matches:", transformed);
     return transformed;
   }, [matches]);
