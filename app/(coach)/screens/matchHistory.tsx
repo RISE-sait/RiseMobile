@@ -65,9 +65,9 @@ const MatchHistory: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   
   // Transform Redux matches to match the expected format for useMatchFilters hook
-  // Note: Since we're using backend filter=past, all matches are already historical
+  // Note: Now getting all matches without filter, status determined from API data
   const transformedMatches = useMemo(() => {
-    console.log("📋 MATCH HISTORY: Transforming", matches.length, "past matches (backend filtered)");
+    console.log("📋 MATCH HISTORY: Transforming", matches.length, "matches (all statuses)");
     console.log("📋 MATCH HISTORY: Raw matches:", matches);
     
     const transformed = matches.map(match => {
@@ -85,8 +85,10 @@ const MatchHistory: React.FC = () => {
         // Use real scores from API
         homeScore: match.home_score || match.win_score || 0,
         awayScore: match.away_score || match.lose_score || 0,
-        // Since backend already filters past matches, mark all as completed
-        status: "completed" as const,
+        // Determine status from API status field, fallback to date logic
+        status: (match.status && match.status.toLowerCase() === "live") ? "live" as const :
+                (match.status && match.status.toLowerCase() === "upcoming") ? "upcoming" as const :
+                "completed" as const,
         venue: hasNewStructure ? (match as any).location_name || "RISE Basketball Facility" : match.location || "RISE Basketball Facility",
         league: "Basketball League",
         // Add fields expected by useMatchFilters
@@ -162,9 +164,9 @@ const MatchHistory: React.FC = () => {
     }
   };
 
-  // Use our custom hook for filtering - now using transformed matches
-  // Backend now handles past/upcoming filtering via API filter parameter
-  // Default to 'completed' since this is Match History page for past matches
+  // Use our custom hook for filtering - now using transformed matches with all statuses
+  // Backend provides all matches, client-side filtering by status
+  // Default to 'all' to show all match statuses
   const {
     showFilters,
     activeTab,
@@ -178,7 +180,7 @@ const MatchHistory: React.FC = () => {
     resetFilters,
     toggleLeagueFilter,
     updateTeamFilter
-  } = useMatchFilters(transformedMatches, 'completed');
+  } = useMatchFilters(transformedMatches, 'all');
 
 
   // Header animation
@@ -206,9 +208,9 @@ const MatchHistory: React.FC = () => {
     loadMatchHistory();
   }, []);
 
-  // Fetch historical matches function - now using backend filter
+  // Fetch all matches function - no backend filter to get all statuses
   const loadMatchHistory = async () => {
-    console.log("📋 MATCH HISTORY: Starting to fetch match history (backend filtered)...");
+    console.log("📋 MATCH HISTORY: Starting to fetch all matches...");
     let authToken = token;
 
     if (!authToken) {
@@ -224,7 +226,7 @@ const MatchHistory: React.FC = () => {
     }
 
     if (authToken) {
-      console.log("📋 MATCH HISTORY: Clearing matches and fetching history (using backend filter=past)...");
+      console.log("📋 MATCH HISTORY: Clearing matches and fetching all matches (no filter)...");
       dispatch(clearMatches());
       dispatch(fetchMatchHistory(authToken));
     } else {

@@ -107,13 +107,11 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
   try {
     console.log("🎯 DEBUG: Fetching match history with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
 
-    // Use /games endpoint with backend filter for past matches
-    // Conner added filter parameter: "upcoming" | "past"
-    const response = await axios.get(`${API_URL}/games`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: {
-        filter: "past" // Backend filter for historical matches
-      }
+    // Use /secure/games endpoint without filter to get all matches (including live)
+    // This allows the Match History page to show all statuses and filter client-side
+    const response = await axios.get(`${API_URL}/secure/games`, {
+      headers: { Authorization: `Bearer ${token}` }
+      // No filter parameter - gets all matches
     })
 
     console.log("🎯 DEBUG: Match history API response status:", response.status)
