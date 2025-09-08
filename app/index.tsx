@@ -18,6 +18,11 @@ export default function Index() {
     return <Redirect href="/(auth)/login" />
   }
 
+  // 🔑 Log JWT token for debugging whenever user is authenticated
+  if (user.token) {
+    console.log("🔑 JWT Token (for Swagger auth):", user.token)
+  }
+
   if (user.role === "athlete") {
     return <Redirect href="/(athlete)/(tabs)/home" />
   } else if (user.role === "instructor") {

@@ -53,16 +53,16 @@ export interface Match {
   highlights?: string[];
 }
 
-export const useMatchFilters = (allMatches: Match[]) => {
+export const useMatchFilters = (allMatches: Match[], defaultTab: FilterTab = 'all') => {
   // State for filter UI
   const [showFilters, setShowFilters] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [activeTab, setActiveTab] = useState<FilterTab>(defaultTab);
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   // State for filter options
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     league: null,
-    status: 'all',
+    status: defaultTab,
     team: null,
     dateRange: {
       start: null,

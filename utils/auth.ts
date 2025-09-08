@@ -78,11 +78,13 @@ export const useAuth = () => {
       const jwtToken = authHeader?.replace(/^Bearer\s+/i, '')
       
       if (jwtToken && jwtToken !== authHeader) {
+        console.log("🔑 JWT Token (for Swagger auth):", jwtToken)
         return jwtToken
       } else {
         // Fallback: try to get from response body (old method)
         const bodyJwtToken = response.data.token || response.data.jwt || response.data.access_token
         if (bodyJwtToken) {
+          console.log("🔑 JWT Token (for Swagger auth):", bodyJwtToken)
           return bodyJwtToken
         }
         
@@ -130,6 +132,11 @@ export const useAuth = () => {
         // ✅ User is already in Redux from persist, just ensure it's properly set
         if (JSON.stringify(reduxUser) !== JSON.stringify(userToSet)) {
           dispatch(setReduxUser(userToSet))
+        }
+        
+        // 🔑 Always log JWT token when user is loaded for easy debugging
+        if (userToSet.token) {
+          console.log("🔑 Current JWT Token (for Swagger auth):", userToSet.token)
         }
         
         setAuthError(null)
@@ -495,6 +502,7 @@ export const useAuth = () => {
       if (user?.token) {
         const isValid = await verifyTokenWithBackend(user.token, user.email)
         if (isValid) {
+          console.log("🔑 Valid JWT Token (for Swagger auth):", user.token)
           return user.token
         }
       }
@@ -506,6 +514,7 @@ export const useAuth = () => {
           const updatedUser = { ...user, token: newToken }
           dispatch(setReduxUser(updatedUser))
           await saveUserToRedux(updatedUser)
+          console.log("🔑 Refreshed JWT Token (for Swagger auth):", newToken)
           return newToken
         }
       }
@@ -530,6 +539,7 @@ export const useAuth = () => {
             const updatedUser = { ...user, token: newToken }
             dispatch(setReduxUser(updatedUser))
           }
+          console.log("🔑 New JWT Token (for Swagger auth):", newToken)
           return newToken
         }
       }
