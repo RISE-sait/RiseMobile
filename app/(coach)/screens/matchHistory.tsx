@@ -85,23 +85,30 @@ const MatchHistory: React.FC = () => {
         // Use real scores from API
         homeScore: match.home_score || match.win_score || 0,
         awayScore: match.away_score || match.lose_score || 0,
-        // Determine status based on current time vs match start/end time
+        // Use API status directly - backend should provide correct status
+        // Map API status to frontend status format
         status: (() => {
-          const now = dayjs();
-          const startTime = dayjs(match.start_time);
-          const endTime = dayjs(match.end_time);
+          if (!match.status) return "completed" as const;
           
-          // 🧪 TESTING: Temporarily treat Sep 5th match as live for testing
-          if (match.start_time && match.start_time.includes('2025-09-05')) {
+          const apiStatus = match.status.toLowerCase();
+          
+          // 🧪 TESTING: Since API doesn't have real live matches, 
+          // temporarily treat specific matches as live for testing UI
+          const testLiveMatchIds = ['4a41da6f-1b22-4d65-b024-86b1eca4f56a']; // Sep 5th match
+          if (testLiveMatchIds.includes(match.id)) {
             return "live" as const;
           }
           
-          if (now.isAfter(endTime)) {
-            return "completed" as const;
-          } else if (now.isBetween(startTime, endTime, null, '[]')) {
-            return "live" as const;
-          } else {
-            return "upcoming" as const;
+          switch (apiStatus) {
+            case "live":
+              return "live" as const;
+            case "scheduled":
+              return "upcoming" as const;
+            case "completed":
+            case "finished":
+              return "completed" as const;
+            default:
+              return "completed" as const;
           }
         })(),
         venue: hasNewStructure ? (match as any).location_name || "RISE Basketball Facility" : match.location || "RISE Basketball Facility",
