@@ -117,7 +117,27 @@ const MatchHistory: React.FC = () => {
               mappedStatus = "live";
               break;
             case "scheduled":
-              mappedStatus = "upcoming";
+              // 新增：基于日期判断scheduled游戏的状态
+              const gameDate = match.start_time || match.created_at;
+              if (gameDate) {
+                try {
+                  const gameDateObj = new Date(gameDate);
+                  const now = new Date();
+                  
+                  // 如果游戏日期在过去，则为completed；否则为upcoming
+                  if (gameDateObj < now) {
+                    mappedStatus = "completed";
+                  } else {
+                    mappedStatus = "upcoming";
+                  }
+                } catch (error) {
+                  // 日期解析失败，默认为upcoming
+                  mappedStatus = "upcoming";
+                }
+              } else {
+                // 没有日期信息，默认为upcoming
+                mappedStatus = "upcoming";
+              }
               break;
             case "completed":
             case "finished":
