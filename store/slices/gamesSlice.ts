@@ -77,7 +77,8 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
         home_team_logo_url: game.home_team_logo_url,
         away_team_logo_url: game.away_team_logo_url,
         home_score: game.home_score,
-        away_score: game.away_score
+        away_score: game.away_score,
+        status: game.status // Pass through API status for client-side mapping
       }
     })
 
@@ -162,7 +163,8 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
         home_team_logo_url: game.home_team_logo_url,
         away_team_logo_url: game.away_team_logo_url,
         home_score: game.home_score,
-        away_score: game.away_score
+        away_score: game.away_score,
+        status: game.status // Pass through API status for client-side mapping
       }
     })
 
