@@ -13,6 +13,8 @@ import { API_URL } from "./api"
 import { useDispatch, useSelector } from "react-redux"
 import type { RootState } from "@/store"
 import { setUser as setReduxUser, logout as reduxLogout } from "@/store/slices/userSlice"
+import { clearPractices } from "@/store/slices/practicesSlice"
+import { clearMatches } from "@/store/slices/gamesSlice"
 import { persistor } from "@/store"
 
 type User = {
@@ -588,8 +590,10 @@ export const useAuth = () => {
       // 🔄 Pause persistor first to prevent rehydration
       persistor.pause()
       
-      // 🔄 Clear Redux state FIRST while persistor is paused
-      dispatch(reduxLogout())
+      // 🔄 Clear ALL Redux data FIRST while persistor is paused
+      dispatch(reduxLogout())           // Clear user data
+      dispatch(clearPractices())        // Clear practices cache
+      dispatch(clearMatches())          // Clear match history cache
       
       // 🔄 Now purge the persisted data
       await persistor.purge()
