@@ -17,7 +17,7 @@ import { FontAwesome6, Ionicons, MaterialIcons, AntDesign } from "@expo/vector-i
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import dayjs from "dayjs";
-import { useMatchFilters } from '../../../hooks/useMatchFIlters';
+// Removed useMatchFilters - now using real-time backend API calls
 import BackButton from "@/components/buttons/BackButton";
 import { useAppDispatch, useAppSelector } from "../../../store/hooks";
 import { fetchMatchHistory, clearMatches } from "../../../store/slices/gamesSlice";
@@ -64,127 +64,7 @@ const MatchHistory: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   
-  // Transform Redux matches to match the expected format for useMatchFilters hook
-  // Note: Now getting all matches without filter, status determined from API data
-  const transformedMatches = useMemo(() => {
-    console.log("📋 MATCH HISTORY: Transforming", matches.length, "matches (all statuses)");
-    console.log("📋 MATCH HISTORY: Raw matches:", matches);
-    
-    // Debug: Check each match's status field
-    matches.forEach((match, index) => {
-      console.log(`📋 MATCH ${index}: id=${match.id}, status=${match.status}, hasStatus=${!!match.status}`);
-    });
-    
-    const transformed = matches.map(match => {
-      // Check if this match has the new API structure or old structure
-      const hasNewStructure = 'home_team_name' in match || 'away_team_name' in match;
-      
-      return {
-        id: match.id,
-        date: match.date || dayjs().format("YYYY-MM-DD"),
-        // Always prioritize individual team names from API over combined name field
-        homeTeam: match.home_team_name || (hasNewStructure ? "Home Team" : "Team A"),
-        awayTeam: match.away_team_name || (hasNewStructure ? "Away Team" : "Team B"),
-        homeTeamLogo: match.home_team_logo_url || "https://via.placeholder.com/40x40?text=H",
-        awayTeamLogo: match.away_team_logo_url || "https://via.placeholder.com/40x40?text=A",
-        // Use real scores from API
-        homeScore: match.home_score || match.win_score || 0,
-        awayScore: match.away_score || match.lose_score || 0,
-        // Use API status directly - backend should provide correct status
-        // Map API status to frontend status format
-        status: (() => {
-          console.log(`📋 STATUS MAPPING: match.id=${match.id}, match.status=${match.status}`);
-          
-          if (!match.status) {
-            console.log(`📋 STATUS MAPPING: No status found, defaulting to completed`);
-            return "completed" as const;
-          }
-          
-          const apiStatus = match.status.toLowerCase();
-          console.log(`📋 STATUS MAPPING: apiStatus=${apiStatus}`);
-          
-          // 🧪 TESTING: Since API doesn't have real live matches, 
-          // temporarily treat specific matches as live for testing UI
-          const testLiveMatchIds = ['4a41da6f-1b22-4d65-b024-86b1eca4f56a']; // Sep 5th match
-          if (testLiveMatchIds.includes(match.id)) {
-            console.log(`📋 STATUS MAPPING: Test match detected as live: ${match.id}`);
-            return "live" as const;
-          }
-          
-          let mappedStatus: "upcoming" | "live" | "completed";
-          switch (apiStatus) {
-            case "live":
-              mappedStatus = "live";
-              break;
-            case "scheduled":
-              // 新增：基于日期判断scheduled游戏的状态
-              const gameDate = match.start_time || match.created_at;
-              if (gameDate) {
-                try {
-                  const gameDateObj = new Date(gameDate);
-                  const now = new Date();
-                  
-                  // 如果游戏日期在过去，则为completed；否则为upcoming
-                  if (gameDateObj < now) {
-                    mappedStatus = "completed";
-                  } else {
-                    mappedStatus = "upcoming";
-                  }
-                } catch (error) {
-                  // 日期解析失败，默认为upcoming
-                  mappedStatus = "upcoming";
-                }
-              } else {
-                // 没有日期信息，默认为upcoming
-                mappedStatus = "upcoming";
-              }
-              break;
-            case "completed":
-            case "finished":
-              mappedStatus = "completed";
-              break;
-            default:
-              mappedStatus = "completed";
-              break;
-          }
-          
-          console.log(`📋 STATUS MAPPING: ${apiStatus} -> ${mappedStatus}`);
-          return mappedStatus;
-        })(),
-        venue: hasNewStructure ? (match as any).location_name || "RISE Basketball Facility" : match.location || "RISE Basketball Facility",
-        league: "Basketball League",
-        // Add fields expected by useMatchFilters
-        homeFG: 45, // Placeholder value since API doesn't provide this
-        awayFG: 42,
-        homeRebounds: 35,
-        awayRebounds: 30,
-        homeAssists: 20,
-        awayAssists: 18,
-        mvp: {
-          id: "mvp1",
-          name: "Player MVP",
-          image: "https://via.placeholder.com/70x70?text=MVP",
-          points: 25,
-          assists: 8,
-          rebounds: 10
-        },
-        // Store the original match data for expanded view
-        originalData: match,
-        events: [],
-        highlights: []
-      };
-    });
-    
-    // Log status breakdown for debugging
-    const statusCounts = {
-      upcoming: transformed.filter(m => m.status === "upcoming").length,
-      live: transformed.filter(m => m.status === "live").length,
-      completed: transformed.filter(m => m.status === "completed").length
-    };
-    console.log("📋 MATCH HISTORY: Status breakdown:", statusCounts);
-    console.log("📋 MATCH HISTORY: Transformed matches:", transformed);
-    return transformed;
-  }, [matches]);
+  // transformedMatches will be defined after activeTab state
 
   // Get match details from the existing list data (no need for extra API call)
   const getMatchDetails = (matchId: string) => {
@@ -233,23 +113,157 @@ const MatchHistory: React.FC = () => {
     }
   };
 
-  // Use our custom hook for filtering - now using transformed matches with all statuses
-  // Backend provides all matches, client-side filtering by status
-  // Default to 'all' to show all match statuses
-  const {
-    showFilters,
-    activeTab,
-    searchQuery,
-    filterOptions,
-    filteredMatches,
-    setSearchQuery,
-    toggleFilters,
-    handleTabChange,
-    applyFilters,
-    resetFilters,
-    toggleLeagueFilter,
-    updateTeamFilter
-  } = useMatchFilters(transformedMatches, 'all');
+  // Backend filtering - real-time API calls instead of client-side filtering
+  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'live' | 'completed'>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Simplified filter options for backend filtering
+  const [filterOptions, setFilterOptions] = useState({
+    league: null as string | null,
+    team: null as string | null,
+    dateRange: { start: null as string | null, end: null as string | null }
+  });
+  
+  // Transform Redux matches for display - backend already filtered
+  const transformedMatches = useMemo(() => {
+    console.log("📋 MATCH HISTORY: Displaying", matches.length, "backend-filtered matches");
+    console.log("📋 CURRENT FILTER TAB:", activeTab);
+    
+    const transformed = matches.map(match => {
+      // Check if this match has the new API structure or old structure
+      const hasNewStructure = 'home_team_name' in match || 'away_team_name' in match;
+      
+      return {
+        id: match.id,
+        date: match.date || dayjs().format("YYYY-MM-DD"),
+        homeTeam: match.home_team_name || (hasNewStructure ? "Home Team" : "Team A"),
+        awayTeam: match.away_team_name || (hasNewStructure ? "Away Team" : "Team B"),
+        homeTeamLogo: match.home_team_logo_url || "https://via.placeholder.com/40x40?text=H",
+        awayTeamLogo: match.away_team_logo_url || "https://via.placeholder.com/40x40?text=A",
+        // Use real scores from API
+        homeScore: match.home_score || match.win_score || 0,
+        awayScore: match.away_score || match.lose_score || 0,
+        // Use backend status directly - backend filter should return correct status
+        status: (() => {
+          const apiStatus = match.status?.toLowerCase() || "scheduled";
+          let frontendStatus: "upcoming" | "live" | "completed";
+          
+          // Direct mapping from API status to frontend status
+          switch (apiStatus) {
+            case "live":
+              frontendStatus = "live";
+              break;
+            case "upcoming":
+              frontendStatus = "upcoming";
+              break;
+            case "completed":
+            case "finished":
+              frontendStatus = "completed";
+              break;
+            case "scheduled":
+            default:
+              // If backend returns "scheduled", this indicates a backend issue
+              // For now, default to "upcoming" but log the issue
+              frontendStatus = "upcoming";
+              console.warn(`⚠️ Backend returned unexpected status: ${apiStatus} for filter: ${activeTab}`);
+              break;
+          }
+          
+          console.log(`🎯 TRANSFORM: Match ${match.id} | API: ${apiStatus} | Frontend: ${frontendStatus} | Filter: ${activeTab}`);
+          return frontendStatus;
+        })(),
+        venue: hasNewStructure ? (match as any).location_name || "RISE Basketball Facility" : match.location || "RISE Basketball Facility",
+        league: "Basketball League",
+        // Add fields expected by useMatchFilters
+        homeFG: 45, // Placeholder value since API doesn't provide this
+        awayFG: 42,
+        homeRebounds: 35,
+        awayRebounds: 30,
+        homeAssists: 20,
+        awayAssists: 18,
+        mvp: {
+          id: "mvp1",
+          name: "Player MVP",
+          image: "https://via.placeholder.com/70x70?text=MVP",
+          points: 25,
+          assists: 8,
+          rebounds: 10
+        },
+        // Store the original match data for expanded view
+        originalData: match,
+        location: match.location || "Main Arena",
+        court: hasNewStructure ? (match as any).court_name || "Court 1" : "Court 1",
+        time: match.time || "TBD",
+        mvpAvailable: false,
+        hasDetailedStats: false
+      };
+    });
+    
+    // Log status breakdown for debugging
+    const statusCounts = {
+      upcoming: transformed.filter(m => m.status === "upcoming").length,
+      live: transformed.filter(m => m.status === "live").length,
+      completed: transformed.filter(m => m.status === "completed").length
+    };
+    console.log("📋 MATCH HISTORY: Status breakdown:", statusCounts);
+    console.log("📋 MATCH HISTORY: Transformed matches:", transformed);
+    return transformed;
+  }, [matches, activeTab]);
+  
+  // Display matches directly from backend - no client-side filtering
+  const filteredMatches = transformedMatches;
+  
+  // Handle tab changes with real-time API calls
+  const handleTabChange = (tab: 'all' | 'upcoming' | 'live' | 'completed') => {
+    console.log("📋 TAB CHANGE: Switching to", tab, "- calling backend API");
+    setActiveTab(tab);
+    
+    // Convert frontend tab to backend filter
+    const backendFilter = tab === 'completed' ? 'past' : tab;
+    loadMatchHistory(backendFilter);
+  };
+  
+  // Toggle filters modal
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+  
+  // Handle pull to refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    const backendFilter = activeTab === 'completed' ? 'past' : activeTab;
+    await loadMatchHistory(backendFilter);
+    setRefreshing(false);
+  };
+  
+  // Simplified filter functions for backend filtering
+  const toggleLeagueFilter = (league: string) => {
+    setFilterOptions(prev => ({
+      ...prev,
+      league: prev.league === league ? null : league
+    }));
+  };
+  
+  const updateTeamFilter = (team: string | null) => {
+    setFilterOptions(prev => ({
+      ...prev,
+      team
+    }));
+  };
+  
+  const resetFilters = () => {
+    setFilterOptions({
+      league: null,
+      team: null,
+      dateRange: { start: null, end: null }
+    });
+  };
+  
+  const applyFilters = () => {
+    // For now, just close the modal - advanced filtering can be added later
+    toggleFilters();
+  };
 
 
   // Header animation
@@ -273,13 +287,13 @@ const MatchHistory: React.FC = () => {
       useNativeDriver: true,
     }).start();
     
-    // Fetch historical matches when component mounts
-    loadMatchHistory();
+    // Fetch matches with current filter when component mounts
+    loadMatchHistory(activeTab === 'completed' ? 'past' : activeTab);
   }, []);
 
-  // Fetch all matches function - no backend filter to get all statuses
-  const loadMatchHistory = async () => {
-    console.log("📋 MATCH HISTORY: Starting to fetch all matches...");
+  // Fetch matches with backend filtering - real-time API calls
+  const loadMatchHistory = async (filter?: string) => {
+    console.log("📋 MATCH HISTORY: Starting to fetch matches with filter:", filter || 'all');
     let authToken = token;
 
     if (!authToken) {
@@ -295,9 +309,9 @@ const MatchHistory: React.FC = () => {
     }
 
     if (authToken) {
-      console.log("📋 MATCH HISTORY: Clearing matches and fetching all matches (no filter)...");
+      console.log("📋 MATCH HISTORY: Clearing matches and fetching with backend filter:", filter || 'all');
       dispatch(clearMatches());
-      dispatch(fetchMatchHistory(authToken));
+      dispatch(fetchMatchHistory({ token: authToken, filter }));
     } else {
       console.log("📋 MATCH HISTORY: No auth token available");
     }
@@ -320,12 +334,6 @@ const MatchHistory: React.FC = () => {
     }
   }, [showFilters]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadMatchHistory();
-    setRefreshing(false);
-  };
-
   const handleMatchPress = (id: string) => {
     setSelectedMatch(selectedMatch === id ? null : id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -335,6 +343,7 @@ const MatchHistory: React.FC = () => {
   };
 
   const getStatusIndicator = (status: string) => {
+    console.log("🎯 STATUS INDICATOR: Displaying status:", status);
     switch (status) {
       case 'live':
         return (
@@ -345,7 +354,10 @@ const MatchHistory: React.FC = () => {
         );
       case 'upcoming':
         return <Text style={styles.upcomingText}>UPCOMING</Text>;
+      case 'completed':
+        return <Text style={styles.completedText}>COMPLETED</Text>;
       default:
+        console.log("🎯 STATUS INDICATOR: Unknown status, showing nothing:", status);
         return null;
     }
   };
@@ -897,6 +909,11 @@ const styles = StyleSheet.create({
   },
   upcomingText: {
     color: "#4CAF50",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  completedText: {
+    color: "#9E9E9E",
     fontSize: 10,
     fontWeight: "bold",
   },

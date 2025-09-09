@@ -78,7 +78,7 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
         away_team_logo_url: game.away_team_logo_url,
         home_score: game.home_score,
         away_score: game.away_score,
-        status: game.status // Pass through API status for client-side mapping
+        status: game.status // Use backend status directly - no client-side mapping
       }
     })
 
@@ -104,15 +104,20 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
 })
 
 // Fetch match history for Match History tab  
-export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", async (token: string, { rejectWithValue }) => {
+export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", async (params: { token: string; filter?: string }, { rejectWithValue }) => {
   try {
+    const { token, filter } = params;
     console.log("🎯 DEBUG: Fetching match history with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
+    console.log("🎯 DEBUG: Using filter:", filter || "all")
 
-    // Use /secure/games endpoint without filter to get all matches (including live)
-    // This allows the Match History page to show all statuses and filter client-side
-    const response = await axios.get(`${API_URL}/secure/games`, {
+    // Use /secure/games endpoint with backend filtering for real-time results
+    // This ensures frontend matches backend logic exactly
+    const url = filter && filter !== 'all' 
+      ? `${API_URL}/secure/games?filter=${filter}`
+      : `${API_URL}/secure/games`;
+    
+    const response = await axios.get(url, {
       headers: { Authorization: `Bearer ${token}` }
-      // No filter parameter - gets all matches
     })
 
     console.log("🎯 DEBUG: Match history API response status:", response.status)
@@ -120,10 +125,10 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
 
     const games = Array.isArray(response.data) ? response.data : []
     
-    // No need for frontend filtering - backend already returns only past games
-    const pastGames = games
+    // Use backend filtering results directly - no client-side filtering needed
+    // Backend filter parameter determines which games are returned
     
-    const matches: Match[] = pastGames.map((game: any) => {
+    const matches: Match[] = games.map((game: any) => {
       let date = dayjs().format("YYYY-MM-DD")
       let time = "TBD"
 
@@ -164,7 +169,7 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
         away_team_logo_url: game.away_team_logo_url,
         home_score: game.home_score,
         away_score: game.away_score,
-        status: game.status // Pass through API status for client-side mapping
+        status: game.status // Use backend status directly - no client-side mapping
       }
     })
 
@@ -178,7 +183,7 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
       }
     })
 
-    console.log(`Processed ${matches.length} historical matches from ${pastGames.length} past games (${games.length} total games)`)
+    console.log(`Processed ${matches.length} matches from backend filter: ${filter || 'all'} (${games.length} total games)`)
     return { items: matches, byDate }
   } catch (error: any) {
     console.error("Match history API error:", error.response?.data || error.message)
