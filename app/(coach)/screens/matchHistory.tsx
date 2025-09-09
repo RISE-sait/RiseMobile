@@ -70,6 +70,11 @@ const MatchHistory: React.FC = () => {
     console.log("📋 MATCH HISTORY: Transforming", matches.length, "matches (all statuses)");
     console.log("📋 MATCH HISTORY: Raw matches:", matches);
     
+    // Debug: Check each match's status field
+    matches.forEach((match, index) => {
+      console.log(`📋 MATCH ${index}: id=${match.id}, status=${match.status}, hasStatus=${!!match.status}`);
+    });
+    
     const transformed = matches.map(match => {
       // Check if this match has the new API structure or old structure
       const hasNewStructure = 'home_team_name' in match || 'away_team_name' in match;
@@ -88,28 +93,43 @@ const MatchHistory: React.FC = () => {
         // Use API status directly - backend should provide correct status
         // Map API status to frontend status format
         status: (() => {
-          if (!match.status) return "completed" as const;
+          console.log(`📋 STATUS MAPPING: match.id=${match.id}, match.status=${match.status}`);
+          
+          if (!match.status) {
+            console.log(`📋 STATUS MAPPING: No status found, defaulting to completed`);
+            return "completed" as const;
+          }
           
           const apiStatus = match.status.toLowerCase();
+          console.log(`📋 STATUS MAPPING: apiStatus=${apiStatus}`);
           
           // 🧪 TESTING: Since API doesn't have real live matches, 
           // temporarily treat specific matches as live for testing UI
           const testLiveMatchIds = ['4a41da6f-1b22-4d65-b024-86b1eca4f56a']; // Sep 5th match
           if (testLiveMatchIds.includes(match.id)) {
+            console.log(`📋 STATUS MAPPING: Test match detected as live: ${match.id}`);
             return "live" as const;
           }
           
+          let mappedStatus: "upcoming" | "live" | "completed";
           switch (apiStatus) {
             case "live":
-              return "live" as const;
+              mappedStatus = "live";
+              break;
             case "scheduled":
-              return "upcoming" as const;
+              mappedStatus = "upcoming";
+              break;
             case "completed":
             case "finished":
-              return "completed" as const;
+              mappedStatus = "completed";
+              break;
             default:
-              return "completed" as const;
+              mappedStatus = "completed";
+              break;
           }
+          
+          console.log(`📋 STATUS MAPPING: ${apiStatus} -> ${mappedStatus}`);
+          return mappedStatus;
         })(),
         venue: hasNewStructure ? (match as any).location_name || "RISE Basketball Facility" : match.location || "RISE Basketball Facility",
         league: "Basketball League",
