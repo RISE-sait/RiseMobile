@@ -21,6 +21,7 @@ import dayjs from "dayjs"
 import axios from "axios"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import { fetchEventById as fetchEventByIdRedux, selectDetailedEventById } from "@/store/slices/eventsSlice"
+import { RootState } from "@/store"
 import { FontAwesome5 } from "@expo/vector-icons"
 import EventImageHeader from "@/components/events/EventImageHeader"
 import BackButton from "@/components/buttons/BackButton"
@@ -60,9 +61,9 @@ interface EventDetails {
 
 interface ApiEventResponse {
   id: string
-  name: string
-  description: string
-  type: string
+  name?: string
+  description?: string
+  type?: string
   created_at?: string
   updated_at?: string
   // Add these only if they exist
@@ -71,6 +72,12 @@ interface ApiEventResponse {
   start_at?: string
   end_at?: string
   capacity?: number
+  // Practice-specific fields from /secure/events endpoint
+  program?: {
+    id: string
+    name: string
+    type?: string
+  }
 }
 
 const EventDetails: React.FC = () => {
@@ -83,12 +90,52 @@ const EventDetails: React.FC = () => {
   const cachedEvent = useAppSelector((state) => selectDetailedEventById(state, id as string))
   const eventsState = useAppSelector((state) => state.events)
   
+  // Get practices from Redux store
+  const practicesItems = useAppSelector((state: RootState) => state.practices.items)
+  const practicesById = useAppSelector((state: RootState) => state.practices.byId)
+  
   const [event, setEvent] = useState<EventDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [registered, setRegistered] = useState(false)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
+
+  // Function to get practice data from Redux store
+  const getPracticeDataFromStore = (practiceId: string): EventDetails | null => {
+    // First try to get from byId mapping
+    let practice = practicesById[practiceId]
+    
+    // If not found, try to find in items array
+    if (!practice) {
+      practice = practicesItems.find(item => item.id === practiceId) || undefined
+    }
+    
+    if (!practice) {
+      console.log(`⚠️ Practice with ID ${practiceId} not found in Redux store`)
+      return null
+    }
+    
+    console.log("✅ Found practice in Redux store:", practice)
+    
+    // Transform practice data to EventDetails format
+    const eventDetails: EventDetails = {
+      id: practice.id,
+      title: practice.title || "Practice Session",
+      description: practice.description || "Practice session focused on skill development and team coordination.",
+      date: practice.date || dayjs().format("YYYY-MM-DD"),
+      time: practice.time || "TBD",
+      location: practice.location || "RISE Basketball Facility",
+      locationAddress: "401, 33 St. NE, Calgary AB", // Default address since not in CalendarItem
+      image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+      organizer: "RISE Basketball",
+      category: "Practice",
+      status: "Upcoming", // TODO: Calculate based on date
+      capacity: 0, // Default capacity since not in CalendarItem
+    }
+    
+    return eventDetails
+  }
 
   useEffect(() => {
     // Start animations
@@ -217,7 +264,25 @@ const EventDetails: React.FC = () => {
       }
 
       // Fallback to direct API call for programs or if Redux fails
-      const useProgramsEndpoint = type === "practice" || type === "course" || type === "other";
+      if (type === "practice") {
+        // For practices, try to get data from Redux store first
+        console.log("🏀 Practice type detected, trying to get from Redux store")
+        
+        // Try to get practice data from Redux store using the ID
+        const practiceFromStore = getPracticeDataFromStore(cleanedId)
+        if (practiceFromStore) {
+          console.log("✅ Found practice data in Redux store:", practiceFromStore)
+          setEvent(practiceFromStore)
+          setLoading(false)
+          return
+        }
+        
+        console.log("⚠️ Practice not found in Redux store, using fallback mock data")
+        fallbackToMockData()
+        return
+      }
+      
+      const useProgramsEndpoint = type === "course" || type === "other";
       const url = `${API_URL}/${useProgramsEndpoint ? "programs" : "events"}/${cleanedId}`;
 
       console.log(`🔄 Fallback: Direct API call to ${url}`)
@@ -266,8 +331,8 @@ const EventDetails: React.FC = () => {
       // Transform API data to our EventDetails format
       const processedEvent: EventDetails = {
         id: eventData.id,
-        title: eventData.name || "RISE Event",
-        description: eventData.description || "No description provided.",
+        title: eventData.name || eventData.program?.name || (type === "practice" ? "Practice Session" : "RISE Event"),
+        description: eventData.description || (type === "practice" ? `${eventData.program?.name || "Practice"} session` : "No description provided."),
         date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
         time: formatTimeRange(startDate, endDate),
         location: eventData.location?.name || "RISE Facility",
@@ -534,9 +599,19 @@ const EventDetails: React.FC = () => {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar translucent style="light" />
-        <Text style={styles.errorText}>{error || "Event not found"}</Text>
+        <Text style={styles.errorText}>
+          {error?.includes("Event not found") 
+            ? "This item doesn't have detailed information available.\nTry booking through the main service pages."
+            : error || "Unable to load details"}
+        </Text>
         <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
           <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.retryButton, { backgroundColor: COLORS.primary, marginTop: 10 }]} 
+          onPress={() => router.back()}
+        >
+          <Text style={[styles.retryButtonText, { color: COLORS.background }]}>Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     )

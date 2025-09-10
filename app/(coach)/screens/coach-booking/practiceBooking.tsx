@@ -12,8 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { auth } from "@/firebase/firebaseConfig";
+import { useAuth } from "@/utils/auth";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -29,11 +28,24 @@ import { useAppDispatch } from "@/store/hooks";
 import { API_URL } from "@/utils/api";
 import { useSelector } from "react-redux"
 import { fetchTeams, selectTeamsForCoach, selectAllTeams } from "@/store/slices/teamsSlice"
+import { selectCurrentUser } from "@/store/selectors/userSelectors"
 import { RootState } from "@/store"
 import type { CreatePracticePayload, CreateRecurringPracticePayload } from "@/types/practice"
 import dayjs from "dayjs";
 import type { Team } from "@/types/team"
 import { TeamDisplay } from "@/types/ui";
+
+// Default booking configuration - extracted from hardcoded values for better maintainability
+// TODO: Replace with dynamic location/court selection from API endpoints:
+//   - GET /locations - to fetch available locations
+//   - GET /courts - to fetch available courts for selected location
+//   - Add LocationSelector and CourtSelector components
+const DEFAULT_BOOKING_CONFIG = {
+  LOCATION_ID: "626d44dd-6a98-42df-8fec-a36179da506f", // Rise Facility- Calgary Central Sportsplex
+  COURT_ID: "9dda472d-6176-47b3-ab25-18b17be0c0f5", // Court 1
+  LOCATION_NAME: "Rise Facility- Calgary Central Sportsplex",
+  COURT_NAME: "Court 1",
+} as const;
 
 
 
@@ -50,6 +62,7 @@ const CoachPracticeBooking = () => {
 
   const router = useRouter()
   const dispatch = useAppDispatch();
+  const { getValidToken, firebaseUser } = useAuth();
 
 
 
@@ -78,7 +91,7 @@ const CoachPracticeBooking = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({})
   
-  const user = useSelector((state: RootState) => state.user.data)
+  const user = useSelector(selectCurrentUser)
 
   const coachTeams = useSelector((state: RootState) =>
   user?.id ? selectTeamsForCoach(state, user.id) : []
@@ -92,30 +105,13 @@ const CoachPracticeBooking = () => {
 useEffect(() => {
   const fetchCoachTeams = async () => {
     try {
-      const firebaseUser = auth.currentUser
       if (!firebaseUser) {
         console.log("⚠️ No authenticated Firebase user found")
         return
       }
 
-      // Get token from AsyncStorage first (faster)
-      let token = await AsyncStorage.getItem("jwtToken")
-      
-      if (!token) {
-        // Fallback to Firebase token exchange
-        const firebaseToken = await firebaseUser.getIdToken(true)
-        const jwtResponse = await fetch(`${API_URL}/auth`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${firebaseToken}` },
-          body: JSON.stringify({ email: firebaseUser.email }),
-        })
-        
-        token = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
-        if (token) {
-          await AsyncStorage.setItem("jwtToken", token)
-        }
-      }
-
+      // Use centralized token management
+      const token = await getValidToken()
       if (!token) {
         console.error("❌ Failed to get authentication token")
         return
@@ -128,7 +124,7 @@ useEffect(() => {
   }
 
   fetchCoachTeams()
-}, [dispatch])
+}, [dispatch, firebaseUser, getValidToken])
 
   
 
@@ -190,28 +186,6 @@ const formatTeamForDisplay = (team: Team) => ({
   image: `https://source.unsplash.com/random/300x200/?basketball-${team.id}`,
 })
 
-const payload: CreatePracticePayload = {
-  start_time: startTime.toISOString(),
-  end_time: endTime.toISOString(),
-  location_id: "e2d1cd76-592f-4c06-89ee-9027cfbbe9de", // replace with real location_id if available
-  court_id: "41870572-ecfa-441d-af09-d2d7ad9b654c", // replace with real court_id if available
-  status: "scheduled",
-  team_id: selectedTeam?.id ?? "",
-}
-
-
-
-const recurringPayload: CreateRecurringPracticePayload = {
-  day: dayjs(date).format("dddd").toUpperCase(), // e.g. "MONDAY"
-  event_start_at: startTime.toISOString(),
-  event_end_at: endTime.toISOString(),
-  location_id: "default",
-  team_id: selectedTeam?.id ?? "",
-  recurrence_start_at: dayjs(date).toISOString(),
-  recurrence_end_at: dayjs(date)
-    .add(recurringOptions.occurrences - 1, recurringOptions.weekly ? "week" : recurringOptions.biweekly ? "week" : "month")
-    .toISOString(),
-}
   
 const handleConfirmBooking = async () => {
   if (!selectedTeam) {
@@ -219,9 +193,71 @@ const handleConfirmBooking = async () => {
     return
   }
 
+  console.log("🔍 DEBUG: User object:", JSON.stringify(user, null, 2))
+  
+  if (!user?.id) {
+    console.error("❌ Booking error: No user is logged in.")
+    Alert.alert("Error", "User not found. Please log in again.")
+    return
+  }
+
   try {
     setIsSubmitting(true)
 
+    // Use centralized token management
+    const token = await getValidToken()
+    if (!token) {
+      Alert.alert("Authentication Error", "Failed to get authentication token.")
+      return
+    }
+
+    // Fix date booking issue: Combine selected date with selected times
+    const combinedStartDateTime = dayjs(date)
+      .hour(dayjs(startTime).hour())
+      .minute(dayjs(startTime).minute())
+      .second(0)
+      .millisecond(0);
+
+    const combinedEndDateTime = dayjs(date)
+      .hour(dayjs(endTime).hour())
+      .minute(dayjs(endTime).minute())
+      .second(0)
+      .millisecond(0);
+
+    console.log("🔍 DEBUG Date Booking Logic:");
+    console.log("Selected date:", dayjs(date).format("YYYY-MM-DD"));
+    console.log("Selected start time:", dayjs(startTime).format("HH:mm"));
+    console.log("Combined start datetime:", combinedStartDateTime.format("YYYY-MM-DD HH:mm"));
+    console.log("Combined end datetime:", combinedEndDateTime.format("YYYY-MM-DD HH:mm"));
+
+    // Create payloads with proper date/time combination
+    const payload: CreatePracticePayload = {
+      start_time: combinedStartDateTime.toISOString(),
+      end_time: combinedEndDateTime.toISOString(),
+      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
+      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
+      status: "scheduled",
+      team_id: selectedTeam?.id ?? "",
+    };
+
+    const recurringPayload: CreateRecurringPracticePayload = {
+      day: dayjs(date).format("dddd").toUpperCase(), // e.g. "MONDAY"
+      practice_start_at: combinedStartDateTime.format("HH:mm:ss+00:00"), // Use combined time: "21:28:43+00:00"
+      practice_end_at: combinedEndDateTime.format("HH:mm:ss+00:00"), // Use combined time: "23:28:43+00:00"
+      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
+      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
+      team_id: selectedTeam?.id ?? "",
+      status: "scheduled" as const,
+      recurrence_start_at: combinedStartDateTime.toISOString(), // Use combined date for recurrence start
+      recurrence_end_at: dayjs(date)
+        .add(recurringOptions.occurrences - 1, recurringOptions.weekly ? "week" : recurringOptions.biweekly ? "week" : "month")
+        .toISOString(),
+    };
+
+    // For now, we're creating practices instead of booking existing ones
+    // TODO: When backend provides practice events to book, use POST /checkout/events/{practiceId}
+    // with request body: { "athlete_ids": [user.id], "discount_code": "" }
+    
     if (isRecurring) {
       await dispatch(createRecurringPracticeThunk(recurringPayload)).unwrap()
     } else {
@@ -231,13 +267,26 @@ const handleConfirmBooking = async () => {
     setShowConfirmation(false)
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
 
-    Alert.alert("Success", "Your practice has been booked!")
+    Alert.alert("Success", "Your practice has been created!")
     router.back()
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Booking error:", error)
+    console.error("❌ Error details:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      payload: isRecurring ? recurringPayload : payload
+    })
+    
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-    Alert.alert("Booking Failed", "Something went wrong. Please try again.")
+    
+    const errorMessage = error.response?.data?.message || 
+                        error.response?.data?.error || 
+                        error.message || 
+                        "Something went wrong. Please try again."
+    
+    Alert.alert("Booking Failed", `Error: ${errorMessage}`)
   } finally {
     setIsSubmitting(false)
   }
@@ -374,7 +423,7 @@ const handleConfirmBooking = async () => {
         startTime={startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         endTime={endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         team={selectedTeam ? selectedTeam.name : undefined}
-        facility={"RISE Basketball Complex"}
+        facility={DEFAULT_BOOKING_CONFIG.LOCATION_NAME}
         notes={notes}
         isRecurring={isRecurring}
         recurringDetails={isRecurring ? 

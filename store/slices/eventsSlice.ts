@@ -116,7 +116,7 @@ export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: 
     const afterDate = dayjs().subtract(3, "month").format("YYYY-MM-DD")
     const beforeDate = dayjs().add(3, "month").format("YYYY-MM-DD")
 
-    const response = await fetchWithRetry(`${API_URL}/events`, token, { after: afterDate, before: beforeDate })
+    const response = await fetchWithRetry(`${API_URL}/secure/events`, token, { after: afterDate, before: beforeDate })
     const { items, byDate } = processEvents(response.data)
 
     return {
@@ -142,7 +142,7 @@ export const fetchEventById = createAsyncThunk<Event, { eventId: string; token: 
       }
 
       const baseId = eventId.includes("-") && eventId.length > 36 ? eventId.substring(0, 36) : eventId
-      const response = await fetchWithRetry(`${API_URL}/events/${baseId}`, token)
+      const response = await fetchWithRetry(`${API_URL}/secure/events/${baseId}`, token)
 
       return response.data
     } catch (error: any) {

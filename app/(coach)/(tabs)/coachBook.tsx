@@ -17,15 +17,18 @@ import * as Haptics from "expo-haptics"
 import { StatusBar } from "expo-status-bar"
 import { useSelector, useDispatch } from "react-redux"
 import { RootState, AppDispatch } from "@/store"
-import { fetchPractices } from "@/store/slices/practicesSlice"
-import { fetchEvents } from "@/store/slices/eventsSlice" 
-import { auth } from "@/firebase/firebaseConfig"
+import { fetchPractices, clearPractices } from "@/store/slices/practicesSlice"
+import { fetchEvents } from "@/store/slices/eventsSlice"
+import { selectPracticesItems, selectPracticesStatus, selectUpcomingPractices } from "@/store/selectors/practicesSelectors"
+import { selectCurrentUser } from "@/store/selectors/userSelectors"
+import { useAuth } from "@/utils/auth"
 import { API_URL } from "@/utils/api"
+import { navigateToDetails } from "@/utils/navigation"
 import dayjs from "dayjs"
-import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
+
 
 // Define color constants
 const COLORS = {
@@ -72,6 +75,7 @@ const bookingOptions = [
 const CoachBook = () => {
   const router = useRouter()
   const dispatch = useDispatch<AppDispatch>()
+  const { getValidToken } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredOptions, setFilteredOptions] = useState(bookingOptions)
   const scrollX = useRef(new Animated.Value(0)).current
@@ -79,116 +83,121 @@ const CoachBook = () => {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(50)).current
+  const hasInitializedData = useRef(false)
 
-  // Redux state
-  const practicesItems = useSelector((state: RootState) => state.practices.items)
-  const practicesStatus = useSelector((state: RootState) => state.practices.status)
+  // Redux state with memoized selectors
+  const practicesItems = useSelector(selectPracticesItems)
+  const practicesStatus = useSelector(selectPracticesStatus)
+  const upcomingPractices = useSelector(selectUpcomingPractices)
   const eventsItems = useSelector((state: RootState) => state.events.items)
   const eventsStatus = useSelector((state: RootState) => state.events.status)
+  const currentUser = useSelector(selectCurrentUser)
 
-  // Transform API data into upcomingBookings format
+  // Get upcoming practices directly from API data without unnecessary transformations
   const upcomingBookings = useMemo(() => {
-    console.log("📋 COACH BOOKING: Transforming data");
-    console.log("📋 Practices:", practicesItems.length, "Events:", eventsItems.length);
+    console.log("📋 COACH BOOKING DEBUG START ===");
+    console.log("📋 Raw practices data:", practicesItems);
+    console.log("📋 Practices count:", practicesItems.length);
+    console.log("📋 Practices status:", practicesStatus);
+    console.log("📋 Current user:", currentUser?.id, currentUser?.role);
     
     const today = dayjs();
-    const futureItems = [...practicesItems, ...eventsItems].filter(item => {
-      const itemDate = dayjs(item.date);
-      return itemDate.isAfter(today, 'day') || itemDate.isSame(today, 'day');
-    });
-
-    const transformedBookings = futureItems.map(item => {
-      // Determine relative date display
-      const itemDate = dayjs(item.date);
-      let dateDisplay = item.date;
-      if (itemDate.isSame(today, 'day')) {
-        dateDisplay = "Today";
-      } else if (itemDate.isSame(today.add(1, 'day'), 'day')) {
-        dateDisplay = "Tomorrow";
-      } else {
-        dateDisplay = itemDate.format("ddd, MMM DD");
-      }
-
-      // Determine booking type and icon
-      let type = "Practice";
-      let icon = "basketball-ball";
-      if (item.type === "match" || item.type === "game") {
-        type = "Match";
-        icon = "trophy";
-      } else if (item.type === "course" || item.type === "class") {
-        type = "Class";
-        icon = "chalkboard-teacher";
-      } else if (item.type === "event") {
-        type = "Event";
-        icon = "calendar-check";
-      }
-
-      return {
-        id: item.id,
-        type,
-        location: item.location || "RISE Basketball Facility",
-        date: dateDisplay,
-        time: item.time || "TBD",
-        status: "Confirmed", // Default status
-        icon,
-      };
+    console.log("📋 Today:", today.format("YYYY-MM-DD HH:mm"));
+    
+    // Filter for upcoming practices only - use date field from CalendarItem
+    const upcomingPractices = practicesItems.filter(practice => {
+      // Use date and time from CalendarItem format
+      const practiceDateTime = dayjs(`${practice.date} ${practice.time}`, 'YYYY-MM-DD HH:mm');
+      const isUpcoming = practiceDateTime.isAfter(today, 'day') || practiceDateTime.isSame(today, 'day');
+      
+      console.log(`📋 Practice ${practice.id}:`);
+      console.log(`   - date: ${practice.date}, time: ${practice.time}`);
+      console.log(`   - title: ${practice.title}, location: ${practice.location}`);
+      console.log(`   - practiceDateTime: ${practiceDateTime.format("YYYY-MM-DD HH:mm")}`);
+      console.log(`   - isUpcoming: ${isUpcoming}`);
+      
+      return isUpcoming && practice.id; // Only include practices with valid IDs
     }).sort((a, b) => {
-      // Sort by date, with today first
-      const dateA = a.date === "Today" ? 0 : a.date === "Tomorrow" ? 1 : 2;
-      const dateB = b.date === "Today" ? 0 : b.date === "Tomorrow" ? 1 : 2;
-      return dateA - dateB;
-    }).slice(0, 5); // Limit to 5 most recent bookings
+      // Sort by date and time (earliest first)
+      const dateA = dayjs(`${a.date} ${a.time}`, 'YYYY-MM-DD HH:mm');
+      const dateB = dayjs(`${b.date} ${b.time}`, 'YYYY-MM-DD HH:mm');
+      return dateA.valueOf() - dateB.valueOf();
+    }).slice(0, 5); // Limit to 5 most recent
 
-    console.log("📋 Transformed bookings:", transformedBookings.length);
-    return transformedBookings;
-  }, [practicesItems, eventsItems]);
+    console.log("📋 Final upcoming practices:", upcomingPractices);
+    console.log("📋 Final count:", upcomingPractices.length);
+    console.log("📋 COACH BOOKING DEBUG END ===");
+    return upcomingPractices;
+  }, [practicesItems, currentUser, practicesStatus]);
+
+  // Force refresh function for debugging
+  const forceRefreshData = async () => {
+    try {
+      console.log("🔄 FORCE REFRESH START ===");
+      console.log("🔄 Current practices status:", practicesStatus);
+      console.log("🔄 Current practices count:", practicesItems.length);
+      console.log("🔄 Clearing cache and fetching fresh data...");
+      
+      // Clear existing data
+      dispatch(clearPractices());
+      
+      const token = await getValidToken();
+      if (!token) {
+        console.error("❌ Failed to get authentication token");
+        return;
+      }
+
+      const today = dayjs().format("YYYY-MM-DD");
+      const futureDate = dayjs().add(2, "months").format("YYYY-MM-DD");
+      
+      console.log("🔄 FORCE REFRESH: Fetching practices with params:");
+      console.log("🔄   - token: [REDACTED]");
+      console.log("🔄   - after:", today);
+      console.log("🔄   - before:", futureDate);
+      console.log("🔄   - API URL: /secure/schedule?after=" + today + "&before=" + futureDate + "&program_type=practice&response_type=date");
+      
+      dispatch(fetchPractices({ token, after: today, before: futureDate }));
+      
+      // Reset initialization flag
+      hasInitializedData.current = false;
+      console.log("🔄 FORCE REFRESH: Dispatch complete, waiting for results...");
+    } catch (error) {
+      console.error("❌ Error in force refresh:", error);
+    }
+  };
 
   // Fetch data on component mount
   useEffect(() => {
     const fetchBookingData = async () => {
+      // Prevent multiple fetches
+      if (hasInitializedData.current) {
+        return;
+      }
+
       try {
-        const firebaseUser = auth.currentUser;
-        if (!firebaseUser) {
-          console.log("⚠️ No authenticated user found");
-          return;
-        }
-
-        // Get token from AsyncStorage first (faster)
-        let token = await AsyncStorage.getItem("jwtToken");
-        
-        if (!token) {
-          // Fallback to Firebase token exchange
-          const firebaseToken = await firebaseUser.getIdToken(true);
-          const jwtResponse = await fetch(`${API_URL}/auth`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${firebaseToken}` },
-            body: JSON.stringify({ email: firebaseUser.email }),
-          });
-          
-          token = jwtResponse.headers.get("authorization")?.replace("Bearer ", "");
-          if (token) {
-            await AsyncStorage.setItem("jwtToken", token);
-          }
-        }
-
+        // Use centralized token management
+        const token = await getValidToken();
         if (!token) {
           console.error("❌ Failed to get authentication token");
           return;
         }
 
-        console.log("🔄 Fetching booking data...");
+        console.log("🔄 Fetching coach booking data (practices only)...");
         
-        // Fetch upcoming practices and events
+        // Only fetch practices for coach booking page if not already loaded
         const today = dayjs().format("YYYY-MM-DD");
         const futureDate = dayjs().add(2, "months").format("YYYY-MM-DD");
 
-        if (practicesStatus === "idle") {
+        // Only fetch if we haven't loaded practices yet or if it's been idle for too long
+        if (practicesStatus === "idle" || practicesItems.length === 0) {
           dispatch(fetchPractices({ token, after: today, before: futureDate }));
         }
         
-        if (eventsStatus === "idle") {
-          dispatch(fetchEvents(token));
-        }
+        // Mark as initialized to prevent repeated fetches
+        hasInitializedData.current = true;
+        
+        // Note: Removed fetchEvents() - coach booking page should only show practices
+        // Future: Add haircut bookings or other coach-specific booking fetches here
 
       } catch (error) {
         console.error("❌ Error fetching booking data:", error);
@@ -196,7 +205,7 @@ const CoachBook = () => {
     };
 
     fetchBookingData();
-  }, [dispatch, practicesStatus, eventsStatus]);
+  }, [dispatch]); // Only depend on dispatch which is stable
 
   useEffect(() => {
     // Start animations when component mounts
@@ -222,16 +231,16 @@ const CoachBook = () => {
     }
   }, [searchQuery])
 
-  const handleOptionPress = (route) => {
+  const handleOptionPress = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     if (route) {
-      router.push(route)
+      router.push(route as any)
     }
   }
 
 
 
-  const renderFeaturedItem = ({ item, index }) => {
+  const renderFeaturedItem = ({ item, index }: { item: any, index: number }) => {
     const inputRange = [(index - 1) * cardWidth, index * cardWidth, (index + 1) * cardWidth]
 
     const opacity = scrollX.interpolate({
@@ -288,8 +297,32 @@ const CoachBook = () => {
 
 
 
-  const renderUpcomingBooking = ({ item }) => {
-    const statusColor = item.status === "Confirmed" ? COLORS.success : COLORS.warning
+  const renderUpcomingBooking = ({ item }: { item: any }) => {
+    // Use CalendarItem data format - item comes from Redux store
+    console.log("📋 Rendering practice item:", item);
+    
+    // Format date from CalendarItem format
+    const practiceDate = dayjs(item.date);
+    const today = dayjs();
+    
+    // Date display
+    let dateDisplay = "Unknown";
+    if (practiceDate.isValid()) {
+      if (practiceDate.isSame(today, 'day')) {
+        dateDisplay = "Today";
+      } else if (practiceDate.isSame(today.add(1, 'day'), 'day')) {
+        dateDisplay = "Tomorrow";
+      } else {
+        dateDisplay = practiceDate.format("ddd, MMM DD");
+      }
+    }
+    
+    // Time display from CalendarItem
+    const timeDisplay = item.time || "TBD";
+    
+    // Use CalendarItem title and location
+    const displayTitle = item.title || "Practice Session";
+    const displayLocation = item.location;
 
     return (
       <TouchableOpacity
@@ -302,7 +335,17 @@ const CoachBook = () => {
           alignItems: "center",
         }}
         activeOpacity={0.8}
-        onPress={() => {}}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          console.log("📋 Booking item clicked:", item.id, displayTitle, "type:", item.type);
+          
+          // Navigate to appropriate detail page using robust navigation
+          const success = navigateToDetails(router, item.type, item.id, currentUser?.role);
+          
+          if (!success) {
+            console.warn("⚠️ Navigation failed, used fallback route");
+          }
+        }}
       >
         <View
           style={{
@@ -315,32 +358,31 @@ const CoachBook = () => {
             marginRight: 16,
           }}
         >
-          <FontAwesome5 name={item.icon} size={24} color={COLORS.primary} />
+          <FontAwesome5 name="basketball-ball" size={24} color={COLORS.primary} />
         </View>
 
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: "bold" }}>{item.type}</Text>
-            <View
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 4,
-                backgroundColor: statusColor + "20",
-              }}
-            >
-              <Text style={{ color: statusColor, fontSize: 12, fontWeight: "600" }}>{item.status}</Text>
-            </View>
+            <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: "bold" }}>
+              {displayTitle}
+            </Text>
+            <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: "600" }}>
+              Scheduled
+            </Text>
           </View>
 
-          <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginTop: 2 }}>{item.location}</Text>
+          {displayLocation && (
+            <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginTop: 2 }}>
+              {displayLocation}
+            </Text>
+          )}
 
           <View style={{ flexDirection: "row", marginTop: 8, alignItems: "center" }}>
             <Ionicons name="calendar-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginLeft: 4 }}>{item.date}</Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginLeft: 4 }}>{dateDisplay}</Text>
             <View style={{ width: 1, height: 12, backgroundColor: COLORS.textSecondary, marginHorizontal: 8 }} />
             <Ionicons name="time-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginLeft: 4 }}>{item.time}</Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginLeft: 4 }}>{timeDisplay}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -450,15 +492,28 @@ const CoachBook = () => {
               }}
             >
               <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Bookings</Text>
-              {upcomingBookings.length > 0 && (
-                <TouchableOpacity>
-                  <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                {upcomingBookings.length > 0 && (
+                  <TouchableOpacity style={{ marginRight: 12 }}>
+                    <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={forceRefreshData}
+                  style={{
+                    backgroundColor: COLORS.cardDark,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 6
+                  }}
+                >
+                  <Text style={{ color: COLORS.primary, fontSize: 12 }}>🔄</Text>
                 </TouchableOpacity>
-              )}
+              </View>
             </View>
 
             <View style={{ paddingHorizontal: 20 }}>
-              {(practicesStatus === "loading" || eventsStatus === "loading") ? (
+              {practicesStatus === "loading" ? (
                 <View style={{ padding: 20, alignItems: "center" }}>
                   <Text style={{ color: COLORS.textSecondary, fontSize: 14 }}>Loading bookings...</Text>
                 </View>
@@ -466,7 +521,7 @@ const CoachBook = () => {
                 <FlatList
                   data={upcomingBookings}
                   renderItem={renderUpcomingBooking}
-                  keyExtractor={(item) => item.id}
+                  keyExtractor={(item, index) => item.id || `booking-${item.type}-${item.date}-${item.time}-${index}`}
                   scrollEnabled={false}
                 />
               ) : (
@@ -483,6 +538,20 @@ const CoachBook = () => {
                   <Text style={{ color: COLORS.textSecondary, fontSize: 14, textAlign: "center" }}>
                     You don't have any scheduled practices or events coming up.
                   </Text>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: COLORS.primary,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      marginTop: 12
+                    }}
+                    onPress={forceRefreshData}
+                  >
+                    <Text style={{ color: COLORS.background, fontSize: 14, fontWeight: "600" }}>
+                      🔄 Refresh Data
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>

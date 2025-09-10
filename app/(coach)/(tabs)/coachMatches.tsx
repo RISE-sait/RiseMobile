@@ -14,10 +14,15 @@ import EmptyState from "@/components/feedback/EmptyState"
 
 const { width } = Dimensions.get("window");
 
-// Generate a 14-day window (7 days before and 7 days ahead)
+// Generate extended date range to include August test data (2025-08-02 to 2025-08-04)
 const generateWeekDates = (): dayjs.Dayjs[] => {
   const today = dayjs();
-  return Array.from({ length: 14 }, (_, i) => today.add(i - 6, "day"));
+  const testDataStart = dayjs("2025-08-02");
+  const startDate = testDataStart.isBefore(today.subtract(6, "day")) ? testDataStart : today.subtract(6, "day");
+  const endDate = today.add(7, "day");
+  const totalDays = endDate.diff(startDate, "day") + 1;
+  
+  return Array.from({ length: totalDays }, (_, i) => startDate.add(i, "day"));
 };
 
 const CoachMatches: React.FC = () => {
@@ -29,7 +34,7 @@ const CoachMatches: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [weekDates] = useState(generateWeekDates);
   const flatListRef = useRef<FlatList>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -40,12 +45,12 @@ const CoachMatches: React.FC = () => {
 
     const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"));
 
-    if (flatListRef.current) {
+    if (flatListRef.current && todayIndex >= 0) {
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({ index: todayIndex, animated: true });
       }, 300);
     }
-  }, []);
+  }, [weekDates]);
 
   useEffect(() => {
   const fetchData = async () => {
@@ -74,9 +79,21 @@ const CoachMatches: React.FC = () => {
 }, [dispatch, token])
 
 
-  // ✅ Filter matches by selected date - fixed the logic
+  // Debug logging
+  console.log("🏀 COACH MATCHES: Component rendering")
+  console.log("🏀 COACH MATCHES: Status:", status)
+  console.log("🏀 COACH MATCHES: Error:", error)
+  console.log("🏀 COACH MATCHES: Total matches:", matches.length)
+  console.log("🏀 COACH MATCHES: Selected date:", selectedDate)
+  console.log("🏀 COACH MATCHES: Week dates count:", weekDates.length)
+  console.log("🏀 COACH MATCHES: Token:", token ? "EXISTS" : "NULL")
+  console.log("🏀 COACH MATCHES: FadeAnim value:", fadeAnim._value)
+  console.log("🏀 COACH MATCHES: Week dates range:", weekDates[0]?.format("YYYY-MM-DD"), "to", weekDates[weekDates.length-1]?.format("YYYY-MM-DD"))
+  
+  // ✅ Filter matches by selected date - use match.date instead of created_at
   const filteredMatches = matches.filter((match) => {
-    const matchDate = match.created_at ? dayjs(match.created_at).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD")
+    const matchDate = match.date || dayjs().format("YYYY-MM-DD")
+    console.log("🏀 COACH MATCHES: Filtering match date:", matchDate, "vs selected:", selectedDate)
     return matchDate === selectedDate
   });
 

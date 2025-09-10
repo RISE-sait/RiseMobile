@@ -13,6 +13,8 @@ import { API_URL } from "./api"
 import { useDispatch, useSelector } from "react-redux"
 import type { RootState } from "@/store"
 import { setUser as setReduxUser, logout as reduxLogout } from "@/store/slices/userSlice"
+import { clearPractices } from "@/store/slices/practicesSlice"
+import { clearMatches } from "@/store/slices/gamesSlice"
 import { persistor } from "@/store"
 
 type User = {
@@ -40,7 +42,7 @@ export const useAuth = () => {
   // Use Redux user state as primary source of truth
   const user = reduxUser
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
+  const [, , promptAsync] = Google.useAuthRequest({
     clientId: "238537761671-vf9tu3vu85hnpm6r56bael9pm5b3k63b.apps.googleusercontent.com",
     redirectUri: makeRedirectUri({
       native: "myapp://redirect",
@@ -52,7 +54,7 @@ export const useAuth = () => {
   const verifyTokenWithBackend = async (token: string, email: string): Promise<boolean> => {
     try {
       // Try to get upcoming bookings as a way to verify token validity
-      const response = await axios.get(`${API_URL}/bookings/upcoming`, {
+      await axios.get(`${API_URL}/bookings/upcoming`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       return true
@@ -78,11 +80,13 @@ export const useAuth = () => {
       const jwtToken = authHeader?.replace(/^Bearer\s+/i, '')
       
       if (jwtToken && jwtToken !== authHeader) {
+        console.log("🔑 JWT Token (for Swagger auth):", jwtToken)
         return jwtToken
       } else {
         // Fallback: try to get from response body (old method)
         const bodyJwtToken = response.data.token || response.data.jwt || response.data.access_token
         if (bodyJwtToken) {
+          console.log("🔑 JWT Token (for Swagger auth):", bodyJwtToken)
           return bodyJwtToken
         }
         
@@ -130,6 +134,11 @@ export const useAuth = () => {
         // ✅ User is already in Redux from persist, just ensure it's properly set
         if (JSON.stringify(reduxUser) !== JSON.stringify(userToSet)) {
           dispatch(setReduxUser(userToSet))
+        }
+        
+        // 🔑 Always log JWT token when user is loaded for easy debugging
+        if (userToSet.token) {
+          console.log("🔑 Current JWT Token (for Swagger auth):", userToSet.token)
         }
         
         setAuthError(null)
@@ -488,32 +497,86 @@ export const useAuth = () => {
     router.replace("/(auth)/login")
   }
 
-  // 🔹 Check authentication status
-  const checkAuthStatus = async (): Promise<boolean> => {
-    if (!user || !firebaseUser) {
-      return false
-    }
-
+  // 🔹 Get valid token (centralized token management)
+  const getValidToken = async (): Promise<string | null> => {
     try {
-      // Verify token is still valid
-      const isValid = await verifyTokenWithBackend(user.token, user.email)
-      if (!isValid) {
+      // Try Redux user token first
+      if (user?.token) {
+        const isValid = await verifyTokenWithBackend(user.token, user.email)
+        if (isValid) {
+          console.log("🔑 Valid JWT Token (for Swagger auth):", user.token)
+          return user.token
+        }
+      }
+
+      // If no valid token from Redux, try Firebase user
+      if (firebaseUser) {
         const newToken = await refreshAndExchangeToken(firebaseUser)
         if (newToken) {
           const updatedUser = { ...user, token: newToken }
           dispatch(setReduxUser(updatedUser))
           await saveUserToRedux(updatedUser)
-          return true
-        } else {
-          await forceReLogin("Your session has expired. Please log in again.")
-          return false
+          console.log("🔑 Refreshed JWT Token (for Swagger auth):", newToken)
+          return newToken
         }
       }
-      return true
+
+      // If still no token, check Firebase auth state
+      if (auth.currentUser) {
+        const newToken = await refreshAndExchangeToken(auth.currentUser)
+        if (newToken) {
+          // If no Redux user but Firebase user exists, create minimal user object
+          if (!user) {
+            const minimalUser = {
+              id: auth.currentUser.uid,
+              email: auth.currentUser.email || '',
+              firstName: '',
+              lastName: '',
+              role: '',
+              countryCode: 'US',
+              token: newToken
+            }
+            dispatch(setReduxUser(minimalUser))
+          } else {
+            const updatedUser = { ...user, token: newToken }
+            dispatch(setReduxUser(updatedUser))
+          }
+          console.log("🔑 New JWT Token (for Swagger auth):", newToken)
+          return newToken
+        }
+      }
+
+      console.error("❌ Unable to obtain valid token")
+      return null
     } catch (error) {
-      console.error("❌ Auth status check failed:", error)
-      return false
+      console.error("❌ getValidToken failed:", error)
+      return null
     }
+  }
+
+  // 🔹 Get valid Firebase token (for endpoints that require Firebase token)
+  const getValidFirebaseToken = async (): Promise<string | null> => {
+    try {
+      if (firebaseUser) {
+        return await firebaseUser.getIdToken(true)
+      }
+      
+      if (auth.currentUser) {
+        return await auth.currentUser.getIdToken(true)
+      }
+
+      console.error("❌ No Firebase user available")
+      return null
+    } catch (error) {
+      console.error("❌ getValidFirebaseToken failed:", error)
+      return null
+    }
+  }
+
+  // 🔹 Check authentication status
+  const checkAuthStatus = async (): Promise<boolean> => {
+    const token = await getValidToken()
+    return token !== null
   }
 
   // 🔹 Logout Function
@@ -527,8 +590,10 @@ export const useAuth = () => {
       // 🔄 Pause persistor first to prevent rehydration
       persistor.pause()
       
-      // 🔄 Clear Redux state FIRST while persistor is paused
-      dispatch(reduxLogout())
+      // 🔄 Clear ALL Redux data FIRST while persistor is paused
+      dispatch(reduxLogout())           // Clear user data
+      dispatch(clearPractices())        // Clear practices cache
+      dispatch(clearMatches())          // Clear match history cache
       
       // 🔄 Now purge the persisted data
       await persistor.purge()
@@ -605,6 +670,8 @@ export const useAuth = () => {
     logout,
     checkAuthStatus,
     forceReLogin,
+    getValidToken,
+    getValidFirebaseToken,
   }
 }
 

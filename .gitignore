@@ -45,3 +45,10 @@ GEMINI.md
 test-auth-flow.sh
 ios/
 tmpDocs/
+debug_parsing.js
+debug_complete_flow.js
+
+# Security: Exclude Python scripts from commits
+# (test scripts should not be in Git history)
+*.py
+tmpDocs/*.py

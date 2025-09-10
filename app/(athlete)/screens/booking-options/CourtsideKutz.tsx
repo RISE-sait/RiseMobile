@@ -424,10 +424,12 @@ const BarberBookingScreen = () => {
       }
 
       // Prepare booking details for API (match Swagger specification)
-      // Convert date and time to ISO format
-      const startDateTime = `${selectedDate}T${convertTo24Hour(selectedTime)}:00Z`
+      // Send local time with correct timezone offset for Calgary (MDT = UTC-6)
+      const localDateTime = `${selectedDate}T${convertTo24Hour(selectedTime)}:00`
+      const startDateTime = `${localDateTime}-06:00` // RFC3339 format with MDT timezone
       const duration = selectedService.duration || 30 // Default 30 minutes
-      const endDateTime = new Date(new Date(startDateTime).getTime() + duration * 60000).toISOString()
+      const endTime = new Date(new Date(`${localDateTime}-06:00`).getTime() + duration * 60000)
+      const endDateTime = `${selectedDate}T${endTime.toTimeString().slice(0,8)}-06:00`
       
       const bookingDetails = {
         barber_id: selectedBarber.id,

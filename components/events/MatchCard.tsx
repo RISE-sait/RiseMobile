@@ -17,7 +17,7 @@ interface MatchProps {
     lose_team?: string
     win_score?: number
     lose_score?: number
-    status?: "Upcoming" | "Finished" | "Live"
+    status?: "Upcoming" | "Finished" | "Live" | "upcoming" | "completed" | "live"
     league?: string
   }
 }
@@ -26,6 +26,10 @@ const statusStyles = {
   Upcoming: { color: "#FFA500", label: "Upcoming", icon: "clock" },
   Finished: { color: "#22C55E", label: "Finished", icon: "check-circle" },
   Live: { color: "#EF4444", label: "Live", icon: "circle-dot" },
+  // 添加小写映射以兼容不同来源的数据
+  upcoming: { color: "#FFA500", label: "Upcoming", icon: "clock" },
+  completed: { color: "#22C55E", label: "Finished", icon: "check-circle" },
+  live: { color: "#EF4444", label: "Live", icon: "circle-dot" },
 }
 
 const MatchCard: React.FC<MatchProps> = ({ match }) => {
@@ -59,7 +63,8 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
   const awayLogo = "https://via.placeholder.com/100"
 
   const handlePress = () => {
-    router.push(`/screens/match-details/${match.id}?type=game`)
+    // Navigate to match details - calls GET /games/{id}
+    router.push(`/screens/match-details/${match.id}`)
   }
   
 

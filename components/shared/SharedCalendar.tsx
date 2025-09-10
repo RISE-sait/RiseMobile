@@ -13,9 +13,11 @@ import type { RootState } from "@/store"
 import { fetchEvents } from "@/store/slices/eventsSlice"
 import { fetchMatches } from "@/store/slices/gamesSlice"
 import type { Match } from "@/store/slices/gamesSlice"
+import { fetchSchedule, clearSchedule } from "@/store/slices/scheduleSlice"
 import PageTitle from "@/components/PageTitle"
 import CalendarCard from "@/components/calendar/CalendarCard"
 import EventListContainer from "@/components/calendar/EventListContainer"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 interface SharedCalendarProps {
   userRole: "athlete" | "coach" | "instructor" | "parent"
@@ -51,28 +53,56 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   // Get calendar data from Redux store
   const reduxEvents = useSelector((state: RootState) => state.events)
   const reduxGames = useSelector((state: RootState) => state.games)
+  const reduxSchedule = useSelector((state: RootState) => state.schedule)
 
 
 
 
-  // Determine loading state
-  const isLoading = reduxEvents.status === "loading" || reduxGames.status === "loading"
+  // Determine loading state - prioritize schedule data
+  const isLoading = reduxSchedule.status === "loading" || reduxEvents.status === "loading" || reduxGames.status === "loading"
 
-  const error = reduxEvents.error || reduxGames.error
+  const error = reduxSchedule.error || reduxEvents.error || reduxGames.error
 
 
 const fetchCalendarData = useCallback(async () => {
   try {
-    const jwt = user?.token
+    let jwt = user?.token
+    
+    // Fallback token logic similar to matches page
     if (!jwt) {
-      console.error("Missing backend JWT")
+      try {
+        const userString = await AsyncStorage.getItem("user")
+        if (userString) {
+          const userData = JSON.parse(userString)
+          jwt = userData.token
+        }
+        
+        // Additional fallback: try direct JWT token
+        if (!jwt) {
+          jwt = await AsyncStorage.getItem("jwtToken")
+        }
+      } catch (err) {
+        console.error("Error getting token from AsyncStorage:", err)
+      }
+    }
+    
+    if (!jwt) {
+      console.error("Missing backend JWT - no token available")
       return
     }
 
-    console.log("Backend JWT:", jwt)
+    console.log("Backend JWT:", jwt ? jwt.substring(0, 20) + "..." : "NO TOKEN")
 
-    dispatch(fetchEvents(jwt) as any)
-    dispatch(fetchMatches(jwt) as any)
+    // Try to fetch from unified schedule endpoint first
+    try {
+      dispatch(clearSchedule())
+      dispatch(fetchSchedule(jwt) as any)
+    } catch (scheduleErr) {
+      console.warn("Schedule endpoint failed, falling back to individual endpoints:", scheduleErr)
+      // Fallback to individual endpoints
+      dispatch(fetchEvents(jwt) as any)
+      dispatch(fetchMatches(jwt) as any)
+    }
   } catch (err) {
     console.error("Error fetching calendar data:", err)
   }
@@ -103,9 +133,9 @@ const fetchCalendarData = useCallback(async () => {
 
     // Process matches from the games slice
     reduxGames.items.forEach((match: Match) => {
-      if (match.created_at) {
+      if (match.date) {
         // Parse the date string correctly
-        const dateObj = dayjs(match.created_at)
+        const dateObj = dayjs(match.date)
         if (dateObj.isValid()) {
           const dateStr = dateObj.format("YYYY-MM-DD")
 
@@ -117,9 +147,9 @@ const fetchCalendarData = useCallback(async () => {
             id: match.id,
             title: match.name || `Match ${match.id.substring(0, 6)}`,
             date: dateStr,
-            time: dateObj.format("h:mm A"),
+            time: match.time || "TBD",
             type: "match",
-            location: "RISE Basketball Court",
+            location: match.location || "RISE Basketball Court",
             description: match.description || "Basketball match",
           })
         }
@@ -131,13 +161,25 @@ const fetchCalendarData = useCallback(async () => {
 
   // Combine all events and matches for the selected date
   const combinedEventsForSelectedDate = useMemo(() => {
+    // If we have schedule data, use it (unified data source)
+    if (reduxSchedule.items.length > 0) {
+      return reduxSchedule.byDate[selectedDate] || []
+    }
+    
+    // Fallback to separate events and matches
     const events = reduxEvents.byDate[selectedDate] || []
     const matches = matchesByDate[selectedDate] || []
     
     return [...events, ...matches]
-  }, [reduxEvents.byDate, matchesByDate, selectedDate])
+  }, [reduxSchedule.byDate, reduxEvents.byDate, matchesByDate, selectedDate])
 
 const combinedCalendarEvents = useMemo(() => {
+  // If we have schedule data, use it (unified data source)
+  if (reduxSchedule.items.length > 0) {
+    return reduxSchedule.byDate
+  }
+  
+  // Fallback to separate events and matches
   const allDates = {
     ...reduxEvents.byDate,
     ...matchesByDate,
@@ -153,32 +195,52 @@ const combinedCalendarEvents = useMemo(() => {
   })
 
   return combined
-}, [reduxEvents.byDate, matchesByDate])
+}, [reduxSchedule.byDate, reduxEvents.byDate, matchesByDate])
 
 
   // Create marked dates for the calendar
   const markedDates = useMemo(() => {
     const marked: Record<string, { marked: boolean; dotColor: string }> = {}
 
-    // Add events from Redux
-    Object.keys(reduxEvents.byDate).forEach((date) => {
-      if (reduxEvents.byDate[date] && reduxEvents.byDate[date].length > 0) {
-        marked[date] = {
-          marked: true,
-          dotColor: "#4CAF50", // Green dot
+    // If we have schedule data, use it (unified data source)
+    if (reduxSchedule.items.length > 0) {
+      Object.keys(reduxSchedule.byDate).forEach((date) => {
+        const dayItems = reduxSchedule.byDate[date]
+        if (dayItems && dayItems.length > 0) {
+          // Determine color based on the type of events for this date
+          const hasMatches = dayItems.some((item) => item.type === "match")
+          const hasEvents = dayItems.some((item) => item.type === "event")
+          const hasPractices = dayItems.some((item) => item.type === "practice")
+          
+          marked[date] = {
+            marked: true,
+            // Priority: matches (orange) > practices (blue) > events (green)
+            dotColor: hasMatches ? "#FCA311" : hasPractices ? "#3B82F6" : "#4CAF50",
+          }
         }
-      }
-    })
+      })
+    } else {
+      // Fallback to separate events and matches
+      // Add events from Redux
+      Object.keys(reduxEvents.byDate).forEach((date) => {
+        if (reduxEvents.byDate[date] && reduxEvents.byDate[date].length > 0) {
+          marked[date] = {
+            marked: true,
+            dotColor: "#4CAF50", // Green dot
+          }
+        }
+      })
 
-    // Add matches from Redux
-    Object.keys(matchesByDate).forEach((date) => {
-      if (matchesByDate[date] && matchesByDate[date].length > 0) {
-        marked[date] = {
-          marked: true,
-          dotColor: "#4CAF50", // Green dot
+      // Add matches from Redux (overwrites events if both exist)
+      Object.keys(matchesByDate).forEach((date) => {
+        if (matchesByDate[date] && matchesByDate[date].length > 0) {
+          marked[date] = {
+            marked: true,
+            dotColor: "#FCA311", // Orange dot for matches
+          }
         }
-      }
-    })
+      })
+    }
 
     // Log for debugging
     console.log(`Calendar has ${Object.keys(marked).length} dates with events`)
@@ -187,7 +249,7 @@ const combinedCalendarEvents = useMemo(() => {
     }
 
     return marked
-  }, [reduxEvents.byDate, matchesByDate])
+  }, [reduxSchedule.byDate, reduxEvents.byDate, matchesByDate])
 
   // Memoize formatted date
   const formattedDate = useMemo(() => {

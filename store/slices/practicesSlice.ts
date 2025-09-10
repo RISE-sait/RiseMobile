@@ -1,8 +1,8 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit"
 import axios from "axios"
-import { API_URL } from "@/utils/api"
+import { API_URL, refreshBackendJwt } from "@/utils/api"
 import dayjs from "dayjs"
-import { auth } from "@/firebase/firebaseConfig"
+// import { auth } from "@/firebase/firebaseConfig" // No longer needed with centralized token management
 import type { CalendarItem, PracticesState } from "@/types"
 import type { CreatePracticePayload } from "@/types/practice"
 
@@ -62,10 +62,14 @@ export const fetchPractices = createAsyncThunk(
         response_type: "date",
       })
 
-      const response = await axios.get(`${API_URL}/secure/events?${params.toString()}`, {
+      const response = await axios.get(`${API_URL}/secure/schedule?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      console.log("🧪 Practices from secure endpoint:", response.data)
+      console.log("🧪 Practices from secure schedule endpoint:", response.data)
+      
+      // Extract only practices data from the schedule response
+      const responseData = response.data as any
+      const practicesData = responseData.practices || []
 
 
 
@@ -74,18 +78,18 @@ export const fetchPractices = createAsyncThunk(
       const byDate: Record<string, CalendarItem[]> = {}
       const byId: Record<string, CalendarItem> = {}
 
-      for (const event of response.data)  {
-        const startDate = dayjs(event.start_at).format("YYYY-MM-DD")
-        const time = dayjs(event.start_at).format("HH:mm")
+      for (const practice of practicesData)  {
+        const startDate = dayjs(practice.start_time).format("YYYY-MM-DD")
+        const time = dayjs(practice.start_time).format("HH:mm")
 
         const item: CalendarItem = {
-          id: event.id,
-          title: event.program?.name || "Practice",
+          id: practice.id,
+          title: practice.team_name || extractTitle(practice),
           date: startDate,
           time,
           type: "practice",
-          location: event.location?.name || "RISE Basketball Facility",
-          description: `${event.program?.name || "Practice"} at ${event.location?.name || "RISE Basketball Facility"}`,
+          location: practice.location_name || practice.location?.name || "TBD",
+          description: `${practice.team_name || extractTitle(practice)} practice${practice.location_name ? ' at ' + practice.location_name : ''}`,
         }
 
         items.push(item)
@@ -114,17 +118,8 @@ export const createPracticeThunk = createAsyncThunk<
   "practices/createPractice",
   async (payload, { rejectWithValue, dispatch }) => {
     try {
-      const firebaseUser = auth.currentUser
-      if (!firebaseUser) throw new Error("No user is logged in.")
-
-      const firebaseToken = await firebaseUser.getIdToken(true)
-      const jwtResponse = await fetch(`${API_URL}/auth`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${firebaseToken}` },
-        body: JSON.stringify({ email: firebaseUser.email }),
-      })
-
-      const jwt = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
+      // Use centralized JWT refresh instead of manual token exchange
+      const jwt = await refreshBackendJwt()
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
       const response = await axios.post(
@@ -135,8 +130,9 @@ export const createPracticeThunk = createAsyncThunk<
         }
       )
 
+      const responseData = response.data as any
       const item: CalendarItem = {
-        id: response.data.id, // no fallback
+        id: responseData.id, // no fallback
         title: "Practice", // fallback title
         date: dayjs(payload.start_time).format("YYYY-MM-DD"),
         time: dayjs(payload.start_time).format("HH:mm"),
@@ -170,17 +166,8 @@ export const createRecurringPracticeThunk = createAsyncThunk<
   "practices/createRecurringPractice",
   async (payload, { rejectWithValue }) => {
     try {
-      const firebaseUser = auth.currentUser
-      if (!firebaseUser) throw new Error("No user is logged in.")
-
-      const firebaseToken = await firebaseUser.getIdToken(true)
-      const jwtResponse = await fetch(`${API_URL}/auth`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${firebaseToken}` },
-        body: JSON.stringify({ email: firebaseUser.email }),
-      })
-
-      const jwt = jwtResponse.headers.get("authorization")?.replace("Bearer ", "")
+      // Use centralized JWT refresh instead of manual token exchange
+      const jwt = await refreshBackendJwt()
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
       await axios.post(
