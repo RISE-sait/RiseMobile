@@ -8,7 +8,7 @@
 // ===== BASE TYPES =====
 
 export type ScheduleItemType = 'event' | 'game' | 'practice'
-export type ScheduleItemStatus = 'upcoming' | 'live' | 'finished' | 'cancelled'
+export type ScheduleItemStatus = 'scheduled' | 'in_progress' | 'completed' | 'canceled'
 
 // ===== SHARED INTERFACES =====
 
@@ -423,7 +423,7 @@ export const DEFAULT_SCHEDULE_PARAMS: ScheduleRequestParams = {
 
 export const DEFAULT_SCHEDULE_FILTERS: ScheduleFilters = {
   types: ['event', 'game', 'practice'],
-  statuses: ['upcoming', 'live']
+  statuses: ['scheduled', 'in_progress']
 }
 
 // Re-export for backward compatibility

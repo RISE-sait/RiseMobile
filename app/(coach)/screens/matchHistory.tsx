@@ -114,7 +114,7 @@ const MatchHistory: React.FC = () => {
   };
 
   // Backend filtering - real-time API calls instead of client-side filtering
-  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'live' | 'completed'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'scheduled' | 'in_progress' | 'completed' | 'canceled'>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -144,35 +144,8 @@ const MatchHistory: React.FC = () => {
         // Use real scores from API
         homeScore: match.home_score || match.win_score || 0,
         awayScore: match.away_score || match.lose_score || 0,
-        // Use backend status directly - backend filter should return correct status
-        status: (() => {
-          const apiStatus = match.status?.toLowerCase() || "scheduled";
-          let frontendStatus: "upcoming" | "live" | "completed";
-          
-          // Direct mapping from API status to frontend status
-          switch (apiStatus) {
-            case "live":
-              frontendStatus = "live";
-              break;
-            case "upcoming":
-              frontendStatus = "upcoming";
-              break;
-            case "completed":
-            case "finished":
-              frontendStatus = "completed";
-              break;
-            case "scheduled":
-            default:
-              // If backend returns "scheduled", this indicates a backend issue
-              // For now, default to "upcoming" but log the issue
-              frontendStatus = "upcoming";
-              console.warn(`⚠️ Backend returned unexpected status: ${apiStatus} for filter: ${activeTab}`);
-              break;
-          }
-          
-          console.log(`🎯 TRANSFORM: Match ${match.id} | API: ${apiStatus} | Frontend: ${frontendStatus} | Filter: ${activeTab}`);
-          return frontendStatus;
-        })(),
+        // Use backend status directly - no conversion needed
+        status: match.status || "scheduled",
         venue: hasNewStructure ? (match as any).location_name || "RISE Basketball Facility" : match.location || "RISE Basketball Facility",
         league: "Basketball League",
         // Add fields expected by useMatchFilters
@@ -202,8 +175,8 @@ const MatchHistory: React.FC = () => {
     
     // Log status breakdown for debugging
     const statusCounts = {
-      upcoming: transformed.filter(m => m.status === "upcoming").length,
-      live: transformed.filter(m => m.status === "live").length,
+      scheduled: transformed.filter(m => m.status === "scheduled").length,
+      in_progress: transformed.filter(m => m.status === "in_progress").length,
       completed: transformed.filter(m => m.status === "completed").length
     };
     console.log("📋 MATCH HISTORY: Status breakdown:", statusCounts);
@@ -211,15 +184,20 @@ const MatchHistory: React.FC = () => {
     return transformed;
   }, [matches, activeTab]);
   
-  // Display matches directly from backend - no client-side filtering
-  const filteredMatches = transformedMatches;
+  // Display matches filtered by active tab
+  const filteredMatches = useMemo(() => {
+    if (activeTab === 'all') {
+      return transformedMatches;
+    }
+    return transformedMatches.filter(match => match.status === activeTab);
+  }, [transformedMatches, activeTab]);
   
   // Handle tab changes with real-time API calls
-  const handleTabChange = (tab: 'all' | 'upcoming' | 'live' | 'completed') => {
+  const handleTabChange = (tab: 'all' | 'scheduled' | 'in_progress' | 'completed' | 'canceled') => {
     console.log("📋 TAB CHANGE: Switching to", tab, "- calling backend API");
     setActiveTab(tab);
     
-    // Convert frontend tab to backend filter
+    // Use tab directly as backend filter
     const backendFilter = tab === 'completed' ? 'past' : tab;
     loadMatchHistory(backendFilter);
   };
@@ -345,17 +323,19 @@ const MatchHistory: React.FC = () => {
   const getStatusIndicator = (status: string) => {
     console.log("🎯 STATUS INDICATOR: Displaying status:", status);
     switch (status) {
-      case 'live':
+      case 'in_progress':
         return (
           <View style={styles.liveIndicator}>
             <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
+            <Text style={styles.liveText}>IN PROGRESS</Text>
           </View>
         );
-      case 'upcoming':
-        return <Text style={styles.upcomingText}>UPCOMING</Text>;
+      case 'scheduled':
+        return <Text style={styles.upcomingText}>SCHEDULED</Text>;
       case 'completed':
         return <Text style={styles.completedText}>COMPLETED</Text>;
+      case 'canceled':
+        return <Text style={styles.canceledText}>CANCELED</Text>;
       default:
         console.log("🎯 STATUS INDICATOR: Unknown status, showing nothing:", status);
         return null;
@@ -397,14 +377,14 @@ const MatchHistory: React.FC = () => {
           style={[
             styles.matchCard,
             isExpanded && styles.matchCardExpanded,
-            item.status === 'live' && styles.liveMatchCard,
+            item.status === 'in_progress' && styles.liveMatchCard,
           ]}
         >
           {/* League & Date Banner */}
           <View style={styles.leagueBanner}>
             <Text style={styles.leagueText}>{item.league}</Text>
             <Text style={styles.dateText}>
-              {item.status === 'upcoming' 
+              {item.status === 'scheduled' 
                 ? `${dayjs(item.date).format("ddd, MMM DD")} • ${dayjs(item.date).format("h:mm A")}`
                 : dayjs(item.date).format("DD MMM YYYY")}
             </Text>
@@ -703,25 +683,25 @@ const MatchHistory: React.FC = () => {
               <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>All</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.tab, activeTab === 'live' && styles.activeTab]} 
-              onPress={() => handleTabChange('live')}
+              style={[styles.tab, activeTab === 'in_progress' && styles.activeTab]} 
+              onPress={() => handleTabChange('in_progress')}
             >
               <View style={styles.tabContent}>
                 <View style={styles.liveDotSmall} />
-                <Text style={[styles.tabText, activeTab === 'live' && styles.activeTabText]}>Live</Text>
+                <Text style={[styles.tabText, activeTab === 'in_progress' && styles.activeTabText]}>IN PROGRESS</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]} 
-              onPress={() => handleTabChange('upcoming')}
+              style={[styles.tab, activeTab === 'scheduled' && styles.activeTab]} 
+              onPress={() => handleTabChange('scheduled')}
             >
-              <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>Upcoming</Text>
+              <Text style={[styles.tabText, activeTab === 'scheduled' && styles.activeTabText]}>SCHEDULED</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.tab, activeTab === 'completed' && styles.activeTab]} 
               onPress={() => handleTabChange('completed')}
             >
-              <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>Completed</Text>
+              <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>COMPLETED</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

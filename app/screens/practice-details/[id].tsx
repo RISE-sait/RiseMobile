@@ -150,24 +150,24 @@ const PracticeDetails: React.FC = () => {
     const practiceStart = dayjs(startTime)
     
     if (apiStatus === "canceled") return "Cancelled"  // API uses "canceled" not "cancelled"
-    if (apiStatus === "completed") return "Completed"
+    if (apiStatus === "completed") return "completed"
     
     // For "scheduled" status, check time to determine if ongoing or upcoming
     if (apiStatus === "scheduled") {
       if (practiceStart.isBefore(now)) return "Ongoing"
-      return "Upcoming"
+      return "scheduled"
     }
     
-    return "Upcoming" // Default fallback
+    return "scheduled" // Default fallback
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Upcoming":
+      case "scheduled":
         return COLORS.primary
       case "Ongoing":
         return COLORS.success
-      case "Completed":
+      case "completed":
         return COLORS.textSecondary
       case "Cancelled":
         return COLORS.danger
@@ -204,7 +204,7 @@ const PracticeDetails: React.FC = () => {
   const handleJoinPractice = () => {
     if (!practice) return
 
-    if (practice.status === "Completed" || practice.status === "Cancelled") {
+    if (practice.status === "completed" || practice.status === "Cancelled") {
       Alert.alert("Cannot Join", `This practice has been ${practice.status.toLowerCase()}.`)
       return
     }
@@ -244,7 +244,7 @@ const PracticeDetails: React.FC = () => {
   }
 
   const statusColor = getStatusColor(practice.status)
-  const isPastPractice = practice.status === "Completed" || practice.status === "Cancelled"
+  const isPastPractice = practice.status === "completed" || practice.status === "Cancelled"
 
   return (
     <SafeAreaView style={styles.container}>

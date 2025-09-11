@@ -128,7 +128,7 @@ const upcomingEvent = relevantEvents
   date: event.date || dayjs().format("YYYY-MM-DD"),
   homeTeam: event.homeTeam || "Home Team",
   awayTeam: event.awayTeam || "Away Team",
-  status: "Upcoming" as "Upcoming",
+  status: "scheduled" as "scheduled",
   location: event.location || "RISE Basketball Facility",
   description: `${children[0]?.firstName || "Child"}'s ${event.type}`,
   homeLogo:

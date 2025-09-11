@@ -25,7 +25,7 @@ export interface Match {
   start_at?: string
   end_at?: string
   capacity?: number
-  status?: string // API status field for client-side mapping
+  status?: "scheduled" | "in_progress" | "completed" | "canceled" // API status field for client-side mapping
 }
 
 export interface GamesState {

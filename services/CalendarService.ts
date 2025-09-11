@@ -98,7 +98,7 @@ export interface UnifiedScheduleItem {
   raw: ScheduleEvent | ScheduleGame | SchedulePractice
   created_at: string
   updated_at: string
-  status: 'upcoming' | 'live' | 'finished'
+  status: 'scheduled' | 'in_progress' | 'completed'
 }
 
 // ===== CACHE MANAGEMENT =====
@@ -268,7 +268,7 @@ class CalendarService {
     
     const allItems = await this.getSchedule(params)
     return allItems
-      .filter(item => item.status === 'upcoming')
+      .filter(item => item.status === 'scheduled')
       .sort((a, b) => dayjs(`${a.date} ${a.time}`).diff(dayjs(`${b.date} ${b.time}`)))
       .slice(0, limit)
   }
@@ -421,14 +421,14 @@ class CalendarService {
   /**
    * Internal: Determine item status based on time
    */
-  private determineStatus(start_time: string, end_time?: string): 'upcoming' | 'live' | 'finished' {
+  private determineStatus(start_time: string, end_time?: string): 'scheduled' | 'in_progress' | 'completed' {
     const now = dayjs()
     const start = dayjs(start_time)
     const end = end_time ? dayjs(end_time) : start.add(2, 'hours') // Default duration
     
-    if (now.isBefore(start)) return 'upcoming'
-    if (now.isAfter(end)) return 'finished'
-    return 'live'
+    if (now.isBefore(start)) return 'scheduled'
+    if (now.isAfter(end)) return 'completed'
+    return 'in_progress'
   }
   
   /**

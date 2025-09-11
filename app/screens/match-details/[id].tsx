@@ -32,9 +32,10 @@ import { selectAllMatches } from "@/store/slices/gamesSlice"
 const { width } = Dimensions.get("window")
 
 const statusStyles = {
-  Upcoming: { label: "Upcoming", color: "#FFD369", bgColor: "rgba(255, 211, 105, 0.15)" },
-  Finished: { label: "Final", color: "#4ade80", bgColor: "rgba(74, 222, 128, 0.15)" },
-  Live: { label: "Live", color: "#EF4444", bgColor: "rgba(239, 68, 68, 0.15)" },
+  scheduled: { label: "SCHEDULED", color: "#FFD369", bgColor: "rgba(255, 211, 105, 0.15)" },
+  in_progress: { label: "IN PROGRESS", color: "#EF4444", bgColor: "rgba(239, 68, 68, 0.15)" },
+  completed: { label: "COMPLETED", color: "#4ade80", bgColor: "rgba(74, 222, 128, 0.15)" },
+  canceled: { label: "CANCELED", color: "#6b7280", bgColor: "rgba(107, 114, 128, 0.15)" },
 }
 
 // Instagram profile URL - replace with your actual profile URL
@@ -234,7 +235,7 @@ const MatchDetailsScreen = () => {
   }
 
   // Default status
-  const status = "Finished" // You can determine this based on game data if available
+  const status = "completed" // You can determine this based on game data if available
   const { color, label, bgColor } = statusStyles[status as keyof typeof statusStyles]
 
   // Basketball stats (mock data - in a real app, this would come from your API)

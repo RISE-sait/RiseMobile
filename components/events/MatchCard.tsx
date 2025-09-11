@@ -17,19 +17,21 @@ interface MatchProps {
     lose_team?: string
     win_score?: number
     lose_score?: number
-    status?: "Upcoming" | "Finished" | "Live" | "upcoming" | "completed" | "live"
+    status?: "scheduled" | "in_progress" | "completed" | "canceled"
     league?: string
+    // API team fields for proper display
+    home_team_name?: string
+    away_team_name?: string
+    home_score?: number
+    away_score?: number
   }
 }
 
 const statusStyles = {
-  Upcoming: { color: "#FFA500", label: "Upcoming", icon: "clock" },
-  Finished: { color: "#22C55E", label: "Finished", icon: "check-circle" },
-  Live: { color: "#EF4444", label: "Live", icon: "circle-dot" },
-  // 添加小写映射以兼容不同来源的数据
-  upcoming: { color: "#FFA500", label: "Upcoming", icon: "clock" },
-  completed: { color: "#22C55E", label: "Finished", icon: "check-circle" },
-  live: { color: "#EF4444", label: "Live", icon: "circle-dot" },
+  scheduled: { color: "#FFA500", label: "SCHEDULED", icon: "clock" },
+  in_progress: { color: "#EF4444", label: "IN PROGRESS", icon: "circle-dot" },
+  completed: { color: "#22C55E", label: "COMPLETED", icon: "check-circle" },
+  canceled: { color: "#9CA3AF", label: "CANCELED", icon: "x-circle" },
 }
 
 const MatchCard: React.FC<MatchProps> = ({ match }) => {
@@ -44,7 +46,7 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
   const teamsLoading = useAppSelector(selectTeamsLoading)
 
   // Default status if not provided
-  const status = match.status || "Upcoming"
+  const status = match.status || "scheduled"
   const { color, label, icon } = statusStyles[status]
 
   // Fetch teams data if not already loaded
@@ -54,9 +56,9 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
     }
   }, [dispatch, token, teamsLoading])
 
-  // Get team names from Redux store
-  const homeTeamName = homeTeam ? homeTeam.name : match.win_team || "Home Team"
-  const awayTeamName = awayTeam ? awayTeam.name : match.lose_team || "Away Team"
+  // Get team names - prioritize API team name fields, fallback to Redux store
+  const homeTeamName = match.home_team_name || (homeTeam ? homeTeam.name : match.win_team) || "Home Team"
+  const awayTeamName = match.away_team_name || (awayTeam ? awayTeam.name : match.lose_team) || "Away Team"
 
   // Use placeholder logos
   const homeLogo = "https://via.placeholder.com/100"
@@ -115,7 +117,7 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
           {/* Scores */}
           <View className="mx-3 bg-gold-100/20 px-3 py-1 rounded-full">
             <Text className="text-white-100 font-extrabold text-xl tracking-wide">
-              {match.win_score || 0} - {match.lose_score || 0}
+              {match.home_score ?? match.win_score ?? 0} - {match.away_score ?? match.lose_score ?? 0}
             </Text>
           </View>
 

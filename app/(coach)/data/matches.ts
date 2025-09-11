@@ -101,7 +101,7 @@ const mockMatches: Match[] = [
     awayRebounds: 0,
     homeAssists: 0,
     awayAssists: 0,
-    status: "upcoming",
+    status: "scheduled",
     venue: "Fiserv Forum, Milwaukee",
     league: "NBA",
     mvp: {
@@ -128,7 +128,7 @@ const mockMatches: Match[] = [
     awayRebounds: 28,
     homeAssists: 18,
     awayAssists: 15,
-    status: "live",
+    status: "in_progress",
     venue: "FTX Arena, Miami",
     league: "NBA",
     mvp: {
@@ -173,7 +173,7 @@ const mockMatches: Match[] = [
     awayRebounds: 0,
     homeAssists: 0,
     awayAssists: 0,
-    status: "upcoming",
+    status: "scheduled",
     venue: "Footprint Center, Phoenix",
     league: "NBA",
     mvp: {
@@ -200,7 +200,7 @@ const mockMatches: Match[] = [
     awayRebounds: 36,
     homeAssists: 22,
     awayAssists: 20,
-    status: "live",
+    status: "in_progress",
     venue: "Ball Arena, Denver",
     league: "NBA",
     mvp: {
@@ -254,7 +254,7 @@ const mockMatches: Match[] = [
     awayRebounds: 0,
     homeAssists: 0,
     awayAssists: 0,
-    status: "upcoming",
+    status: "scheduled",
     venue: "Santiago Bernabéu, Madrid",
     league: "EuroLeague",
     mvp: {

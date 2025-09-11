@@ -130,7 +130,7 @@ const EventDetails: React.FC = () => {
       image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
       organizer: "RISE Basketball",
       category: "Practice",
-      status: "Upcoming", // TODO: Calculate based on date
+      status: "scheduled", // TODO: Calculate based on date
       capacity: 0, // Default capacity since not in CalendarItem
     }
     
@@ -485,13 +485,13 @@ const EventDetails: React.FC = () => {
 
   // Determine event status based on start and end dates
   const getEventStatus = (startDate: Date | null, endDate: Date | null): string => {
-    if (!startDate) return "Upcoming"
+    if (!startDate) return "scheduled"
 
     const now = new Date()
 
     if (endDate && now > endDate) return "Past"
     if (startDate <= now && (!endDate || now <= endDate)) return "Ongoing"
-    return "Upcoming"
+    return "scheduled"
   }
 
   // Fallback to mock data if API fails
@@ -532,7 +532,7 @@ const EventDetails: React.FC = () => {
         "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
       organizer: "RISE Basketball",
       category,
-      status: "Upcoming",
+      status: "scheduled",
       capacity: 100,
     }
 
@@ -541,7 +541,7 @@ const EventDetails: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Upcoming":
+      case "scheduled":
         return COLORS.primary
       case "Ongoing":
         return COLORS.success
