@@ -64,6 +64,7 @@ interface ApiEventResponse {
   name?: string
   description?: string
   type?: string
+  status?: string // Add status field from API
   created_at?: string
   updated_at?: string
   // Add these only if they exist
@@ -196,7 +197,7 @@ const EventDetails: React.FC = () => {
           image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
           organizer: "RISE Basketball",
           category: cachedEvent.type || "Event",
-          status: getEventStatus(startDate, endDate),
+          status: (cachedEvent as any).status || getEventStatus(startDate, endDate), // Prioritize API status
           capacity: cachedEvent.capacity || 0,
         }
         setEvent(processedEvent)
@@ -251,7 +252,7 @@ const EventDetails: React.FC = () => {
               image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
               organizer: "RISE Basketball", 
               category: eventData.type || "Event",
-              status: getEventStatus(startDate, endDate),
+              status: eventData.status || getEventStatus(startDate, endDate), // Prioritize API status
               capacity: eventData.capacity || 0,
             }
             setEvent(processedEvent)
@@ -341,7 +342,7 @@ const EventDetails: React.FC = () => {
           "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
         organizer: organizerName,
         category: eventData.type || "Event",
-        status: getEventStatus(startDate, endDate),
+        status: eventData.status || getEventStatus(startDate, endDate), // Prioritize API status
         capacity: eventData.capacity || 0,
       }
 
@@ -483,14 +484,14 @@ const EventDetails: React.FC = () => {
     }
   }
 
-  // Determine event status based on start and end dates
+  // Determine event status based on start and end dates - returns standardized status values
   const getEventStatus = (startDate: Date | null, endDate: Date | null): string => {
     if (!startDate) return "scheduled"
 
     const now = new Date()
 
-    if (endDate && now > endDate) return "Past"
-    if (startDate <= now && (!endDate || now <= endDate)) return "Ongoing"
+    if (endDate && now > endDate) return "completed"
+    if (startDate <= now && (!endDate || now <= endDate)) return "in_progress"
     return "scheduled"
   }
 
@@ -543,9 +544,11 @@ const EventDetails: React.FC = () => {
     switch (status) {
       case "scheduled":
         return COLORS.primary
-      case "Ongoing":
+      case "in_progress":
         return COLORS.success
-      case "Past":
+      case "completed":
+        return COLORS.textSecondary
+      case "canceled":
         return COLORS.textSecondary
       default:
         return COLORS.primary
@@ -568,7 +571,7 @@ const EventDetails: React.FC = () => {
   const handleRegister = () => {
     if (!event) return
 
-    if (event.status === "Past") {
+    if (event.status === "completed") {
       Alert.alert("Cannot Register", "This event has already ended.")
       return
     }
@@ -618,7 +621,7 @@ const EventDetails: React.FC = () => {
   }
 
   const statusColor = getStatusColor(event.status)
-  const isPastEvent = event.status === "Past"
+  const isPastEvent = event.status === "completed"
 
   return (
     <SafeAreaView style={styles.container}>

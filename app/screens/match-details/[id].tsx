@@ -51,6 +51,7 @@ interface GameData {
   lose_score?: number
   created_at?: string
   updated_at?: string
+  status?: string // Add status field from API
 }
 
 const MatchDetailsScreen = () => {
@@ -140,7 +141,8 @@ const MatchDetailsScreen = () => {
             win_score: gameData.winner_score || 0,
             lose_score: gameData.loser_score || 0,
             created_at: gameData.start_time || gameData.created_at,
-            updated_at: gameData.updated_at
+            updated_at: gameData.updated_at,
+            status: gameData.status || "scheduled" // Extract actual status from API
           }
           
           setGame(transformedGame)
@@ -234,8 +236,8 @@ const MatchDetailsScreen = () => {
     )
   }
 
-  // Default status
-  const status = "completed" // You can determine this based on game data if available
+  // Get status dynamically from game data
+  const status = game?.status || "scheduled"
   const { color, label, bgColor } = statusStyles[status as keyof typeof statusStyles]
 
   // Basketball stats (mock data - in a real app, this would come from your API)
