@@ -20,7 +20,7 @@ type EventDetailsModalProps = {
     homeScore?: number
     awayScore?: number
     league?: string
-    status: "Upcoming" | "Finished" | "Live"
+    status: "scheduled" | "in_progress" | "completed" | "canceled"
     location: string
     description: string
     homeLogo?: string
@@ -31,9 +31,10 @@ type EventDetailsModalProps = {
 }
 
 const statusStyles = {
-  Upcoming: { label: "Upcoming", color: "#FFD369" },
-  Finished: { label: "Final", color: "#4ade80" },
-  Live: { label: "Live", color: "#EF4444" },
+  scheduled: { label: "SCHEDULED", color: "#FFD369" },
+  in_progress: { label: "IN PROGRESS", color: "#EF4444" },
+  completed: { label: "COMPLETED", color: "#4ade80" },
+  canceled: { label: "CANCELED", color: "#6b7280" },
 }
 
 const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClose, event }) => {
@@ -167,7 +168,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
                   <Text className="text-white-100 text-base font-semibold mt-3 text-center">{event.homeTeam}</Text>
                 </View>
 
-                {event.status === "Finished" ? (
+                {event.status === "completed" ? (
                   <View className="items-center px-4 py-3 bg-[#2A2A2A] rounded-lg">
                     <Text className="text-white-100 text-3xl font-extrabold">
                       {event.homeScore} - {event.awayScore}

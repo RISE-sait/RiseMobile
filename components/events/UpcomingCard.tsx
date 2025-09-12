@@ -12,7 +12,7 @@ type UpcomingCardProps = {
     date: string
     homeTeam?: string
     awayTeam?: string
-    status: "Upcoming" | "Finished" | "Live"
+    status: "scheduled" | "in_progress" | "completed" | "canceled"
     location: string
     description: string
     homeLogo?: any
@@ -24,11 +24,11 @@ type UpcomingCardProps = {
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case "Upcoming":
+    case "scheduled":
       return "text-yellow-400"
-    case "Finished":
+    case "completed":
       return "text-gray-400"
-    case "Live":
+    case "in_progress":
       return "text-red-500"
     default:
       return "text-white-100"

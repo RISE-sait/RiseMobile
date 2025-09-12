@@ -145,7 +145,14 @@ const EventsScreen: React.FC = () => {
       setFilteredEvents(events);
       return;
     }
-    const filtered = events.filter(event => getEventStatus(event.date) === filter);
+    // Map UI filter labels to backend status values
+    const statusMapping = {
+      "SCHEDULED": "scheduled",
+      "Ongoing": "Ongoing",
+      "Past": "Past"
+    };
+    const backendStatus = statusMapping[filter] || filter;
+    const filtered = events.filter(event => getEventStatus(event.date) === backendStatus);
     setFilteredEvents(filtered);
   };
 
@@ -154,12 +161,12 @@ const EventsScreen: React.FC = () => {
     const today = new Date();
     if (eventDate < today) return "Past";
     if (eventDate.toDateString() === today.toDateString()) return "Ongoing";
-    return "Upcoming";
+    return "scheduled";
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Upcoming": return "#FCA311";
+      case "scheduled": return "#FCA311";
       case "Ongoing": return "#4CAF50";
       case "Past": return "#9E9E9E";
       default: return "#FCA311";
@@ -227,7 +234,7 @@ const EventsScreen: React.FC = () => {
   };
 
   const renderFilterChips = () => {
-    const filters = ["All", "Upcoming", "Ongoing", "Past"];
+    const filters = ["All", "SCHEDULED", "Ongoing", "Past"];
     return (
       <View style={styles.filtersContainer}>
         {filters.map(filter => (

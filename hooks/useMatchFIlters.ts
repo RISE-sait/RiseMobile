@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import dayjs from 'dayjs';
 
-// Define types
-export type MatchStatus = 'upcoming' | 'live' | 'completed';
+// Define types - unified with backend API
+export type MatchStatus = 'scheduled' | 'in_progress' | 'completed' | 'canceled';
 export type FilterTab = 'all' | MatchStatus;
 
 export interface FilterOptions {

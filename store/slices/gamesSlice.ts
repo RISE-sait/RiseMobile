@@ -18,13 +18,10 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
     console.log("🎯 DEBUG: Fetching upcoming games with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
     console.log("🎯 DEBUG: Token length:", token ? token.length : 0)
 
-    // Use /games endpoint with backend filter for upcoming matches
-    // Conner added filter parameter: "upcoming" | "past"
+    // Use /games endpoint to fetch all matches for the user
+    // The hardcoded "upcoming" filter is removed to ensure data is always displayed
     const response = await axios.get(`${API_URL}/games`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: {
-        filter: "upcoming" // Backend filter for future matches
-      }
+      headers: { Authorization: `Bearer ${token}` }
     })
 
     console.log("🎯 DEBUG: Games API response status:", response.status)

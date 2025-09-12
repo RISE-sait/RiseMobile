@@ -90,7 +90,7 @@ interface UpcomingEventData {
   title: string
   homeTeam?: string
   awayTeam?: string
-  status: "Upcoming" | "Finished" | "Live"
+  status: "scheduled" | "in_progress" | "completed" | "canceled"
   location: string
   description: string
   homeLogo?: string
@@ -146,7 +146,7 @@ export const useUpcomingEvent = () => {
                 date: startTime.format("YYYY-MM-DD"),
                 time: startTime.format("h:mm A"),
                 title: event.program?.name || "Event",
-                status: "Upcoming" as const,
+                status: "scheduled" as const,
                 location: event.location?.name || "RISE Facility",
                 description: event.program?.description || event.program?.name || "Event",
                 bgImage: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
@@ -169,7 +169,7 @@ export const useUpcomingEvent = () => {
                 title: `${game.home_team_name} vs ${game.away_team_name}`,
                 homeTeam: game.home_team_name,
                 awayTeam: game.away_team_name,
-                status: "Upcoming" as const,
+                status: "scheduled" as const,
                 location: game.location_name || "RISE Facility",
                 description: `Match between ${game.home_team_name} and ${game.away_team_name}`,
                 homeLogo: game.home_team_logo_url || "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
@@ -192,7 +192,7 @@ export const useUpcomingEvent = () => {
                 date: startTime.format("YYYY-MM-DD"),
                 time: startTime.format("h:mm A"),
                 title: `${practice.team_name} Practice`,
-                status: "Upcoming" as const,
+                status: "scheduled" as const,
                 location: `${practice.court_name} at ${practice.location_name}`,
                 description: `Practice for ${practice.team_name}`,
                 bgImage: practice.team_logo_url || "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
