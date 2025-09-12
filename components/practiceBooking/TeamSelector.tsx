@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   selected: {
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.primary + '15',
   },
   errorBorder: {
     borderColor: "#ff4d4f",

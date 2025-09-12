@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native";
 import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,16 +11,14 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
 import EmptyState from "@/components/feedback/EmptyState"
 
-
 const { width } = Dimensions.get("window");
 
-// Generate extended date range to include August test data (2025-08-02 to 2025-08-04)
+// Fixed function to generate exactly 13 days (6 before + today + 6 after)
 const generateWeekDates = (): dayjs.Dayjs[] => {
   const today = dayjs();
-  const testDataStart = dayjs("2025-08-02");
-  const startDate = testDataStart.isBefore(today.subtract(6, "day")) ? testDataStart : today.subtract(6, "day");
-  const endDate = today.add(7, "day");
-  const totalDays = endDate.diff(startDate, "day") + 1;
+  const startDate = today.subtract(6, "day");
+  const endDate = today.add(6, "day");
+  const totalDays = 13; // Always 13 days
   
   return Array.from({ length: totalDays }, (_, i) => startDate.add(i, "day"));
 };
@@ -32,9 +30,25 @@ const CoachMatches: React.FC = () => {
   const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
-  const [weekDates] = useState(generateWeekDates);
+  const [weekDates] = useState(() => generateWeekDates()); // Use function to ensure fresh generation
   const flatListRef = useRef<FlatList>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Center on today function
+  const centerOnToday = useCallback(() => {
+    const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"))
+    console.log("🏀 COACH MATCHES: Centering on today. Today index:", todayIndex, "Total dates:", weekDates.length)
+    
+    if (flatListRef.current && todayIndex !== -1) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ 
+          index: todayIndex, 
+          animated: true,
+          viewPosition: 0.5 // Center the item
+        })
+      }, 300)
+    }
+  }, [weekDates])
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -43,41 +57,35 @@ const CoachMatches: React.FC = () => {
       useNativeDriver: true,
     }).start();
 
-    const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"));
-
-    if (flatListRef.current && todayIndex >= 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({ index: todayIndex, animated: true });
-      }, 300);
-    }
-  }, [weekDates]);
+    // Center on today when component mounts
+    centerOnToday()
+  }, [centerOnToday]);
 
   useEffect(() => {
-  const fetchData = async () => {
-    let authToken = token
+    const fetchData = async () => {
+      let authToken = token
 
-    if (!authToken) {
-      try {
-        const userString = await AsyncStorage.getItem("user")
-        if (userString) {
-          const userData = JSON.parse(userString)
-          authToken = userData.token
+      if (!authToken) {
+        try {
+          const userString = await AsyncStorage.getItem("user")
+          if (userString) {
+            const userData = JSON.parse(userString)
+            authToken = userData.token
+          }
+        } catch (err) {
+          console.error("Error getting token from AsyncStorage:", err)
         }
-      } catch (err) {
-        console.error("Error getting token from AsyncStorage:", err)
+      }
+
+      if (authToken) {
+        // Clear existing matches to force fresh fetch with new API
+        dispatch(clearMatches())
+        dispatch(fetchMatches(authToken))
       }
     }
 
-    if (authToken) {
-      // Clear existing matches to force fresh fetch with new API
-      dispatch(clearMatches())
-      dispatch(fetchMatches(authToken))
-    }
-  }
-
-  fetchData()
-}, [dispatch, token])
-
+    fetchData()
+  }, [dispatch, token])
 
   // Debug logging
   console.log("🏀 COACH MATCHES: Component rendering")
@@ -86,18 +94,17 @@ const CoachMatches: React.FC = () => {
   console.log("🏀 COACH MATCHES: Total matches:", matches.length)
   console.log("🏀 COACH MATCHES: Selected date:", selectedDate)
   console.log("🏀 COACH MATCHES: Week dates count:", weekDates.length)
+  console.log("🏀 COACH MATCHES: Date range:", weekDates[0]?.format("YYYY-MM-DD"), "to", weekDates[weekDates.length - 1]?.format("YYYY-MM-DD"))
   console.log("🏀 COACH MATCHES: Token:", token ? "EXISTS" : "NULL")
-  console.log("🏀 COACH MATCHES: FadeAnim value:", fadeAnim._value)
-  console.log("🏀 COACH MATCHES: Week dates range:", weekDates[0]?.format("YYYY-MM-DD"), "to", weekDates[weekDates.length-1]?.format("YYYY-MM-DD"))
   
-  // ✅ Filter matches by selected date - use match.date instead of created_at
+  // Filter matches by selected date - use match.date instead of created_at
   const filteredMatches = matches.filter((match) => {
     const matchDate = match.date || dayjs().format("YYYY-MM-DD")
     console.log("🏀 COACH MATCHES: Filtering match date:", matchDate, "vs selected:", selectedDate)
     return matchDate === selectedDate
   });
 
-  // ✅ Render loading state - moved to proper place
+  // Render loading state - moved to proper place
   if (status === "loading") {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
@@ -107,7 +114,7 @@ const CoachMatches: React.FC = () => {
     )
   }
 
-  // ✅ Render error state - moved to proper place  
+  // Render error state - moved to proper place  
   if (status === "failed" && error) {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
@@ -137,15 +144,15 @@ const CoachMatches: React.FC = () => {
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate;
+    const isToday = item.isSame(dayjs(), "day")
 
-    const label = item.isSame(dayjs(), "day")
+    const label = isToday
       ? "Today"
       : item.isSame(dayjs().subtract(1, "day"), "day")
       ? "Yesterday"
       : item.isSame(dayjs().add(1, "day"), "day")
       ? "Tomorrow"
       : item.format("DD MMM");
-
 
     return (
       <TouchableOpacity
@@ -210,8 +217,19 @@ const CoachMatches: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.format("YYYY-MM-DD")}
           renderItem={renderDateItem}
-          contentContainerStyle={{ paddingHorizontal: width / 2 - 70, marginVertical: 15 }}
+          contentContainerStyle={{ paddingHorizontal: width / 2 - 35, marginVertical: 15 }}
           getItemLayout={(_, index) => ({ length: 72, offset: 72 * index, index })}
+          initialScrollIndex={6} // Start at index 6 (today, since we have 6 days before)
+          onScrollToIndexFailed={(info) => {
+            console.log("🏀 COACH MATCHES: Scroll to index failed:", info)
+            // Fallback: scroll to the nearest valid index
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({ 
+                index: Math.min(info.index, weekDates.length - 1), 
+                animated: true 
+              })
+            }, 100)
+          }}
         />
 
         {/* Match Cards or Empty State */}

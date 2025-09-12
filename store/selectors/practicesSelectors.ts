@@ -7,7 +7,7 @@ export const selectPracticesState = (state: RootState) => state.practices
 export const selectPracticesItems = (state: RootState) => state.practices.items
 export const selectPracticesByDate = (state: RootState) => state.practices.byDate
 export const selectPracticesById = (state: RootState) => state.practices.byId
-export const selectPracticesStatus = (state: RootState) => state.practices.status
+export const selectPracticesStatus = (state: RootState): 'idle' | 'loading' | 'succeeded' | 'failed' => state.practices.status
 export const selectPracticesError = (state: RootState) => state.practices.error
 export const selectPracticesLastFetched = (state: RootState) => state.practices.lastFetched
 

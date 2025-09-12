@@ -35,6 +35,21 @@ const getStatusColor = (status: string) => {
   }
 }
 
+// Helper function to format team names for better display
+const formatTeamName = (teamName: string) => {
+  if (!teamName) return ""
+  
+  // If team name is too long, try to abbreviate or wrap intelligently
+  if (teamName.length > 12) {
+    // Split by spaces and take first word + first letter of subsequent words
+    const words = teamName.split(" ")
+    if (words.length > 1) {
+      return words[0] + " " + words.slice(1).map(word => word.charAt(0)).join("")
+    }
+  }
+  return teamName
+}
+
 const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
   const [modalVisible, setModalVisible] = useState(false)
 
@@ -83,7 +98,7 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
       <TouchableOpacity onPress={() => setModalVisible(true)} activeOpacity={0.8}>
         <View className="w-full px-10 mt-10">
           <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING EVENT</Text>
-          <View className="bg-[#444444] h-32 rounded-xl overflow-hidden mt-3 flex justify-center items-center relative">
+          <View className="bg-[#444444] h-36 rounded-xl overflow-hidden mt-3 flex justify-center items-center relative">
             <Image
               source={{ uri: bgImageUri }}
               className="w-full h-full absolute"
@@ -93,47 +108,65 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
 
             {/* Matches & Practices (Athlete & Coach) */}
             {event.homeTeam && event.awayTeam ? (
-              <View className="flex-row items-center justify-center px-10">
+              <View className="flex-row items-center justify-between px-4 w-full">
                 {/* Home Team */}
-                <View className="flex items-center w-30">
+                <View className="flex items-center flex-1 max-w-[35%]">
                   {event.homeLogo && (
                     <Image
                       source={typeof event.homeLogo === "string" ? { uri: event.homeLogo } : event.homeLogo}
-                      className="w-16 h-16 mb-2"
+                      className="w-12 h-12 mb-1"
                       resizeMode="contain"
                     />
                   )}
-                  <Text className="text-white-100 font-Oswald-Medium uppercase text-xl text-center">
-                    {event.homeTeam.split(" ")[0]}
-                  </Text>
-                  <Text className="text-white-100 font-Oswald-Medium uppercase text-xl text-center">
-                    {event.homeTeam.split(" ")[1] || ""}
+                  <Text 
+                    className="text-white-100 font-Oswald-Medium uppercase text-center leading-tight"
+                    style={{ fontSize: 14 }}
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
+                    {formatTeamName(event.homeTeam)}
                   </Text>
                 </View>
 
-                {/* VS in the center with more spacing */}
-                <Text className="text-white-100 font-extrabold text-3xl tracking-wide mx-12">VS</Text>
+                {/* VS in the center */}
+                <View className="flex items-center justify-center px-4">
+                  <Text className="text-white-100 font-extrabold text-2xl tracking-wide">VS</Text>
+                </View>
 
                 {/* Away Team */}
-                <View className="flex items-center w-30">
+                <View className="flex items-center flex-1 max-w-[35%]">
                   {event.awayLogo && (
                     <Image
                       source={typeof event.awayLogo === "string" ? { uri: event.awayLogo } : event.awayLogo}
-                      className="w-16 h-16 mb-2"
+                      className="w-12 h-12 mb-1"
                       resizeMode="contain"
                     />
                   )}
-                  <Text className="text-white-100 font-Oswald-Medium uppercase text-xl text-center">
-                    {event.awayTeam.split(" ")[0]}
-                  </Text>
-                  <Text className="text-white-100 font-Oswald-Medium uppercase text-xl text-center">
-                    {event.awayTeam.split(" ")[1] || ""}
+                  <Text 
+                    className="text-white-100 font-Oswald-Medium uppercase text-center leading-tight"
+                    style={{ fontSize: 14 }}
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
+                    {formatTeamName(event.awayTeam)}
                   </Text>
                 </View>
               </View>
             ) : (
               // Instructor Events (Classes/Meetings)
-              <Text className="text-white-100 font-bold text-lg">{event.description}</Text>
+              <View className="px-4">
+                <Text 
+                  className="text-white-100 font-bold text-center leading-tight"
+                  style={{ fontSize: 16 }}
+                  numberOfLines={3}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
+                  {event.description}
+                </Text>
+              </View>
             )}
           </View>
         </View>

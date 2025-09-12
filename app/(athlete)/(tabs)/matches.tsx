@@ -1,5 +1,7 @@
+// Replace your MatchesScreen component with this fixed version:
+
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 
 console.log("🏀🏀🏀 MATCHES FILE LOADED - ATHLETE ROLE 🏀🏀🏀")
 import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native"
@@ -16,13 +18,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const { width } = Dimensions.get("window")
 
+// Fixed function to generate exactly 13 days (6 before + today + 6 after)
 const generateWeekDates = (): dayjs.Dayjs[] => {
-  // Generate extended date range to include August test data (2025-08-02 to 2025-08-04)
   const today = dayjs();
-  const testDataStart = dayjs("2025-08-02");
-  const startDate = testDataStart.isBefore(today.subtract(8, "day")) ? testDataStart : today.subtract(8, "day");
-  const endDate = today.add(8, "day");
-  const totalDays = endDate.diff(startDate, "day") + 1;
+  const startDate = today.subtract(6, "day");
+  const endDate = today.add(6, "day");
+  const totalDays = 13; // Always 13 days
   
   return Array.from({ length: totalDays }, (_, i) => startDate.add(i, "day"));
 }
@@ -37,9 +38,25 @@ const MatchesScreen: React.FC = () => {
   console.log("🏀 MATCHES COMPONENT: Redux hooks loaded successfully")
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))
-  const [weekDates] = useState(generateWeekDates)
+  const [weekDates] = useState(() => generateWeekDates()) // Use function to ensure fresh generation
   const flatListRef = useRef<FlatList>(null)
   const fadeAnim = useRef(new Animated.Value(0)).current
+
+  // Center on today function
+  const centerOnToday = useCallback(() => {
+    const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"))
+    console.log("🏀 Centering on today. Today index:", todayIndex, "Total dates:", weekDates.length)
+    
+    if (flatListRef.current && todayIndex !== -1) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ 
+          index: todayIndex, 
+          animated: true,
+          viewPosition: 0.5 // Center the item
+        })
+      }, 300)
+    }
+  }, [weekDates])
 
   // Reusable token getter with fallback logic
   const getAuthToken = async (): Promise<string | null> => {
@@ -105,14 +122,9 @@ const MatchesScreen: React.FC = () => {
       useNativeDriver: true,
     }).start()
 
-    const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"))
-
-    if (flatListRef.current) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({ index: todayIndex, animated: true })
-      }, 300)
-    }
-  }, [weekDates])
+    // Center on today when component mounts
+    centerOnToday()
+  }, [centerOnToday])
 
   // Filter matches by selected date
   const filteredMatches = matches.filter((match) => {
@@ -126,12 +138,14 @@ const MatchesScreen: React.FC = () => {
   console.log("🏀 DEBUG: MATCHES PAGE Total matches:", matches.length)
   console.log("🏀 DEBUG: MATCHES PAGE Selected date:", selectedDate)
   console.log("🏀 DEBUG: MATCHES PAGE Week dates count:", weekDates.length)
+  console.log("🏀 DEBUG: MATCHES PAGE Date range:", weekDates[0]?.format("YYYY-MM-DD"), "to", weekDates[weekDates.length - 1]?.format("YYYY-MM-DD"))
   console.log("🏀 DEBUG: MATCHES PAGE Filtered matches for", selectedDate, ":", filteredMatches.length)
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate
+    const isToday = item.isSame(dayjs(), "day")
 
-    const label = item.isSame(dayjs(), "day")
+    const label = isToday
       ? "Today"
       : item.isSame(dayjs().subtract(1, "day"), "day")
         ? "Yesterday"
@@ -230,8 +244,19 @@ const MatchesScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.format("YYYY-MM-DD")}
           renderItem={renderDateItem}
-          contentContainerStyle={{ paddingHorizontal: width / 2 - 70, marginVertical: 15 }}
+          contentContainerStyle={{ paddingHorizontal: width / 2 - 35, marginVertical: 15 }}
           getItemLayout={(_, index) => ({ length: 72, offset: 72 * index, index })}
+          initialScrollIndex={6} // Start at index 6 (today, since we have 6 days before)
+          onScrollToIndexFailed={(info) => {
+            console.log("🏀 Scroll to index failed:", info)
+            // Fallback: scroll to the nearest valid index
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({ 
+                index: Math.min(info.index, weekDates.length - 1), 
+                animated: true 
+              })
+            }, 100)
+          }}
         />
 
         {/* Match Cards or Empty State */}

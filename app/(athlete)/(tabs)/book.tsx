@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics"
 import { StatusBar } from "expo-status-bar"
 import { useAppSelector } from "@/store/hooks"
 import { getUpcomingBookings } from "@/utils/api"
+import EmptyBookingsState from "@/components/feedback/EmptyBookingState"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
@@ -510,25 +511,17 @@ const AthleteBook = () => {
                   scrollEnabled={false}
                 />
               ) : (
-                <View style={{ 
-                  backgroundColor: COLORS.card, 
-                  borderRadius: 12, 
-                  padding: 20, 
-                  alignItems: 'center' 
-                }}>
-                  <FontAwesome5 name="calendar-times" size={32} color={COLORS.textSecondary} />
-                  <Text style={{ color: COLORS.text, fontWeight: 'bold', marginTop: 12, fontSize: 16 }}>
-                    No Upcoming Bookings
-                  </Text>
-                  <Text style={{ 
-                    color: COLORS.textSecondary, 
-                    marginTop: 4, 
-                    textAlign: 'center',
-                    lineHeight: 20 
-                  }}>
-                    You don't have any upcoming appointments.{'\n'}Book a service below to get started!
-                  </Text>
-                </View>
+                <EmptyBookingsState 
+                  userType="athlete" 
+                  onRefresh={fetchUpcomingBookings}
+                  isRefreshing={isLoadingBookings}
+                  colors={{
+                    card: COLORS.card,
+                    text: COLORS.text,
+                    textSecondary: COLORS.textSecondary,
+                    primary: COLORS.primary
+                  }}
+                />
               )}
             </View>
           </View>

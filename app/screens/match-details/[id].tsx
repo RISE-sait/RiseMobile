@@ -292,7 +292,11 @@ const MatchDetailsScreen = () => {
           <View style={styles.detailsContainer}>
             {/* League Title and Status */}
             <View style={styles.headerRow}>
-              <Text style={styles.leagueTitle}>{game.name || "Basketball Match"}</Text>
+              <View style={styles.titleContainer}>
+                <Text style={styles.leagueTitle} numberOfLines={2} ellipsizeMode="tail">
+                  {game.name || "Basketball Match"}
+                </Text>
+              </View>
               <View style={[styles.statusBadge, { backgroundColor: bgColor }]}>
                 <Text style={[styles.statusText, { color }]}>{label}</Text>
               </View>
@@ -340,46 +344,7 @@ const MatchDetailsScreen = () => {
             <Text style={styles.sectionTitle}>Match Details</Text>
             <Text style={styles.description}>{game.description || "No description available for this match."}</Text>
 
-            {/* Basketball Stats Section */}
-            <View style={styles.divider} />
-            <Text style={styles.sectionTitle}>Game Stats</Text>
-
-            <View style={styles.statsContainer}>
-              {/* Simple Basketball Stats */}
-              <View style={styles.statHeader}>
-                <Text style={styles.statHeaderTeam}>{homeTeamName}</Text>
-                <Text style={styles.statHeaderLabel}>STAT</Text>
-                <Text style={styles.statHeaderTeam}>{awayTeamName}</Text>
-              </View>
-
-              {/* Rebounds */}
-              <View style={styles.statRow}>
-                <Text style={styles.statValueHome}>{basketballStats.home.rebounds}</Text>
-                <Text style={styles.statLabel}>Rebounds</Text>
-                <Text style={styles.statValueAway}>{basketballStats.away.rebounds}</Text>
-              </View>
-
-              {/* Assists */}
-              <View style={styles.statRow}>
-                <Text style={styles.statValueHome}>{basketballStats.home.assists}</Text>
-                <Text style={styles.statLabel}>Assists</Text>
-                <Text style={styles.statValueAway}>{basketballStats.away.assists}</Text>
-              </View>
-
-              {/* Steals */}
-              <View style={styles.statRow}>
-                <Text style={styles.statValueHome}>{basketballStats.home.steals}</Text>
-                <Text style={styles.statLabel}>Steals</Text>
-                <Text style={styles.statValueAway}>{basketballStats.away.steals}</Text>
-              </View>
-
-              {/* Blocks */}
-              <View style={styles.statRow}>
-                <Text style={styles.statValueHome}>{basketballStats.home.blocks}</Text>
-                <Text style={styles.statLabel}>Blocks</Text>
-                <Text style={styles.statValueAway}>{basketballStats.away.blocks}</Text>
-              </View>
-            </View>
+           
 
             {/* Spacer for bottom buttons */}
             <View style={{ height: 100 }} />
@@ -465,17 +430,31 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start", // Changed from "center" to "flex-start"
     marginBottom: 20,
+    gap: 12, // Add gap between title and status badge
+  },
+  titleContainer: {
+    flex: 1, // Take up available space
+    marginRight: 12, // Ensure spacing from status badge
+  },
+  leagueTitle: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "bold",
+    lineHeight: 28, // Add line height for better multi-line display
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    flexShrink: 0, // Prevent shrinking
+    minWidth: 80, // Ensure minimum width
   },
   statusText: {
     fontSize: 12,
     fontWeight: "bold",
+    textAlign: "center",
   },
   detailsContainer: {
     marginTop: -50, // Increased to bring the container up more
@@ -484,11 +463,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 24,
-  },
-  leagueTitle: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "bold",
   },
   teamsContainer: {
     flexDirection: "row",

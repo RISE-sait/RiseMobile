@@ -620,12 +620,16 @@ const BarberBookingScreen = () => {
             {currentStep > step ? (
               <FontAwesome6 name="check" size={16} color="#fff" />
             ) : (
-              <Text className={`font-bold ${currentStep === step ? "text-black" : "text-white-100"}`}>{step}</Text>
+              <Text className={`font-bold ${currentStep === step ? "text-yellow-" : "text-white-100"}`}>{step}</Text>
             )}
           </View>
           <Text
-            className={`text-xs mt-1 ${
-              currentStep === step ? "text-gold-100" : currentStep > step ? "text-green-500" : "text-gray-400"
+            className={`text-xs mt-1 font-medium ${
+              currentStep === step 
+                ? "text-gold-100" 
+                : currentStep > step 
+                  ? "text-white-100"  // White instead of green
+                  : "text-gray-400"
             }`}
           >
             {step === 1 ? "Select" : step === 2 ? "Schedule" : "Details"}
@@ -777,129 +781,136 @@ const BarberBookingScreen = () => {
   )
 
   // Render confirmation modal
-  const renderConfirmationModal = () => (
-    <Modal transparent visible={isModalVisible} animationType="none" onRequestClose={() => toggleModal(false)}>
-      <View className="flex-1 bg-black/70 justify-center items-center px-5">
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }}
-          className="bg-[#1A1A1A] rounded-2xl w-full overflow-hidden"
-        >
-          {bookingSuccess ? (
-            <View className="p-6 items-center">
-              <View className="w-20 h-20 rounded-full bg-green-500 items-center justify-center mb-4">
-                <FontAwesome6 name="check" size={40} color="#fff" />
-              </View>
-              <Text className="text-white-100 text-2xl font-bold text-center mb-2">Booking Confirmed!</Text>
-              <Text className="text-gray-300 text-center mb-6">
-                Your appointment has been successfully booked. We've sent a confirmation to your phone.
-              </Text>
-
-              <View className="bg-[#222] p-4 rounded-xl w-full mb-6">
-                <View className="flex-row justify-between mb-2">
-                  <Text className="text-gray-400">Appointment:</Text>
-                  <Text className="text-white-100 font-medium">
-                    {dayjs(selectedDate).format("MMM D")} at {selectedTime}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between mb-2">
-                  <Text className="text-gray-400">Service:</Text>
-                  <Text className="text-white-100 font-medium">{selectedService?.name}</Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-gray-400">Barber:</Text>
-                  <Text className="text-white-100 font-medium">{selectedBarber?.name}</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity onPress={() => toggleModal(false)} className="bg-gold-100 py-3 px-6 rounded-xl w-full">
-                <Text className="text-black-100 text-center font-bold text-lg">Done</Text>
-              </TouchableOpacity>
+const renderConfirmationModal = () => (
+  <Modal transparent visible={isModalVisible} animationType="none" onRequestClose={() => toggleModal(false)}>
+    <View className="flex-1 bg-black/70 justify-center items-center px-5">
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }}
+        className="bg-[#1A1A1A] rounded-2xl w-full overflow-hidden"
+      >
+        {bookingSuccess ? (
+          <View className="p-6 items-center">
+            <View className="w-20 h-20 rounded-full bg-green-500 items-center justify-center mb-4">
+              <FontAwesome6 name="check" size={40} color="#fff" />
             </View>
-          ) : (
-            <>
-              <View className="p-6">
-                <View className="flex-row justify-between items-center mb-4">
-                  <Text className="text-white-100 text-xl font-bold">Confirm Booking</Text>
-                  <TouchableOpacity onPress={() => toggleModal(false)}>
-                    <FontAwesome6 name="times" size={20} color="#999" />
-                  </TouchableOpacity>
-                </View>
+            <Text className="text-white-100 text-2xl font-bold text-center mb-2">Appointment Confirmed!</Text>
+            <Text className="text-gray-300 text-center mb-6">
+              Your appointment has been successfully booked. Please arrive 5 minutes early and bring payment.
+            </Text>
 
-                <View className="bg-[#222] p-4 rounded-xl mb-4">
-                  <Text className="text-white-100 font-bold mb-3">Appointment Details</Text>
-                  <View className="flex-row items-center mb-3">
-                    <FontAwesome6 name="calendar" size={16} color="#FFD700" className="w-6" />
-                    <Text className="text-white-100 ml-2">{dayjs(selectedDate).format("MMMM D, YYYY")}</Text>
-                  </View>
-                  <View className="flex-row items-center mb-3">
-                    <FontAwesome6 name="clock" size={16} color="#FFD700" className="w-6" />
-                    <Text className="text-white-100 ml-2">{selectedTime}</Text>
-                  </View>
-                  <View className="flex-row items-center mb-3">
-                    <FontAwesome6 name="user" size={16} color="#FFD700" className="w-6" />
-                    <Text className="text-white-100 ml-2">{selectedBarber?.name}</Text>
-                  </View>
-                  <View className="flex-row items-center">
-                    <FontAwesome6 name="cut" size={16} color="#FFD700" className="w-6" />
-                    <Text className="text-white-100 ml-2">{selectedService?.name}</Text>
-                  </View>
-                </View>
-
-                <View className="bg-[#222] p-4 rounded-xl mb-6">
-                  <Text className="text-white-100 font-bold mb-3">Payment Summary</Text>
-                  <View className="flex-row justify-between mb-2">
-                    <Text className="text-gray-300">{selectedService?.name}</Text>
-                    <Text className="text-white-100">${selectedService?.price}</Text>
-                  </View>
-                  <View className="h-[1px] bg-[#333] my-2" />
-                  <View className="flex-row justify-between">
-                    <Text className="text-white-100 font-bold">Total</Text>
-                    <Text className="text-gold-100 font-bold">${selectedService?.price}</Text>
-                  </View>
-                </View>
-
-                {apiError && (
-                  <View className="bg-red-100/20 p-3 rounded-lg mb-4">
-                    <Text className="text-red-400 text-sm text-center">{apiError}</Text>
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  onPress={handleConfirmBooking}
-                  disabled={isBooking}
-                  className="bg-gold-100 py-4 rounded-xl items-center"
-                >
-                  {isBooking ? (
-                    <ActivityIndicator color="#000" />
-                  ) : (
-                    <Text className="text-black font-bold text-lg">Confirm & Pay</Text>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => toggleModal(false)}
-                  disabled={isBooking}
-                  className="py-3 items-center mt-3"
-                >
-                  <Text className="text-gray-400">Cancel</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View className="bg-[#111] px-6 py-3">
-                <Text className="text-gray-400 text-xs text-center">
-                  By confirming, you agree to our cancellation policy. You can cancel up to 2 hours before your
-                  appointment.
+            <View className="bg-[#222] p-4 rounded-xl w-full mb-6">
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-gray-400">Appointment:</Text>
+                <Text className="text-white-100 font-medium">
+                  {dayjs(selectedDate).format("MMM D")} at {selectedTime}
                 </Text>
               </View>
-            </>
-          )}
-        </Animated.View>
-      </View>
-    </Modal>
-  )
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-gray-400">Service:</Text>
+                <Text className="text-white-100 font-medium">{selectedService?.name}</Text>
+              </View>
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-gray-400">Barber:</Text>
+                <Text className="text-white-100 font-medium">{selectedBarber?.name}</Text>
+              </View>
+              <View className="flex-row justify-between">
+                <Text className="text-gray-400">Cost:</Text>
+                <Text className="text-gold-100 font-medium">${selectedService?.price}</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity onPress={() => toggleModal(false)} className="bg-gold-100 py-3 px-6 rounded-xl w-full">
+              <Text className="text-black-100 text-center font-bold text-lg">Done</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View className="p-6">
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-white-100 text-xl font-bold">Confirm Appointment</Text>
+                <TouchableOpacity onPress={() => toggleModal(false)}>
+                  <FontAwesome6 name="circle-xmark" size={20} color="#999" />
+                </TouchableOpacity>
+              </View>
+
+              <View className="bg-[#222] p-4 rounded-xl mb-4">
+                <Text className="text-white-100 font-bold mb-3">Appointment Details</Text>
+                <View className="flex-row items-center mb-3">
+                  <FontAwesome6 name="calendar" size={16} color="#FFD700" className="w-6" />
+                  <Text className="text-white-100 ml-2">{dayjs(selectedDate).format("MMMM D, YYYY")}</Text>
+                </View>
+                <View className="flex-row items-center mb-3">
+                  <FontAwesome6 name="clock" size={16} color="#FFD700" className="w-6" />
+                  <Text className="text-white-100 ml-2">{selectedTime}</Text>
+                </View>
+                <View className="flex-row items-center mb-3">
+                  <FontAwesome6 name="user" size={16} color="#FFD700" className="w-6" />
+                  <Text className="text-white-100 ml-2">{selectedBarber?.name}</Text>
+                </View>
+                <View className="flex-row items-center">
+                  <FontAwesome6 name="cut" size={16} color="#FFD700" className="w-6" />
+                  <Text className="text-white-100 ml-2">{selectedService?.name}</Text>
+                </View>
+              </View>
+
+              <View className="bg-[#222] p-4 rounded-xl mb-6">
+                <Text className="text-white-100 font-bold mb-3">Appointment Summary</Text>
+                <View className="flex-row justify-between mb-2">
+                  <Text className="text-gray-300">{selectedService?.name}</Text>
+                  <Text className="text-white-100">{selectedService?.duration} min</Text>
+                </View>
+                <View className="h-[1px] bg-[#333] my-2" />
+                <View className="flex-row justify-between">
+                  <Text className="text-white-100 font-bold">Service Cost</Text>
+                  <Text className="text-gold-100 font-bold">${selectedService?.price}</Text>
+                </View>
+                <Text className="text-gray-400 text-xs mt-2 text-center">
+                  Payment due at appointment
+                </Text>
+              </View>
+
+              {apiError && (
+                <View className="bg-red-100/20 p-3 rounded-lg mb-4">
+                  <Text className="text-red-400 text-sm text-center">{apiError}</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={handleConfirmBooking}
+                disabled={isBooking}
+                className="bg-gold-100 py-4 rounded-xl items-center"
+              >
+                {isBooking ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text className="text-black font-bold text-lg">Confirm Appointment</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => toggleModal(false)}
+                disabled={isBooking}
+                className="py-3 items-center mt-3"
+              >
+                <Text className="text-gray-400">Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View className="bg-[#111] px-6 py-3">
+              <Text className="text-gray-400 text-xs text-center">
+                By confirming, you agree to our cancellation policy. You can cancel up to 24 hours before your
+                appointment by calling us directly. Payment will be collected in person at your appointment.
+              </Text>
+            </View>
+          </>
+        )}
+      </Animated.View>
+    </View>
+  </Modal>
+)
 
   return (
     <SafeAreaView className="flex-1 bg-[#0C0B0B]">

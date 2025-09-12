@@ -15,8 +15,8 @@ interface StepIndicatorProps {
 
 const defaultSteps: Step[] = [
   { label: "When & Where", icon: "calendar" },
-  { label: "Team & Focus", icon: "users" },
-  { label: "Equipment & Notes", icon: "clipboard" },
+  { label: "Team Selection", icon: "users" },
+  { label: "Finalize It", icon: "clipboard" },
 ]
 
 const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, steps = defaultSteps }) => {
@@ -81,6 +81,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingVertical: 24,
+    marginBottom: 24, // Add this line - creates space below the component
   },
   progressContainer: {
     height: 4,

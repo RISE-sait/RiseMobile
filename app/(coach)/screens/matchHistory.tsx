@@ -22,6 +22,8 @@ import BackButton from "@/components/buttons/BackButton";
 import { useAppDispatch, useAppSelector } from "../../../store/hooks";
 import { fetchMatchHistory, clearMatches } from "../../../store/slices/gamesSlice";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from 'expo-linear-gradient'
+
 
 const { width } = Dimensions.get("window");
 
@@ -148,41 +150,24 @@ const MatchHistory: React.FC = () => {
         status: match.status || "scheduled",
         venue: hasNewStructure ? (match as any).location_name || "RISE Basketball Facility" : match.location || "RISE Basketball Facility",
         league: "Basketball League",
-        // Add fields expected by useMatchFilters
-        homeFG: 45, // Placeholder value since API doesn't provide this
-        awayFG: 42,
-        homeRebounds: 35,
-        awayRebounds: 30,
-        homeAssists: 20,
-        awayAssists: 18,
-        mvp: {
-          id: "mvp1",
-          name: "Player MVP",
-          image: "https://via.placeholder.com/70x70?text=MVP",
-          points: 25,
-          assists: 8,
-          rebounds: 10
-        },
         // Store the original match data for expanded view
         originalData: match,
         location: match.location || "Main Arena",
         court: hasNewStructure ? (match as any).court_name || "Court 1" : "Court 1",
         time: match.time || "TBD",
-        mvpAvailable: false,
-        hasDetailedStats: false
       };
     });
     
-    // Log status breakdown for debugging
+    // Log status breakdown for debugging (removed canceled)
     const statusCounts = {
       scheduled: transformed.filter(m => m.status === "scheduled").length,
       in_progress: transformed.filter(m => m.status === "in_progress").length,
       completed: transformed.filter(m => m.status === "completed").length
     };
     console.log("📋 MATCH HISTORY: Status breakdown:", statusCounts);
-    console.log("📋 MATCH HISTORY: Transformed matches:", transformed);
     return transformed;
   }, [matches, activeTab]);
+
   
   // Display matches filtered by active tab
   const filteredMatches = useMemo(() => {
@@ -193,7 +178,7 @@ const MatchHistory: React.FC = () => {
   }, [transformedMatches, activeTab]);
   
   // Handle tab changes with real-time API calls
-  const handleTabChange = (tab: 'all' | 'scheduled' | 'in_progress' | 'completed' | 'canceled') => {
+  const handleTabChange = (tab: 'all' | 'scheduled' | 'in_progress' | 'completed') => {
     console.log("📋 TAB CHANGE: Switching to", tab, "- calling backend API");
     setActiveTab(tab);
     
@@ -320,27 +305,24 @@ const MatchHistory: React.FC = () => {
     console.log("📋 MATCH DETAILS: Toggled match", id);
   };
 
-  const getStatusIndicator = (status: string) => {
-    console.log("🎯 STATUS INDICATOR: Displaying status:", status);
-    switch (status) {
-      case 'in_progress':
-        return (
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>IN PROGRESS</Text>
-          </View>
-        );
-      case 'scheduled':
-        return <Text style={styles.upcomingText}>SCHEDULED</Text>;
-      case 'completed':
-        return <Text style={styles.completedText}>COMPLETED</Text>;
-      case 'canceled':
-        return <Text style={styles.canceledText}>CANCELED</Text>;
-      default:
-        console.log("🎯 STATUS INDICATOR: Unknown status, showing nothing:", status);
-        return null;
-    }
-  };
+const getStatusIndicator = (status: string) => {
+  console.log("🎯 STATUS INDICATOR: Displaying status:", status);
+  switch (status) {
+    case 'in_progress':
+      return (
+        <View style={styles.liveIndicator}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>IN PROGRESS</Text>
+        </View>
+      );
+    case 'scheduled':
+      return <Text style={styles.upcomingText}>SCHEDULED</Text>;
+    case 'completed':
+      return <Text style={styles.completedText}>COMPLETED</Text>;
+      console.log("🎯 STATUS INDICATOR: Unknown status, showing nothing:", status);
+      return null;
+  }
+};
 
   const getScoreStyle = (homeScore: number, awayScore: number) => {
     if (homeScore > awayScore) {
@@ -375,110 +357,125 @@ const MatchHistory: React.FC = () => {
           onPress={() => handleMatchPress(item.id)}
           activeOpacity={0.8}
           style={[
-            styles.matchCard,
-            isExpanded && styles.matchCardExpanded,
+            styles.matchCardTouchable, // Updated style name
             item.status === 'in_progress' && styles.liveMatchCard,
           ]}
         >
-          {/* League & Date Banner */}
-          <View style={styles.leagueBanner}>
-            <Text style={styles.leagueText}>{item.league}</Text>
-            <Text style={styles.dateText}>
-              {item.status === 'scheduled' 
-                ? `${dayjs(item.date).format("ddd, MMM DD")} • ${dayjs(item.date).format("h:mm A")}`
-                : dayjs(item.date).format("DD MMM YYYY")}
-            </Text>
-            {getStatusIndicator(item.status)}
-          </View>
-
-          {/* Match Header */}
-          <View style={styles.matchHeader}>
-            <View style={styles.teamContainer}>
-              <Image source={{ uri: item.homeTeamLogo }} style={styles.teamLogo} />
-              <Text style={styles.teamName} numberOfLines={1} ellipsizeMode="tail">{item.homeTeam}</Text>
+          <LinearGradient
+            colors={isExpanded 
+              ? ['rgba(252, 163, 17, 0.25)', 'rgba(252, 163, 17, 0.15)', '#1A1A1A'] 
+              : ['rgba(252, 163, 17, 0.18)', 'rgba(252, 163, 17, 0.08)', '#151515']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.matchCardGradient}
+          >
+            {/* League & Status Banner (removed date from here) */}
+            <View style={styles.leagueBanner}>
+              <Text style={styles.leagueText}>{item.league}</Text>
+              {getStatusIndicator(item.status)}
             </View>
-            
-            {/* Score Container */}
-            <View style={styles.scoreContainer}>
-              <Text style={[styles.score, scoreStyles.homeStyle]}>{item.homeScore}</Text>
-              <Text style={styles.vsText}>-</Text>
-              <Text style={[styles.score, scoreStyles.awayStyle]}>{item.awayScore}</Text>
-            </View>
-            
-            <View style={[styles.teamContainer, styles.awayTeamContainer]}>
-              <Text style={styles.teamName} numberOfLines={1} ellipsizeMode="tail">{item.awayTeam}</Text>
-              <Image source={{ uri: item.awayTeamLogo }} style={styles.teamLogo} />
-            </View>
-          </View>
 
-          {/* Venue */}
-          <Text style={styles.venueText}>{item.venue}</Text>
-
-          {/* Expandable Content */}
-          {isExpanded && (() => {
-            const matchDetails = getMatchDetails(item.id);
-            return (
-              <View style={styles.expandedContent}>
-                {/* Match Info from Real API Data */}
-                {matchDetails && (
-                  <View style={styles.matchInfoContainer}>
-                    <Text style={styles.matchInfoTitle}>Match Information</Text>
-                    <View style={styles.matchInfoContent}>
-                      <Text style={styles.matchInfoLabel}>Home Team: <Text style={styles.matchInfoValue}>{matchDetails.homeTeamName}</Text></Text>
-                      <Text style={styles.matchInfoLabel}>Away Team: <Text style={styles.matchInfoValue}>{matchDetails.awayTeamName}</Text></Text>
-                      <Text style={styles.matchInfoLabel}>Final Score: <Text style={styles.matchInfoValue}>{matchDetails.homeScore} - {matchDetails.awayScore}</Text></Text>
-                      {matchDetails.locationName && (
-                        <Text style={styles.matchInfoLabel}>Location: <Text style={styles.matchInfoValue}>{matchDetails.locationName}</Text></Text>
-                      )}
-                      {matchDetails.courtName && (
-                        <Text style={styles.matchInfoLabel}>Court: <Text style={styles.matchInfoValue}>{matchDetails.courtName}</Text></Text>
-                      )}
-                      {matchDetails.startTime && (
-                        <Text style={styles.matchInfoLabel}>Start Time: <Text style={styles.matchInfoValue}>{dayjs(matchDetails.startTime).format("MMM DD, YYYY h:mm A")}</Text></Text>
-                      )}
-                      {matchDetails.status && (
-                        <Text style={styles.matchInfoLabel}>Status: <Text style={styles.matchInfoValue}>{matchDetails.status}</Text></Text>
-                      )}
-                    </View>
-                  </View>
-                )}
-
-                {/* Info message when MVP data is not available */}
-                {item.status === 'completed' && matchDetails && !matchDetails.mvpAvailable && (
-                  <View style={styles.infoMessageContainer}>
-                    <FontAwesome6 name="info-circle" size={16} color="#FFD700" />
-                    <Text style={styles.infoMessageText}>MVP and detailed statistics are not yet available for this match.</Text>
-                  </View>
-                )}
-
-                {/* Basic Stats from API data */}
-                {matchDetails && (
-                  <View style={styles.basicStatsContainer}>
-                    <Text style={styles.basicStatsTitle}>Final Result</Text>
-                    <View style={styles.basicStatsContent}>
-                      <View style={styles.basicStatItem}>
-                        <Text style={styles.basicStatTeam}>{matchDetails.homeTeamName}</Text>
-                        <Text style={styles.basicStatScore}>{matchDetails.homeScore}</Text>
-                        <Text style={styles.basicStatLabel}>Home</Text>
-                      </View>
-                      <View style={styles.basicStatVs}>
-                        <Text style={styles.basicStatVsText}>VS</Text>
-                      </View>
-                      <View style={styles.basicStatItem}>
-                        <Text style={styles.basicStatTeam}>{matchDetails.awayTeamName}</Text>
-                        <Text style={styles.basicStatScore}>{matchDetails.awayScore}</Text>
-                        <Text style={styles.basicStatLabel}>Away</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
+            {/* Match Header Layout */}
+            <View style={styles.matchHeader}>
+              {/* Home Team Section */}
+              <View style={styles.teamSection}>
+                <View style={styles.teamLogoContainer}>
+                  <Image source={{ uri: item.homeTeamLogo }} style={styles.teamLogo} />
+                </View>
+                <Text style={styles.teamName} numberOfLines={2} ellipsizeMode="tail">
+                  {item.homeTeam}
+                </Text>
+                <Text style={[styles.teamScore, scoreStyles.homeStyle]}>
+                  {item.homeScore}
+                </Text>
               </View>
-            );
-          })()}
+              
+              {/* VS Divider with Date */}
+              <View style={styles.vsSection}>
+                <View style={styles.vsContainer}>
+                  <Text style={styles.vsText}>VS</Text>
+                </View>
+                <Text style={styles.finalScoreText}>
+                  {item.homeScore} - {item.awayScore}
+                </Text>
+                {/* Add centered date here */}
+                <Text style={styles.centerDateText}>
+                  {item.status === 'scheduled' 
+                    ? `${dayjs(item.date).format("MMM DD")} • ${dayjs(item.date).format("h:mm A")}`
+                    : dayjs(item.date).format("MMM DD, YYYY")}
+                </Text>
+              </View>
+              
+              {/* Away Team Section */}
+              <View style={styles.teamSection}>
+                <View style={styles.teamLogoContainer}>
+                  <Image source={{ uri: item.awayTeamLogo }} style={styles.teamLogo} />
+                </View>
+                <Text style={styles.teamName} numberOfLines={2} ellipsizeMode="tail">
+                  {item.awayTeam}
+                </Text>
+                <Text style={[styles.teamScore, scoreStyles.awayStyle]}>
+                  {item.awayScore}
+                </Text>
+              </View>
+            </View>
+
+            {/* Venue */}
+            <View style={styles.venueContainer}>
+              <Text style={styles.venueText}>{item.venue}</Text>
+            </View>
+
+            {/* Expanded content if needed */}
+            {isExpanded && (() => {
+              const matchDetails = getMatchDetails(item.id);
+              return (
+                <View style={styles.expandedContent}>
+                  {matchDetails && (
+                    <View style={styles.matchInfoContainer}>
+                      <Text style={styles.matchInfoTitle}>Match Information</Text>
+                      <View style={styles.matchInfoContent}>
+                        <Text style={styles.matchInfoLabel}>
+                          Home Team: <Text style={styles.matchInfoValue}>{matchDetails.homeTeamName}</Text>
+                        </Text>
+                        <Text style={styles.matchInfoLabel}>
+                          Away Team: <Text style={styles.matchInfoValue}>{matchDetails.awayTeamName}</Text>
+                        </Text>
+                        <Text style={styles.matchInfoLabel}>
+                          Final Score: <Text style={styles.matchInfoValue}>{matchDetails.homeScore} - {matchDetails.awayScore}</Text>
+                        </Text>
+                        {matchDetails.locationName && (
+                          <Text style={styles.matchInfoLabel}>
+                            Location: <Text style={styles.matchInfoValue}>{matchDetails.locationName}</Text>
+                          </Text>
+                        )}
+                        {matchDetails.courtName && (
+                          <Text style={styles.matchInfoLabel}>
+                            Court: <Text style={styles.matchInfoValue}>{matchDetails.courtName}</Text>
+                          </Text>
+                        )}
+                        {matchDetails.startTime && (
+                          <Text style={styles.matchInfoLabel}>
+                            Start Time: <Text style={styles.matchInfoValue}>{dayjs(matchDetails.startTime).format("MMM DD, YYYY h:mm A")}</Text>
+                          </Text>
+                        )}
+                        {matchDetails.status && (
+                          <Text style={styles.matchInfoLabel}>
+                            Status: <Text style={styles.matchInfoValue}>{matchDetails.status.toUpperCase()}</Text>
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
+          </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
     );
   };
+
 
   const renderFilterModal = () => {
     if (!showFilters) {
@@ -505,28 +502,7 @@ const MatchHistory: React.FC = () => {
           </TouchableOpacity>
         </View>
         
-        <View style={styles.filterContent}>
-          {/* League Filter */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>League</Text>
-            <View style={styles.filterOptions}>
-              {['NBA', 'EuroLeague', 'NCAA', 'FIBA'].map(league => (
-                <TouchableOpacity 
-                  key={league}
-                  style={[
-                    styles.filterOption,
-                    filterOptions.league === league && styles.filterOptionSelected
-                  ]}
-                  onPress={() => toggleLeagueFilter(league)}
-                >
-                  <Text style={[
-                    styles.filterOptionText,
-                    filterOptions.league === league && styles.filterOptionTextSelected
-                  ]}>{league}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+        <View style={styles.filterContent}>          
           
           {/* Date Range Filter */}
           <View style={styles.filterSection}>
@@ -835,18 +811,20 @@ const styles = StyleSheet.create({
   matchCardContainer: {
     marginBottom: 15,
   },
-  matchCard: {
-    backgroundColor: "#1A1A1A",
+  matchCardTouchable: {
     borderRadius: 15,
-    padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
+    overflow: 'hidden', 
   },
-  matchCardExpanded: {
-    backgroundColor: "#222",
+    matchCardGradient: {
+    flex: 1, // Important: makes gradient fill container
+    padding: 16,
+    borderRadius: 15,
+    minHeight: 120, // Ensures consistent height
   },
   liveMatchCard: {
     borderLeftWidth: 3,
@@ -899,10 +877,15 @@ const styles = StyleSheet.create({
   },
   matchHeader: {
     flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    marginVertical: 16,
+    paddingHorizontal: 8,
+  },
+  teamSection: {
+    flex: 1,
     alignItems: "center",
-    marginVertical: 10,
-    paddingHorizontal: 4, // Add some internal padding
+    paddingHorizontal: 8,
   },
   teamContainer: {
     flexDirection: "row",
@@ -914,17 +897,30 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     flexDirection: "row-reverse", // Logo on the right for away team
   },
+  teamLogoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#2A2A2A",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "#3A3A3A",
+  },
   teamLogo: {
-    width: 32, // Slightly smaller to save space
-    height: 32,
-    resizeMode: "contain",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   teamName: {
     color: "#FFF",
-    fontSize: 14, // Slightly smaller font
-    fontWeight: "bold",
-    marginHorizontal: 6,
-    flexShrink: 1, // Allow text to shrink
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 8,
+    minHeight: 36,
+    lineHeight: 18,
   },
   scoreContainer: {
     flexDirection: "row",
@@ -934,27 +930,10 @@ const styles = StyleSheet.create({
     minWidth: 80, // Fixed minimum width for score area
     maxWidth: 100, // Maximum width to prevent expansion
   },
-  score: {
-    fontSize: 22, // Slightly smaller to fit better
+  teamScore: {
+    fontSize: 24,
     fontWeight: "bold",
-    marginHorizontal: 3,
-    minWidth: 30, // Ensure scores have minimum width
     textAlign: "center",
-  },
-  winningScore: {
-    color: "#FFD700",
-  },
-  losingScore: {
-    color: "#AAA",
-  },
-  tieScore: {
-    color: "#FFF",
-  },
-  vsText: {
-    color: "#AAA",
-    fontSize: 16, // Smaller size to save space
-    fontWeight: "bold",
-    marginHorizontal: 2,
   },
   venueText: {
     color: "#AAA",
@@ -973,6 +952,57 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 15,
+  },
+    vsSection: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    minWidth: 80,
+  },
+  
+  vsContainer: {
+    backgroundColor: "#2A2A2A",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  
+  vsText: {
+    color: "#AAA",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  
+  finalScoreText: {
+    color: "#FFD700",
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  
+  venueContainer: {
+    alignItems: "center",
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#333",
+  },
+    winningScore: {
+    color: "#4CAF50", // Changed from "#FFD700"
+  },
+  losingScore: {
+    color: "#FF6B6B", // Changed from "#AAA"
+  },
+  tieScore: {
+    color: "#FFD700", // Changed from "#FFF"
+  },
+  centerDateText: {
+    color: "#AAA",
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: 4,
+    fontWeight: "500",
   },
   matchInfoTitle: {
     color: "#FFD700",

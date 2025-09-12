@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import {
   ScrollView,
   View,
@@ -9,6 +9,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  ActivityIndicator,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
@@ -25,6 +26,7 @@ import { useAuth } from "@/utils/auth"
 import { API_URL } from "@/utils/api"
 import { navigateToDetails } from "@/utils/navigation"
 import dayjs from "dayjs"
+import EmptyBookingsState from "@/components/feedback/EmptyBookingState"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
@@ -66,7 +68,6 @@ const bookingOptions = [
     title: "Practices",
     icon: "basketball-ball",
     route: "/screens/coach-booking/practiceBooking",
-    availability: "High",
     color: "#FF7043",
   }
   
@@ -129,6 +130,16 @@ const CoachBook = () => {
     console.log("📋 COACH BOOKING DEBUG END ===");
     return upcomingPractices;
   }, [practicesItems, currentUser, practicesStatus]);
+
+  //Function to refresh practices for coaches 
+  const refreshPractices = useCallback(async () => {
+  if (!currentUser?.token) return
+  
+  const today = dayjs().format("YYYY-MM-DD")
+  const futureDate = dayjs().add(2, "months").format("YYYY-MM-DD")
+  
+  dispatch(fetchPractices({ token: currentUser.token, after: today, before: futureDate }))
+}, [dispatch, currentUser?.token])
 
   // Force refresh function for debugging
   const forceRefreshData = async () => {
@@ -479,83 +490,70 @@ const CoachBook = () => {
               onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
             />
           </View>
+{/* Upcoming Practices */}
+<View style={{ marginBottom: 24 }}>
+  <View
+    style={{
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      marginBottom: 12,
+    }}
+  >
+    <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Practices</Text>
+    {upcomingBookings.length > 0 && (
+      <TouchableOpacity>
+        <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
+      </TouchableOpacity>
+    )}
+  </View>
 
-          {/* Upcoming Bookings */}
-          <View style={{ marginBottom: 24 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                paddingHorizontal: 20,
-                marginBottom: 12,
-              }}
-            >
-              <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Bookings</Text>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                {upcomingBookings.length > 0 && (
-                  <TouchableOpacity style={{ marginRight: 12 }}>
-                    <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  onPress={forceRefreshData}
-                  style={{
-                    backgroundColor: COLORS.cardDark,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 6
-                  }}
-                >
-                  <Text style={{ color: COLORS.primary, fontSize: 12 }}>🔄</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={{ paddingHorizontal: 20 }}>
-              {practicesStatus === "loading" ? (
-                <View style={{ padding: 20, alignItems: "center" }}>
-                  <Text style={{ color: COLORS.textSecondary, fontSize: 14 }}>Loading bookings...</Text>
-                </View>
-              ) : upcomingBookings.length > 0 ? (
-                <FlatList
-                  data={upcomingBookings}
-                  renderItem={renderUpcomingBooking}
-                  keyExtractor={(item, index) => item.id || `booking-${item.type}-${item.date}-${item.time}-${index}`}
-                  scrollEnabled={false}
-                />
-              ) : (
-                <View style={{ 
-                  backgroundColor: COLORS.card, 
-                  borderRadius: 12, 
-                  padding: 20, 
-                  alignItems: "center" 
-                }}>
-                  <Ionicons name="calendar-outline" size={48} color={COLORS.textSecondary} style={{ marginBottom: 12 }} />
-                  <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: "600", marginBottom: 4 }}>
-                    No Upcoming Bookings
-                  </Text>
-                  <Text style={{ color: COLORS.textSecondary, fontSize: 14, textAlign: "center" }}>
-                    You don't have any scheduled practices or events coming up.
-                  </Text>
-                  <TouchableOpacity
-                    style={{
-                      backgroundColor: COLORS.primary,
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                      marginTop: 12
-                    }}
-                    onPress={forceRefreshData}
-                  >
-                    <Text style={{ color: COLORS.background, fontSize: 14, fontWeight: "600" }}>
-                      🔄 Refresh Data
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          </View>
+  <View style={{ paddingHorizontal: 20 }}>
+    {practicesStatus === 'loading' ? (
+      <View style={{ 
+        backgroundColor: COLORS.card, 
+        borderRadius: 12, 
+        padding: 20, 
+        alignItems: 'center' 
+      }}>
+        <ActivityIndicator size="small" color={COLORS.primary} />
+        <Text style={{ color: COLORS.textSecondary, marginTop: 8 }}>Loading your practices...</Text>
+      </View>
+    ) : practicesStatus === 'failed' ? (
+      <View style={{ 
+        backgroundColor: COLORS.card, 
+        borderRadius: 12, 
+        padding: 20, 
+        alignItems: 'center' 
+      }}>
+        <FontAwesome5 name="exclamation-triangle" size={24} color={COLORS.warning} />
+        <Text style={{ color: COLORS.textSecondary, marginTop: 8, textAlign: 'center' }}>
+          Failed to load practices
+        </Text>
+      </View>
+    ) : upcomingBookings.length > 0 ? (
+      <FlatList
+        data={upcomingBookings}
+        renderItem={renderUpcomingBooking}
+        keyExtractor={(item) => item.id}
+        scrollEnabled={false}
+      />
+    ) : (
+      <EmptyBookingsState 
+        userType="coach" 
+        onRefresh={refreshPractices}
+        isRefreshing={practicesStatus !== 'idle' && practicesStatus !== 'succeeded'}
+        colors={{
+          card: COLORS.card,
+          text: COLORS.text,
+          textSecondary: COLORS.textSecondary,
+          primary: COLORS.primary
+        }}
+      />
+    )}
+  </View>
+</View>
 
           {/* All Booking Options */}
           <View style={{ marginBottom: 24 }}>
@@ -624,7 +622,6 @@ const CoachBook = () => {
                           fontWeight: "600",
                         }}
                       >
-                        {option.availability}
                       </Text>
                     </View>
                   </View>
