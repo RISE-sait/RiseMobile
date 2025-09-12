@@ -24,6 +24,9 @@ interface MatchProps {
     away_team_name?: string
     home_score?: number
     away_score?: number
+    // Team logo URLs from API
+    home_team_logo_url?: string
+    away_team_logo_url?: string
   }
 }
 
@@ -60,9 +63,9 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
   const homeTeamName = match.home_team_name || (homeTeam ? homeTeam.name : match.win_team) || "Home Team"
   const awayTeamName = match.away_team_name || (awayTeam ? awayTeam.name : match.lose_team) || "Away Team"
 
-  // Use placeholder logos
-  const homeLogo = "https://via.placeholder.com/100"
-  const awayLogo = "https://via.placeholder.com/100"
+  // Use real team logos from API, fallback to placeholder if not available
+  const homeLogo = match.home_team_logo_url || "https://via.placeholder.com/40x40?text=H"
+  const awayLogo = match.away_team_logo_url || "https://via.placeholder.com/40x40?text=A"
 
   const handlePress = () => {
     // Navigate to match details - calls GET /games/{id}
