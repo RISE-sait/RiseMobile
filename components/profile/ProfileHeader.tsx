@@ -1,5 +1,8 @@
 import React from "react";
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import { faCamera } from "@fortawesome/free-solid-svg-icons";
 import Flag from "react-native-country-flag"; // 🏳️ Import country flag component
 
 const ProfileHeader = ({
@@ -19,6 +22,7 @@ const ProfileHeader = ({
   countryCode?: string; // ✅ Country code is optional
   teamLogo?: any; // ✅ Team logo is optional
 }) => {
+  const router = useRouter();
 
   const safeCountryCode = countryCode ? countryCode.toLowerCase() : "us"; 
 
@@ -46,12 +50,21 @@ const ProfileHeader = ({
           {number}
         </Text>
 
-        {/* Profile Image */}
-        <Image
-          source={profileImage}
-          className="absolute w-52 h-52 right-4 bottom-0"
-          style={{ resizeMode: "cover", borderRadius: 10, zIndex: 2 }}
-        />
+        {/* Profile Image with Camera Button */}
+        <View className="absolute right-4 bottom-0">
+          <Image
+            source={profileImage}
+            className="w-52 h-52"
+            style={{ resizeMode: "cover", borderRadius: 10, zIndex: 2 }}
+          />
+          <TouchableOpacity
+            className="absolute bottom-2 right-2 bg-blue-500 rounded-full w-10 h-10 items-center justify-center"
+            style={{ zIndex: 3 }}
+            onPress={() => router.push("/screens/edit-profile")}
+          >
+            <FontAwesomeIcon icon={faCamera} color="#FFFFFF" size={16} />
+          </TouchableOpacity>
+        </View>
 
         {/* Name and Role */}
         <View className="absolute bottom-4 left-4">
