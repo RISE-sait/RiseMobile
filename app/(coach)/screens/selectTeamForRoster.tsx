@@ -15,6 +15,7 @@ import { FontAwesome6, Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import * as Haptics from "expo-haptics"
 import BackButton from "@/components/buttons/BackButton"
+import SafeTeamLogo from "@/components/team/SafeTeamLogo"
 import { TeamResponse } from "@/app/api/Api"
 import { useSelector, useDispatch } from "react-redux"
 import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError } from "@/store/slices/teamsSlice"
@@ -121,10 +122,14 @@ const SelectTeamForRoster: React.FC = () => {
         onPress={() => handleTeamPress(item)}
       >
         <View style={styles.teamCardContent}>
-          {/* Team Icon */}
-          <View style={styles.teamIcon}>
-            <FontAwesome6 name="users" size={32} color={COLORS.primary} />
-          </View>
+          {/* Team Logo */}
+          <SafeTeamLogo
+            logoUrl={item.logo_url}
+            teamName={item.name}
+            size={60}
+            fallbackColor={COLORS.primary}
+            style={styles.teamIcon}
+          />
 
           {/* Team Info */}
           <View style={styles.teamInfo}>
@@ -290,12 +295,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   teamIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: `${COLORS.primary}20`,
-    justifyContent: "center",
-    alignItems: "center",
     marginRight: 16,
   },
   teamInfo: {
