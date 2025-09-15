@@ -29,9 +29,11 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Input } from "@/components/ui/input";
 import images from "@/constants/images";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "@/store";
 import { useAuth } from "@/utils/auth";
+import { updateProfile } from "@/store/slices/userSlice";
+import ProfilePictureUpload from "@/components/profile/ProfilePictureUpload";
 
 type User = {
   id: string;
@@ -57,6 +59,7 @@ export default function EditProfileScreen() {
   
   // ✅ Use Redux as primary data source
   const reduxUser = useSelector((state: RootState) => state.user.data);
+  const dispatch = useDispatch();
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -150,30 +153,68 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = async () => {
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      Alert.alert("Missing Information", "Please fill in all required fields");
+    if (!firstName.trim() || !lastName.trim()) {
+      Alert.alert("Missing Information", "Please fill in first name and last name");
+      return;
+    }
+
+    if (!user?.token || !user?.id) {
+      Alert.alert("Error", "User authentication required");
       return;
     }
 
     try {
       setIsSaving(true);
       
-      // Update user object with new values
+      // Use staff endpoint for coaches
+      const endpoint = `https://api-461776259687.us-west2.run.app/staff/${user.id}/profile`;
+
+      const updateData = {
+        firstName,
+        lastName,
+        phoneNumber: phoneNumber || null,
+        bio: bio || null,
+      };
+
+      // Only include profile image if it was changed by ProfilePictureUpload
+      if (profileImage && profileImage !== user.profileImage) {
+        updateData.photo_url = profileImage;
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Profile update failed: ${response.status} - ${errorText}`);
+      }
+
+      // Update Redux store
+      dispatch(updateProfile({
+        firstName,
+        lastName,
+        phoneNumber,
+        bio,
+        profileImage,
+      }));
+
+      // Also update AsyncStorage as backup
       const updatedUser = {
         ...user,
         firstName,
         lastName,
-        email,
         phoneNumber,
         bio,
         profileImage,
-        teamLogo,
       };
-
-      // Save to AsyncStorage
       await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
       
-      // Show success message
       Alert.alert(
         "Success", 
         "Profile updated successfully",
@@ -181,7 +222,8 @@ export default function EditProfileScreen() {
       );
     } catch (error) {
       console.error("Error saving user data:", error);
-      Alert.alert("Error", "Failed to save profile changes");
+      const errorMessage = error instanceof Error ? error.message : "Failed to save profile changes";
+      Alert.alert("Error", errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -241,14 +283,19 @@ export default function EditProfileScreen() {
                 style={styles.bannerGradient}
               />
               
-              {/* Profile Image */}
-              <View style={styles.profileImageContainer}>
-    <Image 
-      source={profileImage ? { uri: profileImage } : images.coachHeadshot} 
-      style={styles.profileImage}
-      resizeMode="cover"
-    />
-  </View>
+              {/* Profile Picture Upload */}
+              <ProfilePictureUpload
+                currentImageUri={profileImage}
+                defaultImage={images.coachHeadshot}
+                size={100}
+                onUploadSuccess={(imageUrl) => {
+                  setProfileImage(imageUrl)
+                  console.log('Profile picture uploaded successfully:', imageUrl)
+                }}
+                onUploadError={(error) => {
+                  console.error('Profile picture upload failed:', error)
+                }}
+              />
 
               
               <View style={styles.nameContainer}>
@@ -307,19 +354,15 @@ export default function EditProfileScreen() {
                 />
               </View>
               
+              {/* Locked Email Field */}
               <View style={styles.formGroup}>
                 <View style={styles.labelContainer}>
                   <FontAwesomeIcon icon={faEnvelope} color="#999999" size={14} style={styles.inputIcon} />
-                  <Text style={styles.inputLabel}>Email*</Text>
+                  <Text style={styles.inputLabel}>Email (Locked)</Text>
                 </View>
-                <Input 
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  inputStyle={styles.input}
-                  placeholderTextColor="#666666"
-                />
+                <View style={styles.lockedInputContainer}>
+                  <Text style={styles.lockedInputText}>{email}</Text>
+                </View>
               </View>
               
               <View style={styles.formGroup}>
@@ -533,6 +576,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     color: "#F0F0F0",
     padding: 12,
+    fontSize: 16,
+  },
+  lockedInputContainer: {
+    backgroundColor: "#252525",
+    borderColor: "#333333",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    opacity: 0.7,
+  },
+  lockedInputText: {
+    color: "#999999",
     fontSize: 16,
   },
   saveProfileButton: {

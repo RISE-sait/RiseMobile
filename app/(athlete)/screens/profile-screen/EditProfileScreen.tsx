@@ -32,9 +32,11 @@ import {
 import { LinearGradient } from "expo-linear-gradient"
 import { Input } from "@/components/ui/input"
 import images from "@/constants/images"
-import { useSelector } from "react-redux"
+import { useSelector, useDispatch } from "react-redux"
 import type { RootState } from "@/store"
 import { useAuth } from "@/utils/auth"
+import { updateProfile } from "@/store/slices/userSlice"
+import ProfilePictureUpload from "@/components/profile/ProfilePictureUpload"
 
 type User = {
   id: string
@@ -60,6 +62,7 @@ export default function EditProfileScreen() {
   
   // ✅ Use Redux as primary data source
   const reduxUser = useSelector((state: RootState) => state.user.data)
+  const dispatch = useDispatch()
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -153,35 +156,76 @@ export default function EditProfileScreen() {
   }
 
   const handleSave = async () => {
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      Alert.alert("Missing Information", "Please fill in all required fields")
+    if (!firstName.trim() || !lastName.trim()) {
+      Alert.alert("Missing Information", "Please fill in first name and last name")
+      return
+    }
+
+    if (!user?.token || !user?.id) {
+      Alert.alert("Error", "User authentication required")
       return
     }
 
     try {
       setIsSaving(true)
+      
+      // Use athletes endpoint for athletes
+      const endpoint = `https://api-461776259687.us-west2.run.app/athletes/${user.id}/profile`
 
-      // Update user object with new values
+      const updateData = {
+        firstName,
+        lastName,
+        phoneNumber: phoneNumber || null,
+        jerseyNumber: jerseyNumber || null,
+        position: position || null,
+      }
+
+      // Only include profile image if it was changed by ProfilePictureUpload
+      if (profileImage && profileImage !== user.profileImage) {
+        updateData.photo_url = profileImage
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Profile update failed: ${response.status} - ${errorText}`)
+      }
+
+      // Update Redux store
+      dispatch(updateProfile({
+        firstName,
+        lastName,
+        phoneNumber,
+        jerseyNumber,
+        position,
+        profileImage,
+      }))
+
+      // Also update AsyncStorage as backup
       const updatedUser = {
         ...user,
         firstName,
         lastName,
-        email,
         phoneNumber,
         jerseyNumber,
         position,
         profileImage,
       }
-
-      // In a real app, you would send this to your API
-      // For now, we'll just save to AsyncStorage
       await AsyncStorage.setItem("user", JSON.stringify(updatedUser))
-
-      // Show success message
+      
       Alert.alert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }])
     } catch (error) {
       console.error("Error saving user data:", error)
-      Alert.alert("Error", "Failed to save profile changes")
+      const errorMessage = error instanceof Error ? error.message : "Failed to save profile changes"
+      Alert.alert("Error", errorMessage)
     } finally {
       setIsSaving(false)
     }
@@ -223,14 +267,19 @@ export default function EditProfileScreen() {
             <View style={styles.profileBanner}>
               <LinearGradient colors={["#1D1C1E", "#0C0B0B"]} style={styles.bannerGradient} />
 
-              {/* Profile Image */}
-              <View style={styles.profileImageContainer}>
-                <Image
-                  source={profileImage ? { uri: profileImage } : images.headshot}
-                  style={styles.profileImage}
-                  resizeMode="cover"
-                />
-              </View>
+              {/* Profile Picture Upload */}
+              <ProfilePictureUpload
+                currentImageUri={profileImage}
+                defaultImage={images.headshot}
+                size={100}
+                onUploadSuccess={(imageUrl) => {
+                  setProfileImage(imageUrl)
+                  console.log('Profile picture uploaded successfully:', imageUrl)
+                }}
+                onUploadError={(error) => {
+                  console.error('Profile picture upload failed:', error)
+                }}
+              />
 
               <View style={styles.nameContainer}>
                 <Text style={styles.nameText}>
