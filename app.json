@@ -73,6 +73,13 @@
             "./assets/fonts/BebasNeue-Regular.ttf"
           ]
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with others.",
+          "cameraPermission": "The app accesses your camera to let you take photos and share them with others."
+        }
       ]
     ],
     "experiments": {

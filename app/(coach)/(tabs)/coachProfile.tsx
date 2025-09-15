@@ -11,6 +11,7 @@ import { useAuth } from "@/utils/auth";
 import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import AccountSection from "@/components/profile/AccountSection";
+import ProfilePictureUpload from "@/components/profile/ProfilePictureUpload";
 
 type User = {
   id: string;
@@ -90,6 +91,19 @@ const CoachProfileScreen = () => {
     <SafeAreaView className="flex-1 bg-[#0C0B0B]">
       <StatusBar translucent backgroundColor="transparent" style="light" />
       <ScrollView showsVerticalScrollIndicator={false} className="px-5" contentContainerStyle={{ paddingBottom: 80 }}>
+        
+        {/* Profile Picture Upload */}
+        <ProfilePictureUpload
+          currentImageUri={user.profileImage}
+          defaultImage={images.coachHeadshot}
+          size={120}
+          onUploadSuccess={(imageUrl) => {
+            console.log('Profile picture uploaded successfully:', imageUrl)
+          }}
+          onUploadError={(error) => {
+            console.error('Profile picture upload failed:', error)
+          }}
+        />
         
         {/* Profile Header */}
         <ProfileHeader
