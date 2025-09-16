@@ -29,9 +29,11 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Input } from "@/components/ui/input";
 import images from "@/constants/images";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "@/store";
 import { useAuth } from "@/utils/auth";
+import { updateProfile } from "@/store/slices/userSlice";
+import ProfilePictureUpload from "@/components/profile/ProfilePictureUpload";
 
 type User = {
   id: string;
@@ -57,6 +59,7 @@ export default function EditProfileScreen() {
   
   // ✅ Use Redux as primary data source
   const reduxUser = useSelector((state: RootState) => state.user.data);
+  const dispatch = useDispatch();
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -229,6 +232,7 @@ export default function EditProfileScreen() {
         <ScrollView 
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
           <Animated.View style={[
             styles.content,
@@ -241,14 +245,21 @@ export default function EditProfileScreen() {
                 style={styles.bannerGradient}
               />
               
-              {/* Profile Image */}
-              <View style={styles.profileImageContainer}>
-    <Image 
-      source={profileImage ? { uri: profileImage } : images.coachHeadshot} 
-      style={styles.profileImage}
-      resizeMode="cover"
-    />
-  </View>
+              {/* Profile Picture Upload */}
+              <View style={styles.profilePictureContainer}>
+                <ProfilePictureUpload
+                  currentImageUri={profileImage}
+                  defaultImage={images.coachHeadshot}
+                  size={100}
+                  onUploadSuccess={(imageUrl) => {
+                    setProfileImage(imageUrl)
+                    console.log('Profile picture uploaded successfully:', imageUrl)
+                  }}
+                  onUploadError={(error) => {
+                    console.error('Profile picture upload failed:', error)
+                  }}
+                />
+              </View>
 
               
               <View style={styles.nameContainer}>
@@ -425,6 +436,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  profilePictureContainer: {
+    position: 'relative',
+    zIndex: 1,
+    marginBottom: 10,
+    marginTop: 12,
   },
   profileImageContainer: {
     position: "relative",
