@@ -162,7 +162,6 @@ export default function EditProfileScreen() {
       
       // ✅ Prioritize Redux data (same pattern as other EditProfile components)
       if (reduxUser) {
-        console.log("📢 Loaded user from Redux state:", reduxUser)
         const userData = {
           ...reduxUser,
           firstName: reduxUser.firstName || reduxUser.first_name || "",
@@ -188,12 +187,10 @@ export default function EditProfileScreen() {
       }
 
       // ⚠️ Only use AsyncStorage fallback when Redux data is not available
-      console.log("⚠️ Redux user not available, trying AsyncStorage fallback...")
       const storedUser = await AsyncStorage.getItem("user")
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser)
-        console.log("📢 Loaded user from AsyncStorage fallback:", parsedUser)
         setUser(parsedUser)
 
         // Initialize common form fields
@@ -210,7 +207,6 @@ export default function EditProfileScreen() {
         setSpecialties(parsedUser.specialties || [])
         setExperience(parsedUser.experience || "")
       } else {
-        console.log("⚠️ No user found in Redux or AsyncStorage.")
         Alert.alert("Error", "Unable to load user data. Please try logging in again.")
         router.back()
       }
@@ -250,12 +246,9 @@ export default function EditProfileScreen() {
       }
 
       // ✅ Call backend API to update user profile
-      console.log("🔄 Updating user profile via API...")
       
       // ✅ Format phone number for storage (international format)
-      console.log("📱 Display phone number:", phoneNumber)
       const formattedPhone = formatPhoneForStorage(phoneNumber)
-      console.log("📱 Storage phone number:", formattedPhone)
 
       // Prepare API request payload according to user.UpdateRequestDto schema
       const updatePayload: any = {
@@ -274,7 +267,6 @@ export default function EditProfileScreen() {
         updatePayload.phone = formattedPhone
       }
 
-      console.log("📦 Final API payload:", JSON.stringify(updatePayload, null, 2))
 
       const response = await axios.put(
         `${API_URL}/users/${user.id}`,
@@ -287,7 +279,6 @@ export default function EditProfileScreen() {
         }
       )
 
-      console.log("✅ Profile updated successfully:", response.data)
 
       // Create updated user object with response data
       const updatedUser: User = {
@@ -366,7 +357,7 @@ export default function EditProfileScreen() {
     }
   }
 
-  // 图片选择功能
+  // Image selection functionality
   const requestPermissions = async () => {
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync()
     const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -389,23 +380,113 @@ export default function EditProfileScreen() {
       [
         {
           text: 'Camera',
-          onPress: () => openCamera(),
+          onPress: () => {
+            openCamera()
+          },
         },
         {
           text: 'Photo Library',
-          onPress: () => openImageLibrary(),
+          onPress: () => {
+            openImageLibrary()
+          },
         },
         {
           text: 'Cancel',
           style: 'cancel',
+          onPress: () => {}
         },
       ]
     )
   }
 
+  // Handle two-step image upload process
+  const handleImageUpload = async (imageUri: string) => {
+
+    if (!user?.token) {
+      Alert.alert('Error', 'Authentication required')
+      return
+    }
+
+
+    try {
+      // Step 1: Upload image to cloud storage
+      const formData = new FormData()
+      const filename = imageUri.split('/').pop() || 'profile.jpg'
+      const match = /\.(.+)$/.exec(filename)
+      const type = match ? `image/${match[1]}` : 'image/jpeg'
+
+      formData.append('image', {
+        uri: imageUri,
+        name: filename,
+        type,
+      } as any)
+
+      const uploadResponse = await fetch('https://api-461776259687.us-west2.run.app/upload/image?folder=profiles', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+        },
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text()
+        throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`)
+      }
+
+      const uploadResult = await uploadResponse.json()
+
+      if (!uploadResult.url) {
+        throw new Error('No URL returned from upload')
+      }
+
+      // Step 2: Update user profile with the uploaded image URL
+
+      // Use the correct endpoints based on role
+      const isCoach = user.role === 'coach' || user.role === 'staff' || user.role === 'instructor'
+      const profileUpdateUrl = isCoach
+        ? `https://api-461776259687.us-west2.run.app/staffs/${user.id}/profile`
+        : `https://api-461776259687.us-west2.run.app/athletes/${user.id}/profile`
+
+
+      // Prepare headers
+      const headers = {
+        'Authorization': `Bearer ${user.token}`,
+        'Content-Type': 'application/json',
+      }
+
+
+      const profileUpdateResponse = await fetch(profileUpdateUrl, {
+        method: 'PATCH',
+        headers: headers,
+        body: JSON.stringify({
+          photo_url: uploadResult.url
+        }),
+      })
+
+
+      if (!profileUpdateResponse.ok) {
+        const errorText = await profileUpdateResponse.text()
+        throw new Error(`Profile update failed: ${profileUpdateResponse.status} - ${errorText}`)
+      }
+
+
+      // Update local state to display new avatar
+      setProfileImage(uploadResult.url)
+
+      Alert.alert('Success', 'Profile picture updated successfully!')
+    } catch (error) {
+      console.error('❌ Image upload/update error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload and update profile picture'
+      Alert.alert('Error', errorMessage)
+    }
+  }
+
   const openCamera = async () => {
     const hasPermission = await requestPermissions()
-    if (!hasPermission) return
+    if (!hasPermission) {
+      return
+    }
 
     try {
       const result = await ImagePicker.launchCameraAsync({
@@ -415,8 +496,10 @@ export default function EditProfileScreen() {
         quality: 0.8,
       })
 
+
       if (!result.canceled && result.assets[0]) {
-        setProfileImage(result.assets[0].uri)
+        await handleImageUpload(result.assets[0].uri)
+      } else {
       }
     } catch (error) {
       console.error('Camera error:', error)
@@ -426,7 +509,9 @@ export default function EditProfileScreen() {
 
   const openImageLibrary = async () => {
     const hasPermission = await requestPermissions()
-    if (!hasPermission) return
+    if (!hasPermission) {
+      return
+    }
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -436,11 +521,13 @@ export default function EditProfileScreen() {
         quality: 0.8,
       })
 
+
       if (!result.canceled && result.assets[0]) {
-        setProfileImage(result.assets[0].uri)
+        await handleImageUpload(result.assets[0].uri)
+      } else {
       }
     } catch (error) {
-      console.error('Image library error:', error)
+      console.error('Photo library error:', error)
       Alert.alert('Error', 'Failed to open photo library')
     }
   }
@@ -503,9 +590,11 @@ export default function EditProfileScreen() {
                   style={[styles.profileImage, { borderColor: getAccentColor(user?.role || "") }]}
                   resizeMode="cover"
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.cameraButton, { backgroundColor: getAccentColor(user?.role || "") }]}
-                  onPress={showImagePickerOptions}
+                  onPress={() => {
+                    showImagePickerOptions()
+                  }}
                   activeOpacity={0.7}
                 >
                   <FontAwesomeIcon icon={faCamera} color="#000000" size={16} />

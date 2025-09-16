@@ -24,6 +24,7 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false)
   const user = useSelector((state: RootState) => state.user.data)
 
+
   const requestPermissions = async () => {
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync()
     const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -46,15 +47,20 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
       [
         {
           text: 'Camera',
-          onPress: () => openCamera(),
+          onPress: () => {
+            openCamera()
+          },
         },
         {
           text: 'Photo Library',
-          onPress: () => openImageLibrary(),
+          onPress: () => {
+            openImageLibrary()
+          },
         },
         {
           text: 'Cancel',
           style: 'cancel',
+          onPress: () => {}
         },
       ]
     )
@@ -62,7 +68,9 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
 
   const openCamera = async () => {
     const hasPermission = await requestPermissions()
-    if (!hasPermission) return
+    if (!hasPermission) {
+      return
+    }
 
     try {
       const result = await ImagePicker.launchCameraAsync({
@@ -72,8 +80,10 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
         quality: 0.8,
       })
 
+
       if (!result.canceled && result.assets[0]) {
         handleImageSelection(result.assets[0].uri)
+      } else {
       }
     } catch (error) {
       console.error('Camera error:', error)
@@ -83,7 +93,9 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
 
   const openImageLibrary = async () => {
     const hasPermission = await requestPermissions()
-    if (!hasPermission) return
+    if (!hasPermission) {
+      return
+    }
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -93,16 +105,19 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
         quality: 0.8,
       })
 
+
       if (!result.canceled && result.assets[0]) {
         handleImageSelection(result.assets[0].uri)
+      } else {
       }
     } catch (error) {
-      console.error('Image library error:', error)
+      console.error('Photo library error:', error)
       onUploadError?.('Failed to open photo library')
     }
   }
 
   const handleImageSelection = async (imageUri: string) => {
+
     if (!user?.token) {
       onUploadError?.('Authentication required')
       return
@@ -111,9 +126,8 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
     setIsUploading(true)
 
     try {
-      console.log('Starting image upload...', imageUri)
 
-      // Create FormData for file upload
+      // Step 1: Upload image to cloud storage
       const formData = new FormData()
       const filename = imageUri.split('/').pop() || 'profile.jpg'
       const match = /\.(.+)$/.exec(filename)
@@ -125,12 +139,10 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
         type,
       } as any)
 
-      // Upload to backend
       const uploadResponse = await fetch('https://api-461776259687.us-west2.run.app/upload/image?folder=profiles', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'multipart/form-data',
         },
         body: formData,
       })
@@ -141,16 +153,37 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
       }
 
       const uploadResult = await uploadResponse.json()
-      console.log('Upload successful:', uploadResult)
 
-      if (uploadResult.url) {
-        onUploadSuccess?.(uploadResult.url)
-      } else {
+      if (!uploadResult.url) {
         throw new Error('No URL returned from upload')
       }
+
+      // Step 2: Update user profile with the uploaded image URL
+      const isCoach = user.role === 'coach' || user.role === 'staff'
+      const profileUpdateUrl = isCoach
+        ? `https://api-461776259687.us-west2.run.app/staffs/${user.id}/profile`
+        : `https://api-461776259687.us-west2.run.app/athletes/${user.id}/profile`
+
+      const profileUpdateResponse = await fetch(profileUpdateUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          photo_url: uploadResult.url
+        }),
+      })
+
+      if (!profileUpdateResponse.ok) {
+        const errorText = await profileUpdateResponse.text()
+        throw new Error(`Profile update failed: ${profileUpdateResponse.status} - ${errorText}`)
+      }
+
+      onUploadSuccess?.(uploadResult.url)
     } catch (error) {
-      console.error('Image upload error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to upload image'
+      console.error('Image upload/update error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload and update profile picture'
       onUploadError?.(errorMessage)
     } finally {
       setIsUploading(false)
@@ -180,7 +213,9 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
             bottom: 0,
             right: 0,
           }]}
-          onPress={showImagePickerOptions}
+          onPress={() => {
+            showImagePickerOptions()
+          }}
           disabled={isUploading}
           activeOpacity={0.7}
         >
