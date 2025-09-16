@@ -41,6 +41,7 @@ import type { RootState } from "@/store"
 import { updateProfile } from "@/store/slices/userSlice"
 import { API_URL } from "@/utils/api"
 import axios from "axios"
+import * as ImagePicker from 'expo-image-picker'
 
 // 📱 Phone number utility functions
 const formatPhoneForDisplay = (phone: string): string => {
@@ -365,6 +366,85 @@ export default function EditProfileScreen() {
     }
   }
 
+  // 图片选择功能
+  const requestPermissions = async () => {
+    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync()
+    const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    
+    if (cameraStatus !== 'granted' || mediaLibraryStatus !== 'granted') {
+      Alert.alert(
+        'Permissions Required',
+        'Camera and photo library permissions are required to upload profile pictures.',
+        [{ text: 'OK' }]
+      )
+      return false
+    }
+    return true
+  }
+
+  const showImagePickerOptions = () => {
+    Alert.alert(
+      'Select Profile Picture',
+      'Choose how you want to add a profile picture',
+      [
+        {
+          text: 'Camera',
+          onPress: () => openCamera(),
+        },
+        {
+          text: 'Photo Library',
+          onPress: () => openImageLibrary(),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    )
+  }
+
+  const openCamera = async () => {
+    const hasPermission = await requestPermissions()
+    if (!hasPermission) return
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+
+      if (!result.canceled && result.assets[0]) {
+        setProfileImage(result.assets[0].uri)
+      }
+    } catch (error) {
+      console.error('Camera error:', error)
+      Alert.alert('Error', 'Failed to open camera')
+    }
+  }
+
+  const openImageLibrary = async () => {
+    const hasPermission = await requestPermissions()
+    if (!hasPermission) return
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+
+      if (!result.canceled && result.assets[0]) {
+        setProfileImage(result.assets[0].uri)
+      }
+    } catch (error) {
+      console.error('Image library error:', error)
+      Alert.alert('Error', 'Failed to open photo library')
+    }
+  }
+
   const getAccentColor = (role: string) => {
     switch (role) {
       case "athlete":
@@ -423,7 +503,11 @@ export default function EditProfileScreen() {
                   style={[styles.profileImage, { borderColor: getAccentColor(user?.role || "") }]}
                   resizeMode="cover"
                 />
-                <TouchableOpacity style={[styles.cameraButton, { backgroundColor: getAccentColor(user?.role || "") }]}>
+                <TouchableOpacity 
+                  style={[styles.cameraButton, { backgroundColor: getAccentColor(user?.role || "") }]}
+                  onPress={showImagePickerOptions}
+                  activeOpacity={0.7}
+                >
                   <FontAwesomeIcon icon={faCamera} color="#000000" size={16} />
                 </TouchableOpacity>
               </View>
