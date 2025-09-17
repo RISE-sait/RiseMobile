@@ -15,6 +15,7 @@ type User = {
   countryCode: string;
   token: string;
   firebaseId: string;
+  profileImage?: string;
 };
 
 export const refreshBackendJwt = async (): Promise<string> => {
@@ -78,6 +79,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       countryCode: (response.data as any).country_code || "US",
       token: jwtToken, // ✅ Now this is set correctly!
       firebaseId: firebaseUser.uid,
+      profileImage: (response.data as any).photo_url || "", // ✅ Include profile image from backend
     };
 
   } catch (error) {

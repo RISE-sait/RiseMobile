@@ -3,8 +3,9 @@ import { View, TouchableOpacity, Alert, Text, Image, StyleSheet, ActivityIndicat
 import * as ImagePicker from 'expo-image-picker'
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome'
 import { faCamera, faImage } from '@fortawesome/free-solid-svg-icons'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import type { RootState } from '@/store'
+import { updateProfile } from '@/store/slices/userSlice'
 
 interface ProfilePictureUploadProps {
   currentImageUri?: string
@@ -22,6 +23,7 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
   onUploadError
 }) => {
   const [isUploading, setIsUploading] = useState(false)
+  const dispatch = useDispatch()
   const user = useSelector((state: RootState) => state.user.data)
 
 
@@ -179,6 +181,9 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
         const errorText = await profileUpdateResponse.text()
         throw new Error(`Profile update failed: ${profileUpdateResponse.status} - ${errorText}`)
       }
+
+      // ✅ Update Redux state with new profile image
+      dispatch(updateProfile({ profileImage: uploadResult.url }))
 
       onUploadSuccess?.(uploadResult.url)
     } catch (error) {
