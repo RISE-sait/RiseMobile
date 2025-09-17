@@ -25,6 +25,7 @@ type User = {
   role: string
   countryCode: string
   token: string
+  profileImage?: string
   isAuthenticated?: boolean // Make this optional for Redux compatibility
 }
 
@@ -331,6 +332,7 @@ export const useAuth = () => {
           role: response.data.role.toLowerCase(), // Ensure lowercase role
           countryCode: response.data.country_code || "US",
           token: jwtToken, // ✅ Store JWT, not Firebase token
+          profileImage: response.data.photo_url || "", // ✅ Include profile image from backend
         }
 
         // ✅ Save user to Redux only - Redux Persist handles persistence
@@ -431,6 +433,7 @@ export const useAuth = () => {
         role: response.data.role.toLowerCase(), // Ensure lowercase role
         countryCode: response.data.country_code || "US",
         token: jwtToken, // ✅ Store JWT, not Firebase token
+        profileImage: response.data.photo_url || "", // ✅ Include profile image from backend
       }
 
       // 🔹 Save user to Redux only - Redux Persist handles persistence
