@@ -559,6 +559,8 @@ export const getMembershipPlans = async () => {
 // Get specific pricing plans for a membership type (requires authentication)
 export const getPlansForMembership = async (membershipId: string) => {
   try {
+    console.log(`[DEBUG] getPlansForMembership called with membershipId: "${membershipId}"`);
+
     const firebaseUser = auth.currentUser;
     if (!firebaseUser) {
       console.warn("⚠️ Firebase user not ready. Skipping membership plans fetch.");
@@ -568,6 +570,7 @@ export const getPlansForMembership = async (membershipId: string) => {
     // Get stored JWT token for backend authentication
     // The project uses "Firebase for identity, JWT for business authorization"
     let jwtToken = await AsyncStorage.getItem("authToken");
+    console.log(`[DEBUG] Retrieved jwtToken from AsyncStorage. Length: ${jwtToken?.length || 0}, Starts with: "${jwtToken?.substring(0, 20)}..."`);
 
     // If no JWT token, we need to get one from /auth endpoint using Firebase token
     if (!jwtToken) {
@@ -589,14 +592,28 @@ export const getPlansForMembership = async (membershipId: string) => {
 
     // Use the endpoint: /memberships/{membershipId}/plans
     const requestUrl = `${API_URL}/memberships/${membershipId}/plans`;
-    console.log(`🔄 Requesting plans for membership ${membershipId} from: ${requestUrl}`);
+    const headers = {
+      "Authorization": `Bearer ${jwtToken}`,
+      "Content-Type": "application/json",
+    };
+    console.log(`[DEBUG] Making request to: ${requestUrl}`);
+    console.log(`[DEBUG] Request headers:`, JSON.stringify({
+      Authorization: headers.Authorization.substring(0, 30) + '...',
+      'Content-Type': headers['Content-Type']
+    }, null, 2));
 
     const response = await fetch(requestUrl, {
-      headers: {
-        "Authorization": `Bearer ${jwtToken}`,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
+
+    console.log(`[DEBUG] Response status: ${response.status}`);
+    console.log(`[DEBUG] Response statusText: ${response.statusText}`);
+    console.log(`[DEBUG] Response headers:`, [...response.headers.entries()]);
+
+    // Log response body for debugging (clone to avoid consuming the stream)
+    const responseClone = response.clone();
+    const responseText = await responseClone.text();
+    console.log(`[DEBUG] Response body (first 500 chars):`, responseText.substring(0, 500));
 
     if (!response.ok) {
       const errorText = await response.text();
