@@ -112,7 +112,7 @@ const AthleteProfileScreen = () => {
 
         {/* Player Stats */}
         <View className="mt-6">
-        <PlayerStatsCard 
+        <PlayerStatsCard
         overallRating={user?.overallRating ?? 0}
         pointsPerGame={user?.pointsPerGame ?? 0}
         assistsPerGame={user?.assistsPerGame ?? 0}
@@ -120,22 +120,33 @@ const AthleteProfileScreen = () => {
 
         </View>
 
+
         {/* My Account Section */}
-        <AccountSection 
+        <AccountSection
           title="My Account"
           items={[
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
+            { icon: "star", text: "Credits", onPress: () => router.push("/screens/profile-options/credits") },
             { icon: "bell", text: "Notifications", onPress: () => router.push("/screens/comingSoon") },
             { icon: "arrow-right-from-bracket", text: "Logout", iconColor: "#EF4444", textColor: "#EF4444", onPress: handleLogout },
           ]}
         />
 
         {/* Support Section */}
-        <AccountSection 
+        <AccountSection
           title="Support"
           items={[
             { icon: "question-circle", text: "Help Center", onPress: () => router.push("/screens/profile-options/helpCenter") },
             { icon: "envelope", text: "Contact Us", onPress: () => router.push("/screens/profile-options/contactUs") },
+          ]}
+        />
+
+        {/* Legal Section */}
+        <AccountSection
+          title="Legal"
+          items={[
+            { icon: "shield", text: "Privacy Policy", onPress: () => router.push("/screens/legal/privacy-policy") },
+            { icon: "file-text", text: "Terms of Service", onPress: () => router.push("/screens/legal/terms-of-service") },
           ]}
         />
         

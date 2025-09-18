@@ -83,7 +83,7 @@ const EventsScreen: React.FC = () => {
               date: eventDate.format("YYYY-MM-DD"),
               time: event.time || "TBD",
               location: event.location || "TBD",
-              image: event.image || "https://via.placeholder.com/400x200",
+              image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
               type: event.type || "other",
               program: event.program?.id ? { id: event.program.id } : undefined,
             });
@@ -115,7 +115,7 @@ const EventsScreen: React.FC = () => {
               date,
               time,
               location: "RISE Basketball Court",
-              image: "https://via.placeholder.com/400x200",
+              image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
               type: "match",
             });
           }
@@ -128,7 +128,27 @@ const EventsScreen: React.FC = () => {
       }
     });
 
-    setEvents(allEvents);
+    // Sort events by proximity to today (nearest dates first, regardless of past/future)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time for accurate date comparison
+
+    const sortedEvents = allEvents.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      dateA.setHours(0, 0, 0, 0);
+      dateB.setHours(0, 0, 0, 0);
+
+      // Calculate distance from today
+      const distanceA = Math.abs(dateA.getTime() - today.getTime());
+      const distanceB = Math.abs(dateB.getTime() - today.getTime());
+
+      return distanceA - distanceB;
+    });
+
+    // Limit to 50 most recent/upcoming events for performance
+    const limitedEvents = sortedEvents.slice(0, 50);
+
+    setEvents(limitedEvents);
   }, [reduxEvents.byDate, reduxGames.items]);
 
   useEffect(() => {
@@ -141,19 +161,37 @@ const EventsScreen: React.FC = () => {
   };
 
   const filterEvents = (filter: string) => {
-    if (filter === "All") {
-      setFilteredEvents(events);
-      return;
+    let filtered = events;
+
+    if (filter !== "All") {
+      // Map UI filter labels to backend status values
+      const statusMapping: Record<string, string> = {
+        "SCHEDULED": "scheduled",
+        "Ongoing": "Ongoing",
+        "Past": "Past"
+      };
+      const backendStatus = statusMapping[filter] || filter;
+      filtered = events.filter(event => getEventStatus(event.date) === backendStatus);
     }
-    // Map UI filter labels to backend status values
-    const statusMapping = {
-      "SCHEDULED": "scheduled",
-      "Ongoing": "Ongoing",
-      "Past": "Past"
-    };
-    const backendStatus = statusMapping[filter] || filter;
-    const filtered = events.filter(event => getEventStatus(event.date) === backendStatus);
-    setFilteredEvents(filtered);
+
+    // Always sort filtered results by proximity to today (nearest dates first)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const sortedFiltered = filtered.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      dateA.setHours(0, 0, 0, 0);
+      dateB.setHours(0, 0, 0, 0);
+
+      // Calculate distance from today for proximity-based sorting
+      const distanceA = Math.abs(dateA.getTime() - today.getTime());
+      const distanceB = Math.abs(dateB.getTime() - today.getTime());
+
+      return distanceA - distanceB;
+    });
+
+    setFilteredEvents(sortedFiltered);
   };
 
   const getEventStatus = (date: string) => {
@@ -196,10 +234,12 @@ const EventsScreen: React.FC = () => {
             });
           } else {
             // Navigate to event details - calls GET /events/{id}
+            // Use actual event ID and mark as homepage source for public endpoint
             router.push({
               pathname: "/screens/event-details/[id]",
               params: {
-                id: item.program?.id || item.id,
+                id: item.id, // Always use actual event ID
+                source: "homepage", // Mark as homepage for public endpoint
               },
             });
           }
@@ -281,6 +321,16 @@ const EventsScreen: React.FC = () => {
         <View style={{ width: 40 }} />
       </View>
       {renderFilterChips()}
+
+      {/* Info Section */}
+      {!loading && events.length > 0 && (
+        <View style={styles.infoContainer}>
+          <Text style={styles.infoText}>
+            Showing {filteredEvents.length} of {events.length} events • Sorted by date
+          </Text>
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FCA311" />
@@ -428,9 +478,16 @@ const styles = StyleSheet.create({
   infoIcon: {
     marginRight: 8,
   },
+  infoContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222",
+  },
   infoText: {
-    color: "#CCCCCC",
-    fontSize: 14,
+    color: "#999",
+    fontSize: 12,
+    textAlign: "center",
   },
   emptyContainer: {
     alignItems: "center",

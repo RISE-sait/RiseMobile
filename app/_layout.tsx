@@ -9,6 +9,7 @@ import { View, ActivityIndicator } from "react-native"
 import { Provider } from "react-redux"
 import { PersistGate } from "redux-persist/integration/react"
 import { store, persistor } from "@/store"
+import { initializeStorageCleanup } from "@/utils/storageCleanup"
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -33,6 +34,11 @@ export default function RootLayout() {
 
    // ✅ JWT refresh is now handled by useAuth hook on-demand
    // Removed global interval refresh to prevent conflicts with auth state management
+
+   // Initialize storage cleanup on app start
+   useEffect(() => {
+     initializeStorageCleanup();
+   }, []);
 
   if (!fontsLoaded) {
     return (

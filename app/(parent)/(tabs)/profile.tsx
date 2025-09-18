@@ -171,6 +171,22 @@ export default function ParentProfileScreen() {
               },
             ]}
           />
+
+          <AccountSection
+            title="LEGAL"
+            items={[
+              {
+                icon: "shield",
+                text: "Privacy Policy",
+                onPress: () => router.push("/screens/legal/privacy-policy"),
+              },
+              {
+                icon: "file-text",
+                text: "Terms of Service",
+                onPress: () => router.push("/screens/legal/terms-of-service"),
+              },
+            ]}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

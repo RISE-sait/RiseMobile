@@ -9,6 +9,7 @@ import MatchCard from "../../../components/events/MatchCard"
 import { StatusBar } from "expo-status-bar"
 import { FontAwesome6 } from "@expo/vector-icons"
 import GradientBackground from "@/components/barber/GradientBackground"
+import EmptyState from "@/components/feedback/EmptyState"
 
 const { width } = Dimensions.get("window")
 
@@ -106,10 +107,11 @@ const InstructorMatches: React.FC = () => {
           {filteredMatches.length ? (
             filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)
           ) : (
-            <View className="mt-10 items-center">
-              <FontAwesome6 name="calendar-xmark" size={40} color="#555" />
-              <Text className="text-gray-400 mt-3 font-semibold">No matches scheduled for this date.</Text>
-            </View>
+            <EmptyState
+              icon="calendar-days"
+              title="No Matches Found"
+              message="No matches scheduled for this date. Check other dates for upcoming classes or matches."
+            />
           )}
         </ScrollView>
       </Animated.View>

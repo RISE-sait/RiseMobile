@@ -111,12 +111,33 @@ const processEvents = (events: any[]): { items: CalendarItem[]; byDate: Record<s
   return { items, byDate }
 }
 
-export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: string, { rejectWithValue }) => {
+// Fetch user's enrolled events (secure endpoint)
+export const fetchUserEvents = createAsyncThunk("events/fetchUserEvents", async (token: string, { rejectWithValue }) => {
   try {
     const afterDate = dayjs().subtract(3, "month").format("YYYY-MM-DD")
     const beforeDate = dayjs().add(3, "month").format("YYYY-MM-DD")
 
     const response = await fetchWithRetry(`${API_URL}/secure/events`, token, { after: afterDate, before: beforeDate })
+    const { items, byDate } = processEvents(response.data)
+
+    return {
+      items,
+      byDate,
+      lastFetched: new Date().toISOString(),
+    }
+  } catch (error: any) {
+    return rejectWithValue(error.message || "Failed to fetch user events")
+  }
+})
+
+// Fetch all available events for registration (public endpoint)
+export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: string, { rejectWithValue }) => {
+  try {
+    // Focus on more recent past events and near-future events for better performance
+    const afterDate = dayjs().subtract(2, "weeks").format("YYYY-MM-DD")
+    const beforeDate = dayjs().add(3, "months").format("YYYY-MM-DD")
+
+    const response = await fetchWithRetry(`${API_URL}/events`, token, { after: afterDate, before: beforeDate })
     const { items, byDate } = processEvents(response.data)
 
     return {
@@ -142,7 +163,7 @@ export const fetchEventById = createAsyncThunk<Event, { eventId: string; token: 
       }
 
       const baseId = eventId.includes("-") && eventId.length > 36 ? eventId.substring(0, 36) : eventId
-      const response = await fetchWithRetry(`${API_URL}/secure/events/${baseId}`, token)
+      const response = await fetchWithRetry(`${API_URL}/events/${baseId}`, token)
 
       return response.data
     } catch (error: any) {
@@ -175,6 +196,19 @@ const eventsSlice = createSlice({
       if (!state.byDate[date]) state.byDate[date] = []
       state.byDate[date].push(action.payload)
     },
+    // Cleanup old detailed events to prevent memory accumulation
+    cleanupOldDetailedEvents: (state) => {
+      const now = Date.now()
+      const maxAge = 24 * 60 * 60 * 1000 // 24 hours
+
+      Object.keys(state.lastFetchedDetailed).forEach(eventId => {
+        const lastFetched = state.lastFetchedDetailed[eventId]
+        if (now - lastFetched > maxAge) {
+          delete state.detailedEvents[eventId]
+          delete state.lastFetchedDetailed[eventId]
+        }
+      })
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -190,6 +224,21 @@ const eventsSlice = createSlice({
         state.error = null
       })
       .addCase(fetchEvents.rejected, (state, action) => {
+        state.status = "failed"
+        state.error = action.payload as string
+      })
+      .addCase(fetchUserEvents.pending, (state) => {
+        state.status = "loading"
+        state.error = null
+      })
+      .addCase(fetchUserEvents.fulfilled, (state, action) => {
+        state.status = "succeeded"
+        state.items = action.payload.items
+        state.byDate = action.payload.byDate
+        state.lastFetched = action.payload.lastFetched
+        state.error = null
+      })
+      .addCase(fetchUserEvents.rejected, (state, action) => {
         state.status = "failed"
         state.error = action.payload as string
       })
@@ -211,7 +260,7 @@ const eventsSlice = createSlice({
   },
 })
 
-export const { clearEvents, addEvent } = eventsSlice.actions
+export const { clearEvents, addEvent, cleanupOldDetailedEvents } = eventsSlice.actions
 export default eventsSlice.reducer
 
 export const selectAllEvents = (state: RootState) => state.events.items

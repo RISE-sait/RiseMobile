@@ -115,11 +115,20 @@ const CoachProfileScreen = () => {
         />
 
         {/* Support Section */}
-        <AccountSection 
+        <AccountSection
           title="Support"
           items={[
             { icon: "question-circle", text: "Help Center", onPress: () => router.push("/screens/profile-options/helpCenter") },
             { icon: "envelope", text: "Contact Us", onPress: () => router.push("/screens/profile-options/contactUs") },
+          ]}
+        />
+
+        {/* Legal Section */}
+        <AccountSection
+          title="Legal"
+          items={[
+            { icon: "shield", text: "Privacy Policy", onPress: () => router.push("/screens/legal/privacy-policy") },
+            { icon: "file-text", text: "Terms of Service", onPress: () => router.push("/screens/legal/terms-of-service") },
           ]}
         />
         

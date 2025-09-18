@@ -8,6 +8,7 @@ import {
   Animated,
   ActivityIndicator,
   StyleSheet,
+  Image,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
@@ -19,6 +20,7 @@ import { TeamResponse } from "@/app/api/Api"
 import { useSelector, useDispatch } from "react-redux"
 import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError } from "@/store/slices/teamsSlice"
 import type { RootState } from "@/store"
+import images from "@/constants/images"
 
 const { width } = Dimensions.get("window")
 
@@ -121,9 +123,13 @@ const SelectTeamForRoster: React.FC = () => {
         onPress={() => handleTeamPress(item)}
       >
         <View style={styles.teamCardContent}>
-          {/* Team Icon */}
+          {/* Team Logo */}
           <View style={styles.teamIcon}>
-            <FontAwesome6 name="users" size={32} color={COLORS.primary} />
+            <Image
+              source={item.logo_url ? { uri: item.logo_url } : images.teamLogo}
+              style={styles.teamLogo}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Team Info */}
@@ -297,6 +303,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
+    overflow: "hidden",
+  },
+  teamLogo: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   teamInfo: {
     flex: 1,

@@ -240,54 +240,26 @@ const CoachMatches: React.FC = () => {
             ))}
           </ScrollView>
         ) : (
-          <View className="flex-1 justify-center items-center px-6 py-12 mt-20">
-            <FontAwesome6 name="calendar-days" size={60} color="#FFD700" />
-            <Text className="text-white text-xl font-semibold mt-4 text-center">
-              No Matches Found
-            </Text>
-            <Text className="text-gray-400 text-base mt-2 text-center leading-6">
-              You don't have any upcoming matches or tournaments scheduled.
-            </Text>
-            
-            {/* Helpful suggestions */}
-            <View className="mt-6 bg-gray-800/50 rounded-lg p-4 w-full max-w-sm">
-              <Text className="text-gray-300 text-sm text-center leading-5">
-                💡 To see matches here, you need to:
-              </Text>
-              <View className="mt-3 space-y-2">
-                <Text className="text-gray-400 text-sm">
-                  • Be assigned to coach a team
-                </Text>
-                <Text className="text-gray-400 text-sm">
-                  • Have matches scheduled for your teams
-                </Text>
-                <Text className="text-gray-400 text-sm">
-                  • Register for tournaments or competitions
-                </Text>
-              </View>
-            </View>
-
-            {/* Action button */}
-            <TouchableOpacity
-              className="mt-6 bg-[#FFD700] px-6 py-3 rounded-lg"
-              onPress={async () => {
-                let authToken = token
-                if (!authToken) {
-                  const userString = await AsyncStorage.getItem("user")
-                  if (userString) {
-                    authToken = JSON.parse(userString)?.token
-                  }
+          <EmptyState
+            icon="calendar-days"
+            title="No Matches Found"
+            message="No matches scheduled for this date. Schedule games for your teams or check other dates."
+            actionLabel="Refresh"
+            onAction={async () => {
+              let authToken = token
+              if (!authToken) {
+                const userString = await AsyncStorage.getItem("user")
+                if (userString) {
+                  authToken = JSON.parse(userString)?.token
                 }
+              }
 
-                if (authToken) {
-                  dispatch(clearMatches())
-                  dispatch(fetchMatches(authToken))
-                }
-              }}
-            >
-              <Text className="text-black font-semibold">Refresh</Text>
-            </TouchableOpacity>
-          </View>
+              if (authToken) {
+                dispatch(clearMatches())
+                dispatch(fetchMatches(authToken))
+              }
+            }}
+          />
         )}
       </Animated.View>
     </SafeAreaView>

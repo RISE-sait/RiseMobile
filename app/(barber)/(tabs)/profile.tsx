@@ -151,6 +151,23 @@ export default function BarberProfileScreen() {
               </View>
             </View>
 
+            {/* Legal Section */}
+            <View style={styles.sectionWrapper}>
+              <Text style={styles.sectionTitle}>LEGAL</Text>
+              <View style={styles.sectionContent}>
+                <MenuItem
+                  icon="shield"
+                  text="Privacy Policy"
+                  onPress={() => handleNavigation("/screens/legal/privacy-policy")}
+                />
+                <MenuItem
+                  icon="file-text"
+                  text="Terms of Service"
+                  onPress={() => handleNavigation("/screens/legal/terms-of-service")}
+                />
+              </View>
+            </View>
+
             <Text style={styles.versionText}>Version 1.0.0</Text>
           </Animated.View>
         </ScrollView>

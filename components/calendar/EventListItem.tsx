@@ -17,6 +17,7 @@ interface EventListItemProps {
    name?: string
    type?: string
  }
+ source?: "calendar" | "homepage" // Add source to determine endpoint
 }
 
 const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.glyphMap => {
@@ -45,6 +46,7 @@ const EventListItem: React.FC<EventListItemProps> = ({
  type = "event",
  location,
  program,
+ source = "calendar", // Default to calendar (secure endpoint)
 }) => {
  const router = useRouter()
  const iconName = getEventIcon(title, type)
@@ -59,8 +61,9 @@ const EventListItem: React.FC<EventListItemProps> = ({
     router.push(`/screens/practice-details/${eventId}`)
   } else {
     // For events and other types - calls GET /events/{id}
-    const idToUse = program?.id || eventId
-    router.push(`/screens/event-details/${idToUse}`)
+    // Always use the actual eventId, not program ID
+    // Pass source parameter to determine endpoint (secure vs public)
+    router.push(`/screens/event-details/${eventId}?source=${source}`)
   }
 }
 

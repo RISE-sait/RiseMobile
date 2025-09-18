@@ -280,13 +280,15 @@ export default function EditProfileScreen() {
       )
 
 
-      // Create updated user object with response data
+      // Create updated user object with API response data
+      const apiResponse = response.data
       const updatedUser: User = {
         ...user,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),  
-        email: email.trim(),
-        phoneNumber: phoneNumber?.trim(),
+        firstName: apiResponse.first_name || firstName.trim(),
+        lastName: apiResponse.last_name || lastName.trim(),
+        email: apiResponse.email || email.trim(),
+        phoneNumber: apiResponse.phone || phoneNumber?.trim(),
+        countryCode: apiResponse.country_alpha2_code || user.countryCode,
         profileImage,
       }
 
@@ -672,8 +674,9 @@ export default function EditProfileScreen() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  inputStyle={styles.input}
+                  inputStyle={[styles.input, styles.disabledInput]}
                   placeholderTextColor={COLORS.textSecondary}
+                  editable={false}
                 />
               </View>
 
@@ -985,6 +988,11 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     padding: 12,
     fontSize: 16,
+  },
+  disabledInput: {
+    backgroundColor: COLORS.cardDark,
+    color: COLORS.textSecondary,
+    opacity: 0.6,
   },
   textArea: {
     minHeight: 100,

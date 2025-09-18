@@ -39,11 +39,13 @@ const rootReducer = combineReducers({
   schedule: scheduleReducer,
 })
 
-// Configure persistence
+// Configure persistence - ONLY persist essential user data to prevent storage overflow
 const persistConfig = {
   key: "root",
   storage: AsyncStorage,
-  whitelist: ["user", "events", "games", "practices", "courses", "teams", "membership", "schedule"], // Only persist these slices
+  whitelist: ["user"], // Only persist user data - everything else should be fetched fresh
+  // Blacklist large data that changes frequently
+  blacklist: ["events", "games", "practices", "courses", "teams", "membership", "schedule"],
 }
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)

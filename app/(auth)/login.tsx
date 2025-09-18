@@ -18,7 +18,7 @@ import * as Haptics from "expo-haptics"
 import { useDispatch } from "react-redux"
 import { setUser } from "@/store/slices/userSlice"
 import { setMembership } from "@/store/slices/membershipSlice"
-import type { User } from "@/store/slices/userSlice"
+import type { User } from "@/types"
 
 
 
@@ -164,8 +164,6 @@ const handleLogin = async (email: string, password: string) => {
                   {/* Sign Up Link */}
                   <SignupLink onPress={() => router.push("/(auth)/signup")} />
 
-                  {/* Social Login Options */}
-                  <SocialLogin onGoogleLogin={handleGoogleLogin} />
 
                   {/* Add bottom padding */}
                   <View style={styles.bottomPadding} />

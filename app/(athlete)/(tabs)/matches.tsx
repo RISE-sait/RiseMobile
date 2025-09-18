@@ -59,52 +59,35 @@ const MatchesScreen: React.FC = () => {
   }, [weekDates])
 
   // Reusable token getter with fallback logic
-  const getAuthToken = async (): Promise<string | null> => {
-    let authToken = token
-    
+  const getAuthToken = useCallback(async (): Promise<string | null> => {
+    let authToken: string | null = token || null
+
     if (!authToken) {
       try {
         // Try to get token from user object first
         const userString = await AsyncStorage.getItem("user")
         if (userString) {
           const userData = JSON.parse(userString)
-          authToken = userData.token
+          authToken = userData.token || null
         }
-        
+
         // Fallback: try to get JWT token directly
         if (!authToken) {
           authToken = await AsyncStorage.getItem("jwtToken")
         }
       } catch (err) {
         console.error("Error getting token from AsyncStorage:", err)
+        return null
       }
     }
-    
+
     return authToken
-  }
+  }, [token])
 
   useEffect(() => {
     // Fetch matches when component mounts
     const fetchData = async () => {
-      let authToken = token
-
-      if (!authToken) {
-        try {
-          // Try to get token from user object first
-          const userString = await AsyncStorage.getItem("user")
-          if (userString) {
-            const userData = JSON.parse(userString)
-            authToken = userData.token
-          }
-          
-          // Fallback: try to get JWT token directly
-          if (!authToken) {
-            authToken = await AsyncStorage.getItem("jwtToken")
-          }
-        } catch (err) {
-          console.error("Error getting token from AsyncStorage:", err)
-        }
-      }
+      const authToken = await getAuthToken()
 
       if (authToken) {
         dispatch(clearMatches())
@@ -113,7 +96,7 @@ const MatchesScreen: React.FC = () => {
     }
 
     fetchData()
-  }, [dispatch, token])
+  }, [dispatch, token, getAuthToken])
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -265,52 +248,11 @@ const MatchesScreen: React.FC = () => {
             {filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)}
           </ScrollView>
         ) : (
-          <View className="flex-1 justify-center items-center px-6 py-12">
-            <FontAwesome6 name="calendar-days" size={60} color="#FFD700" />
-            <Text className="text-white text-xl font-semibold mt-4 text-center">
-              No Matches Found
-            </Text>
-            <Text className="text-gray-400 text-base mt-2 text-center leading-6">
-              You don't have any upcoming matches or tournaments scheduled.
-            </Text>
-            
-            {/* Helpful suggestions */}
-            <View className="mt-6 bg-gray-800/50 rounded-lg p-4 w-full max-w-sm">
-              <Text className="text-gray-300 text-sm text-center leading-5">
-                💡 To see matches here, you need to:
-              </Text>
-              <View className="mt-3 space-y-2">
-                <Text className="text-gray-400 text-sm">
-                  • Be registered for a team or program
-                </Text>
-                <Text className="text-gray-400 text-sm">
-                  • Have matches scheduled for your teams
-                </Text>
-                <Text className="text-gray-400 text-sm">
-                  • Participate in tournaments or competitions
-                </Text>
-              </View>
-            </View>
-
-            {/* Action button */}
-            <TouchableOpacity
-              className="mt-6 bg-[#FFD700] px-6 py-3 rounded-lg"
-              onPress={() => {
-                const fetchData = async () => {
-                  const authToken = await getAuthToken()
-
-                  if (authToken) {
-                    dispatch(clearMatches())
-                    dispatch(fetchMatches(authToken))
-                  }
-                }
-
-                fetchData()
-              }}
-            >
-              <Text className="text-black font-semibold">Refresh</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="calendar-days"
+            title="No Matches Found"
+            message="You don't have any matches scheduled for this date. Check other dates or contact your coach for upcoming games."
+          />
         )}
       </View>
     </SafeAreaView>

@@ -28,6 +28,7 @@ import BackButton from "@/components/buttons/BackButton"
 import EventInfoRow from "@/components/events/EventInfoRow"
 import { API_URL } from "@/utils/api"
 import { COLORS } from "@/constants/colors"
+import * as WebBrowser from 'expo-web-browser'
 
 const { width } = Dimensions.get("window")
 
@@ -78,11 +79,12 @@ interface ApiEventResponse {
     id: string
     name: string
     type?: string
+    description?: string
   }
 }
 
 const EventDetails: React.FC = () => {
-  const { id, type } = useLocalSearchParams()
+  const { id, type, source } = useLocalSearchParams()
   const router = useRouter()
   const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
@@ -99,8 +101,27 @@ const EventDetails: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [registered, setRegistered] = useState(false)
+  const [enrolling, setEnrolling] = useState(false)
+  const [credits, setCredits] = useState<number>(0)
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
+
+  // Function to fetch user credits
+  const fetchUserCredits = async () => {
+    try {
+      const token = userData?.token
+      if (!token) return
+
+      const response = await axios.get(`${API_URL}/secure/credits`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      setCredits(response.data.balance || 0)
+    } catch (error) {
+      console.error("Error fetching credits:", error)
+    }
+  }
 
   // Function to get practice data from Redux store
   const getPracticeDataFromStore = (practiceId: string): EventDetails | null => {
@@ -117,7 +138,6 @@ const EventDetails: React.FC = () => {
       return null
     }
     
-    console.log("✅ Found practice in Redux store:", practice)
     
     // Transform practice data to EventDetails format
     const eventDetails: EventDetails = {
@@ -154,6 +174,7 @@ const EventDetails: React.FC = () => {
     ]).start()
 
     fetchEventDetails()
+    fetchUserCredits()
   }, [id])
 
   // Function to clean the ID by removing any suffix (e.g., "-7")
@@ -173,7 +194,6 @@ const EventDetails: React.FC = () => {
     try {
       // Check if event is already cached
       if (cachedEvent) {
-        console.log("✅ Using cached event data:", cachedEvent.id)
         
         // Parse description for date/time info from cached event
         let startDate = null
@@ -182,7 +202,6 @@ const EventDetails: React.FC = () => {
           const parsed = parseEventFromDescription(cachedEvent.description, new Date())
           startDate = parsed.startTime || parsed.eventDate
           endDate = parsed.endTime
-          console.log("📅 Parsed from cached event description:", { startDate, endDate })
         }
         
         // Transform cached Redux event to our EventDetails format
@@ -224,45 +243,8 @@ const EventDetails: React.FC = () => {
       const cleanedId = cleanId(id as string)
       console.log(`🚀 Fetching event details via Redux for ID: ${cleanedId}`)
 
-      // Try Redux first (with caching)
-      if (type !== "practice" && type !== "course" && type !== "other") {
-        try {
-          const result = await dispatch(fetchEventByIdRedux({ eventId: cleanedId, token }))
-          if (fetchEventByIdRedux.fulfilled.match(result)) {
-            console.log("✅ Got event from Redux:", result.payload)
-            const eventData = result.payload
-            
-            // Parse description for date/time info
-            let startDate = null
-            let endDate = null
-            if (eventData.description) {
-              const parsed = parseEventFromDescription(eventData.description, new Date())
-              startDate = parsed.startTime || parsed.eventDate
-              endDate = parsed.endTime
-            }
-            
-            const processedEvent: EventDetails = {
-              id: eventData.id,
-              title: eventData.name || "RISE Event", 
-              description: eventData.description || "No description provided.",
-              date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
-              time: formatTimeRange(startDate, endDate),
-              location: "RISE Facility",
-              locationAddress: "",
-              image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-              organizer: "RISE Basketball", 
-              category: eventData.type || "Event",
-              status: eventData.status || getEventStatus(startDate, endDate), // Prioritize API status
-              capacity: eventData.capacity || 0,
-            }
-            setEvent(processedEvent)
-            setLoading(false)
-            return
-          }
-        } catch (reduxError) {
-          console.log("Redux fetch failed, falling back to direct API call:", reduxError)
-        }
-      }
+      // Skip Redux for events and use direct API call with public endpoint
+      console.log(`🔄 Using direct API call for event type: ${type}`);
 
       // Fallback to direct API call for programs or if Redux fails
       if (type === "practice") {
@@ -272,7 +254,6 @@ const EventDetails: React.FC = () => {
         // Try to get practice data from Redux store using the ID
         const practiceFromStore = getPracticeDataFromStore(cleanedId)
         if (practiceFromStore) {
-          console.log("✅ Found practice data in Redux store:", practiceFromStore)
           setEvent(practiceFromStore)
           setLoading(false)
           return
@@ -283,13 +264,25 @@ const EventDetails: React.FC = () => {
         return
       }
       
-      const useProgramsEndpoint = type === "course" || type === "other";
-      const url = `${API_URL}/${useProgramsEndpoint ? "programs" : "events"}/${cleanedId}`;
+      // Use appropriate endpoint based on source
+      let response;
+      let url;
 
-      console.log(`🔄 Fallback: Direct API call to ${url}`)
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (source === "homepage") {
+        // Homepage events use public endpoint for registration
+        url = `${API_URL}/events/${cleanedId}`;
+        console.log(`🔄 Homepage source: Using public endpoint ${url}`)
+        response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        // Calendar/schedule events use secure endpoint (enrolled events)
+        url = `${API_URL}/secure/events/${cleanedId}`;
+        console.log(`🔄 Calendar source: Using secure endpoint ${url}`)
+        response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
 
       console.log("API Response:", response.data)
 
@@ -307,12 +300,6 @@ const EventDetails: React.FC = () => {
         startDate = parsed.startTime || parsed.eventDate
         endDate = parsed.endTime
         
-        console.log("✅ Parsed from description:", {
-          originalDescription: eventData.description,
-          extractedDate: parsed.eventDate,
-          extractedStartTime: parsed.startTime,
-          extractedEndTime: parsed.endTime
-        })
       }
       
       // Final fallback to created_at if still no dates
@@ -333,7 +320,7 @@ const EventDetails: React.FC = () => {
       const processedEvent: EventDetails = {
         id: eventData.id,
         title: eventData.name || eventData.program?.name || (type === "practice" ? "Practice Session" : "RISE Event"),
-        description: eventData.description || (type === "practice" ? `${eventData.program?.name || "Practice"} session` : "No description provided."),
+        description: eventData.program?.description || eventData.description || (type === "practice" ? `${eventData.program?.name || "Practice"} session` : "No description provided."),
         date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
         time: formatTimeRange(startDate, endDate),
         location: eventData.location?.name || "RISE Facility",
@@ -361,7 +348,25 @@ const EventDetails: React.FC = () => {
 
   // Parse date time string from API
   const parseDateTime = (dateTimeStr: string): Date | null => {
-    return dateTimeStr ? new Date(dateTimeStr) : null
+    if (!dateTimeStr) return null
+
+    try {
+      // Handle the double timezone format: "2025-09-05 17:30:00 -0600 -0600"
+      // Remove the duplicate timezone and convert to ISO format
+      let cleanedDateStr = dateTimeStr.replace(/(-\d{4})\s+(-\d{4})$/, '$1')
+
+      // Convert "2025-09-05 17:30:00 -0600" to ISO format "2025-09-05T17:30:00-06:00"
+      cleanedDateStr = cleanedDateStr.replace(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+(-\d{2})(\d{2})/, '$1T$2$3:$4')
+
+      const parsedDate = new Date(cleanedDateStr)
+      if (isNaN(parsedDate.getTime())) {
+        return null
+      }
+
+      return parsedDate
+    } catch (error) {
+      return null
+    }
   }
 
   // Extract event details from description text
@@ -377,7 +382,6 @@ const EventDetails: React.FC = () => {
         const parsed = new Date(dateStr)
         if (!isNaN(parsed.getTime())) {
           eventDate = parsed
-          console.log(`📅 Successfully parsed date: ${dateMatch[1]} -> ${eventDate}`)
         }
       } catch (e) {
         console.log("Could not parse date from description:", dateMatch[1])
@@ -568,20 +572,147 @@ const EventDetails: React.FC = () => {
     }
   }
 
-  const handleRegister = () => {
-    if (!event) return
+  // Enhanced enrollment function based on API specification
+  const enrollInEvent = async (paymentMethod: 'stripe' | 'credits' = 'stripe') => {
+    if (!event || !userData?.token) return
 
     if (event.status === "completed") {
       Alert.alert("Cannot Register", "This event has already ended.")
       return
     }
 
-    setRegistered(!registered)
-    // In a real app, you would make an API call here
-    Alert.alert(
-      registered ? "Registration Cancelled" : "Registration Successful",
-      registered ? "You have cancelled your registration." : `You are now registered for ${event.title}.`,
-    )
+    // Validate credits if using credits payment method
+    if (paymentMethod === 'credits' && credits <= 0) {
+      Alert.alert(
+        "Insufficient Credits",
+        "You don't have enough credits for this registration. Please use Stripe payment or earn more credits.",
+        [
+          { text: "Use Stripe", onPress: () => enrollInEvent('stripe') },
+          { text: "Cancel", style: "cancel" }
+        ]
+      )
+      return
+    }
+
+    setEnrolling(true)
+    try {
+      const response = await axios.post(
+        `${API_URL}/checkout/events/${event.id}/enhanced`,
+        { payment_method: paymentMethod },
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      const data = response.data
+
+      if (data.payment_link) {
+        // Outcome 2: Redirect to Stripe
+        await WebBrowser.openBrowserAsync(data.payment_link)
+        Alert.alert(
+          "Payment Required",
+          "Please complete your payment. Once successful, you'll be automatically enrolled.",
+          [
+            { text: "OK", onPress: () => {
+              // Optionally refresh the page to check enrollment status
+              fetchEventDetails()
+            }}
+          ]
+        )
+      } else {
+        // Outcome 1 or 3: Enrolled successfully
+        setRegistered(true)
+        Alert.alert("Success!", data.message)
+        // Refresh credits if used
+        if (paymentMethod === 'credits') {
+          fetchUserCredits()
+        }
+      }
+
+      setShowPaymentOptions(false)
+    } catch (error: any) {
+      console.error("Enrollment error:", error)
+
+      let errorTitle = "Enrollment Failed"
+      let errorMessage = "An unexpected error occurred. Please try again."
+
+      // Handle different types of errors
+      if (error.response) {
+        const status = error.response.status
+        const responseData = error.response.data
+
+        switch (status) {
+          case 400:
+            errorMessage = responseData?.error?.message || responseData?.message || "Invalid request. Please check your information."
+            break
+          case 401:
+            errorTitle = "Authentication Error"
+            errorMessage = "Please log in again to continue."
+            break
+          case 403:
+            errorTitle = "Access Denied"
+            errorMessage = responseData?.error?.message || "You don't have permission to register for this event."
+            break
+          case 404:
+            errorTitle = "Event Not Found"
+            errorMessage = "This event no longer exists or has been canceled."
+            break
+          case 409:
+            errorTitle = "Already Registered"
+            errorMessage = responseData?.error?.message || "You are already registered for this event."
+            break
+          case 422:
+            errorTitle = "Registration Unavailable"
+            errorMessage = responseData?.error?.message || "This event is full or registration is closed."
+            break
+          case 429:
+            errorTitle = "Too Many Requests"
+            errorMessage = "Please wait a moment before trying again."
+            break
+          case 500:
+            errorTitle = "Server Error"
+            errorMessage = "Our servers are having issues. Please try again later."
+            break
+          default:
+            errorMessage = responseData?.error?.message || responseData?.message || `Error ${status}: ${errorMessage}`
+        }
+      } else if (error.request) {
+        errorTitle = "Connection Error"
+        errorMessage = "Unable to connect to our servers. Please check your internet connection and try again."
+      } else {
+        errorMessage = error.message || errorMessage
+      }
+
+      Alert.alert(errorTitle, errorMessage)
+    } finally {
+      setEnrolling(false)
+    }
+  }
+
+  const handleRegister = () => {
+    if (!event) return
+
+    if (registered) {
+      // Handle cancellation - you might want to implement an unregister endpoint
+      Alert.alert(
+        "Cancel Registration",
+        "Are you sure you want to cancel your registration?",
+        [
+          { text: "No", style: "cancel" },
+          { text: "Yes", onPress: () => {
+            setRegistered(false)
+            // In a real implementation, call unregister API
+          }}
+        ]
+      )
+      return
+    }
+
+    // Show payment options if event might require payment
+    setShowPaymentOptions(true)
   }
 
   const handleRetry = () => {
@@ -712,20 +843,70 @@ const EventDetails: React.FC = () => {
           <TouchableOpacity
             style={[styles.registerButton, registered && styles.registeredButton, isPastEvent && styles.disabledButton]}
             onPress={handleRegister}
-            disabled={isPastEvent}
+            disabled={isPastEvent || enrolling}
           >
-            <Text
-              style={[
-                styles.registerButtonText,
-                registered && styles.registeredButtonText,
-                isPastEvent && styles.disabledButtonText,
-              ]}
-            >
-              {isPastEvent ? "Event Ended" : registered ? "Cancel Registration" : "Register for Event"}
-            </Text>
+            {enrolling ? (
+              <ActivityIndicator color="#000000" />
+            ) : (
+              <Text
+                style={[
+                  styles.registerButtonText,
+                  registered && styles.registeredButtonText,
+                  isPastEvent && styles.disabledButtonText,
+                ]}
+              >
+                {isPastEvent ? "Event Ended" : registered ? "Cancel Registration" : "Register for Event"}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </Animated.View>
+
+      {/* Payment Options Modal */}
+      {showPaymentOptions && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Choose Payment Method</Text>
+            <Text style={styles.modalSubtitle}>Select how you'd like to register for this event</Text>
+
+            {/* Show credits if user has them */}
+            {credits > 0 && (
+              <TouchableOpacity
+                style={styles.paymentOption}
+                onPress={() => enrollInEvent('credits')}
+                disabled={enrolling}
+              >
+                <FontAwesome5 name="star" size={20} color={COLORS.primary} />
+                <View style={styles.paymentOptionText}>
+                  <Text style={styles.paymentOptionTitle}>Use Credits</Text>
+                  <Text style={styles.paymentOptionSubtitle}>Balance: {credits} credits</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Stripe Payment Option */}
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={() => enrollInEvent('stripe')}
+              disabled={enrolling}
+            >
+              <FontAwesome5 name="credit-card" size={20} color={COLORS.primary} />
+              <View style={styles.paymentOptionText}>
+                <Text style={styles.paymentOptionTitle}>Pay with Card</Text>
+                <Text style={styles.paymentOptionSubtitle}>Secure payment via Stripe</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Cancel Button */}
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowPaymentOptions(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   )
 }
@@ -903,6 +1084,71 @@ const styles = StyleSheet.create({
     top: 50,
     left: 20,
     zIndex: 20,
+  },
+  // Modal styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    margin: 20,
+    borderRadius: 16,
+    padding: 24,
+    maxWidth: width - 40,
+    width: '100%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: COLORS.cardLight,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  paymentOptionText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  paymentOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  paymentOptionSubtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
+  cancelButton: {
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
   },
 })
 

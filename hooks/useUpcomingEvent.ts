@@ -99,39 +99,32 @@ interface UpcomingEventData {
   type: "match" | "practice" | "event"
 }
 
+// Cache duration: 6 hours (6 * 60 * 60 * 1000 milliseconds)
+const CACHE_DURATION = 6 * 60 * 60 * 1000;
+
 export const useUpcomingEvent = () => {
   const [upcomingEvent, setUpcomingEvent] = useState<UpcomingEventData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+  const [lastFetched, setLastFetched] = useState<number | null>(null)
+
   const userData = useAppSelector((state) => state.user.data)
 
-  useEffect(() => {
-    const fetchUpcomingEvent = async () => {
-      if (!userData?.token) {
-        setLoading(false)
-        return
-      }
+  const fetchUpcomingEvent = async () => {
+    if (!userData?.token) {
+      setLoading(false)
+      return
+    }
 
-      try {
-        setLoading(true)
-        setError(null)
+    try {
+      setLoading(true)
+      setError(null)
 
-        console.log("🗓️ Fetching schedule from /secure/schedule")
-        
-        const response = await axios.get<ScheduleResponse>(`${API_URL}/secure/schedule`, {
-          headers: { Authorization: `Bearer ${userData.token}` },
-        })
+      const response = await axios.get<ScheduleResponse>(`${API_URL}/secure/schedule`, {
+        headers: { Authorization: `Bearer ${userData.token}` },
+      })
 
-        console.log("🗓️ Schedule API response:", response.data)
-        
-        const { events, games, practices } = response.data
-        
-        console.log("🗓️ Schedule arrays:", {
-          events: events?.length || 0,
-          games: games?.length || 0,
-          practices: practices?.length || 0
-        })
+      const { events, games, practices } = response.data
 
         // Convert all items to a common format with timestamps for sorting
         const allItems: Array<UpcomingEventData & { timestamp: number }> = []
@@ -203,33 +196,62 @@ export const useUpcomingEvent = () => {
           })
         }
 
-        console.log(`🗓️ Total upcoming items found: ${allItems.length}`)
-        
         // Sort by timestamp (earliest first) and get the closest one
         if (allItems.length > 0) {
           const sortedItems = allItems.sort((a, b) => a.timestamp - b.timestamp)
           const closestEvent = sortedItems[0]
-          
+
           // Remove timestamp before setting state
           const { timestamp, ...eventData } = closestEvent
-          
-          console.log("🗓️ Closest upcoming event:", eventData.title, "on", eventData.date, "at", eventData.time)
           setUpcomingEvent(eventData)
         } else {
-          console.log("🗓️ No upcoming events found")
           setUpcomingEvent(null)
         }
 
-      } catch (err: any) {
-        console.error("❌ Error fetching schedule:", err.response?.data || err.message)
-        setError("Failed to load upcoming events")
-      } finally {
-        setLoading(false)
-      }
+        // Update last fetched timestamp
+        setLastFetched(Date.now())
+
+    } catch (err: any) {
+      console.error("Error fetching upcoming events:", err.response?.data || err.message)
+      setError("Failed to load upcoming events")
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchUpcomingEvent()
-  }, [userData?.token])
+  useEffect(() => {
+    const shouldFetch = () => {
+      // Don't fetch if no token
+      if (!userData?.token) return false;
 
-  return { upcomingEvent, loading, error, refetch: () => fetchUpcomingEvent() }
+      // Don't fetch if currently loading
+      if (loading) return false;
+
+      // Fetch if no data exists yet
+      if (!upcomingEvent || !lastFetched) return true;
+
+      // Fetch if cache has expired (6 hours)
+      const now = Date.now();
+      const cacheExpired = (now - lastFetched) > CACHE_DURATION;
+
+      return cacheExpired;
+    };
+
+    if (shouldFetch()) {
+      fetchUpcomingEvent();
+    }
+  }, [userData?.token, upcomingEvent, lastFetched, loading])
+
+  // Calculate time until next refresh for debugging
+  const timeUntilRefresh = lastFetched
+    ? Math.max(0, CACHE_DURATION - (Date.now() - lastFetched))
+    : 0;
+
+  return {
+    upcomingEvent,
+    loading,
+    error,
+    refetch: fetchUpcomingEvent,
+    cacheTimeRemaining: timeUntilRefresh // milliseconds until next auto-refresh
+  }
 }

@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
+import { createSlice, createAsyncThunk, createSelector } from "@reduxjs/toolkit"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import type { RootState } from "@/store"
@@ -155,8 +155,16 @@ const teamsSlice = createSlice({
   },
 })
 
-// Selectors
-export const selectAllTeams = (state: RootState) => state.teams.ids.map((id) => state.teams.entities[id])
+// Base selectors
+const selectTeamsState = (state: RootState) => state.teams
+const selectTeamsIds = createSelector([selectTeamsState], (teams) => teams.ids)
+const selectTeamsEntities = createSelector([selectTeamsState], (teams) => teams.entities)
+
+// Memoized selectors
+export const selectAllTeams = createSelector(
+  [selectTeamsIds, selectTeamsEntities],
+  (ids, entities) => ids.map((id) => entities[id])
+)
 
 export const selectTeamById = (state: RootState, teamId: string | undefined) =>
   teamId ? state.teams.entities[teamId] : undefined

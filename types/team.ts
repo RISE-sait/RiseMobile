@@ -20,6 +20,7 @@ export interface Team {
     name: string
     email: string
   }
+  logo_url?: string
   roster?: Player[]
   created_at?: string
   updated_at?: string

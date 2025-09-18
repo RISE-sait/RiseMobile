@@ -488,6 +488,7 @@ export interface TeamResponse {
   coach?: TeamCoach;
   created_at?: string;
   id?: string;
+  logo_url?: string;
   name?: string;
   roster?: ApiInternalDomainsTeamDtoRosterMemberInfo[];
   updated_at?: string;
