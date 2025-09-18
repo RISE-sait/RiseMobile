@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Alert, Modal, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, Alert, Modal, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
@@ -9,49 +9,43 @@ import MembershipDetails from "@/components/membership/MembershipDetails";
 import MembershipPurchaseList from "@/components/membership/MembershipPurchaseList";
 
 const MembershipScreen: React.FC = () => {
+  const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
   const [userMemberships, setUserMemberships] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [showWebView, setShowWebView] = useState<boolean>(false);
   const [paymentUrl, setPaymentUrl] = useState<string>("");
 
+  const loadMembershipData = async () => {
+    setStatus('loading');
+
+    // Call GET /secure/customers/memberships with unified response format
+    const result = await getUserMemberships();
+
+    if (result.error) {
+      console.error("❌ Error loading membership info:", result.error);
+      setStatus('error');
+    } else {
+      console.log("🔍 Debug - Fetched memberships:", result.data);
+      console.log("🔍 Debug - Memberships length:", result.data?.length || 0);
+      setUserMemberships(result.data || []);
+      setStatus('success');
+    }
+  };
+
   useEffect(() => {
-    const fetchUserMemberships = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Call GET /secure/customers/memberships with try...catch
-        const memberships = await getUserMemberships();
-        console.log("🔍 Debug - Fetched memberships:", memberships);
-        console.log("🔍 Debug - Memberships length:", memberships?.length || 0);
-        setUserMemberships(memberships || []);
-      } catch (error) {
-        console.error("❌ Error loading membership info:", error);
-        setError("Unable to load membership information");
-
-        // Show error toast/alert as mentioned in requirements
-        Alert.alert(
-          "Error",
-          "Unable to load membership information. Please try again later.",
-          [{ text: "OK" }]
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserMemberships();
+    loadMembershipData();
   }, []);
+
+  // Watch for status changes to 'loading' and trigger refresh
+  useEffect(() => {
+    if (status === 'loading' && userMemberships.length > 0) {
+      // This ensures we reload data when callback triggers refresh
+      loadMembershipData();
+    }
+  }, [status]);
 
   // Function to refresh membership data after successful payment
   const refreshMembershipData = async () => {
-    try {
-      const memberships = await getUserMemberships();
-      setUserMemberships(memberships || []);
-    } catch (error) {
-      console.error("❌ Error refreshing membership data:", error);
-    }
+    await loadMembershipData();
   };
 
   // Function to open payment WebView
@@ -105,7 +99,7 @@ const MembershipScreen: React.FC = () => {
     setPaymentUrl("");
   };
 
-  if (loading) {
+  if (status === 'loading') {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B]">
         <StatusBar translucent backgroundColor="transparent" style="light" />
@@ -118,13 +112,14 @@ const MembershipScreen: React.FC = () => {
 
         {/* Loading State */}
         <View className="flex-1 justify-center items-center">
-          <Text className="text-[#F0F0F0] text-base">Loading membership information...</Text>
+          <ActivityIndicator size="large" color="#FFD700" />
+          <Text className="text-[#F0F0F0] text-base mt-4">Loading membership information...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (error) {
+  if (status === 'error') {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B]">
         <StatusBar translucent backgroundColor="transparent" style="light" />
@@ -137,15 +132,24 @@ const MembershipScreen: React.FC = () => {
 
         {/* Error State */}
         <View className="flex-1 justify-center items-center px-5">
-          <Text className="text-red-500 text-base text-center mb-4">{error}</Text>
-          <Text className="text-[#999999] text-sm text-center">
+          <Text className="text-red-500 text-base text-center mb-4">
+            Failed to load membership details
+          </Text>
+          <Text className="text-[#999999] text-sm text-center mb-6">
             Please check your internet connection and try again.
           </Text>
+          <TouchableOpacity
+            onPress={loadMembershipData}
+            className="bg-[#FFD700] px-6 py-3 rounded-lg"
+          >
+            <Text className="text-black font-semibold">Retry</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
+  // Success state - render main content
   return (
     <SafeAreaView className="flex-1 bg-[#0C0B0B]">
       <StatusBar translucent backgroundColor="transparent" style="light" />
@@ -194,6 +198,7 @@ const MembershipScreen: React.FC = () => {
               <MembershipPurchaseList
                 onPurchaseSuccess={refreshMembershipData}
                 onOpenPaymentWebView={handleOpenPaymentWebView}
+                onPurchaseCompleted={() => setStatus('loading')}
               />
             </View>
           </View>

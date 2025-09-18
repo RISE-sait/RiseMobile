@@ -324,13 +324,26 @@ export const getAllMembershipPlans = async () => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to fetch membership plans: ${response.status} ${errorText}`);
+      return {
+        data: null,
+        error: {
+          message: `Failed to fetch membership plans: ${response.status} ${errorText}`,
+          status: response.status
+        }
+      };
     }
 
-    return response.json();
+    const data = await response.json();
+    return { data, error: null };
   } catch (error) {
     console.error("❌ Failed to fetch membership plans:", error);
-    throw error;
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || "Failed to fetch membership plans",
+        status: 500
+      }
+    };
   }
 };
 
@@ -340,7 +353,7 @@ export const getUserMemberships = async () => {
     const firebaseUser = auth.currentUser;
     if (!firebaseUser) {
       console.warn("⚠️ Firebase user not ready. Skipping membership fetch.");
-      return [];
+      return { data: [], error: null };
     }
 
     // Get stored JWT token for backend authentication
@@ -354,7 +367,13 @@ export const getUserMemberships = async () => {
         jwtToken = await refreshBackendJwt();
       } catch (refreshError) {
         console.error("❌ Failed to refresh JWT token:", refreshError);
-        throw new Error("Unable to authenticate with backend");
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401
+          }
+        };
       }
     }
 
@@ -367,14 +386,26 @@ export const getUserMemberships = async () => {
     });
 
     if (!customerResponse.ok) {
-      throw new Error(`Failed to get customer profile: ${customerResponse.status}`);
+      return {
+        data: null,
+        error: {
+          message: `Failed to get customer profile: ${customerResponse.status}`,
+          status: customerResponse.status
+        }
+      };
     }
 
     const customerData = await customerResponse.json();
     const customerId = customerData.id || customerData.user_id;
 
     if (!customerId) {
-      throw new Error("Customer ID not found in profile");
+      return {
+        data: null,
+        error: {
+          message: "Customer ID not found in profile",
+          status: 404
+        }
+      };
     }
 
     // Use the correct endpoint: /customers/{id}/memberships
@@ -404,23 +435,49 @@ export const getUserMemberships = async () => {
 
           if (!retryResponse.ok) {
             const retryErrorText = await retryResponse.text();
-            throw new Error(`Failed to fetch user memberships after token refresh: ${retryResponse.status} ${retryErrorText}`);
+            return {
+              data: null,
+              error: {
+                message: `Failed to fetch user memberships after token refresh: ${retryResponse.status} ${retryErrorText}`,
+                status: retryResponse.status
+              }
+            };
           }
 
-          return retryResponse.json();
+          const retryData = await retryResponse.json();
+          return { data: retryData, error: null };
         } catch (refreshError) {
           console.error("❌ Failed to refresh token on retry:", refreshError);
-          throw new Error(`Authentication failed: ${response.status} ${errorText}`);
+          return {
+            data: null,
+            error: {
+              message: `Authentication failed: ${response.status} ${errorText}`,
+              status: response.status
+            }
+          };
         }
       }
 
-      throw new Error(`Failed to fetch user memberships: ${response.status} ${errorText}`);
+      return {
+        data: null,
+        error: {
+          message: `Failed to fetch user memberships: ${response.status} ${errorText}`,
+          status: response.status
+        }
+      };
     }
 
-    return response.json();
+    const data = await response.json();
+    return { data, error: null };
   } catch (error) {
     console.error("❌ Failed to fetch user memberships:", error);
-    throw error;
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || "Failed to fetch user memberships",
+        status: 500
+      }
+    };
   }
 };
 
@@ -430,7 +487,7 @@ export const getMembershipPlans = async () => {
     const firebaseUser = auth.currentUser;
     if (!firebaseUser) {
       console.warn("⚠️ Firebase user not ready. Skipping membership plans fetch.");
-      return [];
+      return { data: [], error: null };
     }
 
     // Get stored JWT token for backend authentication
@@ -444,7 +501,13 @@ export const getMembershipPlans = async () => {
         jwtToken = await refreshBackendJwt();
       } catch (refreshError) {
         console.error("❌ Failed to refresh JWT token:", refreshError);
-        throw new Error("Unable to authenticate with backend");
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401
+          }
+        };
       }
     }
 
@@ -474,25 +537,50 @@ export const getMembershipPlans = async () => {
           });
 
           if (!retryResponse.ok) {
-            throw new Error(`Failed to fetch membership plans: ${retryResponse.status} ${errorText}`);
+            return {
+              data: null,
+              error: {
+                message: `Failed to fetch membership plans: ${retryResponse.status} ${errorText}`,
+                status: retryResponse.status
+              }
+            };
           }
 
-          return await retryResponse.json();
+          const retryData = await retryResponse.json();
+          return { data: retryData, error: null };
         } catch (retryError) {
           console.error("❌ Failed to refresh JWT token on retry:", retryError);
-          throw new Error("Unable to authenticate with backend");
+          return {
+            data: null,
+            error: {
+              message: "Unable to authenticate with backend",
+              status: 401
+            }
+          };
         }
       }
 
-      throw new Error(`Failed to fetch membership plans: ${response.status} ${errorText}`);
+      return {
+        data: null,
+        error: {
+          message: `Failed to fetch membership plans: ${response.status} ${errorText}`,
+          status: response.status
+        }
+      };
     }
 
     const data = await response.json();
     console.log("✅ Successfully fetched membership plans:", data);
-    return data;
+    return { data, error: null };
   } catch (error) {
     console.error("❌ Failed to fetch membership plans:", error);
-    throw error;
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || "Failed to fetch membership plans",
+        status: 500
+      }
+    };
   }
 };
 

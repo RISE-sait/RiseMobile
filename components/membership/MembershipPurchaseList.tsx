@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faCrown, faCheck } from "@fortawesome/free-solid-svg-icons";
@@ -24,11 +25,13 @@ interface MembershipPlan {
 interface MembershipPurchaseListProps {
   onPurchaseSuccess: () => void;
   onOpenPaymentWebView?: (url: string) => void;
+  onPurchaseCompleted?: () => void;
 }
 
 const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   onPurchaseSuccess,
   onOpenPaymentWebView,
+  onPurchaseCompleted,
 }) => {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -37,20 +40,20 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
   useEffect(() => {
     const fetchMembershipPlans = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+      setLoading(true);
+      setError(null);
 
-        // Call GET /memberships to get plan list
-        const membershipPlans = await getAllMembershipPlans();
+      // Call GET /memberships to get plan list with unified response format
+      const result = await getAllMembershipPlans();
 
-        setPlans(membershipPlans || []);
-      } catch (error) {
-        console.error("❌ Error fetching membership plans:", error);
+      if (result.error) {
+        console.error("❌ Error fetching membership plans:", result.error);
         setError("Failed to load membership plans");
-      } finally {
-        setLoading(false);
+      } else {
+        setPlans(result.data || []);
       }
+
+      setLoading(false);
     };
 
     fetchMembershipPlans();
@@ -87,6 +90,10 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       const data = result?.data;
       if (data && data.payment_url && onOpenPaymentWebView) {
         onOpenPaymentWebView(data.payment_url);
+        // Call the completion callback to trigger refresh when payment is initiated
+        if (onPurchaseCompleted) {
+          onPurchaseCompleted();
+        }
       } else {
         Alert.alert(
           "Purchase Unavailable",
@@ -169,17 +176,21 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         <TouchableOpacity
           style={[
             styles.purchaseButton,
-            purchaseLoading === item.id && styles.purchaseButtonLoading
+            purchaseLoading !== null && styles.purchaseButtonLoading
           ]}
           onPress={() => handlePurchase(item.id, item.name)}
-          disabled={purchaseLoading === item.id}
+          disabled={purchaseLoading !== null}
         >
-          <Text style={styles.purchaseButtonText}>
-            {purchaseLoading === item.id ? "Processing..." : "Purchase Plan"}
-          </Text>
-          {purchaseLoading === item.id && (
-            <Text style={styles.purchaseButtonSubtext}>
-              Initiating purchase...
+          {purchaseLoading === item.id ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#000000" />
+              <Text style={[styles.purchaseButtonText, { marginLeft: 8 }]}>
+                Processing...
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.purchaseButtonText}>
+              Purchase Plan
             </Text>
           )}
 
@@ -353,6 +364,11 @@ const styles = StyleSheet.create({
   },
   purchaseButtonLoading: {
     backgroundColor: "#B8860B", // Darker gold when loading
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   purchaseButtonText: {
     color: "#000000",
