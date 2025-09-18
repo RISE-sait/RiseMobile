@@ -57,17 +57,37 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   }, []);
 
   const handlePurchase = async (planId: string, planName: string) => {
+    setPurchaseLoading(planId);
     try {
-      setPurchaseLoading(planId);
+      // Call API which now returns { data, error }
+      const result: any = await purchaseMembershipPlan(planId);
 
-      // Call real API to initiate purchase
-      const response = await purchaseMembershipPlan(planId);
+      if (result?.error) {
+        const status: number | undefined = result.error.status;
+        const backendMessage: string | undefined = result.error.message;
 
-      // If API returns payment_url, open WebView
-      if (response && response.payment_url && onOpenPaymentWebView) {
-        onOpenPaymentWebView(response.payment_url);
+        if (status === 409) {
+          Alert.alert(
+            "Already Subscribed",
+            backendMessage || "You already have an active membership for this plan.",
+            [{ text: "OK" }]
+          );
+          return;
+        }
+
+        Alert.alert(
+          "Purchase Failed",
+          backendMessage || "Unable to initiate purchase. Please try again later or contact support.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      // Success path
+      const data = result?.data;
+      if (data && data.payment_url && onOpenPaymentWebView) {
+        onOpenPaymentWebView(data.payment_url);
       } else {
-        // API didn't return payment_url - show error message as per requirements
         Alert.alert(
           "Purchase Unavailable",
           "Unable to initiate purchase. Please try again later or contact support.",
@@ -75,25 +95,10 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         );
       }
     } catch (error: any) {
-      // Use warn to avoid dev red banner while we show an Alert
       console.warn("❌ Purchase error:", error);
-      const backendMessage: string | undefined = error?.message;
-      const status: number | undefined = error?.status;
-
-      // Provide specific UX for known backend message
-      if (status === 409 && backendMessage?.includes("already has an active membership")) {
-        Alert.alert(
-          "Already Subscribed",
-          "You already have an active membership for this plan.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
-
-      // Fallback error message
       Alert.alert(
         "Purchase Failed",
-        backendMessage || "Unable to initiate purchase. Please try again later or contact support.",
+        (error as Error)?.message || "Unable to initiate purchase. Please try again later or contact support.",
         [{ text: "OK" }]
       );
     } finally {
