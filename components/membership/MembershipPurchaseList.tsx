@@ -75,7 +75,8 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         );
       }
     } catch (error: any) {
-      console.error("❌ Purchase error:", error);
+      // Use warn to avoid dev red banner while we show an Alert
+      console.warn("❌ Purchase error:", error);
       const backendMessage: string | undefined = error?.message;
       const status: number | undefined = error?.status;
 
