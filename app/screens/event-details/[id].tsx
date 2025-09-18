@@ -82,6 +82,16 @@ interface ApiEventResponse {
     type?: string
     description?: string
   }
+  // Enrollment information
+  customers?: Array<{
+    id: string
+    email: string
+    first_name: string
+    last_name: string
+    phone?: string
+    gender?: string
+    has_cancelled_enrollment?: boolean
+  }>
 }
 
 const EventDetails: React.FC = () => {
@@ -133,9 +143,6 @@ const EventDetails: React.FC = () => {
       const memberships = await getMembershipByCustomerId(userData.id)
       if (memberships?.length > 0) {
         dispatch(setMembership(memberships[0]))
-        console.log("✅ Membership fetched:", memberships[0])
-      } else {
-        console.log("⚠️ No membership found for user")
       }
     } catch (error) {
       console.error("❌ Error fetching membership:", error)
@@ -286,7 +293,6 @@ const EventDetails: React.FC = () => {
       // Always use public endpoint for event details - it contains full event info
       // The secure endpoint only returns enrolled events without full details
       url = `${API_URL}/events/${cleanedId}`;
-      console.log('🌐 Fetching event details from public endpoint:', url)
       response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -346,12 +352,6 @@ const EventDetails: React.FC = () => {
         customer.id === userData.id || customer.email === userData.email
       ) || false
 
-      console.log('User enrollment check:', {
-        userId: userData.id,
-        userEmail: userData.email,
-        customers: eventData.customers?.map(c => ({ id: c.id, email: c.email })),
-        isEnrolled: isUserEnrolled
-      })
 
       setRegistered(isUserEnrolled)
     } catch (err: any) {
@@ -637,13 +637,6 @@ const EventDetails: React.FC = () => {
         setShowPaymentOptions(false)
       } else {
         // Handle API errors with server message
-        console.log("Registration failed - Full response:", JSON.stringify(data, null, 2))
-        console.log("Response status:", response.status)
-        console.log("Event details:", { id: event.id, title: event.title, capacity: event.capacity })
-        console.log("User membership_info:", userData?.membership_info)
-        console.log("Separate membership data:", membershipData)
-        console.log("Full user data:", JSON.stringify(userData, null, 2))
-
         const errorMessage = data?.error?.message || data?.message || "Registration failed. Please try again."
         Alert.alert("Registration Failed", errorMessage)
       }
