@@ -39,6 +39,33 @@ export const refreshBackendJwt = async (): Promise<string> => {
   return jwtToken;
 };
 
+// ---------------------------------------------
+// Global Axios Response Interceptor
+// - Suppress generic bottom notifications for 409 (Already Subscribed)
+// - Keep rethrowing errors so local handlers (Alerts) still work
+// ---------------------------------------------
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status: number | undefined = error?.response?.status;
+    const raw = error?.response?.data;
+    const message: string | undefined = raw?.error?.message || raw?.message;
+
+    // Only surface generic logging for non-409 errors.
+    // 409 is handled locally with a specific Alert.
+    if (status !== 409) {
+      console.warn("API Error:", status, message || "An error occurred");
+    }
+
+    // Mark 409 as silent so any global toast systems can skip it if they check this flag
+    if (status === 409) {
+      (error as any).silent = true;
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 
 
 
