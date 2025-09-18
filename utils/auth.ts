@@ -172,12 +172,6 @@ export const useAuth = () => {
 
       const userRole = userData.role.toLowerCase()
 
-      // 🔑 DEBUG: Extract JWT Token for testing
-      if (userRole === "athlete") {
-        console.log("🔑 ATHLETE JWT TOKEN:", userData.token);
-        console.log("🔑 ATHLETE USER ID:", userData.id);
-        console.log("🔑 ATHLETE EMAIL:", userData.email);
-      }
 
       // Now it's safe to navigate after login
       switch (userRole) {

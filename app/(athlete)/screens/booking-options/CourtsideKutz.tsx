@@ -310,6 +310,12 @@ const BarberBookingScreen = () => {
 
   // Handle date selection
   const handleDateSelect = (day: { dateString: string }) => {
+    // Prevent selecting past dates
+    const today = new Date().toISOString().split('T')[0]
+    if (day.dateString < today) {
+      return // Don't allow past date selection
+    }
+
     setSelectedDate(day.dateString)
     // Reset time selection when date changes
     setSelectedTime(null)
@@ -662,7 +668,12 @@ const BarberBookingScreen = () => {
   const renderStep2 = () => (
     <View className="flex-1">
       <Text className="text-white-100 text-xl font-bold mb-4">Select Date</Text>
-      <CalendarCard selectedDate={selectedDate} onDayPress={handleDateSelect} events={{}} />
+      <CalendarCard
+        selectedDate={selectedDate}
+        onDayPress={handleDateSelect}
+        events={{}}
+        minDate={new Date().toISOString().split('T')[0]}
+      />
 
       <Text className="text-white-100 text-xl font-bold mt-6 mb-4">Select Time</Text>
       <FlatList

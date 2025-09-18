@@ -336,11 +336,6 @@ class CalendarService {
       throw new Error('Invalid schedule response: No data received')
     }
 
-    console.log('Schedule data fetched:', {
-      events: response.data.events?.length || 0,
-      games: response.data.games?.length || 0,
-      practices: response.data.practices?.length || 0
-    })
 
     return response.data
   }
