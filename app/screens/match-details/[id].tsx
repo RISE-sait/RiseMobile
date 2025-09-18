@@ -22,6 +22,7 @@ import BackButton from "@/components/buttons/BackButton"
 import EventInfoRow from "@/components/events/EventInfoRow"
 import { Image } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
+import ManagedImage from "@/components/ui/ManagedImage"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
@@ -52,6 +53,8 @@ interface GameData {
   created_at?: string
   updated_at?: string
   status?: string // Add status field from API
+  home_team_logo_url?: string
+  away_team_logo_url?: string
 }
 
 const MatchDetailsScreen = () => {
@@ -137,12 +140,14 @@ const MatchDetailsScreen = () => {
             name: `${gameData.home_team_name || 'Home'} vs ${gameData.away_team_name || 'Away'}`,
             description: gameData.description || `Match between ${gameData.home_team_name} and ${gameData.away_team_name}`,
             win_team: gameData.home_team_name || "Home Team",
-            lose_team: gameData.away_team_name || "Away Team", 
+            lose_team: gameData.away_team_name || "Away Team",
             win_score: gameData.winner_score || 0,
             lose_score: gameData.loser_score || 0,
             created_at: gameData.start_time || gameData.created_at,
             updated_at: gameData.updated_at,
-            status: gameData.status || "scheduled" // Extract actual status from API
+            status: gameData.status || "scheduled", // Extract actual status from API
+            home_team_logo_url: gameData.home_team_logo_url,
+            away_team_logo_url: gameData.away_team_logo_url
           }
           
           setGame(transformedGame)
@@ -240,6 +245,7 @@ const MatchDetailsScreen = () => {
   const status = game?.status || "scheduled"
   const { color, label, bgColor } = statusStyles[status as keyof typeof statusStyles]
 
+
   // Basketball stats (mock data - in a real app, this would come from your API)
   const basketballStats = {
     home: {
@@ -305,8 +311,8 @@ const MatchDetailsScreen = () => {
             {/* Teams and Score */}
             <View style={styles.teamsContainer}>
               <View style={styles.teamColumn}>
-                <Image
-                  source={{ uri: "https://via.placeholder.com/100" }}
+                <ManagedImage
+                  source={game?.home_team_logo_url}
                   style={styles.teamLogo}
                   resizeMode="contain"
                 />
@@ -320,8 +326,8 @@ const MatchDetailsScreen = () => {
               </View>
 
               <View style={styles.teamColumn}>
-                <Image
-                  source={{ uri: "https://via.placeholder.com/100" }}
+                <ManagedImage
+                  source={game?.away_team_logo_url}
                   style={styles.teamLogo}
                   resizeMode="contain"
                 />
