@@ -350,19 +350,6 @@ export const getAllMembershipPlans = async () => {
 // Get current user's membership details (requires authentication)
 export const getUserMemberships = async () => {
   try {
-    let firebaseUser = auth.currentUser;
-    if (!firebaseUser) {
-      console.log("⏳ Firebase user not ready, waiting for auth state...");
-      firebaseUser = await waitForFirebaseUser();
-
-      if (!firebaseUser) {
-        console.warn("⚠️ Firebase user still not ready after waiting. Skipping membership fetch.");
-        return { data: [], error: null };
-      } else {
-        console.log("✅ Firebase user is now ready.");
-      }
-    }
-
     // Get stored JWT token for backend authentication
     // The project uses "Firebase for identity, JWT for business authorization"
     let jwtToken = await AsyncStorage.getItem("authToken");
@@ -460,12 +447,6 @@ export const getUserMemberships = async () => {
 // Get all available membership plans (requires authentication)
 export const getMembershipPlans = async () => {
   try {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) {
-      console.warn("⚠️ Firebase user not ready. Skipping membership plans fetch.");
-      return { data: [], error: null };
-    }
-
     // Get stored JWT token for backend authentication
     // The project uses "Firebase for identity, JWT for business authorization"
     let jwtToken = await AsyncStorage.getItem("authToken");
@@ -561,44 +542,10 @@ export const getMembershipPlans = async () => {
   }
 };
 
-// Helper function: Wait for Firebase user to be ready
-const waitForFirebaseUser = (): Promise<ReturnType<typeof auth.currentUser> | null> => {
-  return new Promise((resolve) => {
-    const user = auth.currentUser;
-    if (user) {
-      resolve(user);
-      return;
-    }
-
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      unsubscribe();
-      resolve(user);
-    });
-
-    // Set timeout to avoid waiting indefinitely
-    setTimeout(() => {
-      unsubscribe();
-      resolve(null);
-    }, 5000);
-  });
-};
 
 // Get specific pricing plans for a membership type (requires authentication)
 export const getPlansForMembership = async (membershipId: string) => {
   try {
-    let firebaseUser = auth.currentUser;
-    if (!firebaseUser) {
-      console.log("⏳ Firebase user not ready, waiting for auth state...");
-      firebaseUser = await waitForFirebaseUser();
-
-      if (!firebaseUser) {
-        console.warn("⚠️ Firebase user still not ready after waiting. Skipping membership plans fetch.");
-        return { data: [], error: null };
-      } else {
-        console.log("✅ Firebase user is now ready.");
-      }
-    }
-
     // Get stored JWT token for backend authentication
     // The project uses "Firebase for identity, JWT for business authorization"
     let jwtToken = await AsyncStorage.getItem("authToken");
@@ -716,11 +663,6 @@ export const getPlansForMembership = async (membershipId: string) => {
 // Initiate membership plan purchase (requires authentication)
 export const purchaseMembershipPlan = async (planId: string) => {
   try {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) {
-      throw new Error("User not authenticated");
-    }
-
     // Get stored JWT token for backend authentication
     // The project uses "Firebase for identity, JWT for business authorization"
     let jwtToken = await AsyncStorage.getItem("authToken");
@@ -825,16 +767,21 @@ export const purchaseMembershipPlan = async (planId: string) => {
 };
 
 export const getMembershipByCustomerId = async (customerId: string) => {
-  const firebaseUser = auth.currentUser;
-
-  if (!firebaseUser) {
-    return [];
+  // Get stored JWT token for backend authentication
+  let jwtToken = await AsyncStorage.getItem("authToken");
+  
+  if (!jwtToken) {
+    console.log("🔄 No JWT token found, refreshing from backend...");
+    try {
+      jwtToken = await refreshBackendJwt();
+    } catch (refreshError) {
+      console.error("❌ Failed to refresh JWT token:", refreshError);
+      return [];
+    }
   }
-
-  const token = await firebaseUser.getIdToken(true);
   const response = await fetch(`${API_URL}/customers/${customerId}/memberships`, {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${jwtToken}`,
       "Content-Type": "application/json",
     },
   });
@@ -876,14 +823,22 @@ export const createRecurringPractice = async (data: any, jwt: string) => {
 };
 
 export const getPracticePrograms = async () => {
-  const firebaseUser = auth.currentUser;
-  if (!firebaseUser) throw new Error("User not logged in");
-
-  const token = await firebaseUser.getIdToken(true);
+  // Get stored JWT token for backend authentication
+  let jwtToken = await AsyncStorage.getItem("authToken");
+  
+  if (!jwtToken) {
+    console.log("🔄 No JWT token found, refreshing from backend...");
+    try {
+      jwtToken = await refreshBackendJwt();
+    } catch (refreshError) {
+      console.error("❌ Failed to refresh JWT token:", refreshError);
+      throw new Error("User not logged in");
+    }
+  }
 
   const res = await fetch(`${API_URL}/programs?program_type=practice`, {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${jwtToken}`,
     },
   });
 

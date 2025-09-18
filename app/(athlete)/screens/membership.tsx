@@ -3,16 +3,23 @@ import { View, Text, Alert, Modal, TouchableOpacity, ActivityIndicator } from "r
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
+import { useSelector, useDispatch } from "react-redux";
 import BackButton from "@/components/buttons/BackButton";
 import { getUserMemberships } from "@/utils/api";
 import MembershipDetails from "@/components/membership/MembershipDetails";
 import MembershipPurchaseList from "@/components/membership/MembershipPurchaseList";
+import { setMembership } from "@/store/slices/membershipSlice";
+import type { RootState } from "@/store";
 
 const MembershipScreen: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
   const [userMemberships, setUserMemberships] = useState<any[]>([]);
   const [showWebView, setShowWebView] = useState<boolean>(false);
   const [paymentUrl, setPaymentUrl] = useState<string>("");
+  
+  // Get cached membership data from Redux store
+  const dispatch = useDispatch();
+  const cachedMembership = useSelector((state: RootState) => state.membership.data);
 
   const loadMembershipData = async () => {
     setStatus('loading');
@@ -26,7 +33,14 @@ const MembershipScreen: React.FC = () => {
       } else {
         console.log("🔍 Debug - Fetched memberships:", result.data);
         console.log("🔍 Debug - Memberships length:", result.data?.length || 0);
-        setUserMemberships(result.data || []);
+        const memberships = result.data || [];
+        setUserMemberships(memberships);
+        
+        // Cache the membership data in Redux store
+        if (memberships.length > 0) {
+          dispatch(setMembership(memberships[0]));
+        }
+        
         setStatus('success');
       }
     } catch (e) {
@@ -75,16 +89,17 @@ const MembershipScreen: React.FC = () => {
   };
 
   useEffect(() => {
+    // If we have cached membership data, use it immediately for faster loading
+    if (cachedMembership) {
+      console.log("✅ Using cached membership data for faster loading");
+      setUserMemberships([cachedMembership]);
+      setStatus('success');
+    }
+    
+    // Always fetch fresh data in the background
     loadMembershipData();
   }, []);
 
-  // Watch for status changes to 'loading' and trigger refresh
-  useEffect(() => {
-    if (status === 'loading' && userMemberships.length > 0) {
-      // This ensures we reload data when callback triggers refresh
-      loadMembershipData();
-    }
-  }, [status]);
 
   // Function to refresh membership data after successful payment
   const refreshMembershipData = async () => {
@@ -153,10 +168,37 @@ const MembershipScreen: React.FC = () => {
           <Text className="text-white text-2xl font-bold ml-3">Membership</Text>
         </View>
 
-        {/* Loading State */}
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#FFD700" />
-          <Text className="text-[#F0F0F0] text-base mt-4">Loading membership information...</Text>
+        {/* Loading State - Show content with loading indicator */}
+        <View className="flex-1">
+          {/* Your Current Membership Section */}
+          <View className="px-5 py-4">
+            <View className="mb-8">
+              <View className="pb-3 mb-4 border-b border-[#222222]">
+                <Text className="text-white text-lg font-semibold">Your Current Membership</Text>
+              </View>
+              <View className="bg-[#1A1A1A] rounded-xl p-4">
+                <View className="flex-row items-center justify-center py-8">
+                  <ActivityIndicator size="small" color="#FFD700" />
+                  <Text className="text-[#999999] ml-3">Loading your membership...</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Available Membership Plans Section Header */}
+            <View className="mb-4">
+              <View className="pb-3 mb-4 border-b border-[#222222]">
+                <Text className="text-white text-lg font-semibold">Available Membership Plans</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Show MembershipPurchaseList with loading state */}
+          <MembershipPurchaseList
+            onPurchaseSuccess={refreshMembershipData}
+            onOpenPaymentWebView={handleOpenPaymentWebView}
+            onPurchaseCompleted={() => loadMembershipDataWithRetry()}
+            headerComponent={null} // Don't show header since we already have it above
+          />
         </View>
       </SafeAreaView>
     );

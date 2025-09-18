@@ -8,12 +8,13 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { auth } from "@/firebase/firebaseConfig";
+import { useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faCrown, faCheck, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership, refreshBackendJwt } from "@/utils/api";
 import { USE_MEMBERSHIP_TEST_MODE } from "@/utils/constants";
+import type { RootState } from "@/store";
 
 interface MembershipPlan {
   id: string;
@@ -61,10 +62,11 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   // Track which section is expanded, null means all collapsed
   const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
 
+  // Get user data from Redux store (same pattern as other screens)
+  const user = useSelector((state: RootState) => state.user.data);
+
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
     const fetchMembershipData = async () => {
       setLoading(true);
       setError(null);
@@ -101,8 +103,9 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           error: null
         }));
 
-        // Update state to show loading sections
+        // Update state to show loading sections immediately
         setMembershipSections(initialSections);
+        setLoading(false); // Hide main loading, show section-level loading
 
         // Step c: Fetch plans for each membership type with retry mechanism
         console.log("🔄 Fetching plans for all membership types...");
@@ -162,33 +165,16 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       }
     };
 
-    const initializeDataFetch = () => {
-      if (auth.currentUser) {
-        fetchMembershipData();
-      } else {
-        console.log("⏳ Waiting for Firebase user to be ready before fetching membership data...");
-        unsubscribe = auth.onAuthStateChanged((user) => {
-          if (user) {
-            console.log("✅ Firebase user is ready, fetching membership data...");
-            fetchMembershipData();
-          } else {
-            console.warn("⚠️ Firebase user is not authenticated.");
-            setError("User not authenticated");
-            setLoading(false);
-          }
-        });
-      }
-    };
-
-    initializeDataFetch();
-
-    // Cleanup function
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, []);
+    // Use Redux store user data (same pattern as other screens)
+    if (user && user.token) {
+      console.log("✅ User authenticated via Redux store, fetching membership data...");
+      fetchMembershipData();
+    } else {
+      console.warn("⚠️ User not authenticated in Redux store.");
+      setError("User not authenticated");
+      setLoading(false);
+    }
+  }, [user]);
 
   // Handle accordion section toggle
   const handleToggleSection = (sectionId: string) => {
