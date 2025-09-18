@@ -377,39 +377,9 @@ export const getUserMemberships = async () => {
       }
     }
 
-    // First, get customer profile to get customer_id
-    const customerResponse = await fetch(`${API_URL}/customers/email/${firebaseUser.email}`, {
-      headers: {
-        "Authorization": `Bearer ${jwtToken}`,
-        "Content-Type": "application/json",
-      },
-    });
 
-    if (!customerResponse.ok) {
-      return {
-        data: null,
-        error: {
-          message: `Failed to get customer profile: ${customerResponse.status}`,
-          status: customerResponse.status
-        }
-      };
-    }
-
-    const customerData = await customerResponse.json();
-    const customerId = customerData.id || customerData.user_id;
-
-    if (!customerId) {
-      return {
-        data: null,
-        error: {
-          message: "Customer ID not found in profile",
-          status: 404
-        }
-      };
-    }
-
-    // Use the correct endpoint: /customers/{id}/memberships
-    const response = await fetch(`${API_URL}/customers/${customerId}/memberships`, {
+    // Use the correct endpoint for current logged-in user: /secure/customers/memberships
+    const response = await fetch(`${API_URL}/secure/customers/memberships`, {
       headers: {
         "Authorization": `Bearer ${jwtToken}`,
         "Content-Type": "application/json",
@@ -426,7 +396,7 @@ export const getUserMemberships = async () => {
           jwtToken = await refreshBackendJwt();
 
           // Retry the request with new token
-          const retryResponse = await fetch(`${API_URL}/customers/${customerId}/memberships`, {
+          const retryResponse = await fetch(`${API_URL}/secure/customers/memberships`, {
             headers: {
               "Authorization": `Bearer ${jwtToken}`,
               "Content-Type": "application/json",
