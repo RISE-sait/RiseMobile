@@ -36,10 +36,6 @@ import type { Team } from "@/types/team"
 import { TeamDisplay } from "@/types/ui";
 
 // Default booking configuration - extracted from hardcoded values for better maintainability
-// TODO: Replace with dynamic location/court selection from API endpoints:
-//   - GET /locations - to fetch available locations
-//   - GET /courts - to fetch available courts for selected location
-//   - Add LocationSelector and CourtSelector components
 const DEFAULT_BOOKING_CONFIG = {
   LOCATION_ID: "626d44dd-6a98-42df-8fec-a36179da506f", // Rise Facility- Calgary Central Sportsplex
   COURT_ID: "9dda472d-6176-47b3-ab25-18b17be0c0f5", // Court 1
@@ -255,8 +251,6 @@ const handleConfirmBooking = async () => {
     };
 
     // For now, we're creating practices instead of booking existing ones
-    // TODO: When backend provides practice events to book, use POST /checkout/events/{practiceId}
-    // with request body: { "athlete_ids": [user.id], "discount_code": "" }
     
     if (isRecurring) {
       await dispatch(createRecurringPracticeThunk(recurringPayload)).unwrap()

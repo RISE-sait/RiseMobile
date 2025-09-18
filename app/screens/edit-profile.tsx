@@ -257,7 +257,7 @@ export default function EditProfileScreen() {
         email: email.trim(),
         country_alpha2_code: user.countryCode || "US",
         // Required fields with defaults
-        dob: "2000-01-01", // TODO: Add DOB field to form if needed
+        dob: "2000-01-01",
         has_marketing_email_consent: false,
         has_sms_consent: false,
       }
