@@ -355,8 +355,27 @@ export const getUserMemberships = async () => {
       }
     }
 
-    // Use JWT token for secure endpoints as per project architecture
-    const response = await fetch(`${API_URL}/secure/customers/memberships`, {
+    // First, get customer profile to get customer_id
+    const customerResponse = await fetch(`${API_URL}/customers/email/${firebaseUser.email}`, {
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!customerResponse.ok) {
+      throw new Error(`Failed to get customer profile: ${customerResponse.status}`);
+    }
+
+    const customerData = await customerResponse.json();
+    const customerId = customerData.id || customerData.user_id;
+
+    if (!customerId) {
+      throw new Error("Customer ID not found in profile");
+    }
+
+    // Use the correct endpoint: /customers/{id}/memberships
+    const response = await fetch(`${API_URL}/customers/${customerId}/memberships`, {
       headers: {
         "Authorization": `Bearer ${jwtToken}`,
         "Content-Type": "application/json",
@@ -373,7 +392,7 @@ export const getUserMemberships = async () => {
           jwtToken = await refreshBackendJwt();
 
           // Retry the request with new token
-          const retryResponse = await fetch(`${API_URL}/secure/customers/memberships`, {
+          const retryResponse = await fetch(`${API_URL}/customers/${customerId}/memberships`, {
             headers: {
               "Authorization": `Bearer ${jwtToken}`,
               "Content-Type": "application/json",
@@ -426,8 +445,8 @@ export const getMembershipPlans = async () => {
       }
     }
 
-    // Use JWT token for secure endpoints as per project architecture
-    const response = await fetch(`${API_URL}/secure/memberships`, {
+    // Use the correct endpoint: /memberships (as confirmed by test results)
+    const response = await fetch(`${API_URL}/memberships`, {
       headers: {
         "Authorization": `Bearer ${jwtToken}`,
         "Content-Type": "application/json",
@@ -444,7 +463,7 @@ export const getMembershipPlans = async () => {
           jwtToken = await refreshBackendJwt();
 
           // Retry the request with new token
-          const retryResponse = await fetch(`${API_URL}/secure/memberships`, {
+          const retryResponse = await fetch(`${API_URL}/memberships`, {
             headers: {
               "Authorization": `Bearer ${jwtToken}`,
               "Content-Type": "application/json",
