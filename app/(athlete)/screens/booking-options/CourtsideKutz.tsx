@@ -232,12 +232,6 @@ const BarberBookingScreen = () => {
           const servicesMap = new Map<string, Service>()
 
           data.forEach((item: any, index: number) => {
-              barber_id: item.barber_id,
-              barber_name: item.barber_name,
-              haircut_id: item.haircut_id,
-              haircut_name: item.haircut_name
-            })
-            
             // De-duplicate barbers with stricter validation
             const barberId = item.barber_id?.toString()
             const barberName = item.barber_name?.trim()
