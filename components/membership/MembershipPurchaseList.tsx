@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   Alert,
   StyleSheet,
@@ -11,7 +11,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faCrown, faCheck } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { getAllMembershipPlans, purchaseMembershipPlan } from "@/utils/api";
+import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership } from "@/utils/api";
 import { USE_MEMBERSHIP_TEST_MODE } from "@/utils/constants";
 
 interface MembershipPlan {
@@ -20,6 +20,18 @@ interface MembershipPlan {
   description: string;
   benefits: string;
   price?: number;
+}
+
+interface MembershipType {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface MembershipSection {
+  title: string;
+  description: string;
+  data: MembershipPlan[];
 }
 
 interface MembershipPurchaseListProps {
@@ -33,30 +45,78 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   onOpenPaymentWebView,
   onPurchaseCompleted,
 }) => {
-  const [plans, setPlans] = useState<MembershipPlan[]>([]);
+  const [membershipSections, setMembershipSections] = useState<MembershipSection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchMembershipPlans = async () => {
+    const fetchMembershipData = async () => {
       setLoading(true);
       setError(null);
 
-      // Call GET /memberships to get plan list with unified response format
-      const result = await getAllMembershipPlans();
+      try {
+        // Step a: Get all membership types
+        console.log("🔄 Fetching membership types...");
+        const membershipTypesResult = await getAllMembershipPlans();
 
-      if (result.error) {
-        console.error("❌ Error fetching membership plans:", result.error);
-        setError("Failed to load membership plans");
-      } else {
-        setPlans(result.data || []);
+        if (membershipTypesResult.error) {
+          console.error("❌ Error fetching membership types:", membershipTypesResult.error);
+          setError("Failed to load membership types");
+          setLoading(false);
+          return;
+        }
+
+        const membershipTypes: MembershipType[] = membershipTypesResult.data || [];
+        console.log(`✅ Found ${membershipTypes.length} membership types`);
+
+        if (membershipTypes.length === 0) {
+          console.log("ℹ️ No membership types found");
+          setMembershipSections([]);
+          setLoading(false);
+          return;
+        }
+
+        // Step b: Concurrently fetch plans for each membership type
+        console.log("🔄 Fetching plans for all membership types...");
+        const planPromises = membershipTypes.map(type =>
+          getPlansForMembership(type.id)
+        );
+
+        const plansResults = await Promise.all(planPromises);
+
+        // Step c: Combine data into SectionList format
+        const combinedData: MembershipSection[] = membershipTypes.map((type, index) => {
+          const plansResult = plansResults[index];
+          const plans = plansResult.error ? [] : (plansResult.data || []);
+
+          if (plansResult.error) {
+            console.warn(`⚠️ Failed to fetch plans for membership type "${type.name}":`, plansResult.error);
+          } else {
+            console.log(`✅ Found ${plans.length} plans for membership type "${type.name}"`);
+          }
+
+          return {
+            title: type.name,
+            description: type.description || "",
+            data: plans
+          };
+        });
+
+        // Step d: Update state
+        setMembershipSections(combinedData);
+        console.log("✅ Successfully loaded all membership data");
+
+      } catch (error) {
+        // Step e: Error handling
+        console.error("❌ Unexpected error fetching membership data:", error);
+        setError("Failed to load membership information");
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
-    fetchMembershipPlans();
+    fetchMembershipData();
   }, []);
 
   const handlePurchase = async (planId: string, planName: string) => {
@@ -182,7 +242,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           disabled={purchaseLoading !== null}
         >
           {purchaseLoading === item.id ? (
-            <View style={styles.loadingContainer}>
+            <View style={styles.buttonLoadingContainer}>
               <ActivityIndicator size="small" color="#000000" />
               <Text style={[styles.purchaseButtonText, { marginLeft: 8 }]}>
                 Processing...
@@ -223,6 +283,15 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     );
   }
 
+  const renderSectionHeader = ({ section }: { section: MembershipSection }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{section.title}</Text>
+      {section.description && (
+        <Text style={styles.sectionDescription}>{section.description}</Text>
+      )}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -234,13 +303,14 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       </View>
 
       {/* Plans List */}
-      <View style={styles.listContainer}>
-        {plans.map((item) => (
-          <View key={item.id}>
-            {renderPlanCard({ item })}
-          </View>
-        ))}
-      </View>
+      <SectionList
+        sections={membershipSections}
+        keyExtractor={(item, index) => item.id + index}
+        renderItem={({ item }) => renderPlanCard({ item })}
+        renderSectionHeader={renderSectionHeader}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 };
@@ -365,7 +435,7 @@ const styles = StyleSheet.create({
   purchaseButtonLoading: {
     backgroundColor: "#B8860B", // Darker gold when loading
   },
-  loadingContainer: {
+  buttonLoadingContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -397,6 +467,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
     textAlign: "center",
+  },
+  sectionHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#333333",
+  },
+  sectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  sectionDescription: {
+    color: "#CCCCCC",
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 

@@ -584,6 +584,109 @@ export const getMembershipPlans = async () => {
   }
 };
 
+// Get specific pricing plans for a membership type (requires authentication)
+export const getPlansForMembership = async (membershipId: string) => {
+  try {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      console.warn("⚠️ Firebase user not ready. Skipping membership plans fetch.");
+      return { data: [], error: null };
+    }
+
+    // Get stored JWT token for backend authentication
+    // The project uses "Firebase for identity, JWT for business authorization"
+    let jwtToken = await AsyncStorage.getItem("authToken");
+
+    // If no JWT token, we need to get one from /auth endpoint using Firebase token
+    if (!jwtToken) {
+      console.log("🔄 No JWT token found, refreshing from backend...");
+      try {
+        jwtToken = await refreshBackendJwt();
+      } catch (refreshError) {
+        console.error("❌ Failed to refresh JWT token:", refreshError);
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401
+          }
+        };
+      }
+    }
+
+    // Use the endpoint: /memberships/{membershipId}/plans
+    const response = await fetch(`${API_URL}/memberships/${membershipId}/plans`, {
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      // If 401/403, try refreshing the JWT token once
+      if (response.status === 401 || response.status === 403) {
+        console.log("🔄 Token expired, refreshing JWT...");
+        try {
+          jwtToken = await refreshBackendJwt();
+
+          // Retry the request with new token
+          const retryResponse = await fetch(`${API_URL}/memberships/${membershipId}/plans`, {
+            headers: {
+              "Authorization": `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!retryResponse.ok) {
+            return {
+              data: null,
+              error: {
+                message: `Failed to fetch plans for membership ${membershipId}: ${retryResponse.status} ${errorText}`,
+                status: retryResponse.status
+              }
+            };
+          }
+
+          const retryData = await retryResponse.json();
+          return { data: retryData, error: null };
+        } catch (retryError) {
+          console.error("❌ Failed to refresh JWT token on retry:", retryError);
+          return {
+            data: null,
+            error: {
+              message: "Unable to authenticate with backend",
+              status: 401
+            }
+          };
+        }
+      }
+
+      return {
+        data: null,
+        error: {
+          message: `Failed to fetch plans for membership ${membershipId}: ${response.status} ${errorText}`,
+          status: response.status
+        }
+      };
+    }
+
+    const data = await response.json();
+    console.log(`✅ Successfully fetched ${data.length} plans for membership ${membershipId}`);
+    return { data, error: null };
+  } catch (error) {
+    console.error(`❌ Failed to fetch plans for membership ${membershipId}:`, error);
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || `Failed to fetch plans for membership ${membershipId}`,
+        status: 500
+      }
+    };
+  }
+};
+
 // Initiate membership plan purchase (requires authentication)
 export const purchaseMembershipPlan = async (planId: string) => {
   try {
