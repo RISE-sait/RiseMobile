@@ -16,18 +16,61 @@ const MembershipScreen: React.FC = () => {
 
   const loadMembershipData = async () => {
     setStatus('loading');
+    try {
+      // Call GET /secure/customers/memberships with unified response format
+      const result = await getUserMemberships();
 
-    // Call GET /secure/customers/memberships with unified response format
-    const result = await getUserMemberships();
+      if (result.error) {
+        console.error("❌ Error loading membership info:", result.error);
+        setStatus('error');
+      } else {
+        console.log("🔍 Debug - Fetched memberships:", result.data);
+        console.log("🔍 Debug - Memberships length:", result.data?.length || 0);
+        setUserMemberships(result.data || []);
+        setStatus('success');
+      }
+    } catch (e) {
+      console.error("An unexpected error occurred in loadMembershipData:", e);
+      setStatus('error'); // Ensure program exits loading state under any exception
+    }
+  };
 
-    if (result.error) {
-      console.error("❌ Error loading membership info:", result.error);
+  // Enhanced retry mechanism for post-purchase membership sync
+  const loadMembershipDataWithRetry = async (retries = 3, delay = 2000) => {
+    setStatus('loading');
+    try {
+      for (let i = 0; i < retries; i++) {
+        console.log(`Attempt ${i + 1} of ${retries} to fetch membership status...`);
+        const result = await getUserMemberships();
+
+        // If successfully retrieved membership information (list length > 0)
+        if (result.data && result.data.length > 0) {
+          console.log("Success: New membership found!");
+          setUserMemberships(result.data);
+          setStatus('success');
+          return; // Success, exit function immediately
+        }
+
+        // If none found and not the last attempt, wait before retrying
+        if (i < retries - 1) {
+          console.log("Membership not found yet, waiting to retry...");
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          // After all retries still no result, inform user about processing status
+          console.warn("Could not find new membership after all retries.");
+          // Keep original membership info (if any) and notify user
+          // Here we choose to enter success state, but UI will show "no membership"
+          setUserMemberships([]);
+          setStatus('success');
+          Alert.alert(
+            "Purchase Processing",
+            "Your new membership is being processed and will appear shortly. Please check back in a few moments."
+          );
+        }
+      }
+    } catch (e) {
+      console.error("An unexpected error occurred during the polling process:", e);
       setStatus('error');
-    } else {
-      console.log("🔍 Debug - Fetched memberships:", result.data);
-      console.log("🔍 Debug - Memberships length:", result.data?.length || 0);
-      setUserMemberships(result.data || []);
-      setStatus('success');
     }
   };
 
@@ -45,7 +88,7 @@ const MembershipScreen: React.FC = () => {
 
   // Function to refresh membership data after successful payment
   const refreshMembershipData = async () => {
-    await loadMembershipData();
+    await loadMembershipDataWithRetry();
   };
 
   // Function to open payment WebView
@@ -164,7 +207,7 @@ const MembershipScreen: React.FC = () => {
       <MembershipPurchaseList
         onPurchaseSuccess={refreshMembershipData}
         onOpenPaymentWebView={handleOpenPaymentWebView}
-        onPurchaseCompleted={() => setStatus('loading')}
+        onPurchaseCompleted={() => loadMembershipDataWithRetry()}
         headerComponent={
           <View className="px-5 py-4">
             {/* Your Current Membership Section */}
