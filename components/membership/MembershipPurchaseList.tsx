@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
-import { faCrown, faCheck } from "@fortawesome/free-solid-svg-icons";
+import { faCrown, faCheck, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership } from "@/utils/api";
 import { USE_MEMBERSHIP_TEST_MODE } from "@/utils/constants";
@@ -29,6 +29,7 @@ interface MembershipType {
 }
 
 interface MembershipSection {
+  id: string;
   title: string;
   description: string;
   data: MembershipPlan[];
@@ -51,6 +52,8 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
+  // Track which section is expanded, null means all collapsed
+  const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMembershipData = async () => {
@@ -99,6 +102,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           }
 
           return {
+            id: type.id,
             title: type.name,
             description: type.description || "",
             data: plans
@@ -120,6 +124,15 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
     fetchMembershipData();
   }, []);
+
+  // Handle accordion section toggle
+  const handleToggleSection = (sectionId: string) => {
+    if (expandedSectionId === sectionId) {
+      setExpandedSectionId(null); // Collapse if already expanded
+    } else {
+      setExpandedSectionId(sectionId); // Expand new section, auto-collapse others
+    }
+  };
 
   const handlePurchase = async (planId: string, planName: string) => {
     setPurchaseLoading(planId);
@@ -196,12 +209,12 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   };
 
   const renderPlanCard = ({ item }: { item: MembershipPlan }) => (
-    <View style={styles.planCard}>
+    <View style={styles.accordionPlanCard}>
       <LinearGradient
         colors={["#1A1A1A", "#2A2A2A"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.cardGradient}
+        style={styles.accordionCardGradient}
       >
         {/* Plan Header */}
         <View style={styles.planHeader}>
@@ -285,14 +298,31 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     );
   }
 
-  const renderSectionHeader = ({ section }: { section: MembershipSection }) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{section.title}</Text>
-      {section.description && (
-        <Text style={styles.sectionDescription}>{section.description}</Text>
-      )}
-    </View>
-  );
+  const renderSectionHeader = ({ section }: { section: MembershipSection }) => {
+    const isExpanded = expandedSectionId === section.id;
+
+    return (
+      <TouchableOpacity
+        style={styles.sectionHeader}
+        onPress={() => handleToggleSection(section.id)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.sectionHeaderContent}>
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            {section.description && (
+              <Text style={styles.sectionDescription}>{section.description}</Text>
+            )}
+          </View>
+          <FontAwesomeIcon
+            icon={isExpanded ? faChevronUp : faChevronDown}
+            color="#FFD700"
+            size={16}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderListHeader = () => (
     <View>
@@ -314,7 +344,13 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       style={styles.container}
       sections={membershipSections}
       keyExtractor={(item, index) => item.id + index}
-      renderItem={({ item }) => renderPlanCard({ item })}
+      renderItem={({ item, section }) => {
+        // Only render if this section is expanded
+        if (expandedSectionId !== section.id) {
+          return null;
+        }
+        return renderPlanCard({ item });
+      }}
       renderSectionHeader={renderSectionHeader}
       ListHeaderComponent={renderListHeader}
       contentContainerStyle={styles.listContainer}
@@ -386,6 +422,20 @@ const styles = StyleSheet.create({
   },
   cardGradient: {
     padding: 20,
+  },
+  accordionPlanCard: {
+    marginHorizontal: 20,
+    marginVertical: 10,
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+  },
+  accordionCardGradient: {
+    padding: 16,
   },
   planHeader: {
     marginBottom: 16,
@@ -482,6 +532,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#333333",
+    backgroundColor: "#1A1A1A",
+  },
+  sectionHeaderContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  sectionHeaderText: {
+    flex: 1,
+    marginRight: 12,
   },
   sectionTitle: {
     color: "#FFFFFF",
