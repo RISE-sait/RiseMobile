@@ -13,6 +13,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  AppState,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
@@ -116,8 +117,10 @@ const EventDetails: React.FC = () => {
   const [enrolling, setEnrolling] = useState(false)
   const [credits, setCredits] = useState<number>(0)
   const [showPaymentOptions, setShowPaymentOptions] = useState(false)
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
+  const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null)
 
   // Function to fetch user credits
   const fetchUserCredits = async () => {
@@ -202,6 +205,97 @@ const EventDetails: React.FC = () => {
     fetchUserCredits()
     fetchUserMembership()
   }, [id])
+
+  // Handle app state changes to detect return from Stripe checkout
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active' && isCheckingPayment) {
+        // User returned to app, start checking enrollment status
+        startPaymentVerification()
+      }
+    }
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange)
+
+    return () => {
+      subscription?.remove()
+      if (paymentCheckInterval.current) {
+        clearInterval(paymentCheckInterval.current)
+      }
+    }
+  }, [isCheckingPayment])
+
+  // Function to check enrollment status after fetch
+  const checkEnrollmentStatus = async () => {
+    try {
+      const token = userData?.token
+      if (!token) return false
+
+      const cleanedId = cleanId(id as string)
+      const response = await axios.get(`${API_URL}/events/${cleanedId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      const eventData: ApiEventResponse = response.data
+      const isUserEnrolled = eventData.customers?.some(customer =>
+        customer.id === userData.id || customer.email === userData.email
+      ) || false
+
+      if (isUserEnrolled) {
+        setRegistered(true)
+        // Also update the main event details to reflect enrollment
+        await fetchEventDetails()
+      }
+
+      return isUserEnrolled
+    } catch (error) {
+      console.error("Error checking enrollment status:", error)
+      return false
+    }
+  }
+
+  // Function to start payment verification polling
+  const startPaymentVerification = () => {
+    let attempts = 0
+    const maxAttempts = 12 // Check for 1 minute (5s * 12 = 60s)
+
+    paymentCheckInterval.current = setInterval(async () => {
+      attempts++
+
+      try {
+        const isEnrolled = await checkEnrollmentStatus()
+
+        // If user is now registered, stop checking
+        if (isEnrolled) {
+          setIsCheckingPayment(false)
+          if (paymentCheckInterval.current) {
+            clearInterval(paymentCheckInterval.current)
+          }
+          Alert.alert(
+            "Payment Successful!",
+            "You've been successfully enrolled in this event.",
+            [{ text: "OK" }]
+          )
+          return
+        }
+      } catch (error) {
+        console.error("Error checking enrollment status:", error)
+      }
+
+      // Stop after max attempts
+      if (attempts >= maxAttempts) {
+        setIsCheckingPayment(false)
+        if (paymentCheckInterval.current) {
+          clearInterval(paymentCheckInterval.current)
+        }
+        Alert.alert(
+          "Payment Status",
+          "Please check your enrollment status manually or contact support if your payment was successful.",
+          [{ text: "OK", onPress: () => fetchEventDetails() }]
+        )
+      }
+    }, 5000) // Check every 5 seconds
+  }
 
   // Function to clean the ID by removing any suffix (e.g., "-7")
   const cleanId = (id: string): string => {
@@ -613,14 +707,12 @@ const EventDetails: React.FC = () => {
       const data = await response.json()
 
       if (response.ok) {
-        if (data.payment_link) {
+        if (data.payment_link || data.payment_url) {
           // Outcome 2: Stripe payment required
-          await WebBrowser.openBrowserAsync(data.payment_link)
-          Alert.alert(
-            "Complete Your Payment",
-            "Please complete your payment. Once successful, you'll be automatically enrolled.",
-            [{ text: "OK", onPress: () => fetchEventDetails() }]
-          )
+          const paymentUrl = data.payment_link || data.payment_url
+          setIsCheckingPayment(true)
+          await WebBrowser.openBrowserAsync(paymentUrl)
+          // Don't show alert immediately - let app state handling take care of verification
         } else {
           // Outcome 1 or 3: Free enrollment or credit payment successful
           setRegistered(true)
@@ -755,29 +847,6 @@ const EventDetails: React.FC = () => {
             <Text style={styles.sectionTitle}>About {event.category}</Text>
             <Text style={styles.description}>{event.description}</Text>
 
-            <View style={styles.divider} />
-
-            {/* Additional Information Section */}
-            <Text style={styles.sectionTitle}>Additional Information</Text>
-            <View style={styles.additionalInfo}>
-              <View style={styles.infoItem}>
-                <FontAwesome5 name="users" size={20} color={COLORS.primary} />
-                <View style={styles.infoTextContainer}>
-                  <Text style={styles.infoLabel}>Participants</Text>
-                  <Text style={styles.infoValue}>
-                    {event.capacity > 0 ? `Capacity: ${event.capacity}` : "Limited Capacity"}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.infoItem}>
-                <FontAwesome5 name="credit-card" size={20} color={COLORS.primary} />
-                <View style={styles.infoTextContainer}>
-                  <Text style={styles.infoLabel}>Entry Fee</Text>
-                  <Text style={styles.infoValue}>Free</Text>
-                </View>
-              </View>
-            </View>
 
             {/* Spacer for bottom buttons */}
             <View style={{ height: 100 }} />
@@ -793,10 +862,15 @@ const EventDetails: React.FC = () => {
           <TouchableOpacity
             style={[styles.registerButton, registered && styles.registeredButton, isPastEvent && styles.disabledButton]}
             onPress={handleRegister}
-            disabled={isPastEvent || enrolling}
+            disabled={isPastEvent || enrolling || isCheckingPayment}
           >
-            {enrolling ? (
-              <ActivityIndicator color="#000000" />
+            {enrolling || isCheckingPayment ? (
+              <View style={styles.buttonLoadingContainer}>
+                <ActivityIndicator color="#000000" />
+                <Text style={styles.loadingButtonText}>
+                  {isCheckingPayment ? "Verifying Payment..." : "Processing..."}
+                </Text>
+              </View>
             ) : (
               <Text
                 style={[
@@ -1099,6 +1173,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textSecondary,
     fontWeight: '600',
+  },
+  buttonLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadingButtonText: {
+    color: "#000000",
+    fontSize: 14,
+    marginLeft: 8,
+    fontWeight: "500",
   },
 })
 
