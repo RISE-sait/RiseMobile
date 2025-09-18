@@ -23,6 +23,8 @@ const MembershipScreen: React.FC = () => {
 
         // Call GET /secure/customers/memberships with try...catch
         const memberships = await getUserMemberships();
+        console.log("🔍 Debug - Fetched memberships:", memberships);
+        console.log("🔍 Debug - Memberships length:", memberships?.length || 0);
         setUserMemberships(memberships || []);
       } catch (error) {
         console.error("❌ Error loading membership info:", error);
@@ -158,19 +160,25 @@ const MembershipScreen: React.FC = () => {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="px-5 py-4">
           {/* Your Current Membership Section */}
-          {userMemberships.length > 0 && (
-            <View className="mb-8">
-              <View className="pb-3 mb-4 border-b border-[#222222]">
-                <Text className="text-white text-lg font-semibold">Your Current Membership</Text>
-              </View>
+          <View className="mb-8">
+            <View className="pb-3 mb-4 border-b border-[#222222]">
+              <Text className="text-white text-lg font-semibold">Your Current Membership</Text>
+            </View>
+            {userMemberships.length > 0 ? (
               <View className="bg-[#1A1A1A] rounded-xl p-4">
                 <MembershipDetails
                   membership={userMemberships[0]}
                   onRefresh={refreshMembershipData}
                 />
               </View>
-            </View>
-          )}
+            ) : (
+              <View className="bg-[#1A1A1A] rounded-xl p-4">
+                <Text className="text-[#999999] text-center py-8">
+                  No active membership found. Browse available plans below to get started.
+                </Text>
+              </View>
+            )}
+          </View>
 
           {/* Available Membership Plans Section */}
           <View className="mb-8">
