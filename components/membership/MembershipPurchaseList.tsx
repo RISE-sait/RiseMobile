@@ -11,6 +11,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faCrown, faCheck } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { getAllMembershipPlans, purchaseMembershipPlan } from "@/utils/api";
+import { USE_MEMBERSHIP_TEST_MODE } from "@/utils/constants";
 
 interface MembershipPlan {
   id: string;
@@ -121,6 +122,13 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
             <Text style={styles.planName}>{item.name}</Text>
           </View>
 
+          {/* Test Mode Indicator */}
+          {USE_MEMBERSHIP_TEST_MODE && (
+            <View style={styles.testModeBadge}>
+              <Text style={styles.testModeText}>TEST MODE</Text>
+            </View>
+          )}
+
           {/* Price display */}
           <View style={styles.priceContainer}>
             <Text style={styles.priceText}>
@@ -153,6 +161,13 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           {purchaseLoading === item.id && (
             <Text style={styles.purchaseButtonSubtext}>
               Initiating purchase...
+            </Text>
+          )}
+
+          {/* Test Mode Note */}
+          {USE_MEMBERSHIP_TEST_MODE && (
+            <Text style={styles.testModeNote}>
+              Note: All purchases will use test plan ID for now
             </Text>
           )}
         </TouchableOpacity>
@@ -334,6 +349,24 @@ const styles = StyleSheet.create({
     color: "#777777",
     fontSize: 12,
     marginTop: 4,
+  },
+  testModeBadge: {
+    backgroundColor: "#FF4444",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+  },
+  testModeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  testModeNote: {
+    color: "#FF4444",
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: "center",
   },
 });
 

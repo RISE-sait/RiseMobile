@@ -1,4 +1,5 @@
 import axios from "axios";
+import { USE_MEMBERSHIP_TEST_MODE, MEMBERSHIP_TEST_PLAN_ID } from "./constants";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -516,7 +517,14 @@ export const purchaseMembershipPlan = async (planId: string) => {
       }
     }
 
-    const response = await fetch(`${API_URL}/checkout/membership_plans/${planId}`, {
+    // Use test mode flag to determine effective plan id
+    const effectivePlanId = USE_MEMBERSHIP_TEST_MODE ? MEMBERSHIP_TEST_PLAN_ID : planId;
+
+    console.log(
+      `🛒 Purchasing membership plan: ${planId} (using ${USE_MEMBERSHIP_TEST_MODE ? "test" : "real"} ID: ${effectivePlanId})`
+    );
+
+    const response = await fetch(`${API_URL}/checkout/membership_plans/${effectivePlanId}`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${jwtToken}`,
@@ -534,7 +542,7 @@ export const purchaseMembershipPlan = async (planId: string) => {
           jwtToken = await refreshBackendJwt();
 
           // Retry the request with new token
-          const retryResponse = await fetch(`${API_URL}/checkout/membership_plans/${planId}`, {
+          const retryResponse = await fetch(`${API_URL}/checkout/membership_plans/${effectivePlanId}`, {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${jwtToken}`,
