@@ -350,10 +350,17 @@ export const getAllMembershipPlans = async () => {
 // Get current user's membership details (requires authentication)
 export const getUserMemberships = async () => {
   try {
-    const firebaseUser = auth.currentUser;
+    let firebaseUser = auth.currentUser;
     if (!firebaseUser) {
-      console.warn("⚠️ Firebase user not ready. Skipping membership fetch.");
-      return { data: [], error: null };
+      console.log("⏳ Firebase user not ready, waiting for auth state...");
+      firebaseUser = await waitForFirebaseUser();
+
+      if (!firebaseUser) {
+        console.warn("⚠️ Firebase user still not ready after waiting. Skipping membership fetch.");
+        return { data: [], error: null };
+      } else {
+        console.log("✅ Firebase user is now ready.");
+      }
     }
 
     // Get stored JWT token for backend authentication
@@ -383,7 +390,6 @@ export const getUserMemberships = async () => {
     const response = await fetch(`${API_URL}/secure/customers/memberships`, {
       headers: {
         "Authorization": `Bearer ${jwtToken}`,
-        "Content-Type": "application/json",
       },
     });
 
@@ -400,7 +406,6 @@ export const getUserMemberships = async () => {
           const retryResponse = await fetch(`${API_URL}/secure/customers/memberships`, {
             headers: {
               "Authorization": `Bearer ${jwtToken}`,
-              "Content-Type": "application/json",
             },
           });
 
@@ -556,21 +561,47 @@ export const getMembershipPlans = async () => {
   }
 };
 
+// Helper function: Wait for Firebase user to be ready
+const waitForFirebaseUser = (): Promise<ReturnType<typeof auth.currentUser> | null> => {
+  return new Promise((resolve) => {
+    const user = auth.currentUser;
+    if (user) {
+      resolve(user);
+      return;
+    }
+
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      unsubscribe();
+      resolve(user);
+    });
+
+    // Set timeout to avoid waiting indefinitely
+    setTimeout(() => {
+      unsubscribe();
+      resolve(null);
+    }, 5000);
+  });
+};
+
 // Get specific pricing plans for a membership type (requires authentication)
 export const getPlansForMembership = async (membershipId: string) => {
   try {
-    console.log(`[DEBUG] getPlansForMembership called with membershipId: "${membershipId}"`);
-
-    const firebaseUser = auth.currentUser;
+    let firebaseUser = auth.currentUser;
     if (!firebaseUser) {
-      console.warn("⚠️ Firebase user not ready. Skipping membership plans fetch.");
-      return { data: [], error: null };
+      console.log("⏳ Firebase user not ready, waiting for auth state...");
+      firebaseUser = await waitForFirebaseUser();
+
+      if (!firebaseUser) {
+        console.warn("⚠️ Firebase user still not ready after waiting. Skipping membership plans fetch.");
+        return { data: [], error: null };
+      } else {
+        console.log("✅ Firebase user is now ready.");
+      }
     }
 
     // Get stored JWT token for backend authentication
     // The project uses "Firebase for identity, JWT for business authorization"
     let jwtToken = await AsyncStorage.getItem("authToken");
-    console.log(`[DEBUG] Retrieved jwtToken from AsyncStorage. Length: ${jwtToken?.length || 0}, Starts with: "${jwtToken?.substring(0, 20)}..."`);
 
     // If no JWT token, we need to get one from /auth endpoint using Firebase token
     if (!jwtToken) {
@@ -594,26 +625,12 @@ export const getPlansForMembership = async (membershipId: string) => {
     const requestUrl = `${API_URL}/memberships/${membershipId}/plans`;
     const headers = {
       "Authorization": `Bearer ${jwtToken}`,
-      "Content-Type": "application/json",
     };
-    console.log(`[DEBUG] Making request to: ${requestUrl}`);
-    console.log(`[DEBUG] Request headers:`, JSON.stringify({
-      Authorization: headers.Authorization.substring(0, 30) + '...',
-      'Content-Type': headers['Content-Type']
-    }, null, 2));
+    console.log(`🔄 Requesting plans for membership ${membershipId} from: ${requestUrl}`);
 
     const response = await fetch(requestUrl, {
       headers,
     });
-
-    console.log(`[DEBUG] Response status: ${response.status}`);
-    console.log(`[DEBUG] Response statusText: ${response.statusText}`);
-    console.log(`[DEBUG] Response headers:`, [...response.headers.entries()]);
-
-    // Log response body for debugging (clone to avoid consuming the stream)
-    const responseClone = response.clone();
-    const responseText = await responseClone.text();
-    console.log(`[DEBUG] Response body (first 500 chars):`, responseText.substring(0, 500));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -634,7 +651,6 @@ export const getPlansForMembership = async (membershipId: string) => {
           const retryResponse = await fetch(`${API_URL}/memberships/${membershipId}/plans`, {
             headers: {
               "Authorization": `Bearer ${jwtToken}`,
-              "Content-Type": "application/json",
             },
           });
 

@@ -8,11 +8,11 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { auth } from "@/firebase/firebaseConfig";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faCrown, faCheck, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership, refreshBackendJwt, API_URL } from "@/utils/api";
+import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership, refreshBackendJwt } from "@/utils/api";
 import { USE_MEMBERSHIP_TEST_MODE } from "@/utils/constants";
 
 interface MembershipPlan {
@@ -61,54 +61,10 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   // Track which section is expanded, null means all collapsed
   const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
 
-  // Temporary debug function to simulate Python script's successful API call
-  const debugApiCall = async () => {
-    try {
-      console.log("[DEBUG] Starting debug API call...");
-
-      // Use Python script's successful membershipId
-      const testMembershipId = "9d743b53-706a-40fb-9274-bf0ed593e3bc";
-
-      // Get token from AsyncStorage
-      const jwtToken = await AsyncStorage.getItem("authToken");
-      console.log(`[DEBUG] Debug call - jwtToken: "${jwtToken?.substring(0, 20)}..."`);
-
-      if (!jwtToken) {
-        console.log("[DEBUG] No token found, trying to refresh...");
-        const newToken = await refreshBackendJwt();
-        console.log(`[DEBUG] New token: "${newToken?.substring(0, 20)}..."`);
-      }
-
-      // Use same headers as Python script
-      const headers = {
-        "Authorization": `Bearer ${jwtToken}`,
-      };
-
-      console.log(`[DEBUG] Debug call - Making request to: ${API_URL}/memberships/${testMembershipId}/plans`);
-      console.log(`[DEBUG] Debug call - Headers:`, JSON.stringify({
-        Authorization: headers.Authorization.substring(0, 30) + '...'
-      }, null, 2));
-
-      const response = await fetch(`${API_URL}/memberships/${testMembershipId}/plans`, {
-        headers
-      });
-
-      console.log(`[DEBUG] Debug call - Response status: ${response.status}`);
-      console.log(`[DEBUG] Debug call - Response statusText: ${response.statusText}`);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`[DEBUG] Debug call - Success! Data:`, JSON.stringify(data, null, 2));
-      } else {
-        const errorText = await response.text();
-        console.log(`[DEBUG] Debug call - Error response:`, errorText);
-      }
-    } catch (error) {
-      console.log(`[DEBUG] Debug call - Exception:`, error);
-    }
-  };
 
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
     const fetchMembershipData = async () => {
       setLoading(true);
       setError(null);
@@ -126,7 +82,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         }
 
         const membershipTypes: MembershipType[] = membershipTypesResult.data || [];
-        console.log(`[DEBUG] getAllMembershipPlans returned:`, JSON.stringify(membershipTypes, null, 2));
         console.log(`✅ Found ${membershipTypes.length} membership types`);
 
         if (membershipTypes.length === 0) {
@@ -207,9 +162,32 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       }
     };
 
-    fetchMembershipData();
-    // Uncommented to run debug function as specified in BUG.250918.06.md
-    debugApiCall();
+    const initializeDataFetch = () => {
+      if (auth.currentUser) {
+        fetchMembershipData();
+      } else {
+        console.log("⏳ Waiting for Firebase user to be ready before fetching membership data...");
+        unsubscribe = auth.onAuthStateChanged((user) => {
+          if (user) {
+            console.log("✅ Firebase user is ready, fetching membership data...");
+            fetchMembershipData();
+          } else {
+            console.warn("⚠️ Firebase user is not authenticated.");
+            setError("User not authenticated");
+            setLoading(false);
+          }
+        });
+      }
+    };
+
+    initializeDataFetch();
+
+    // Cleanup function
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   // Handle accordion section toggle
@@ -223,13 +201,10 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
   // Retry mechanism for fetching plans with auth error handling
   const fetchPlansWithRetry = async (membershipId: string, maxRetries = 2) => {
-    console.log(`[DEBUG] Calling getPlansForMembership with ID: "${membershipId}"`);
-
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       console.log(`🔄 Attempt ${attempt}/${maxRetries} to fetch plans for membership ${membershipId}`);
 
       const result = await getPlansForMembership(membershipId);
-      console.log(`[DEBUG] getPlansForMembership result for "${membershipId}":`, JSON.stringify(result, null, 2));
 
       // If successful, return the result
       if (!result.error) {
