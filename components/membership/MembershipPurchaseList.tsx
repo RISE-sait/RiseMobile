@@ -21,7 +21,7 @@ interface MembershipPlan {
   name: string;
   description: string;
   benefits: string;
-  price?: number;
+  price?: number | string;
 }
 
 interface MembershipType {
@@ -325,9 +325,9 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           {/* Price display */}
           <View style={styles.priceContainer}>
             <Text style={styles.priceText}>
-              {typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : "Price not available"}
+              {item.price ? (typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : item.price.toString().replace(/\$\$/g, '$')) : "Price not available"}
             </Text>
-            {typeof item.price === 'number' && <Text style={styles.priceNote}>per month</Text>}
+            {item.price && <Text style={styles.priceNote}>per month</Text>}
           </View>
         </View>
 
