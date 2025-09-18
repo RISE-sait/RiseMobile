@@ -6,11 +6,9 @@ export class StorageCleanup {
   // Clear all old cached data (except user auth)
   static async clearCache() {
     try {
-      console.log('🧹 Starting storage cleanup...');
 
       // Get all keys
       const allKeys = await AsyncStorage.getAllKeys();
-      console.log(`📊 Found ${allKeys.length} storage keys`);
 
       // Keys to preserve (user auth data)
       const preserveKeys = [
@@ -26,11 +24,10 @@ export class StorageCleanup {
       );
 
       if (keysToRemove.length > 0) {
-        console.log(`🗑️ Removing ${keysToRemove.length} cached items`);
         await AsyncStorage.multiRemove(keysToRemove);
       }
 
-      console.log('✅ Storage cleanup completed');
+
       return { removed: keysToRemove.length, total: allKeys.length };
 
     } catch (error) {
@@ -70,7 +67,6 @@ export class StorageCleanup {
   // Emergency cleanup when storage is nearly full
   static async emergencyCleanup() {
     try {
-      console.log('🚨 Emergency storage cleanup initiated');
 
       // Clear everything except essential auth data
       const result = await this.clearCache();
@@ -80,7 +76,6 @@ export class StorageCleanup {
         global.gc();
       }
 
-      console.log('🚨 Emergency cleanup completed');
       return result;
 
     } catch (error) {
@@ -130,7 +125,6 @@ export const initializeStorageCleanup = async () => {
     const isHealthy = await StorageCleanup.checkStorageHealth();
 
     if (!isHealthy) {
-      console.log('🧹 Storage unhealthy, running cleanup...');
       await StorageCleanup.clearCache();
     }
 

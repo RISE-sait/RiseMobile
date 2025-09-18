@@ -76,7 +76,6 @@ const LoginScreen = () => {
       }
 
       const user = await loginWithGoogle()
-      console.log("Google login successful:", user)
 
       // Store user in Redux
       if (user) {
@@ -106,7 +105,6 @@ const handleLogin = async (email: string, password: string) => {
     setIsLoading(true)
 
     const user = await login(email, password) as User;
-    console.log("User logged in:", user)
 
     if (user) {
       dispatch(setUser({ ...user, isAuthenticated: true }))

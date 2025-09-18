@@ -41,7 +41,6 @@ const AthleteProfileScreen = () => {
     try {
       // ✅ Prioritize Redux data
       if (reduxUser) {
-        console.log("📢 Loaded user from Redux state:", reduxUser);
         setUser({
           ...reduxUser,
           firstName: reduxUser.firstName || reduxUser.first_name || "",
@@ -52,12 +51,11 @@ const AthleteProfileScreen = () => {
       }
 
       // ⚠️ Only use AsyncStorage fallback when Redux data is not available
-      console.log("⚠️ Redux user not available, trying AsyncStorage fallback...");
+
       const storedUser = await AsyncStorage.getItem("user");
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        console.log("📢 Loaded user from AsyncStorage fallback:", parsedUser);
 
         setUser({
           ...parsedUser,
@@ -66,7 +64,7 @@ const AthleteProfileScreen = () => {
           countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
         });
       } else {
-        console.log("⚠️ No user found in Redux or AsyncStorage.");
+
       }
     } catch (error) {
       console.error("❌ Error loading user:", error);

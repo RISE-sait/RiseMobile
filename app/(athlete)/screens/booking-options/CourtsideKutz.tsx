@@ -224,11 +224,7 @@ const BarberBookingScreen = () => {
         setApiError(null)
         
         const data = await getHaircutAndBarberServices()
-        console.log("📢 Fetched haircut data:", data)
-        console.log("📢 Data structure check:")
         if (Array.isArray(data) && data.length > 0) {
-          console.log("📢 First item structure:", JSON.stringify(data[0], null, 2))
-          console.log("📢 Total items received:", data.length)
         }
         
         if (data && Array.isArray(data) && data.length > 0) {
@@ -236,7 +232,6 @@ const BarberBookingScreen = () => {
           const servicesMap = new Map<string, Service>()
 
           data.forEach((item: any, index: number) => {
-            console.log(`📢 Processing item ${index}:`, {
               barber_id: item.barber_id,
               barber_name: item.barber_name,
               haircut_id: item.haircut_id,
@@ -262,13 +257,9 @@ const BarberBookingScreen = () => {
                       "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM"
                     ],
               })
-              console.log(`📢 Added barber: ${barberName} with id: ${barberId}`)
             } else if (!barberId) {
-              console.log(`⚠️ Item ${index} missing barber_id:`, item)
             } else if (!barberName) {
-              console.log(`⚠️ Item ${index} missing barber_name:`, item)
             } else {
-              console.log(`📢 Skipping duplicate barber: ${barberName} (id: ${barberId})`)
             }
 
             // De-duplicate services - using haircut_id and haircut_name from API
@@ -284,29 +275,21 @@ const BarberBookingScreen = () => {
                 duration: typeof item.duration === 'number' ? item.duration : 30,
                 description: item.description?.trim() || "Professional service",
               })
-              console.log(`📢 Added service: ${serviceName} with id: ${serviceId}`)
             } else if (!serviceId) {
-              console.log(`⚠️ Item ${index} missing haircut_id:`, item)
             } else if (!serviceName) {
-              console.log(`⚠️ Item ${index} missing haircut_name:`, item)
             } else {
-              console.log(`📢 Skipping duplicate service: ${serviceName} (id: ${serviceId})`)
             }
           })
 
           const uniqueBarbers = Array.from(barbersMap.values())
           const uniqueServices = Array.from(servicesMap.values())
           
-          console.log(`📢 Final results: ${uniqueBarbers.length} unique barbers, ${uniqueServices.length} unique services`)
-          console.log("📢 Unique barbers:", uniqueBarbers.map(b => ({ id: b.id, name: b.name })))
-          console.log("📢 Unique services:", uniqueServices.map(s => ({ id: s.id, name: s.name })))
 
           setBarbersData(uniqueBarbers.length > 0 ? uniqueBarbers : barbers)
           setServicesData(uniqueServices.length > 0 ? uniqueServices : services)
 
         } else {
           // Fallback to mock data if API response is unexpected
-          console.log("📢 Using fallback mock data")
           setBarbersData(barbers)
           setServicesData(services)
         }
@@ -438,12 +421,10 @@ const BarberBookingScreen = () => {
         end_time: endDateTime
       }
 
-      console.log("📤 Creating haircut booking:", bookingDetails)
       
       // Call the real API (pass user email for JWT refresh if needed)
       const response = await createHaircutBooking(bookingDetails, user.token)
       
-      console.log("✅ Booking created successfully:", response)
       setIsBooking(false)
       setBookingSuccess(true)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
@@ -453,7 +434,6 @@ const BarberBookingScreen = () => {
       
       // Check if it's an authentication error (401)
       if ((error as any).response?.status === 401) {
-        console.log("🚨 Authentication failed - backend JWT issue")
         const errorMessage = (error as any).response?.data?.error?.message || "Authentication failed"
         
         if (errorMessage.includes("Invalid or expired token")) {

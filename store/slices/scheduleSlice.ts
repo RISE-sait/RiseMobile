@@ -34,22 +34,14 @@ const initialState: ScheduleState = {
 // Fetch schedule data from /secure/schedule endpoint
 export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (token: string, { rejectWithValue }) => {
   try {
-    console.log("🗓️ DEBUG: Fetching schedule with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
 
     const response = await axios.get(`${API_URL}/secure/schedule`, {
       headers: { Authorization: `Bearer ${token}` },
     })
 
-    console.log("🗓️ DEBUG: Schedule API response status:", response.status)
-    console.log("🗓️ DEBUG: Schedule API response data:", response.data)
 
     const responseData = response.data
     
-    console.log("🗓️ DEBUG: Schedule response structure:", {
-      events: responseData.events?.length || 0,
-      games: responseData.games?.length || 0,
-      practices: responseData.practices?.length || 0
-    })
     
     const scheduleItems: ScheduleItem[] = []
     
@@ -119,7 +111,6 @@ export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (t
       }
     })
 
-    console.log(`🗓️ DEBUG: Processed ${scheduleItems.length} schedule items`)
     return { items: scheduleItems, byDate }
   } catch (error: any) {
     console.error("Schedule API error:", error.response?.data || error.message)

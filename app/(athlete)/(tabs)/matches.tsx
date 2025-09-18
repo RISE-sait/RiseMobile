@@ -3,7 +3,6 @@
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 
-console.log("🏀🏀🏀 MATCHES FILE LOADED - ATHLETE ROLE 🏀🏀🏀")
 import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native"
 import dayjs from "dayjs"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -29,13 +28,11 @@ const generateWeekDates = (): dayjs.Dayjs[] => {
 }
 
 const MatchesScreen: React.FC = () => {
-  console.log("🏀 MATCHES COMPONENT STARTED")
   const dispatch = useAppDispatch()
   const matches = useAppSelector((state) => state.games.items)
   const status = useAppSelector((state) => state.games.status)
   const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
-  console.log("🏀 MATCHES COMPONENT: Redux hooks loaded successfully")
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))
   const [weekDates] = useState(() => generateWeekDates()) // Use function to ensure fresh generation
@@ -45,7 +42,6 @@ const MatchesScreen: React.FC = () => {
   // Center on today function
   const centerOnToday = useCallback(() => {
     const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"))
-    console.log("🏀 Centering on today. Today index:", todayIndex, "Total dates:", weekDates.length)
     
     if (flatListRef.current && todayIndex !== -1) {
       setTimeout(() => {
@@ -116,13 +112,6 @@ const MatchesScreen: React.FC = () => {
   })
 
   // Debug logging - MATCHES PAGE
-  console.log("🏀 DEBUG: MATCHES PAGE component rendering")
-  console.log("🏀 DEBUG: MATCHES PAGE status:", status)
-  console.log("🏀 DEBUG: MATCHES PAGE Total matches:", matches.length)
-  console.log("🏀 DEBUG: MATCHES PAGE Selected date:", selectedDate)
-  console.log("🏀 DEBUG: MATCHES PAGE Week dates count:", weekDates.length)
-  console.log("🏀 DEBUG: MATCHES PAGE Date range:", weekDates[0]?.format("YYYY-MM-DD"), "to", weekDates[weekDates.length - 1]?.format("YYYY-MM-DD"))
-  console.log("🏀 DEBUG: MATCHES PAGE Filtered matches for", selectedDate, ":", filteredMatches.length)
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate
@@ -231,7 +220,6 @@ const MatchesScreen: React.FC = () => {
           getItemLayout={(_, index) => ({ length: 72, offset: 72 * index, index })}
           initialScrollIndex={6} // Start at index 6 (today, since we have 6 days before)
           onScrollToIndexFailed={(info) => {
-            console.log("🏀 Scroll to index failed:", info)
             // Fallback: scroll to the nearest valid index
             setTimeout(() => {
               flatListRef.current?.scrollToIndex({ 

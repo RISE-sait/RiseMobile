@@ -102,7 +102,6 @@ export default function EditProfileScreen() {
       
       // ✅ Prioritize Redux data (same pattern as coachProfile.tsx)
       if (reduxUser) {
-        console.log("📢 Loaded user from Redux state:", reduxUser)
         const userData = {
           ...reduxUser,
           firstName: reduxUser.firstName || reduxUser.first_name || "",
@@ -123,12 +122,10 @@ export default function EditProfileScreen() {
       }
 
       // ⚠️ Only use AsyncStorage fallback when Redux data is not available
-      console.log("⚠️ Redux user not available, trying AsyncStorage fallback...")
       const storedUser = await AsyncStorage.getItem("user")
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser)
-        console.log("📢 Loaded user from AsyncStorage fallback:", parsedUser)
         setUser(parsedUser)
 
         // Initialize form fields
@@ -140,7 +137,6 @@ export default function EditProfileScreen() {
         setPosition(parsedUser.position || "")
         setProfileImage(parsedUser.profileImage || null)
       } else {
-        console.log("⚠️ No user found in Redux or AsyncStorage.")
         Alert.alert("Error", "Unable to load user data. Please try logging in again.")
         router.back()
       }

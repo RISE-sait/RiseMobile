@@ -109,13 +109,11 @@ const PlayerDetails: React.FC = () => {
         {/* Action Buttons */}
         <View className="mt-6 flex-row justify-around">
           <TouchableOpacity
-            onPress={() => console.log("View Games")}
             className="bg-[#FCA311] px-6 py-3 rounded-lg"
           >
             <Text className="text-black text-lg font-bold">View Games</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => console.log("Follow Player")}
             className="border border-gold-100 px-6 py-3 rounded-lg"
           >
             <Text className="text-gold-100 text-lg font-bold">Follow</Text>

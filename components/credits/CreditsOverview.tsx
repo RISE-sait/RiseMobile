@@ -49,7 +49,6 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
         // Handle different response formats and null/undefined values
         creditsData.balance = creditsResponse.data?.balance ?? 0
       } catch (creditsError) {
-        console.log('Credits balance not available, using default 0')
       }
 
       try {
@@ -62,7 +61,6 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
         creditsData.weekly_usage = weeklyResponse.data?.weekly_usage ?? 0
         creditsData.weekly_limit = weeklyResponse.data?.weekly_limit ?? 0
       } catch (weeklyError) {
-        console.log('Weekly usage not available, using defaults')
       }
 
       setCredits(creditsData)
@@ -94,7 +92,6 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
         setTransactions([])
       }
     } catch (error) {
-      console.log('Transactions not available, showing empty list')
       setTransactions([])
     }
   }

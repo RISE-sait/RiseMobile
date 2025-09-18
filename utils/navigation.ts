@@ -17,19 +17,15 @@ export type BookingType =
   | 'playground'
   | 'others';
 
-export type UserRole = 
-  | 'coach' 
-  | 'athlete' 
-  | 'parent' 
-  | 'instructor' 
-  | 'barber';
+export type UserRole =
+  | 'coach'
+  | 'athlete';
 
 /**
  * Get the appropriate detail route based on item type and user role
  * Supports robust navigation for different booking types across all user roles
  */
 export const getDetailRouteForType = (type: string, id: string, userRole?: string): string => {
-  console.log("🎯 Navigation: Determining route for type:", type, "id:", id, "userRole:", userRole);
   
   // Normalize type to lowercase
   const normalizedType = type?.toLowerCase().trim();
@@ -47,30 +43,18 @@ export const getDetailRouteForType = (type: string, id: string, userRole?: strin
     case 'course':
       return `/screens/event-details/${id}`;
     
-    // Role-specific routes
+    // Legacy appointment and child types - redirect to events
     case 'appointment':
-      if (userRole === 'barber') {
-        return `/(barber)/screens/appointment-details/${id}`;
-      }
-      // Fallback for appointments by non-barbers
-      return `/screens/event-details/${id}`;
-    
     case 'child':
-      if (userRole === 'parent') {
-        return `/(parent)/screens/child-details/${id}`;
-      }
-      // Fallback for child-related items by non-parents
       return `/screens/event-details/${id}`;
     
     // Service bookings - these don't have detail pages, show booking summary
     case 'haircut':
       // Haircuts are appointments, not events - redirect to service page instead
-      console.log("💇 Haircut booking - redirecting to Courtside Kutz service page");
       return `/screens/booking-options/CourtsideKutz`;
     
     case 'playground':
       // Playground bookings - redirect to drop-in page instead  
-      console.log("🏀 Playground booking - redirecting to Drop-In service page");
       return `/screens/booking-options/DropIn`;
     
     // Generic types
@@ -79,19 +63,12 @@ export const getDetailRouteForType = (type: string, id: string, userRole?: strin
     
     default:
       // Fallback routing based on user role and common patterns
-      console.warn("⚠️ Navigation: Unknown booking type:", type, "- using fallback routing");
       
       // Role-based fallbacks
       switch (userRole) {
         case 'coach':
           return `/screens/practice-details/${id}`;
         case 'athlete':
-          return `/screens/event-details/${id}`;
-        case 'parent':
-          return `/screens/event-details/${id}`;
-        case 'instructor':
-          return `/screens/event-details/${id}`;
-        case 'barber':
           return `/screens/event-details/${id}`;
         default:
           return `/screens/event-details/${id}`;
@@ -168,18 +145,7 @@ export const validateRoute = (route: string, userRole?: string): boolean => {
   }
   
   // Role-specific validation
-  if (route.includes('(barber)') && userRole !== 'barber') {
-    console.warn("⚠️ Navigation: Attempted to access barber route with role:", userRole);
-    return false;
-  }
-  
-  if (route.includes('(parent)') && userRole !== 'parent') {
-    console.warn("⚠️ Navigation: Attempted to access parent route with role:", userRole);
-    return false;
-  }
-  
   if (route.includes('(coach)') && userRole !== 'coach') {
-    console.warn("⚠️ Navigation: Attempted to access coach route with role:", userRole);
     return false;
   }
   
@@ -199,15 +165,12 @@ export const navigateToDetails = (
   const route = getDetailRouteForType(type, id, userRole);
   
   if (!validateRoute(route, userRole)) {
-    console.error("❌ Navigation: Route validation failed for:", route);
     // Fallback to safe route
     const fallbackRoute = `/screens/event-details/${id}`;
-    console.log("🔄 Navigation: Using fallback route:", fallbackRoute);
     router.push(fallbackRoute);
     return false;
   }
   
-  console.log("✅ Navigation: Navigating to validated route:", route);
   router.push(route);
   return true;
 };

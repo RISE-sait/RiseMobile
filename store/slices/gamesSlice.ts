@@ -15,8 +15,6 @@ const initialState: GamesState = {
 // Fetch upcoming matches for Matches tab
 export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token: string, { rejectWithValue, getState }) => {
   try {
-    console.log("🎯 DEBUG: Fetching upcoming games with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
-    console.log("🎯 DEBUG: Token length:", token ? token.length : 0)
 
     // Use /games endpoint to fetch all matches for the user
     // The hardcoded "upcoming" filter is removed to ensure data is always displayed
@@ -24,14 +22,10 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
       headers: { Authorization: `Bearer ${token}` }
     })
 
-    console.log("🎯 DEBUG: Games API response status:", response.status)
-    console.log("🎯 DEBUG: Games API response data:", response.data)
-    console.log("🎯 DEBUG: Games API response data type:", typeof response.data, Array.isArray(response.data) ? "array" : "not array")
 
     const games = Array.isArray(response.data) ? response.data : []
     
     // Games endpoint returns game data directly
-    console.log("🎯 DEBUG: Current time:", dayjs().format("YYYY-MM-DD HH:mm:ss"))
     
     const matches: Match[] = games.map((game: any) => {
       let date = dayjs().format("YYYY-MM-DD")
@@ -89,10 +83,6 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
       }
     })
 
-    console.log(`🎯 DEBUG: Processed ${matches.length} matches from ${games.length} total games`)
-    matches.forEach((match, index) => {
-      console.log(`🎯 DEBUG: Match ${index + 1}: ${match.name} on ${match.date} at ${match.time}`)
-    })
     return { items: matches, byDate }
   } catch (error: any) {
     console.error("Games API error:", error.response?.data || error.message)
@@ -104,8 +94,6 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
 export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", async (params: { token: string; filter?: string }, { rejectWithValue }) => {
   try {
     const { token, filter } = params;
-    console.log("🎯 DEBUG: Fetching match history with token:", token ? token.substring(0, 20) + "..." : "NO TOKEN")
-    console.log("🎯 DEBUG: Using filter:", filter || "all")
 
     // Use /secure/games endpoint with backend filtering for real-time results
     // This ensures frontend matches backend logic exactly
@@ -117,8 +105,6 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
       headers: { Authorization: `Bearer ${token}` }
     })
 
-    console.log("🎯 DEBUG: Match history API response status:", response.status)
-    console.log("🎯 DEBUG: Match history API response data:", response.data)
 
     const games = Array.isArray(response.data) ? response.data : []
     
@@ -180,7 +166,6 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
       }
     })
 
-    console.log(`Processed ${matches.length} matches from backend filter: ${filter || 'all'} (${games.length} total games)`)
     return { items: matches, byDate }
   } catch (error: any) {
     console.error("Match history API error:", error.response?.data || error.message)

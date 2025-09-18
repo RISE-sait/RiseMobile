@@ -53,44 +53,6 @@ export const RoleSelectionModal = ({ visible, onClose, onSelectRole, currentRole
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.roleOption} onPress={() => handleRoleSelect("parent")}>
-                <View style={styles.roleIconContainer}>
-                  <Ionicons name="people" size={24} color="#FFD700" />
-                </View>
-                <View style={styles.roleTextContainer}>
-                  <Text style={styles.roleTitle}>Parent</Text>
-                  <Text style={styles.roleDescription}>Parents of young athletes</Text>
-                </View>
-                {currentRole === "parent" && (
-                  <Ionicons name="checkmark-circle" size={24} color="#FFD700" style={styles.checkIcon} />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.roleOption} onPress={() => handleRoleSelect("instructor")}>
-                <View style={styles.roleIconContainer}>
-                  <MaterialCommunityIcons name="whistle" size={24} color="#FFD700" />
-                </View>
-                <View style={styles.roleTextContainer}>
-                  <Text style={styles.roleTitle}>Instructor</Text>
-                  <Text style={styles.roleDescription}>Specialized skills instructors</Text>
-                </View>
-                {currentRole === "instructor" && (
-                  <Ionicons name="checkmark-circle" size={24} color="#FFD700" style={styles.checkIcon} />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.roleOption} onPress={() => handleRoleSelect("barber")}>
-                <View style={styles.roleIconContainer}>
-                  <MaterialCommunityIcons name="content-cut" size={24} color="#FFD700" />
-                </View>
-                <View style={styles.roleTextContainer}>
-                  <Text style={styles.roleTitle}>Barber</Text>
-                  <Text style={styles.roleDescription}>Haircut specialists for athletes</Text>
-                </View>
-                {currentRole === "barber" && (
-                  <Ionicons name="checkmark-circle" size={24} color="#FFD700" style={styles.checkIcon} />
-                )}
-              </TouchableOpacity>
 
               <TouchableOpacity style={styles.closeModalButton} onPress={onClose}>
                 <Text style={styles.closeModalButtonText}>CLOSE</Text>

@@ -37,7 +37,6 @@ const CoachMatches: React.FC = () => {
   // Center on today function
   const centerOnToday = useCallback(() => {
     const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"))
-    console.log("🏀 COACH MATCHES: Centering on today. Today index:", todayIndex, "Total dates:", weekDates.length)
     
     if (flatListRef.current && todayIndex !== -1) {
       setTimeout(() => {
@@ -88,19 +87,10 @@ const CoachMatches: React.FC = () => {
   }, [dispatch, token])
 
   // Debug logging
-  console.log("🏀 COACH MATCHES: Component rendering")
-  console.log("🏀 COACH MATCHES: Status:", status)
-  console.log("🏀 COACH MATCHES: Error:", error)
-  console.log("🏀 COACH MATCHES: Total matches:", matches.length)
-  console.log("🏀 COACH MATCHES: Selected date:", selectedDate)
-  console.log("🏀 COACH MATCHES: Week dates count:", weekDates.length)
-  console.log("🏀 COACH MATCHES: Date range:", weekDates[0]?.format("YYYY-MM-DD"), "to", weekDates[weekDates.length - 1]?.format("YYYY-MM-DD"))
-  console.log("🏀 COACH MATCHES: Token:", token ? "EXISTS" : "NULL")
   
   // Filter matches by selected date - use match.date instead of created_at
   const filteredMatches = matches.filter((match) => {
     const matchDate = match.date || dayjs().format("YYYY-MM-DD")
-    console.log("🏀 COACH MATCHES: Filtering match date:", matchDate, "vs selected:", selectedDate)
     return matchDate === selectedDate
   });
 
@@ -221,7 +211,6 @@ const CoachMatches: React.FC = () => {
           getItemLayout={(_, index) => ({ length: 72, offset: 72 * index, index })}
           initialScrollIndex={6} // Start at index 6 (today, since we have 6 days before)
           onScrollToIndexFailed={(info) => {
-            console.log("🏀 COACH MATCHES: Scroll to index failed:", info)
             // Fallback: scroll to the nearest valid index
             setTimeout(() => {
               flatListRef.current?.scrollToIndex({ 

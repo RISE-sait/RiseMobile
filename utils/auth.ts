@@ -81,13 +81,11 @@ export const useAuth = () => {
       const jwtToken = authHeader?.replace(/^Bearer\s+/i, '')
       
       if (jwtToken && jwtToken !== authHeader) {
-        console.log("🔑 JWT Token (for Swagger auth):", jwtToken)
         return jwtToken
       } else {
         // Fallback: try to get from response body (old method)
         const bodyJwtToken = response.data.token || response.data.jwt || response.data.access_token
         if (bodyJwtToken) {
-          console.log("🔑 JWT Token (for Swagger auth):", bodyJwtToken)
           return bodyJwtToken
         }
         
@@ -137,10 +135,6 @@ export const useAuth = () => {
           dispatch(setReduxUser(userToSet))
         }
         
-        // 🔑 Always log JWT token when user is loaded for easy debugging
-        if (userToSet.token) {
-          console.log("🔑 Current JWT Token (for Swagger auth):", userToSet.token)
-        }
         
         setAuthError(null)
         setIsAuthLoaded(true)
@@ -158,8 +152,7 @@ export const useAuth = () => {
   const saveUserToRedux = async (userData: User) => {
     try {
       if (!userData.countryCode) {
-        console.warn("⚠️ Missing countryCode in userData, defaulting to 'US'")
-        userData.countryCode = "US" // ✅ Prevent undefined values
+          userData.countryCode = "US" // ✅ Prevent undefined values
       }
 
       // ✅ Only save to Redux - Redux Persist will handle AsyncStorage automatically
@@ -184,20 +177,13 @@ export const useAuth = () => {
         case "athlete":
           router.replace("/(athlete)/(tabs)/home")
           break
-        case "instructor":
-          router.replace("/(instructor)/(tabs)/instructorHome")
-          break
         case "coach":
           router.replace("/(coach)/(tabs)/coachHome")
           break
-        case "parent":
-          router.replace("/(parent)/(tabs)/home")
-          break
-        case "barber":
-          router.replace("/(barber)/(tabs)/home")
-          break
         default:
           console.error("❌ Unknown role:", userRole)
+          // Fallback to athlete for unknown roles
+          router.replace("/(athlete)/(tabs)/home")
       }
 
       // Return the user object for Redux
@@ -347,18 +333,10 @@ export const useAuth = () => {
           case "coach":
             router.replace("/(coach)/(tabs)/coachHome")
             break
-          case "instructor":
-            router.replace("/(instructor)/(tabs)/instructorHome")
-            break
-          case "parent":
-            router.replace("/(parent)/(tabs)/home")
-            break
-          case "barber":
-            router.replace("/(barber)/(tabs)/home")
-            break
           default:
             console.error("❌ Unknown role:", userData.role)
-            router.replace("/(auth)/login")
+            // Fallback to athlete for unknown roles
+            router.replace("/(athlete)/(tabs)/home")
         }
 
         // Return the user object for Redux
@@ -448,18 +426,10 @@ export const useAuth = () => {
         case "coach":
           router.replace("/(coach)/(tabs)/coachHome")
           break
-        case "instructor":
-          router.replace("/(instructor)/(tabs)/instructorHome")
-          break
-        case "parent":
-          router.replace("/(parent)/(tabs)/home")
-          break
-        case "barber":
-          router.replace("/(barber)/(tabs)/home")
-          break
         default:
           console.error("❌ Unknown role:", userData.role)
-          router.replace("/(auth)/login")
+          // Fallback to athlete for unknown roles
+          router.replace("/(athlete)/(tabs)/home")
       }
 
       // Return the user object for Redux
@@ -507,7 +477,6 @@ export const useAuth = () => {
       if (user?.token) {
         const isValid = await verifyTokenWithBackend(user.token, user.email)
         if (isValid) {
-          console.log("🔑 Valid JWT Token (for Swagger auth):", user.token)
           return user.token
         }
       }
@@ -519,7 +488,6 @@ export const useAuth = () => {
           const updatedUser = { ...user, token: newToken }
           dispatch(setReduxUser(updatedUser))
           await saveUserToRedux(updatedUser)
-          console.log("🔑 Refreshed JWT Token (for Swagger auth):", newToken)
           return newToken
         }
       }
@@ -544,7 +512,6 @@ export const useAuth = () => {
             const updatedUser = { ...user, token: newToken }
             dispatch(setReduxUser(updatedUser))
           }
-          console.log("🔑 New JWT Token (for Swagger auth):", newToken)
           return newToken
         }
       }

@@ -6,26 +6,22 @@ import { StorageCleanup } from './storageCleanup';
 // Emergency cleanup function for when SQLite gets full
 export const performEmergencyCleanup = async () => {
   try {
-    console.log('🚨 EMERGENCY CLEANUP: SQLite storage full detected');
 
     // 1. Clear Redux state (in memory)
-    console.log('🧹 Clearing Redux state...');
     store.dispatch(clearEvents());
 
     // 2. Clear AsyncStorage cache (except user auth)
-    console.log('🧹 Clearing AsyncStorage cache...');
     await StorageCleanup.emergencyCleanup();
 
     // 3. Force garbage collection if available
     if (global.gc) {
-      console.log('🧹 Running garbage collection...');
       global.gc();
     }
 
     // 4. Wait a moment for cleanup to complete
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    console.log('✅ Emergency cleanup completed');
+
     return true;
 
   } catch (error) {
@@ -48,7 +44,7 @@ export const handleSQLiteError = async (error: any) => {
     const success = await performEmergencyCleanup();
 
     if (success) {
-      console.log('✅ Emergency cleanup successful, retrying operation');
+
       return true; // Indicates the error was handled
     } else {
       console.error('❌ Emergency cleanup failed');

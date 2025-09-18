@@ -107,14 +107,12 @@ const PracticeDetails: React.FC = () => {
       }
 
       const practiceId = id as string
-      console.log(`🏀 Fetching practice details for ID: ${practiceId}`)
 
       // Call the correct API endpoint for practices
       const response = await axios.get(`${API_URL}/practices/${practiceId}`, {
         headers: { Authorization: `Bearer ${userData.token}` },
       })
 
-      console.log("✅ Practice API Response:", response.data)
 
       // Transform API response to our PracticeDetails format
       const apiData: ApiPracticeResponse = response.data

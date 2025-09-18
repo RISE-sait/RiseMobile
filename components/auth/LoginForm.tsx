@@ -46,7 +46,6 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
 
       await onLogin(email, password)
     } catch (error) {
-      console.error("Form submission error:", error)
     }
   }
 

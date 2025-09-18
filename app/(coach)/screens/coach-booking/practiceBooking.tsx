@@ -102,7 +102,6 @@ useEffect(() => {
   const fetchCoachTeams = async () => {
     try {
       if (!firebaseUser) {
-        console.log("⚠️ No authenticated Firebase user found")
         return
       }
 
@@ -189,7 +188,6 @@ const handleConfirmBooking = async () => {
     return
   }
 
-  console.log("🔍 DEBUG: User object:", JSON.stringify(user, null, 2))
   
   if (!user?.id) {
     console.error("❌ Booking error: No user is logged in.")
@@ -220,11 +218,10 @@ const handleConfirmBooking = async () => {
       .second(0)
       .millisecond(0);
 
-    console.log("🔍 DEBUG Date Booking Logic:");
-    console.log("Selected date:", dayjs(date).format("YYYY-MM-DD"));
-    console.log("Selected start time:", dayjs(startTime).format("HH:mm"));
-    console.log("Combined start datetime:", combinedStartDateTime.format("YYYY-MM-DD HH:mm"));
-    console.log("Combined end datetime:", combinedEndDateTime.format("YYYY-MM-DD HH:mm"));
+
+
+
+
 
     // Create payloads with proper date/time combination
     const payload: CreatePracticePayload = {

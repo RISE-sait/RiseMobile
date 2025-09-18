@@ -56,7 +56,6 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 
     // ✅ Get Firebase Token
     const token = await firebaseUser.getIdToken();
-    console.log("🔥 Firebase Token:", token);
 
     // ✅ Call Go backend with Firebase token
     const response = await axios.post(`${API_URL}/auth`, { email }, {
@@ -67,7 +66,6 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     const authHeader = response.headers["authorization"];
     const jwtToken = authHeader?.replace("Bearer ", "") || "";
 
-    console.log("✅ Extracted JWT from headers:", jwtToken);
 
     // ✅ Return UUID from backend response as `id`
     return {
@@ -113,7 +111,6 @@ export const registerChild = async (
       ],
     };
 
-    console.log("📤 Sending child registration request:", requestBody);
 
     // ✅ Send request to API
     const response = await axios.post(`${API_URL}/register/child`, requestBody, {
@@ -123,7 +120,6 @@ export const registerChild = async (
       },
     });
 
-    console.log("✅ Child Registration Successful:", response.data);
     return response.data;
   } catch (error) {
     console.error("❌ Child registration failed:", (error as any).response?.data || (error as any).message);
@@ -159,7 +155,6 @@ export const registerUser = async (
     if (!token) {
       throw new Error("Failed to retrieve Firebase token.");
     }
-    console.log("🔥 Firebase Token Retrieved:", token);
 
     // ✅ Determine correct endpoint
     let endpoint = "";
@@ -212,7 +207,6 @@ export const registerUser = async (
       throw new Error(`Unsupported role: ${role}`);
     }
 
-    console.log(`📤 Sending API request to ${endpoint}:`, requestBody);
 
     // ✅ Send request to API
     const response = await axios.post(`${API_URL}/${endpoint}`, requestBody, {
@@ -222,7 +216,6 @@ export const registerUser = async (
       },
     });
 
-    console.log("✅ Registration Successful:", response.data);
     return {
       id: firebaseUser.uid,
       email: firebaseUser.email || email,
@@ -253,10 +246,8 @@ export const getTeams = async (token: string): Promise<any> => {
       try {
         firebaseToken = await firebaseUser.getIdToken(true);
       } catch (firebaseError) {
-        console.warn("⚠️ Could not get Firebase token, proceeding with JWT only:", firebaseError);
       }
     } else {
-      console.warn("⚠️ Firebase user not available, proceeding with JWT only");
     }
     
     const headers: Record<string, string> = {
@@ -292,10 +283,8 @@ export const getTeamById = async (teamId: string, token: string): Promise<any> =
       try {
         firebaseToken = await firebaseUser.getIdToken(true);
       } catch (firebaseError) {
-        console.warn("⚠️ Could not get Firebase token, proceeding with JWT only:", firebaseError);
       }
     } else {
-      console.warn("⚠️ Firebase user not available, proceeding with JWT only");
     }
     
     const headers: Record<string, string> = {
@@ -323,7 +312,6 @@ export const getMembershipByCustomerId = async (customerId: string) => {
   const firebaseUser = auth.currentUser;
 
   if (!firebaseUser) {
-    console.warn("⚠️ Firebase user not ready. Skipping membership fetch.");
     return [];
   }
 

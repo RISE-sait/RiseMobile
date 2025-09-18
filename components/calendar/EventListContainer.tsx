@@ -165,7 +165,6 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               const validType = mapTypeToValidType(item)
 
               // Log the complete item for debugging
-              //console.log(`EVENT LIST: Item ID: ${item.id}, Type: ${validType}, Title: ${item.title}`)
 
               return (
                 <EventListItem

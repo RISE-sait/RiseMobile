@@ -134,8 +134,8 @@ export const useMatchFilters = (allMatches: Match[], defaultTab: FilterTab = 'al
 
   // Filter matches based on all criteria
   const filteredMatches = useMemo(() => {
-    console.log('Filtering matches with status:', activeTab);
-    console.log('Current matches:', allMatches.map(m => ({ id: m.id, status: m.status })));
+
+
     
     return allMatches.filter(match => {
       // Filter by tab/status

@@ -96,14 +96,8 @@ const CoachBook = () => {
 
   // Get upcoming practices directly from API data without unnecessary transformations
   const upcomingBookings = useMemo(() => {
-    console.log("📋 COACH BOOKING DEBUG START ===");
-    console.log("📋 Raw practices data:", practicesItems);
-    console.log("📋 Practices count:", practicesItems.length);
-    console.log("📋 Practices status:", practicesStatus);
-    console.log("📋 Current user:", currentUser?.id, currentUser?.role);
     
     const today = dayjs();
-    console.log("📋 Today:", today.format("YYYY-MM-DD HH:mm"));
     
     // Filter for upcoming practices only - use date field from CalendarItem
     const upcomingPractices = practicesItems.filter(practice => {
@@ -111,11 +105,10 @@ const CoachBook = () => {
       const practiceDateTime = dayjs(`${practice.date} ${practice.time}`, 'YYYY-MM-DD HH:mm');
       const isUpcoming = practiceDateTime.isAfter(today, 'day') || practiceDateTime.isSame(today, 'day');
       
-      console.log(`📋 Practice ${practice.id}:`);
-      console.log(`   - date: ${practice.date}, time: ${practice.time}`);
-      console.log(`   - title: ${practice.title}, location: ${practice.location}`);
-      console.log(`   - practiceDateTime: ${practiceDateTime.format("YYYY-MM-DD HH:mm")}`);
-      console.log(`   - isUpcoming: ${isUpcoming}`);
+
+
+
+
       
       return isUpcoming && practice.id; // Only include practices with valid IDs
     }).sort((a, b) => {
@@ -125,9 +118,6 @@ const CoachBook = () => {
       return dateA.valueOf() - dateB.valueOf();
     }).slice(0, 5); // Limit to 5 most recent
 
-    console.log("📋 Final upcoming practices:", upcomingPractices);
-    console.log("📋 Final count:", upcomingPractices.length);
-    console.log("📋 COACH BOOKING DEBUG END ===");
     return upcomingPractices;
   }, [practicesItems, currentUser, practicesStatus]);
 
@@ -144,10 +134,6 @@ const CoachBook = () => {
   // Force refresh function for debugging
   const forceRefreshData = async () => {
     try {
-      console.log("🔄 FORCE REFRESH START ===");
-      console.log("🔄 Current practices status:", practicesStatus);
-      console.log("🔄 Current practices count:", practicesItems.length);
-      console.log("🔄 Clearing cache and fetching fresh data...");
       
       // Clear existing data
       dispatch(clearPractices());
@@ -161,17 +147,11 @@ const CoachBook = () => {
       const today = dayjs().format("YYYY-MM-DD");
       const futureDate = dayjs().add(2, "months").format("YYYY-MM-DD");
       
-      console.log("🔄 FORCE REFRESH: Fetching practices with params:");
-      console.log("🔄   - token: [REDACTED]");
-      console.log("🔄   - after:", today);
-      console.log("🔄   - before:", futureDate);
-      console.log("🔄   - API URL: /secure/schedule?after=" + today + "&before=" + futureDate + "&program_type=practice&response_type=date");
       
       dispatch(fetchPractices({ token, after: today, before: futureDate }));
       
       // Reset initialization flag
       hasInitializedData.current = false;
-      console.log("🔄 FORCE REFRESH: Dispatch complete, waiting for results...");
     } catch (error) {
       console.error("❌ Error in force refresh:", error);
     }
@@ -193,7 +173,6 @@ const CoachBook = () => {
           return;
         }
 
-        console.log("🔄 Fetching coach booking data (practices only)...");
         
         // Only fetch practices for coach booking page if not already loaded
         const today = dayjs().format("YYYY-MM-DD");
@@ -310,7 +289,6 @@ const CoachBook = () => {
 
   const renderUpcomingBooking = ({ item }: { item: any }) => {
     // Use CalendarItem data format - item comes from Redux store
-    console.log("📋 Rendering practice item:", item);
     
     // Format date from CalendarItem format
     const practiceDate = dayjs(item.date);
@@ -348,7 +326,6 @@ const CoachBook = () => {
         activeOpacity={0.8}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          console.log("📋 Booking item clicked:", item.id, displayTitle, "type:", item.type);
           
           // Navigate to appropriate detail page using robust navigation
           const success = navigateToDetails(router, item.type, item.id, currentUser?.role);

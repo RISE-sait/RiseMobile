@@ -220,7 +220,6 @@ class CalendarService {
     // Check cache first
     const cached = this.cache.get(params)
     if (cached) {
-      console.log('📅 CalendarService: Using cached schedule data')
       return this.transformScheduleData(cached)
     }
     
@@ -313,7 +312,6 @@ class CalendarService {
    */
   invalidateCache(params?: ScheduleParams): void {
     this.cache.invalidate(params)
-    console.log('📅 CalendarService: Cache invalidated')
   }
   
   /**
@@ -329,7 +327,6 @@ class CalendarService {
     
     const url = `${API_URL}/secure/schedule${urlParams.toString() ? `?${urlParams.toString()}` : ''}`
     
-    console.log('📅 CalendarService: Fetching from API:', url)
     
     const response = await axios.get<ScheduleResponse>(url, {
       headers: { Authorization: `Bearer ${token}` }
@@ -339,7 +336,6 @@ class CalendarService {
       throw new Error('Invalid schedule response: No data received')
     }
     
-    console.log('📅 CalendarService: API Response received:', {
       events: response.data.events?.length || 0,
       games: response.data.games?.length || 0,
       practices: response.data.practices?.length || 0

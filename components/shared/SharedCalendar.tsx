@@ -91,7 +91,6 @@ const fetchCalendarData = useCallback(async () => {
       return
     }
 
-    console.log("Backend JWT:", jwt ? jwt.substring(0, 20) + "..." : "NO TOKEN")
 
     // Try to fetch from unified schedule endpoint first
     try {
@@ -243,9 +242,7 @@ const combinedCalendarEvents = useMemo(() => {
     }
 
     // Log for debugging
-    console.log(`Calendar has ${Object.keys(marked).length} dates with events`)
     if (Object.keys(marked).length > 0) {
-      console.log("Sample marked date:", Object.keys(marked)[0])
     }
 
     return marked

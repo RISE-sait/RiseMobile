@@ -65,7 +65,6 @@ export const fetchPractices = createAsyncThunk(
       const response = await axios.get(`${API_URL}/secure/schedule?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      console.log("🧪 Practices from secure schedule endpoint:", response.data)
       
       // Extract only practices data from the schedule response
       const responseData = response.data as any

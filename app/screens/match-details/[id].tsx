@@ -70,7 +70,6 @@ const MatchDetailsScreen = () => {
   // Extract the ID from params and ensure it's a clean string
   const rawId = id
   // Log the raw ID we received
-  console.log(`MATCH DETAILS: Raw ID from params:`, rawId)
 
   // Clean the ID - ensure it's a string and remove any query parameters
   const programId =
@@ -81,7 +80,6 @@ const MatchDetailsScreen = () => {
         : String(rawId).split("?")[0]
 
   // Log the cleaned ID
-  console.log(`MATCH DETAILS: Cleaned programId for API requests: ${programId}`)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -124,14 +122,12 @@ const MatchDetailsScreen = () => {
 
       if (token && programId) {
         try {
-          console.log(`MATCH DETAILS: Fetching game data for programId: ${programId}`)
           
           // Call the correct API endpoint for games
           const response = await axios.get(`${API_URL}/games/${programId}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           
-          console.log(`MATCH DETAILS: Successfully fetched game data:`, response.data)
           
           // Transform API response from games endpoint to match existing GameData interface
           const gameData = response.data

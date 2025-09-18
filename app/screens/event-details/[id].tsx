@@ -134,7 +134,6 @@ const EventDetails: React.FC = () => {
     }
     
     if (!practice) {
-      console.log(`⚠️ Practice with ID ${practiceId} not found in Redux store`)
       return null
     }
     
@@ -241,15 +240,12 @@ const EventDetails: React.FC = () => {
 
       // Clean the ID to remove any suffix
       const cleanedId = cleanId(id as string)
-      console.log(`🚀 Fetching event details via Redux for ID: ${cleanedId}`)
 
       // Skip Redux for events and use direct API call with public endpoint
-      console.log(`🔄 Using direct API call for event type: ${type}`);
 
       // Fallback to direct API call for programs or if Redux fails
       if (type === "practice") {
         // For practices, try to get data from Redux store first
-        console.log("🏀 Practice type detected, trying to get from Redux store")
         
         // Try to get practice data from Redux store using the ID
         const practiceFromStore = getPracticeDataFromStore(cleanedId)
@@ -259,7 +255,6 @@ const EventDetails: React.FC = () => {
           return
         }
         
-        console.log("⚠️ Practice not found in Redux store, using fallback mock data")
         fallbackToMockData()
         return
       }
@@ -271,20 +266,17 @@ const EventDetails: React.FC = () => {
       if (source === "homepage") {
         // Homepage events use public endpoint for registration
         url = `${API_URL}/events/${cleanedId}`;
-        console.log(`🔄 Homepage source: Using public endpoint ${url}`)
         response = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
         // Calendar/schedule events use secure endpoint (enrolled events)
         url = `${API_URL}/secure/events/${cleanedId}`;
-        console.log(`🔄 Calendar source: Using secure endpoint ${url}`)
         response = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
 
-      console.log("API Response:", response.data)
 
       // Process the data from the API response
       const eventData: ApiEventResponse = response.data
@@ -384,10 +376,8 @@ const EventDetails: React.FC = () => {
           eventDate = parsed
         }
       } catch (e) {
-        console.log("Could not parse date from description:", dateMatch[1])
       }
     } else {
-      console.log("⚠️ No date pattern found in description:", description)
     }
 
     // Extract time range - look for patterns like "7:30-9:30pm", "5:30-7:30pm", "from 7:30-9:30pm"
@@ -420,7 +410,6 @@ const EventDetails: React.FC = () => {
         endTime.setHours(adjustedEndHour, endMin, 0, 0)
         
       } catch (e) {
-        console.log("Could not parse time from description:", timeMatch[0])
       }
     }
     
@@ -501,7 +490,6 @@ const EventDetails: React.FC = () => {
 
   // Fallback to mock data if API fails
   const fallbackToMockData = () => {
-    console.log("Using mock data as fallback")
 
     let title, description, category
 

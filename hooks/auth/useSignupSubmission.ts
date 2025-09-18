@@ -41,16 +41,6 @@ export const useSignupSubmission = (
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       }
 
-      console.log("📡 Sending Sign-Up Request:", {
-        email: formData.email,
-        password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        role: formData.role,
-        dateOfBirth: formData.dateOfBirth, // ✅ Corrected key-value pair
-        fullPhoneNumber,
-        country: formData.country.cca2,
-      })
 
       // Send request to your register function
       const response = await register(
@@ -64,7 +54,6 @@ export const useSignupSubmission = (
         formData.country.cca2,
       )
 
-      console.log("✅ Registration Successful:", response)
 
       // Show verification pending screen
       setRegistrationComplete(true)

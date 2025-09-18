@@ -129,8 +129,6 @@ const MatchHistory: React.FC = () => {
   
   // Transform Redux matches for display - backend already filtered
   const transformedMatches = useMemo(() => {
-    console.log("📋 MATCH HISTORY: Displaying", matches.length, "backend-filtered matches");
-    console.log("📋 CURRENT FILTER TAB:", activeTab);
     
     const transformed = matches.map(match => {
       // Check if this match has the new API structure or old structure
@@ -164,7 +162,6 @@ const MatchHistory: React.FC = () => {
       in_progress: transformed.filter(m => m.status === "in_progress").length,
       completed: transformed.filter(m => m.status === "completed").length
     };
-    console.log("📋 MATCH HISTORY: Status breakdown:", statusCounts);
     return transformed;
   }, [matches, activeTab]);
 
@@ -179,7 +176,6 @@ const MatchHistory: React.FC = () => {
   
   // Handle tab changes with real-time API calls
   const handleTabChange = (tab: 'all' | 'scheduled' | 'in_progress' | 'completed') => {
-    console.log("📋 TAB CHANGE: Switching to", tab, "- calling backend API");
     setActiveTab(tab);
     
     // Use tab directly as backend filter
@@ -256,7 +252,6 @@ const MatchHistory: React.FC = () => {
 
   // Fetch matches with backend filtering - real-time API calls
   const loadMatchHistory = async (filter?: string) => {
-    console.log("📋 MATCH HISTORY: Starting to fetch matches with filter:", filter || 'all');
     let authToken = token;
 
     if (!authToken) {
@@ -272,11 +267,9 @@ const MatchHistory: React.FC = () => {
     }
 
     if (authToken) {
-      console.log("📋 MATCH HISTORY: Clearing matches and fetching with backend filter:", filter || 'all');
       dispatch(clearMatches());
       dispatch(fetchMatchHistory({ token: authToken, filter }));
     } else {
-      console.log("📋 MATCH HISTORY: No auth token available");
     }
   };
 
@@ -302,11 +295,9 @@ const MatchHistory: React.FC = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     // No need to fetch details - we use the existing data
-    console.log("📋 MATCH DETAILS: Toggled match", id);
   };
 
 const getStatusIndicator = (status: string) => {
-  console.log("🎯 STATUS INDICATOR: Displaying status:", status);
   switch (status) {
     case 'in_progress':
       return (
@@ -319,7 +310,6 @@ const getStatusIndicator = (status: string) => {
       return <Text style={styles.upcomingText}>SCHEDULED</Text>;
     case 'completed':
       return <Text style={styles.completedText}>COMPLETED</Text>;
-      console.log("🎯 STATUS INDICATOR: Unknown status, showing nothing:", status);
       return null;
   }
 };

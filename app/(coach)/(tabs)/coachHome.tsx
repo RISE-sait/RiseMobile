@@ -53,7 +53,6 @@ export default function CoachHomeScreen() {
           const storedUser = await AsyncStorage.getItem("user");
           if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
-            console.log("📢 Loaded user from AsyncStorage:", parsedUser);
             setUser(parsedUser);
           }
         }
