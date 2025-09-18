@@ -308,6 +308,171 @@ export const getTeamById = async (teamId: string, token: string): Promise<any> =
   }
 };
 
+// 🔹 **Membership API Functions**
+
+// Get all available membership plans (no authentication required)
+export const getAllMembershipPlans = async () => {
+  try {
+    const response = await fetch(`${API_URL}/memberships`, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch membership plans: ${response.status} ${errorText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("❌ Failed to fetch membership plans:", error);
+    throw error;
+  }
+};
+
+// Get current user's membership details (requires authentication)
+export const getUserMemberships = async () => {
+  try {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      console.warn("⚠️ Firebase user not ready. Skipping membership fetch.");
+      return [];
+    }
+
+    // Get stored JWT token for backend authentication
+    // The project uses "Firebase for identity, JWT for business authorization"
+    let jwtToken = await AsyncStorage.getItem("authToken");
+
+    // If no JWT token, we need to get one from /auth endpoint using Firebase token
+    if (!jwtToken) {
+      console.log("🔄 No JWT token found, refreshing from backend...");
+      try {
+        jwtToken = await refreshBackendJwt();
+      } catch (refreshError) {
+        console.error("❌ Failed to refresh JWT token:", refreshError);
+        throw new Error("Unable to authenticate with backend");
+      }
+    }
+
+    // Use JWT token for secure endpoints as per project architecture
+    const response = await fetch(`${API_URL}/secure/customers/memberships`, {
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      // If 401/403, try refreshing the JWT token once
+      if (response.status === 401 || response.status === 403) {
+        console.log("🔄 Token expired, refreshing JWT...");
+        try {
+          jwtToken = await refreshBackendJwt();
+
+          // Retry the request with new token
+          const retryResponse = await fetch(`${API_URL}/secure/customers/memberships`, {
+            headers: {
+              "Authorization": `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            throw new Error(`Failed to fetch user memberships after token refresh: ${retryResponse.status} ${retryErrorText}`);
+          }
+
+          return retryResponse.json();
+        } catch (refreshError) {
+          console.error("❌ Failed to refresh token on retry:", refreshError);
+          throw new Error(`Authentication failed: ${response.status} ${errorText}`);
+        }
+      }
+
+      throw new Error(`Failed to fetch user memberships: ${response.status} ${errorText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("❌ Failed to fetch user memberships:", error);
+    throw error;
+  }
+};
+
+// Initiate membership plan purchase (requires authentication)
+export const purchaseMembershipPlan = async (planId: string) => {
+  try {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      throw new Error("User not authenticated");
+    }
+
+    // Get stored JWT token for backend authentication
+    // The project uses "Firebase for identity, JWT for business authorization"
+    let jwtToken = await AsyncStorage.getItem("authToken");
+
+    // If no JWT token, we need to get one from /auth endpoint using Firebase token
+    if (!jwtToken) {
+      console.log("🔄 No JWT token found, refreshing from backend...");
+      try {
+        jwtToken = await refreshBackendJwt();
+      } catch (refreshError) {
+        console.error("❌ Failed to refresh JWT token:", refreshError);
+        throw new Error("Unable to authenticate with backend");
+      }
+    }
+
+    const response = await fetch(`${API_URL}/checkout/membership_plans/${planId}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      // If 401/403, try refreshing the JWT token once
+      if (response.status === 401 || response.status === 403) {
+        console.log("🔄 Token expired, refreshing JWT...");
+        try {
+          jwtToken = await refreshBackendJwt();
+
+          // Retry the request with new token
+          const retryResponse = await fetch(`${API_URL}/checkout/membership_plans/${planId}`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            throw new Error(`Failed to initiate membership purchase after token refresh: ${retryResponse.status} ${retryErrorText}`);
+          }
+
+          return retryResponse.json();
+        } catch (refreshError) {
+          console.error("❌ Failed to refresh token on retry:", refreshError);
+          throw new Error(`Authentication failed: ${response.status} ${errorText}`);
+        }
+      }
+
+      throw new Error(`Failed to initiate membership purchase: ${response.status} ${errorText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("❌ Failed to purchase membership plan:", error);
+    throw error;
+  }
+};
+
 export const getMembershipByCustomerId = async (customerId: string) => {
   const firebaseUser = auth.currentUser;
 

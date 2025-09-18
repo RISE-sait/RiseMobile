@@ -124,6 +124,7 @@ const AthleteProfileScreen = () => {
           title="My Account"
           items={[
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
+            { icon: "crown", text: "My Membership", onPress: () => router.push("/screens/membership") },
             { icon: "star", text: "Credits", onPress: () => router.push("/screens/profile-options/credits") },
             { icon: "bell", text: "Notifications", onPress: () => router.push("/screens/comingSoon") },
             { icon: "arrow-right-from-bracket", text: "Logout", iconColor: "#EF4444", textColor: "#EF4444", onPress: handleLogout },
