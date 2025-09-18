@@ -11,7 +11,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faCrown, faCheck, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership } from "@/utils/api";
+import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership, refreshBackendJwt } from "@/utils/api";
 import { USE_MEMBERSHIP_TEST_MODE } from "@/utils/constants";
 
 interface MembershipPlan {
@@ -33,6 +33,11 @@ interface MembershipSection {
   title: string;
   description: string;
   data: MembershipPlan[];
+  loading?: boolean;
+  error?: {
+    message: string;
+    type: string;
+  } | null;
 }
 
 interface MembershipPurchaseListProps {
@@ -82,16 +87,29 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           return;
         }
 
-        // Step b: Concurrently fetch plans for each membership type
+        // Step b: Initialize sections with loading states
+        const initialSections: MembershipSection[] = membershipTypes.map(type => ({
+          id: type.id,
+          title: type.name,
+          description: type.description || "",
+          data: [],
+          loading: true,
+          error: null
+        }));
+
+        // Update state to show loading sections
+        setMembershipSections(initialSections);
+
+        // Step c: Fetch plans for each membership type with retry mechanism
         console.log("🔄 Fetching plans for all membership types...");
         const planPromises = membershipTypes.map(type =>
-          getPlansForMembership(type.id)
+          fetchPlansWithRetry(type.id)
         );
 
         const plansResults = await Promise.all(planPromises);
 
-        // Step c: Combine data into SectionList format
-        const combinedData: MembershipSection[] = membershipTypes.map((type, index) => {
+        // Step d: Update sections with actual data
+        const updatedSections: MembershipSection[] = membershipTypes.map((type, index) => {
           const plansResult = plansResults[index];
           const plans = plansResult.error ? [] : (plansResult.data || []);
 
@@ -101,16 +119,34 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
             console.log(`✅ Found ${plans.length} plans for membership type "${type.name}"`);
           }
 
+          // Add a placeholder item for error/empty states when expanded
+          let sectionData = plans;
+          if (plans.length === 0) {
+            // Add a placeholder item for empty/error state rendering
+            sectionData = [{
+              id: `${type.id}_placeholder`,
+              name: '',
+              description: '',
+              benefits: '',
+              price: 0
+            }];
+          }
+
           return {
             id: type.id,
             title: type.name,
             description: type.description || "",
-            data: plans
+            data: sectionData,
+            loading: false,
+            error: plansResult.error ? {
+              message: plansResult.error.message,
+              type: plansResult.error.type || 'unknown'
+            } : null
           };
         });
 
-        // Step d: Update state
-        setMembershipSections(combinedData);
+        // Step e: Update state
+        setMembershipSections(updatedSections);
         console.log("✅ Successfully loaded all membership data");
 
       } catch (error) {
@@ -132,6 +168,47 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     } else {
       setExpandedSectionId(sectionId); // Expand new section, auto-collapse others
     }
+  };
+
+  // Retry mechanism for fetching plans with auth error handling
+  const fetchPlansWithRetry = async (membershipId: string, maxRetries = 2) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`🔄 Attempt ${attempt}/${maxRetries} to fetch plans for membership ${membershipId}`);
+
+      const result = await getPlansForMembership(membershipId);
+
+      // If successful, return the result
+      if (!result.error) {
+        return result;
+      }
+
+      // If it's an auth error and we haven't exhausted retries, try refreshing token
+      if (result.error.type === 'auth' && attempt < maxRetries) {
+        console.log(`🔄 Auth error detected for membership ${membershipId}, refreshing token...`);
+        try {
+          await refreshBackendJwt();
+          console.log(`✅ Token refreshed, retrying fetch for membership ${membershipId}...`);
+          // Continue to next iteration to retry
+        } catch (refreshError) {
+          console.error(`❌ Failed to refresh token for membership ${membershipId}:`, refreshError);
+          // Return the original error if token refresh fails
+          return result;
+        }
+      } else {
+        // Non-auth error or exhausted retries, return the error
+        return result;
+      }
+    }
+
+    // Should not reach here, but return error as fallback
+    return {
+      data: null,
+      error: {
+        message: `Failed to fetch plans for membership ${membershipId} after ${maxRetries} attempts`,
+        status: 500,
+        type: 'retry_exhausted'
+      }
+    };
   };
 
   const handlePurchase = async (planId: string, planName: string) => {
@@ -349,6 +426,52 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         if (expandedSectionId !== section.id) {
           return null;
         }
+
+        // Handle loading state
+        if (section.loading) {
+          return (
+            <View style={styles.sectionStateContainer}>
+              <ActivityIndicator size="small" color="#FFD700" />
+              <Text style={styles.sectionStateText}>Loading plans...</Text>
+            </View>
+          );
+        }
+
+        // Handle error state
+        if (section.error) {
+          return (
+            <View style={styles.sectionStateContainer}>
+              <Text style={styles.sectionErrorText}>
+                {section.error.type === 'auth'
+                  ? 'Authentication failed. Please log in again.'
+                  : section.error.message}
+              </Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={() => {
+                  // Trigger a reload for this specific section
+                  console.log(`🔄 Retrying fetch for section ${section.id}`);
+                  // You could implement section-specific retry here
+                }}
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }
+
+        // Handle empty state (no plans available)
+        if (item.id.endsWith('_placeholder')) {
+          return (
+            <View style={styles.sectionStateContainer}>
+              <Text style={styles.sectionStateText}>
+                No plans available for this membership type
+              </Text>
+            </View>
+          );
+        }
+
+        // Render normal plan card
         return renderPlanCard({ item });
       }}
       renderSectionHeader={renderSectionHeader}
@@ -553,6 +676,40 @@ const styles = StyleSheet.create({
     color: "#CCCCCC",
     fontSize: 14,
     lineHeight: 20,
+  },
+  sectionStateContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1A1A1A",
+    marginHorizontal: 20,
+    marginVertical: 8,
+    borderRadius: 12,
+  },
+  sectionStateText: {
+    color: "#999999",
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  sectionErrorText: {
+    color: "#EF4444",
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#FFD700",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  retryButtonText: {
+    color: "#000000",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 

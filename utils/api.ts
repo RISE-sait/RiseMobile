@@ -371,7 +371,8 @@ export const getUserMemberships = async () => {
           data: null,
           error: {
             message: "Unable to authenticate with backend",
-            status: 401
+            status: 401,
+            type: 'auth'
           }
         };
       }
@@ -475,7 +476,8 @@ export const getMembershipPlans = async () => {
           data: null,
           error: {
             message: "Unable to authenticate with backend",
-            status: 401
+            status: 401,
+            type: 'auth'
           }
         };
       }
@@ -578,14 +580,18 @@ export const getPlansForMembership = async (membershipId: string) => {
           data: null,
           error: {
             message: "Unable to authenticate with backend",
-            status: 401
+            status: 401,
+            type: 'auth'
           }
         };
       }
     }
 
     // Use the endpoint: /memberships/{membershipId}/plans
-    const response = await fetch(`${API_URL}/memberships/${membershipId}/plans`, {
+    const requestUrl = `${API_URL}/memberships/${membershipId}/plans`;
+    console.log(`🔄 Requesting plans for membership ${membershipId} from: ${requestUrl}`);
+
+    const response = await fetch(requestUrl, {
       headers: {
         "Authorization": `Bearer ${jwtToken}`,
         "Content-Type": "application/json",
@@ -594,6 +600,12 @@ export const getPlansForMembership = async (membershipId: string) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`❌ Request failed for membership ${membershipId}:`, {
+        url: requestUrl,
+        status: response.status,
+        statusText: response.statusText,
+        errorBody: errorText
+      });
 
       // If 401/403, try refreshing the JWT token once
       if (response.status === 401 || response.status === 403) {
@@ -610,24 +622,33 @@ export const getPlansForMembership = async (membershipId: string) => {
           });
 
           if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            console.error(`❌ Retry request also failed for membership ${membershipId}:`, {
+              status: retryResponse.status,
+              statusText: retryResponse.statusText,
+              errorBody: retryErrorText
+            });
             return {
               data: null,
               error: {
-                message: `Failed to fetch plans for membership ${membershipId}: ${retryResponse.status} ${errorText}`,
-                status: retryResponse.status
+                message: `Failed to fetch plans for membership ${membershipId}: ${retryResponse.status} ${retryErrorText}`,
+                status: retryResponse.status,
+                type: retryResponse.status === 401 || retryResponse.status === 403 ? 'auth' : 'api'
               }
             };
           }
 
           const retryData = await retryResponse.json();
+          console.log(`✅ Successfully fetched ${retryData.length} plans for membership ${membershipId} on retry`);
           return { data: retryData, error: null };
         } catch (retryError) {
           console.error("❌ Failed to refresh JWT token on retry:", retryError);
           return {
             data: null,
             error: {
-              message: "Unable to authenticate with backend",
-              status: 401
+              message: "Unable to authenticate with backend after retry",
+              status: 401,
+              type: 'auth'
             }
           };
         }
@@ -637,7 +658,8 @@ export const getPlansForMembership = async (membershipId: string) => {
         data: null,
         error: {
           message: `Failed to fetch plans for membership ${membershipId}: ${response.status} ${errorText}`,
-          status: response.status
+          status: response.status,
+          type: response.status === 401 || response.status === 403 ? 'auth' : 'api'
         }
       };
     }
@@ -646,12 +668,13 @@ export const getPlansForMembership = async (membershipId: string) => {
     console.log(`✅ Successfully fetched ${data.length} plans for membership ${membershipId}`);
     return { data, error: null };
   } catch (error) {
-    console.error(`❌ Failed to fetch plans for membership ${membershipId}:`, error);
+    console.error(`❌ Unexpected error while fetching plans for membership ${membershipId}:`, error);
     return {
       data: null,
       error: {
         message: (error as Error).message || `Failed to fetch plans for membership ${membershipId}`,
-        status: 500
+        status: 500,
+        type: 'network'
       }
     };
   }
