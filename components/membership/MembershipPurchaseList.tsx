@@ -38,12 +38,14 @@ interface MembershipPurchaseListProps {
   onPurchaseSuccess: () => void;
   onOpenPaymentWebView?: (url: string) => void;
   onPurchaseCompleted?: () => void;
+  headerComponent?: React.ReactNode;
 }
 
 const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   onPurchaseSuccess,
   onOpenPaymentWebView,
   onPurchaseCompleted,
+  headerComponent,
 }) => {
   const [membershipSections, setMembershipSections] = useState<MembershipSection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -218,9 +220,9 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           {/* Price display */}
           <View style={styles.priceContainer}>
             <Text style={styles.priceText}>
-              {item.price ? `$${item.price.toFixed(2)}` : "Price: N/A"}
+              {typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : "Price not available"}
             </Text>
-            {item.price && <Text style={styles.priceNote}>per month</Text>}
+            {typeof item.price === 'number' && <Text style={styles.priceNote}>per month</Text>}
           </View>
         </View>
 
@@ -292,31 +294,38 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     </View>
   );
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
+  const renderListHeader = () => (
+    <View>
+      {/* Custom header component passed from parent */}
+      {headerComponent}
+
+      {/* Original header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Choose Your Membership Plan</Text>
         <Text style={styles.headerSubtitle}>
           Select a plan that best fits your needs
         </Text>
       </View>
-
-      {/* Plans List */}
-      <SectionList
-        sections={membershipSections}
-        keyExtractor={(item, index) => item.id + index}
-        renderItem={({ item }) => renderPlanCard({ item })}
-        renderSectionHeader={renderSectionHeader}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      />
     </View>
+  );
+
+  return (
+    <SectionList
+      style={styles.container}
+      sections={membershipSections}
+      keyExtractor={(item, index) => item.id + index}
+      renderItem={({ item }) => renderPlanCard({ item })}
+      renderSectionHeader={renderSectionHeader}
+      ListHeaderComponent={renderListHeader}
+      contentContainerStyle={styles.listContainer}
+      showsVerticalScrollIndicator={false}
+    />
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     backgroundColor: "#0C0B0B",
   },
   loadingContainer: {

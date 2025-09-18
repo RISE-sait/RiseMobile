@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Alert, Modal, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, Alert, Modal, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
@@ -160,50 +160,48 @@ const MembershipScreen: React.FC = () => {
         <Text className="text-white text-2xl font-bold ml-3">Membership</Text>
       </View>
 
-      {/* Content - Scrollable container for both sections */}
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="px-5 py-4">
-          {/* Your Current Membership Section */}
-          <View className="mb-8">
-            <View className="pb-3 mb-4 border-b border-[#222222]">
-              <Text className="text-white text-lg font-semibold">Your Current Membership</Text>
-            </View>
-            {userMemberships.length > 0 ? (
-              <View className="bg-[#1A1A1A] rounded-xl p-4">
-                <MembershipDetails
-                  membership={userMemberships[0]}
-                  onRefresh={refreshMembershipData}
-                />
+      {/* Content - Use SectionList as the main scrollable container */}
+      <MembershipPurchaseList
+        onPurchaseSuccess={refreshMembershipData}
+        onOpenPaymentWebView={handleOpenPaymentWebView}
+        onPurchaseCompleted={() => setStatus('loading')}
+        headerComponent={
+          <View className="px-5 py-4">
+            {/* Your Current Membership Section */}
+            <View className="mb-8">
+              <View className="pb-3 mb-4 border-b border-[#222222]">
+                <Text className="text-white text-lg font-semibold">Your Current Membership</Text>
               </View>
-            ) : (
-              <View className="bg-[#1A1A1A] rounded-xl p-4">
-                <Text className="text-[#999999] text-center py-8">
-                  No active membership found. Browse available plans below to get started.
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Available Membership Plans Section */}
-          <View className="mb-8">
-            <View className="pb-3 mb-4 border-b border-[#222222]">
-              <Text className="text-white text-lg font-semibold">Available Membership Plans</Text>
-              {userMemberships.length > 0 && (
-                <Text className="text-[#999999] text-sm mt-1">
-                  Explore other plans or upgrade your membership
-                </Text>
+              {userMemberships.length > 0 ? (
+                <View className="bg-[#1A1A1A] rounded-xl p-4">
+                  <MembershipDetails
+                    membership={userMemberships[0]}
+                    onRefresh={refreshMembershipData}
+                  />
+                </View>
+              ) : (
+                <View className="bg-[#1A1A1A] rounded-xl p-4">
+                  <Text className="text-[#999999] text-center py-8">
+                    No active membership found. Browse available plans below to get started.
+                  </Text>
+                </View>
               )}
             </View>
-            <View className="bg-[#1A1A1A] rounded-xl p-4">
-              <MembershipPurchaseList
-                onPurchaseSuccess={refreshMembershipData}
-                onOpenPaymentWebView={handleOpenPaymentWebView}
-                onPurchaseCompleted={() => setStatus('loading')}
-              />
+
+            {/* Available Membership Plans Section Header */}
+            <View className="mb-4">
+              <View className="pb-3 mb-4 border-b border-[#222222]">
+                <Text className="text-white text-lg font-semibold">Available Membership Plans</Text>
+                {userMemberships.length > 0 && (
+                  <Text className="text-[#999999] text-sm mt-1">
+                    Explore other plans or upgrade your membership
+                  </Text>
+                )}
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        }
+      />
 
       {/* Payment WebView Modal */}
       <Modal
