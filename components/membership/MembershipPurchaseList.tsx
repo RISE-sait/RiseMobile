@@ -74,12 +74,25 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           [{ text: "OK" }]
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Purchase error:", error);
-      // Show clear error message as per requirements
+      const backendMessage: string | undefined = error?.message;
+      const status: number | undefined = error?.status;
+
+      // Provide specific UX for known backend message
+      if (status === 409 && backendMessage?.includes("already has an active membership")) {
+        Alert.alert(
+          "Already Subscribed",
+          "You already have an active membership for this plan.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      // Fallback error message
       Alert.alert(
         "Purchase Failed",
-        "Unable to initiate purchase. Please try again later or contact support.",
+        backendMessage || "Unable to initiate purchase. Please try again later or contact support.",
         [{ text: "OK" }]
       );
     } finally {

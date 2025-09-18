@@ -533,7 +533,13 @@ export const purchaseMembershipPlan = async (planId: string) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
+      // Try to read structured error from backend
+      let errorText = await response.text();
+      let errorMessage = "Failed to initiate membership purchase";
+      try {
+        const parsed = JSON.parse(errorText || "{}");
+        errorMessage = parsed?.error?.message || errorMessage;
+      } catch {}
 
       // If 401/403, try refreshing the JWT token once
       if (response.status === 401 || response.status === 403) {
@@ -552,7 +558,14 @@ export const purchaseMembershipPlan = async (planId: string) => {
 
           if (!retryResponse.ok) {
             const retryErrorText = await retryResponse.text();
-            throw new Error(`Failed to initiate membership purchase after token refresh: ${retryResponse.status} ${retryErrorText}`);
+            let retryMessage = errorMessage;
+            try {
+              const parsed = JSON.parse(retryErrorText || "{}");
+              retryMessage = parsed?.error?.message || retryMessage;
+            } catch {}
+            const err: any = new Error(retryMessage);
+            err.status = retryResponse.status;
+            throw err;
           }
 
           return retryResponse.json();
@@ -562,7 +575,9 @@ export const purchaseMembershipPlan = async (planId: string) => {
         }
       }
 
-      throw new Error(`Failed to initiate membership purchase: ${response.status} ${errorText}`);
+      const err: any = new Error(errorMessage);
+      err.status = response.status;
+      throw err;
     }
 
     return response.json();
