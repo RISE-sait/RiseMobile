@@ -126,7 +126,9 @@ const EventListItem: React.FC<EventListItemProps> = ({
          {location && (
            <View className="flex-row items-center ml-2">
              <FontAwesome6 name="location-dot" size={12} color="#a0a0a0" style={{ marginRight: 4 }} />
-             <Text className="text-gray-400 text-sm">{location}</Text>
+             <Text className="text-gray-400 text-sm">
+               {typeof location === 'string' ? location : (location as any)?.name || (location as any)?.address || 'Location TBD'}
+             </Text>
            </View>
          )}
        </View>

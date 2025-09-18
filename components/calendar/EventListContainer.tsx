@@ -50,6 +50,10 @@ const mapTypeToValidType = (item: EventItem): "event" | "match" | "practice" | "
       return "practice"
     case "class":
       return "course"
+    case "tryouts":
+      return "event"
+    case "tryout":
+      return "event"
   }
 
   // If type doesn't match, check program_type
@@ -164,7 +168,8 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               // Map the type to a valid display type
               const validType = mapTypeToValidType(item)
 
-              // Log the complete item for debugging
+              // Debug: Uncomment to debug type mapping issues
+              // console.log('Calendar item:', { id: item.id, type: item.type, validType })
 
               return (
                 <EventListItem

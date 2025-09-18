@@ -26,7 +26,8 @@ import { FontAwesome5 } from "@expo/vector-icons"
 import EventImageHeader from "@/components/events/EventImageHeader"
 import BackButton from "@/components/buttons/BackButton"
 import EventInfoRow from "@/components/events/EventInfoRow"
-import { API_URL } from "@/utils/api"
+import { API_URL, getMembershipByCustomerId } from "@/utils/api"
+import { setMembership } from "@/store/slices/membershipSlice"
 import { COLORS } from "@/constants/colors"
 import * as WebBrowser from 'expo-web-browser'
 
@@ -88,7 +89,8 @@ const EventDetails: React.FC = () => {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
-  
+  const membershipData = useAppSelector((state) => state.membership.data)
+
   // Try to get cached event from Redux first
   const cachedEvent = useAppSelector((state) => selectDetailedEventById(state, id as string))
   const eventsState = useAppSelector((state) => state.events)
@@ -120,6 +122,23 @@ const EventDetails: React.FC = () => {
       setCredits(response.data.balance || 0)
     } catch (error) {
       console.error("Error fetching credits:", error)
+    }
+  }
+
+  // Function to fetch user membership
+  const fetchUserMembership = async () => {
+    try {
+      if (!userData?.id) return
+
+      const memberships = await getMembershipByCustomerId(userData.id)
+      if (memberships?.length > 0) {
+        dispatch(setMembership(memberships[0]))
+        console.log("✅ Membership fetched:", memberships[0])
+      } else {
+        console.log("⚠️ No membership found for user")
+      }
+    } catch (error) {
+      console.error("❌ Error fetching membership:", error)
     }
   }
 
@@ -174,6 +193,7 @@ const EventDetails: React.FC = () => {
 
     fetchEventDetails()
     fetchUserCredits()
+    fetchUserMembership()
   }, [id])
 
   // Function to clean the ID by removing any suffix (e.g., "-7")
@@ -263,19 +283,13 @@ const EventDetails: React.FC = () => {
       let response;
       let url;
 
-      if (source === "homepage") {
-        // Homepage events use public endpoint for registration
-        url = `${API_URL}/events/${cleanedId}`;
-        response = await axios.get(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } else {
-        // Calendar/schedule events use secure endpoint (enrolled events)
-        url = `${API_URL}/secure/events/${cleanedId}`;
-        response = await axios.get(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
+      // Always use public endpoint for event details - it contains full event info
+      // The secure endpoint only returns enrolled events without full details
+      url = `${API_URL}/events/${cleanedId}`;
+      console.log('🌐 Fetching event details from public endpoint:', url)
+      response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
 
       // Process the data from the API response
@@ -326,7 +340,20 @@ const EventDetails: React.FC = () => {
       }
 
       setEvent(processedEvent)
-      setRegistered(false)
+
+      // Check if user is already enrolled by looking in customers array
+      const isUserEnrolled = eventData.customers?.some(customer =>
+        customer.id === userData.id || customer.email === userData.email
+      ) || false
+
+      console.log('User enrollment check:', {
+        userId: userData.id,
+        userEmail: userData.email,
+        customers: eventData.customers?.map(c => ({ id: c.id, email: c.email })),
+        isEnrolled: isUserEnrolled
+      })
+
+      setRegistered(isUserEnrolled)
     } catch (err: any) {
       console.error("Error fetching event details:", err.response?.data || err.message)
       setError("Failed to load event details. Please try again.")
@@ -569,112 +596,60 @@ const EventDetails: React.FC = () => {
       return
     }
 
-    // Validate credits if using credits payment method
-    if (paymentMethod === 'credits' && credits <= 0) {
-      Alert.alert(
-        "Insufficient Credits",
-        "You don't have enough credits for this registration. Please use Stripe payment or earn more credits.",
-        [
-          { text: "Use Stripe", onPress: () => enrollInEvent('stripe') },
-          { text: "Cancel", style: "cancel" }
-        ]
-      )
-      return
-    }
-
     setEnrolling(true)
     try {
-      const response = await axios.post(
+      const response = await fetch(
         `${API_URL}/checkout/events/${event.id}/enhanced`,
-        { payment_method: paymentMethod },
         {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${userData.token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          body: JSON.stringify({ payment_method: paymentMethod })
         }
       )
 
-      const data = response.data
+      const data = await response.json()
 
-      if (data.payment_link) {
-        // Outcome 2: Redirect to Stripe
-        await WebBrowser.openBrowserAsync(data.payment_link)
-        Alert.alert(
-          "Payment Required",
-          "Please complete your payment. Once successful, you'll be automatically enrolled.",
-          [
-            { text: "OK", onPress: () => {
-              // Optionally refresh the page to check enrollment status
-              fetchEventDetails()
-            }}
-          ]
-        )
-      } else {
-        // Outcome 1 or 3: Enrolled successfully
-        setRegistered(true)
-        Alert.alert("Success!", data.message)
-        // Refresh credits if used
-        if (paymentMethod === 'credits') {
-          fetchUserCredits()
+      if (response.ok) {
+        if (data.payment_link) {
+          // Outcome 2: Stripe payment required
+          await WebBrowser.openBrowserAsync(data.payment_link)
+          Alert.alert(
+            "Complete Your Payment",
+            "Please complete your payment. Once successful, you'll be automatically enrolled.",
+            [{ text: "OK", onPress: () => fetchEventDetails() }]
+          )
+        } else {
+          // Outcome 1 or 3: Free enrollment or credit payment successful
+          setRegistered(true)
+          Alert.alert(
+            "Registration Successful!",
+            data.message || "You've been successfully enrolled in this event.",
+            [{ text: "OK", onPress: () => fetchEventDetails() }]
+          )
+          // Refresh credits if used
+          if (paymentMethod === 'credits') {
+            fetchUserCredits()
+          }
         }
-      }
+        setShowPaymentOptions(false)
+      } else {
+        // Handle API errors with server message
+        console.log("Registration failed - Full response:", JSON.stringify(data, null, 2))
+        console.log("Response status:", response.status)
+        console.log("Event details:", { id: event.id, title: event.title, capacity: event.capacity })
+        console.log("User membership_info:", userData?.membership_info)
+        console.log("Separate membership data:", membershipData)
+        console.log("Full user data:", JSON.stringify(userData, null, 2))
 
-      setShowPaymentOptions(false)
+        const errorMessage = data?.error?.message || data?.message || "Registration failed. Please try again."
+        Alert.alert("Registration Failed", errorMessage)
+      }
     } catch (error: any) {
       console.error("Enrollment error:", error)
-
-      let errorTitle = "Enrollment Failed"
-      let errorMessage = "An unexpected error occurred. Please try again."
-
-      // Handle different types of errors
-      if (error.response) {
-        const status = error.response.status
-        const responseData = error.response.data
-
-        switch (status) {
-          case 400:
-            errorMessage = responseData?.error?.message || responseData?.message || "Invalid request. Please check your information."
-            break
-          case 401:
-            errorTitle = "Authentication Error"
-            errorMessage = "Please log in again to continue."
-            break
-          case 403:
-            errorTitle = "Access Denied"
-            errorMessage = responseData?.error?.message || "You don't have permission to register for this event."
-            break
-          case 404:
-            errorTitle = "Event Not Found"
-            errorMessage = "This event no longer exists or has been canceled."
-            break
-          case 409:
-            errorTitle = "Already Registered"
-            errorMessage = responseData?.error?.message || "You are already registered for this event."
-            break
-          case 422:
-            errorTitle = "Registration Unavailable"
-            errorMessage = responseData?.error?.message || "This event is full or registration is closed."
-            break
-          case 429:
-            errorTitle = "Too Many Requests"
-            errorMessage = "Please wait a moment before trying again."
-            break
-          case 500:
-            errorTitle = "Server Error"
-            errorMessage = "Our servers are having issues. Please try again later."
-            break
-          default:
-            errorMessage = responseData?.error?.message || responseData?.message || `Error ${status}: ${errorMessage}`
-        }
-      } else if (error.request) {
-        errorTitle = "Connection Error"
-        errorMessage = "Unable to connect to our servers. Please check your internet connection and try again."
-      } else {
-        errorMessage = error.message || errorMessage
-      }
-
-      Alert.alert(errorTitle, errorMessage)
+      Alert.alert("Connection Error", "Unable to connect to our servers. Please check your internet connection and try again.")
     } finally {
       setEnrolling(false)
     }
@@ -684,17 +659,11 @@ const EventDetails: React.FC = () => {
     if (!event) return
 
     if (registered) {
-      // Handle cancellation - you might want to implement an unregister endpoint
+      // User is already enrolled - show confirmation message
       Alert.alert(
-        "Cancel Registration",
-        "Are you sure you want to cancel your registration?",
-        [
-          { text: "No", style: "cancel" },
-          { text: "Yes", onPress: () => {
-            setRegistered(false)
-            // In a real implementation, call unregister API
-          }}
-        ]
+        "Already Enrolled",
+        "You are already registered for this event. We look forward to seeing you there!",
+        [{ text: "OK" }]
       )
       return
     }
@@ -843,7 +812,7 @@ const EventDetails: React.FC = () => {
                   isPastEvent && styles.disabledButtonText,
                 ]}
               >
-                {isPastEvent ? "Event Ended" : registered ? "Cancel Registration" : "Register for Event"}
+                {isPastEvent ? "Event Ended" : registered ? "You're Already Enrolled" : "Register for Event"}
               </Text>
             )}
           </TouchableOpacity>
@@ -854,10 +823,23 @@ const EventDetails: React.FC = () => {
       {showPaymentOptions && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Choose Payment Method</Text>
-            <Text style={styles.modalSubtitle}>Select how you'd like to register for this event</Text>
+            <Text style={styles.modalTitle}>Enroll in Event</Text>
+            <Text style={styles.modalSubtitle}>Choose your payment method</Text>
 
-            {/* Show credits if user has them */}
+            {/* Stripe Payment Option (Default) */}
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={() => enrollInEvent('stripe')}
+              disabled={enrolling}
+            >
+              <FontAwesome5 name="credit-card" size={20} color={COLORS.primary} />
+              <View style={styles.paymentOptionText}>
+                <Text style={styles.paymentOptionTitle}>Enroll</Text>
+                <Text style={styles.paymentOptionSubtitle}>Free for members or pay with card</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Credits Option (Only if user has credits) */}
             {credits > 0 && (
               <TouchableOpacity
                 style={styles.paymentOption}
@@ -871,19 +853,6 @@ const EventDetails: React.FC = () => {
                 </View>
               </TouchableOpacity>
             )}
-
-            {/* Stripe Payment Option */}
-            <TouchableOpacity
-              style={styles.paymentOption}
-              onPress={() => enrollInEvent('stripe')}
-              disabled={enrolling}
-            >
-              <FontAwesome5 name="credit-card" size={20} color={COLORS.primary} />
-              <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>Pay with Card</Text>
-                <Text style={styles.paymentOptionSubtitle}>Secure payment via Stripe</Text>
-              </View>
-            </TouchableOpacity>
 
             {/* Cancel Button */}
             <TouchableOpacity
