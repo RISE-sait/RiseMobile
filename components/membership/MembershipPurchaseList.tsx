@@ -178,12 +178,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
             </Text>
           )}
 
-          {/* Test Mode Note */}
-          {USE_MEMBERSHIP_TEST_MODE && (
-            <Text style={styles.testModeNote}>
-              Note: All purchases will use test plan ID for now
-            </Text>
-          )}
+          {/* Test Mode Note (removed per request) */}
         </TouchableOpacity>
       </LinearGradient>
     </View>
