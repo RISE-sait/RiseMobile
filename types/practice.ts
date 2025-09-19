@@ -10,12 +10,13 @@ export interface PracticesState {
 }
 
 export interface CreatePracticePayload {
-  start_time: string
+  booked_by: string
+  court_id: string
   end_time: string
   location_id: string
-  court_id: string
-  team_id: string
+  start_time: string
   status: "scheduled" | "cancelled" | "completed"
+  team_id: string
 }
 
 

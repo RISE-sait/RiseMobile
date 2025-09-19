@@ -39,8 +39,8 @@ const statusStyles = {
   canceled: { label: "CANCELED", color: "#6b7280", bgColor: "rgba(107, 114, 128, 0.15)" },
 }
 
-// Instagram profile URL - replace with your actual profile URL
-const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/yourprofile"
+// Instagram profile URL 
+const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/rise.basketball/?hl=en"
 
 interface GameData {
   id: string
@@ -96,24 +96,25 @@ const MatchDetailsScreen = () => {
   const [awayTeamName, setAwayTeamName] = useState<string>("Away Team")
 
   useEffect(() => {
-    // Start animations
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start()
+  // Start animations
+  Animated.parallel([
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }),
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 600,
+      useNativeDriver: true,
+    }),
+  ]).start();
 
     // Fetch teams data if not already loaded
-    if (token && (teamsLoading === "idle" || teamsLoading === "failed")) {
-      dispatch(fetchTeams(token))
-    }
+      if (token && (teamsLoading === "idle" || teamsLoading === "failed")) {
+    dispatch(fetchTeams(token));
+  }
+
 
     // Fetch game data directly from API using /games endpoint
     const fetchGameData = async () => {
@@ -161,7 +162,7 @@ const MatchDetailsScreen = () => {
     }
 
     fetchGameData()
-  }, [programId, token, dispatch, teamsLoading, id])
+  }, [programId, token, dispatch]);
 
   // Get team selectors at the component level
   const homeTeamId = game?.win_team

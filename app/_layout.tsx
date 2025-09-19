@@ -10,6 +10,7 @@ import { Provider } from "react-redux"
 import { PersistGate } from "redux-persist/integration/react"
 import { store, persistor } from "@/store"
 import { initializeStorageCleanup } from "@/utils/storageCleanup"
+import NotificationManager from "@/app/components/NotificationManager"
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -53,6 +54,7 @@ export default function RootLayout() {
       <PersistGate loading={<ActivityIndicator size="large" color="#B59422" />} persistor={persistor}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <StatusBar style="auto" />
+          <NotificationManager />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />

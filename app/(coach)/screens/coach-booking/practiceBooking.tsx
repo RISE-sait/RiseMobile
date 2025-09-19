@@ -20,7 +20,6 @@ import { COLORS } from "@/constants/colors";
 import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector";
 import TeamSelector from "@/components/practiceBooking/TeamSelector";
 import RecurringOptions from "@/components/practiceBooking/RecurringOptions";
-import NotesInput from "@/components/practiceBooking/NotesInput";
 import ConfirmationModal from "@/components/practiceBooking/ConfirmationModal";
 import StepIndicator from "@/components/practiceBooking/StepIndicator";
 import { createPracticeThunk, createRecurringPracticeThunk } from "@/store/slices/practicesSlice";
@@ -81,16 +80,19 @@ const CoachPracticeBooking = () => {
     monthly: false,
     occurrences: 4,
   })
-  const [notes, setNotes] = useState("")
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({})
-  
+
   const user = useSelector(selectCurrentUser)
 
   const coachTeams = useSelector((state: RootState) =>
-  user?.id ? selectTeamsForCoach(state, user.id) : []
+    user?.id ? selectTeamsForCoach(state, user.id) : [],
+    (left, right) => {
+      if (left.length !== right.length) return false
+      return left.every((team, index) => team.id === right[index]?.id)
+    }
   )
 
 
@@ -105,21 +107,24 @@ useEffect(() => {
         return
       }
 
+      if (!user?.id) {
+        return
+      }
+
       // Use centralized token management
       const token = await getValidToken()
       if (!token) {
-        console.error("❌ Failed to get authentication token")
         return
       }
 
       dispatch(fetchTeams(token))
     } catch (error) {
-      console.error("❌ Failed to fetch coach teams:", error)
+      // Silent error handling
     }
   }
 
   fetchCoachTeams()
-}, [dispatch, firebaseUser, getValidToken])
+}, [dispatch, firebaseUser, getValidToken, user?.id])
 
   
 
@@ -178,8 +183,13 @@ const formatTeamForDisplay = (team: Team) => ({
   ...team,
   players: 0, // or estimate if you later add roster
   icon: "users",
-  image: `https://source.unsplash.com/random/300x200/?basketball-${team.id}`,
+  image: team.logo_url || "https://via.placeholder.com/40x40?text=T", // Use actual team logo or fallback
 })
+
+  // Memoize the formatted teams to prevent unnecessary re-renders
+  const formattedTeams = useMemo(() => {
+    return coachTeams.map(formatTeamForDisplay)
+  }, [coachTeams, user?.id])
 
   
 const handleConfirmBooking = async () => {
@@ -190,7 +200,7 @@ const handleConfirmBooking = async () => {
 
   
   if (!user?.id) {
-    console.error("❌ Booking error: No user is logged in.")
+    // No user logged in
     Alert.alert("Error", "User not found. Please log in again.")
     return
   }
@@ -223,61 +233,107 @@ const handleConfirmBooking = async () => {
 
 
 
-    // Create payloads with proper date/time combination
-    const payload: CreatePracticePayload = {
-      start_time: combinedStartDateTime.toISOString(),
-      end_time: combinedEndDateTime.toISOString(),
-      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
-      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
-      status: "scheduled",
-      team_id: selectedTeam?.id ?? "",
-    };
-
-    const recurringPayload: CreateRecurringPracticePayload = {
-      day: dayjs(date).format("dddd").toUpperCase(), // e.g. "MONDAY"
-      practice_start_at: combinedStartDateTime.format("HH:mm:ss+00:00"), // Use combined time: "21:28:43+00:00"
-      practice_end_at: combinedEndDateTime.format("HH:mm:ss+00:00"), // Use combined time: "23:28:43+00:00"
-      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
-      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
-      team_id: selectedTeam?.id ?? "",
-      status: "scheduled" as const,
-      recurrence_start_at: combinedStartDateTime.toISOString(), // Use combined date for recurrence start
-      recurrence_end_at: dayjs(date)
-        .add(recurringOptions.occurrences - 1, recurringOptions.weekly ? "week" : recurringOptions.biweekly ? "week" : "month")
-        .toISOString(),
-    };
-
-    // For now, we're creating practices instead of booking existing ones
-    
-    if (isRecurring) {
-      await dispatch(createRecurringPracticeThunk(recurringPayload)).unwrap()
-    } else {
-      await dispatch(createPracticeThunk(payload)).unwrap()
+    // Validate required fields
+    if (!user?.id) {
+      Alert.alert("Error", "User ID not found. Please log in again.")
+      return
+    }
+    if (!selectedTeam?.id) {
+      Alert.alert("Error", "Please select a team.")
+      return
     }
 
-    setShowConfirmation(false)
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    // Create payloads with proper date/time combination
+    const payload: CreatePracticePayload = {
+      booked_by: user.id,
+      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
+      end_time: combinedEndDateTime.toISOString(),
+      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
+      start_time: combinedStartDateTime.toISOString(),
+      status: "scheduled",
+      team_id: selectedTeam.id,
+    };
 
-    Alert.alert("Success", "Your practice has been created!")
-    router.back()
+    const recurringPayload = {
+      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
+      day: dayjs(date).format("dddd").toUpperCase(), // "MONDAY" (uppercase)
+      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
+      practice_start_at: combinedStartDateTime.format("HH:mm:ss+00:00"), // "18:00:00+00:00"
+      practice_end_at: combinedEndDateTime.format("HH:mm:ss+00:00"), // "20:00:00+00:00"
+      recurrence_start_at: dayjs(date).startOf('day').toISOString(), // "2025-10-01T00:00:00Z"
+      recurrence_end_at: dayjs(date)
+        .add((recurringOptions.occurrences - 1) * (recurringOptions.weekly ? 1 : recurringOptions.biweekly ? 2 : 4), "week")
+        .endOf('day').toISOString(), // "2025-10-31T23:59:59Z"
+      status: "scheduled",
+      team_id: selectedTeam.id,
+    };
+
+    // Practice booking payload prepared
+
+    // Create the practice
+    try {
+      if (isRecurring) {
+        const result = await dispatch(createRecurringPracticeThunk(recurringPayload)).unwrap()
+        // Recurring practice created successfully
+      } else {
+        const result = await dispatch(createPracticeThunk(payload)).unwrap()
+        // Practice created successfully
+      }
+
+      setShowConfirmation(false)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+
+      Alert.alert(
+        "Success",
+        `Your ${isRecurring ? 'recurring ' : ''}practice has been scheduled successfully!`,
+        [{ text: "OK", onPress: () => router.back() }]
+      )
+    } catch (thunkError: any) {
+      // Thunk error occurred
+
+      // Special handling for 503 errors - they often succeed on server side
+      const is503Error = thunkError?.message?.includes('503') ||
+                        thunkError?.error?.includes('503') ||
+                        (typeof thunkError === 'string' && thunkError.includes('503')) ||
+                        thunkError?.message?.includes('status code 503')
+
+      if (is503Error) {
+        setShowConfirmation(false)
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+
+        Alert.alert(
+          "Server Busy",
+          "The server is currently busy, but your practice may have been scheduled. Please check your schedule to confirm.",
+          [
+            { text: "Check Schedule", onPress: () => router.back() },
+            { text: "OK" }
+          ]
+        )
+        return
+      }
+
+      // Handle other error types
+      let errorMessage = "Something went wrong. Please try again."
+
+      if (typeof thunkError === 'string') {
+        errorMessage = thunkError
+      } else if (thunkError?.message) {
+        errorMessage = thunkError.message
+      } else if (thunkError?.error) {
+        errorMessage = thunkError.error
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      Alert.alert("Booking Failed", errorMessage)
+
+      // Don't close the modal so user can retry
+      return
+    }
 
   } catch (error: any) {
-    console.error("❌ Booking error:", error)
-    console.error("❌ Error details:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      payload: isRecurring ? recurringPayload : payload
-    })
-    
+    // Unexpected error occurred
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-    
-    const errorMessage = error.response?.data?.message || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        "Something went wrong. Please try again."
-    
-    Alert.alert("Booking Failed", `Error: ${errorMessage}`)
+    Alert.alert("Unexpected Error", "An unexpected error occurred. Please try again.")
   } finally {
     setIsSubmitting(false)
   }
@@ -314,6 +370,10 @@ const handleConfirmBooking = async () => {
               {/* Step 1: Facility, Date & Time Selection */}
               {currentStep === 1 && (
                 <>
+                  <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Schedule Details</Text>
+                    <Text style={styles.sectionSubtitle}>Select when you want to schedule this practice</Text>
+                  </View>
                   <DateTimeSelector
                     label="Date"
                     date={date}
@@ -352,13 +412,34 @@ const handleConfirmBooking = async () => {
               {/* Step 2: Team & Practice Type Selection */}
               {currentStep === 2 && (
                 <>
-                  <TeamSelector 
-                    teams={coachTeams.map(formatTeamForDisplay)}
-                    selectedTeam={selectedTeam}
-                    setSelectedTeam={setSelectedTeam}
-                    hasError={!!formErrors.team}
-                    errorMessage={formErrors.team}
-                  />
+                  <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Team Selection</Text>
+                    <Text style={styles.sectionSubtitle}>Choose which team this practice is for</Text>
+                  </View>
+                  {formattedTeams.length === 0 ? (
+                    <View style={styles.noTeamsContainer}>
+                      <Text style={styles.noTeamsText}>No teams found. Pull down to refresh or check your connection.</Text>
+                      <TouchableOpacity
+                        style={styles.refreshButton}
+                        onPress={async () => {
+                          const token = await getValidToken()
+                          if (token) {
+                            dispatch(fetchTeams(token))
+                          }
+                        }}
+                      >
+                        <Text style={styles.refreshButtonText}>Refresh Teams</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TeamSelector
+                      teams={formattedTeams}
+                      selectedTeam={selectedTeam}
+                      setSelectedTeam={setSelectedTeam}
+                      hasError={!!formErrors.team}
+                      errorMessage={formErrors.team}
+                    />
+                  )}
 
 
 
@@ -366,17 +447,19 @@ const handleConfirmBooking = async () => {
                 </>
               )}
 
-              {/* Step 3: Notes */}
+              {/* Step 3: Recurring Options */}
               {currentStep === 3 && (
                 <>
+                  <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Practice Schedule</Text>
+                    <Text style={styles.sectionSubtitle}>Configure if this practice should repeat</Text>
+                  </View>
                   <RecurringOptions
                     isRecurring={isRecurring}
                     setIsRecurring={setIsRecurring}
                     recurringOptions={recurringOptions}
                     setRecurringOptions={setRecurringOptions}
                   />
-
-                  <NotesInput notes={notes} setNotes={setNotes} />
                 </>
               )}
             </Animated.View>
@@ -415,7 +498,7 @@ const handleConfirmBooking = async () => {
         endTime={endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         team={selectedTeam ? selectedTeam.name : undefined}
         facility={DEFAULT_BOOKING_CONFIG.LOCATION_NAME}
-        notes={notes}
+        notes={undefined}
         isRecurring={isRecurring}
         recurringDetails={isRecurring ? 
           `Repeats ${recurringOptions.weekly ? 'weekly' : recurringOptions.biweekly ? 'biweekly' : 'monthly'} for ${recurringOptions.occurrences} occurrences` : 
@@ -552,6 +635,45 @@ const styles = StyleSheet.create({
     marginTop: -4,
     marginBottom: 8,
     marginLeft: 4,
+  },
+  sectionContainer: {
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+  noTeamsContainer: {
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: COLORS.cardLight,
+    borderRadius: 8,
+    marginVertical: 10,
+  },
+  noTeamsText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  refreshButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 6,
+  },
+  refreshButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.background,
   },
 })
 

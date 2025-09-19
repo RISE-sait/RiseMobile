@@ -479,11 +479,10 @@ const CoachBook = () => {
     }}
   >
     <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Practices</Text>
-    {upcomingBookings.length > 0 && (
-      <TouchableOpacity>
-        <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
-      </TouchableOpacity>
-    )}
+    <TouchableOpacity onPress={refreshPractices} style={{ flexDirection: "row", alignItems: "center" }}>
+      <Ionicons name="refresh" size={16} color={COLORS.primary} />
+      <Text style={{ color: COLORS.primary, fontSize: 14, marginLeft: 4 }}>Refresh</Text>
+    </TouchableOpacity>
   </View>
 
   <View style={{ paddingHorizontal: 20 }}>
