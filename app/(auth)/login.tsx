@@ -10,6 +10,7 @@ import {
   Keyboard,
   Alert,
 } from "react-native"
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
@@ -224,48 +225,60 @@ const handleEnableBiometric = async (email: string, password: string) => {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={styles.keyboardAvoidView}
+            keyboardVerticalOffset={0}
           >
             <View style={styles.fullScreenBackground}>
               <LinearGradient
                 colors={["#000", "#000", "rgba(0,0,0,0.9)", "#121212"]}
-                style={[styles.gradientBackground, Platform.OS === "android" && styles.androidGradient]}
+                style={styles.gradientBackground}
               >
-                {/* Logo */}
-                <AnimatedLogo fadeAnim={fadeAnim} />
-
-                {/* Header */}
-                <LoginHeader fadeAnim={fadeAnim} slideAnim={slideAnim} />
-
-                {/* Form Container */}
-                <Animated.View
-                  style={[
-                    styles.formContainer,
-                    {
-                      opacity: fadeAnim,
-                      transform: [{ translateY: slideAnim }],
-                    },
-                  ]}
+                <KeyboardAwareScrollView
+                  style={styles.scrollView}
+                  contentContainerStyle={styles.scrollContent}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  enableOnAndroid={true}
+                  enableAutomaticScroll={true}
+                  extraScrollHeight={20}
+                  extraHeight={Platform.OS === "android" ? 120 : 80}
+                  keyboardOpeningTime={250}
                 >
-                  {/* Login Form */}
-                  <LoginForm onLogin={handleLogin} isLoading={isLoading} errors={errors} setErrors={setErrors} />
+                  {/* Logo */}
+                  <AnimatedLogo fadeAnim={fadeAnim} />
 
-                  {/* Biometric Login */}
-                  <BiometricLogin
-                    onBiometricLogin={handleBiometricLogin}
-                    onEnableBiometric={handleEnableBiometric}
-                    isLoading={isLoading}
-                    lastLoginEmail={lastLoginEmail}
-                  />
+                  {/* Header */}
+                  <LoginHeader fadeAnim={fadeAnim} slideAnim={slideAnim} />
 
-                  {/* Sign Up Link */}
-                  <SignupLink onPress={() => router.push("/(auth)/signup")} />
+                  {/* Form Container */}
+                  <Animated.View
+                    style={[
+                      styles.formContainer,
+                      {
+                        opacity: fadeAnim,
+                        transform: [{ translateY: slideAnim }],
+                      },
+                    ]}
+                  >
+                    {/* Login Form */}
+                    <LoginForm onLogin={handleLogin} isLoading={isLoading} errors={errors} setErrors={setErrors} />
 
+                    {/* Biometric Login */}
+                    <BiometricLogin
+                      onBiometricLogin={handleBiometricLogin}
+                      onEnableBiometric={handleEnableBiometric}
+                      isLoading={isLoading}
+                      lastLoginEmail={lastLoginEmail}
+                    />
 
-                  {/* Add bottom padding */}
-                  <View style={styles.bottomPadding} />
-                </Animated.View>
+                    {/* Sign Up Link */}
+                    <SignupLink onPress={() => router.push("/(auth)/signup")} />
+
+                    {/* Add bottom padding */}
+                    <View style={styles.bottomPadding} />
+                  </Animated.View>
+                </KeyboardAwareScrollView>
               </LinearGradient>
             </View>
           </KeyboardAvoidingView>
@@ -302,17 +315,23 @@ const styles = StyleSheet.create({
   gradientBackground: {
     flex: 1,
     width: "100%",
-    height: "100%",
   },
-  androidGradient: {
-    height: height + 100, // Extra height for Android
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    minHeight: height, // Ensure minimum height for proper centering
+    paddingBottom: Platform.OS === "android" ? 120 : 80, // Extra bottom padding for keyboard
+    justifyContent: 'center',
   },
   formContainer: {
     paddingHorizontal: 30,
     flex: 1,
+    justifyContent: 'center',
   },
   bottomPadding: {
-    height: Platform.OS === "android" ? 100 : 50, // Extra padding for Android
+    height: Platform.OS === "android" ? 60 : 40, // Reduced padding since ScrollView handles it
   },
 })
 
