@@ -94,9 +94,6 @@ const CoachProfileScreen = () => {
           firstName={user.firstName}
           lastName={user.lastName}
           role={user.role}
-          number={
-                   `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase()
-                }
           profileImage={user.profileImage ? { uri: user.profileImage } : images.coachHeadshot}
           countryCode={user?.countryCode} // Ensure countryCode is always defined
           teamLogo={user.teamLogo ? { uri: user.teamLogo } : images.teamLogo}

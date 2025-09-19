@@ -6,7 +6,6 @@ const ProfileHeader = ({
   firstName,
   lastName,
   role,
-  number,
   profileImage,
   countryCode, // ✅ Now expects a country code
   teamLogo, // ✅ Allows a future team logo
@@ -14,7 +13,6 @@ const ProfileHeader = ({
   firstName: string;
   lastName: string;
   role: string;
-  number: string;
   profileImage: any;
   countryCode?: string; // ✅ Country code is optional
   teamLogo?: any; // ✅ Team logo is optional
@@ -38,12 +36,12 @@ const ProfileHeader = ({
         </View>
 
 
-        {/* Large Number */}
+        {/* Large Initials */}
         <Text
           className="text-white-100 font-bold text-[170px] absolute right-4 bottom-2 opacity-25"
           style={{ zIndex: 1 }}
         >
-          {number}
+          {firstName.charAt(0).toUpperCase()}{lastName.charAt(0).toUpperCase()}
         </Text>
 
         {/* Profile Image */}

@@ -102,9 +102,6 @@ const AthleteProfileScreen = () => {
           firstName={user.firstName}
           lastName={user.lastName}
           role={user.role}
-          number={
-                   `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase()
-                }
           profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
           countryCode={user?.countryCode } // ✅ Ensure countryCode is always defined
           teamLogo={images.teamLogo}
