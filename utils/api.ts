@@ -879,7 +879,7 @@ export const createHaircutBooking = async (bookingDetails: any, token: string): 
   }
 };
 
-// Get upcoming bookings for the authenticated user  
+// Get upcoming bookings for the authenticated user
 export const getUpcomingBookings = async (token: string): Promise<any> => {
   try {
     const response = await axios.get(`${API_URL}/bookings/upcoming`, {
@@ -887,10 +887,30 @@ export const getUpcomingBookings = async (token: string): Promise<any> => {
         "Authorization": `Bearer ${token}`,
       },
     });
-    
+
     return response.data;
   } catch (error) {
     console.error("❌ Failed to fetch upcoming bookings:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
+// Get available time slots for a specific barber on a given date and for a given service duration
+export const getBarberAvailability = async (barberId: string, date: string, serviceDuration: number, token: string): Promise<string[]> => {
+  try {
+    const response = await axios.get(`${API_URL}/haircuts/barbers/${barberId}/availability`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      params: {
+        date,
+        service_duration: serviceDuration,
+      },
+    });
+    // Ensure we return the array from the 'available_slots' key, or an empty array as a fallback.
+    return response.data.available_slots || [];
+  } catch (error) {
+    console.error("❌ Failed to fetch barber availability:", (error as any).response?.data || (error as any).message);
     throw error;
   }
 };
