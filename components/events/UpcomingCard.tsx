@@ -112,11 +112,26 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
                 {/* Home Team */}
                 <View className="flex items-center flex-1 max-w-[35%]">
                   {event.homeLogo && (
-                    <Image
-                      source={typeof event.homeLogo === "string" ? { uri: event.homeLogo } : event.homeLogo}
-                      className="w-12 h-12 mb-1"
-                      resizeMode="contain"
-                    />
+                    <View style={{
+                      width: 56,
+                      height: 56,
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      borderRadius: 12,
+                      marginBottom: 4,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 4,
+                      elevation: 4,
+                    }}>
+                      <Image
+                        source={typeof event.homeLogo === "string" ? { uri: event.homeLogo } : event.homeLogo}
+                        style={{ width: 40, height: 40 }}
+                        resizeMode="contain"
+                      />
+                    </View>
                   )}
                   <Text 
                     className="text-white-100 font-Oswald-Medium uppercase text-center leading-tight"
@@ -137,11 +152,26 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
                 {/* Away Team */}
                 <View className="flex items-center flex-1 max-w-[35%]">
                   {event.awayLogo && (
-                    <Image
-                      source={typeof event.awayLogo === "string" ? { uri: event.awayLogo } : event.awayLogo}
-                      className="w-12 h-12 mb-1"
-                      resizeMode="contain"
-                    />
+                    <View style={{
+                      width: 56,
+                      height: 56,
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      borderRadius: 12,
+                      marginBottom: 4,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 4,
+                      elevation: 4,
+                    }}>
+                      <Image
+                        source={typeof event.awayLogo === "string" ? { uri: event.awayLogo } : event.awayLogo}
+                        style={{ width: 40, height: 40 }}
+                        resizeMode="contain"
+                      />
+                    </View>
                   )}
                   <Text 
                     className="text-white-100 font-Oswald-Medium uppercase text-center leading-tight"
