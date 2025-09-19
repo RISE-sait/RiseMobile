@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import { FontAwesome6 } from "@expo/vector-icons";
 import BackButton from "@/components/buttons/BackButton";
 
-// Mock court data (Replace with API in future)
+// Mock court data 
 const courts = [
   { 
     id: 1, 

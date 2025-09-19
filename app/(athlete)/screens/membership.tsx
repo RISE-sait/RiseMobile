@@ -31,8 +31,6 @@ const MembershipScreen: React.FC = () => {
         console.error("❌ Error loading membership info:", result.error);
         setStatus('error');
       } else {
-        console.log("🔍 Debug - Fetched memberships:", result.data);
-        console.log("🔍 Debug - Memberships length:", result.data?.length || 0);
         const memberships = result.data || [];
         setUserMemberships(memberships);
         
@@ -54,12 +52,10 @@ const MembershipScreen: React.FC = () => {
     setStatus('loading');
     try {
       for (let i = 0; i < retries; i++) {
-        console.log(`Attempt ${i + 1} of ${retries} to fetch membership status...`);
         const result = await getUserMemberships();
 
         // If successfully retrieved membership information (list length > 0)
         if (result.data && result.data.length > 0) {
-          console.log("Success: New membership found!");
           setUserMemberships(result.data);
           setStatus('success');
           return; // Success, exit function immediately
@@ -67,7 +63,6 @@ const MembershipScreen: React.FC = () => {
 
         // If none found and not the last attempt, wait before retrying
         if (i < retries - 1) {
-          console.log("Membership not found yet, waiting to retry...");
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
           // After all retries still no result, inform user about processing status
@@ -91,7 +86,6 @@ const MembershipScreen: React.FC = () => {
   useEffect(() => {
     // If we have cached membership data, use it immediately for faster loading
     if (cachedMembership) {
-      console.log("✅ Using cached membership data for faster loading");
       setUserMemberships([cachedMembership]);
       setStatus('success');
     }

@@ -74,7 +74,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
       try {
         // Step a: Get all membership types
-        console.log("🔄 Fetching membership types...");
         const membershipTypesResult = await getAllMembershipPlans();
 
         if (membershipTypesResult.error) {
@@ -85,10 +84,8 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         }
 
         const membershipTypes: MembershipType[] = membershipTypesResult.data || [];
-        console.log(`✅ Found ${membershipTypes.length} membership types`);
 
         if (membershipTypes.length === 0) {
-          console.log("ℹ️ No membership types found");
           setMembershipSections([]);
           setLoading(false);
           return;
@@ -109,7 +106,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         setLoading(false); // Hide main loading, show section-level loading
 
         // Step c: Fetch plans for each membership type with retry mechanism
-        console.log("🔄 Fetching plans for all membership types...");
         const planPromises = membershipTypes.map(type =>
           fetchPlansWithRetry(type.id)
         );
@@ -124,7 +120,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           if (plansResult.error) {
             console.warn(`⚠️ Failed to fetch plans for membership type "${type.name}":`, plansResult.error);
           } else {
-            console.log(`✅ Found ${plans.length} plans for membership type "${type.name}"`);
           }
 
           // Add a placeholder item for error/empty states when expanded
@@ -155,7 +150,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
         // Step e: Update state
         setMembershipSections(updatedSections);
-        console.log("✅ Successfully loaded all membership data");
 
       } catch (error) {
         // Step e: Error handling
@@ -168,7 +162,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
     // Use Redux store user data (same pattern as other screens)
     if (user && user.token) {
-      console.log("✅ User authenticated via Redux store, fetching membership data...");
       fetchMembershipData();
     } else {
       console.warn("⚠️ User not authenticated in Redux store.");
@@ -189,7 +182,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   // Retry mechanism for fetching plans with auth error handling
   const fetchPlansWithRetry = async (membershipId: string, maxRetries = 2) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`🔄 Attempt ${attempt}/${maxRetries} to fetch plans for membership ${membershipId}`);
 
       const result = await getPlansForMembership(membershipId);
 
@@ -200,10 +192,8 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
       // If it's an auth error and we haven't exhausted retries, try refreshing token
       if (result.error.type === 'auth' && attempt < maxRetries) {
-        console.log(`🔄 Auth error detected for membership ${membershipId}, refreshing token...`);
         try {
           await refreshBackendJwt();
-          console.log(`✅ Token refreshed, retrying fetch for membership ${membershipId}...`);
           // Continue to next iteration to retry
         } catch (refreshError) {
           console.error(`❌ Failed to refresh token for membership ${membershipId}:`, refreshError);
@@ -465,9 +455,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
               <TouchableOpacity
                 style={styles.retryButton}
                 onPress={() => {
-                  // Trigger a reload for this specific section
-                  console.log(`🔄 Retrying fetch for section ${section.id}`);
-                  // You could implement section-specific retry here
                 }}
               >
                 <Text style={styles.retryButtonText}>Retry</Text>
