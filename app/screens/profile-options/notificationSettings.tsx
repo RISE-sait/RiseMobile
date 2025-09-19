@@ -16,6 +16,13 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BackButton from "@/components/buttons/BackButton";
 import { COLORS } from "@/constants/colors";
+import {
+  checkBiometricCapability,
+  isBiometricLoginEnabled,
+  disableBiometricLogin,
+  getBiometricDisplayName,
+  type BiometricCapability,
+} from "@/utils/biometricAuth";
 
 interface NotificationSettings {
   pushNotifications: boolean;
@@ -23,6 +30,7 @@ interface NotificationSettings {
   practiceNotifications: boolean;
   teamUpdates: boolean;
   soundEnabled: boolean;
+  biometricLogin: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -31,6 +39,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   practiceNotifications: true,
   teamUpdates: true,
   soundEnabled: true,
+  biometricLogin: false,
 };
 
 const NotificationSettingsScreen: React.FC = () => {
@@ -39,11 +48,31 @@ const NotificationSettingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<string>('unknown');
+  const [biometricCapability, setBiometricCapability] = useState<BiometricCapability>({
+    isAvailable: false,
+    biometricType: 'none',
+    supportedTypes: [],
+  });
 
   useEffect(() => {
     loadSettings();
     checkPermissions();
+    checkBiometricAvailability();
   }, []);
+
+  const checkBiometricAvailability = async () => {
+    try {
+      const capability = await checkBiometricCapability();
+      setBiometricCapability(capability);
+
+      if (capability.isAvailable) {
+        const isEnabled = await isBiometricLoginEnabled();
+        setSettings(prev => ({ ...prev, biometricLogin: isEnabled }));
+      }
+    } catch (error) {
+      console.error("Error checking biometric availability:", error);
+    }
+  };
 
   const checkPermissions = async () => {
     try {
@@ -84,9 +113,46 @@ const NotificationSettingsScreen: React.FC = () => {
     }
   };
 
-  const handleSettingChange = (key: keyof NotificationSettings, value: boolean | string) => {
+  const handleSettingChange = async (key: keyof NotificationSettings, value: boolean | string) => {
+    if (key === 'biometricLogin') {
+      await handleBiometricToggle(value as boolean);
+      return;
+    }
+
     const newSettings = { ...settings, [key]: value };
     saveSettings(newSettings);
+  };
+
+  const handleBiometricToggle = async (enabled: boolean) => {
+    try {
+      setSaving(true);
+
+      if (!enabled) {
+        // Disable biometric login
+        const success = await disableBiometricLogin();
+        if (success) {
+          setSettings(prev => ({ ...prev, biometricLogin: false }));
+          Alert.alert(
+            "Biometric Login Disabled",
+            `${getBiometricDisplayName(biometricCapability.biometricType)} login has been disabled.`
+          );
+        } else {
+          Alert.alert("Error", "Failed to disable biometric login. Please try again.");
+        }
+      } else {
+        // Show instruction for enabling biometric login
+        Alert.alert(
+          "Enable Biometric Login",
+          `To enable ${getBiometricDisplayName(biometricCapability.biometricType)} login, please log in with your password and select the option to enable biometric authentication.`,
+          [{ text: "OK", style: "default" }]
+        );
+      }
+    } catch (error) {
+      console.error("Error toggling biometric login:", error);
+      Alert.alert("Error", "Failed to update biometric login setting.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const requestPermissions = async () => {
@@ -166,7 +232,7 @@ const NotificationSettingsScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <BackButton />
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={styles.headerTitle}>Notifications & Security</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -227,6 +293,24 @@ const NotificationSettingsScreen: React.FC = () => {
             !settings.pushNotifications
           )}
         </View>
+
+        {/* Security Settings */}
+        {biometricCapability.isAvailable && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Security</Text>
+            </View>
+            <View style={styles.section}>
+              {renderSettingRow(
+                `${getBiometricDisplayName(biometricCapability.biometricType)} Login`,
+                `Use ${getBiometricDisplayName(biometricCapability.biometricType)} to sign in quickly and securely`,
+                "biometricLogin",
+                biometricCapability.biometricType === 'face' ? 'scan' : 'finger-print',
+                false
+              )}
+            </View>
+          </>
+        )}
       </ScrollView>
 
     </SafeAreaView>
@@ -306,6 +390,16 @@ const styles = {
   },
   section: {
     marginTop: 24,
+  },
+  sectionHeader: {
+    marginTop: 32,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold' as const,
+    color: COLORS.text,
   },
   settingRow: {
     flexDirection: 'row' as const,

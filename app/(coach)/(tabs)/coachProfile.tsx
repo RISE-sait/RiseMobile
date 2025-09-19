@@ -107,7 +107,7 @@ const CoachProfileScreen = () => {
           title="My Account"
           items={[
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
-            { icon: "bell", text: "Notifications", onPress: () => router.push("/screens/profile-options/notificationSettings") },
+            { icon: "bell", text: "Notifications & Security", onPress: () => router.push("/screens/profile-options/notificationSettings") },
             { icon: "arrow-right-from-bracket", text: "Logout", iconColor: "#EF4444", textColor: "#EF4444", onPress: handleLogout },
           ]}
         />

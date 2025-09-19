@@ -8,6 +8,7 @@ import {
   StyleSheet,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
@@ -19,6 +20,13 @@ import { useDispatch } from "react-redux"
 import { setUser } from "@/store/slices/userSlice"
 import { setMembership } from "@/store/slices/membershipSlice"
 import type { User } from "@/types"
+import {
+  saveBiometricCredentials,
+  checkBiometricCapability,
+  isBiometricLoginEnabled,
+  getBiometricDisplayName,
+  type BiometricCredentials
+} from "@/utils/biometricAuth"
 
 
 
@@ -29,6 +37,7 @@ import { LoginForm } from "@/components/auth/LoginForm"
 import { SocialLogin } from "@/components/auth/SocialLogin"
 import { SignupLink } from "@/components/auth/SignupLink"
 import { ErrorToast } from "@/components/auth/ErrorToast"
+import BiometricLogin from "@/components/auth/BiometricLogin"
 
 const { height } = Dimensions.get("window")
 
@@ -41,6 +50,7 @@ interface ErrorState {
 const LoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<ErrorState>({})
+  const [lastLoginEmail, setLastLoginEmail] = useState<string>("")
   const { login, loginWithGoogle } = useAuth()
   const router = useRouter()
   const dispatch = useDispatch()
@@ -100,7 +110,7 @@ const LoginScreen = () => {
   }
 
   // Email/Password Login Handler
-const handleLogin = async (email: string, password: string) => {
+const handleLogin = async (email: string, password: string, saveForBiometric?: boolean) => {
   try {
     setIsLoading(true)
 
@@ -110,6 +120,19 @@ const handleLogin = async (email: string, password: string) => {
       dispatch(setUser({ ...user, isAuthenticated: true }))
       if (user.membership_info) {
         dispatch(setMembership(user.membership_info))
+      }
+
+      // Save email for potential biometric setup
+      setLastLoginEmail(email)
+
+      // Save credentials for biometric login if requested
+      if (saveForBiometric) {
+        await saveBiometricCredentials({ email, password })
+      } else {
+        // Check and offer biometric setup after successful login (with a small delay for UX)
+        setTimeout(() => {
+          checkAndOfferBiometricSetup(email, password)
+        }, 1500)
       }
     }
 
@@ -121,6 +144,75 @@ const handleLogin = async (email: string, password: string) => {
     }
   } finally {
     setIsLoading(false)
+  }
+}
+
+// Handle biometric login
+const handleBiometricLogin = async (credentials: BiometricCredentials) => {
+  await handleLogin(credentials.email, credentials.password)
+}
+
+// Check and offer biometric setup after successful login
+const checkAndOfferBiometricSetup = async (email: string, password: string) => {
+  try {
+    // Check if device supports biometrics
+    const capability = await checkBiometricCapability()
+    if (!capability.isAvailable) return
+
+    // Check if biometric login is already enabled
+    const isAlreadyEnabled = await isBiometricLoginEnabled()
+    if (isAlreadyEnabled) return
+
+    // Offer biometric setup
+    const biometricName = getBiometricDisplayName(capability.biometricType)
+
+    Alert.alert(
+      `Enable ${biometricName} Login?`,
+      `Would you like to use ${biometricName} for faster and more secure sign-ins?`,
+      [
+        {
+          text: "Not Now",
+          style: "cancel",
+        },
+        {
+          text: "Enable",
+          style: "default",
+          onPress: async () => {
+            const success = await saveBiometricCredentials({ email, password })
+            if (success) {
+              Alert.alert(
+                "Success!",
+                `${biometricName} login has been enabled. You can now use ${biometricName} to sign in.`,
+                [{ text: "OK", style: "default" }]
+              )
+              // Success haptic feedback
+              if (Platform.OS === "ios") {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+              }
+            } else {
+              Alert.alert(
+                "Setup Failed",
+                `Unable to set up ${biometricName} login. Please try again later.`,
+                [{ text: "OK", style: "default" }]
+              )
+            }
+          },
+        },
+      ]
+    )
+  } catch (error) {
+    console.error('Error checking biometric setup:', error)
+  }
+}
+
+// Handle enabling biometric login after successful password login
+const handleEnableBiometric = async (email: string, password: string) => {
+  const success = await saveBiometricCredentials({ email, password })
+  if (success) {
+    // Show success feedback
+    if (Platform.OS === "ios") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    }
   }
 }
 
@@ -158,6 +250,14 @@ const handleLogin = async (email: string, password: string) => {
                 >
                   {/* Login Form */}
                   <LoginForm onLogin={handleLogin} isLoading={isLoading} errors={errors} setErrors={setErrors} />
+
+                  {/* Biometric Login */}
+                  <BiometricLogin
+                    onBiometricLogin={handleBiometricLogin}
+                    onEnableBiometric={handleEnableBiometric}
+                    isLoading={isLoading}
+                    lastLoginEmail={lastLoginEmail}
+                  />
 
                   {/* Sign Up Link */}
                   <SignupLink onPress={() => router.push("/(auth)/signup")} />
