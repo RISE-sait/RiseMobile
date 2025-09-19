@@ -168,8 +168,6 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               // Map the type to a valid display type
               const validType = mapTypeToValidType(item)
 
-              // Debug: Uncomment to debug type mapping issues
-              // console.log('Calendar item:', { id: item.id, type: item.type, validType })
 
               return (
                 <EventListItem

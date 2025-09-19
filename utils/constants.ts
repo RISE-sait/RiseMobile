@@ -11,12 +11,5 @@ export const MEMBERSHIP_TEST_PLAN_ID: string =
   process.env.EXPO_PUBLIC_MEMBERSHIP_TEST_PLAN_ID ??
   "14a89cfc-518f-4871-84fe-43d27e2fe274";
 
-// Helper to log current config at runtime (optional usage)
-export const logMembershipTestConfig = () => {
-  // Keep logs concise
-  // console.log(
-  //   `Membership Test Mode: ${USE_MEMBERSHIP_TEST_MODE}, Test Plan ID: ${MEMBERSHIP_TEST_PLAN_ID}`
-  // );
-};
 
 

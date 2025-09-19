@@ -71,8 +71,6 @@ export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (t
           parsedDate = new Date().toISOString().split('T')[0]
         }
 
-        // Debug: Uncomment to debug date/time parsing issues
-        // console.log('Processing event:', { id: event.id, parsedDate, programName: event.program?.name })
 
         scheduleItems.push({
           id: event.id,

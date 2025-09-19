@@ -72,7 +72,6 @@ const sendPracticeNotification = async (
       }
     })
 
-    console.log("✅ Practice notification sent successfully")
   } catch (error) {
     console.error("❌ Failed to send practice notification:", error)
     // Don't throw error - notification failure shouldn't prevent practice creation
@@ -221,7 +220,6 @@ export const createRecurringPracticeThunk = createAsyncThunk<
       const jwt = await refreshBackendJwt()
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
-      console.log("📤 Sending recurring practice payload to API:", payload)
 
       const response = await axios.post(
         `${API_URL}/practices/recurring`,
@@ -231,7 +229,6 @@ export const createRecurringPracticeThunk = createAsyncThunk<
         }
       )
 
-      console.log("✅ Recurring practice API response:", response.data)
 
       // Send notification for recurring practice
       if (payload.team_id) {

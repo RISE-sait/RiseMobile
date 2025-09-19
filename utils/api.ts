@@ -356,7 +356,6 @@ export const getUserMemberships = async () => {
 
     // If no JWT token, we need to get one from /auth endpoint using Firebase token
     if (!jwtToken) {
-      console.log("🔄 No JWT token found, refreshing from backend...");
       try {
         jwtToken = await refreshBackendJwt();
       } catch (refreshError) {
@@ -385,7 +384,6 @@ export const getUserMemberships = async () => {
 
       // If 401/403, try refreshing the JWT token once
       if (response.status === 401 || response.status === 403) {
-        console.log("🔄 Token expired, refreshing JWT...");
         try {
           jwtToken = await refreshBackendJwt();
 
@@ -453,7 +451,6 @@ export const getMembershipPlans = async () => {
 
     // If no JWT token, we need to get one from /auth endpoint using Firebase token
     if (!jwtToken) {
-      console.log("🔄 No JWT token found, refreshing from backend...");
       try {
         jwtToken = await refreshBackendJwt();
       } catch (refreshError) {
@@ -482,7 +479,6 @@ export const getMembershipPlans = async () => {
 
       // If 401/403, try refreshing the JWT token once
       if (response.status === 401 || response.status === 403) {
-        console.log("🔄 Token expired, refreshing JWT...");
         try {
           jwtToken = await refreshBackendJwt();
 
@@ -528,7 +524,6 @@ export const getMembershipPlans = async () => {
     }
 
     const data = await response.json();
-    console.log("✅ Successfully fetched membership plans:", data);
     return { data, error: null };
   } catch (error) {
     console.error("❌ Failed to fetch membership plans:", error);
@@ -552,7 +547,6 @@ export const getPlansForMembership = async (membershipId: string) => {
 
     // If no JWT token, we need to get one from /auth endpoint using Firebase token
     if (!jwtToken) {
-      console.log("🔄 No JWT token found, refreshing from backend...");
       try {
         jwtToken = await refreshBackendJwt();
       } catch (refreshError) {
@@ -573,7 +567,6 @@ export const getPlansForMembership = async (membershipId: string) => {
     const headers = {
       "Authorization": `Bearer ${jwtToken}`,
     };
-    console.log(`🔄 Requesting plans for membership ${membershipId} from: ${requestUrl}`);
 
     const response = await fetch(requestUrl, {
       headers,
@@ -590,7 +583,6 @@ export const getPlansForMembership = async (membershipId: string) => {
 
       // If 401/403, try refreshing the JWT token once
       if (response.status === 401 || response.status === 403) {
-        console.log("🔄 Token expired, refreshing JWT...");
         try {
           jwtToken = await refreshBackendJwt();
 
@@ -619,7 +611,6 @@ export const getPlansForMembership = async (membershipId: string) => {
           }
 
           const retryData = await retryResponse.json();
-          console.log(`✅ Successfully fetched ${retryData.length} plans for membership ${membershipId} on retry`);
           return { data: retryData, error: null };
         } catch (retryError) {
           console.error("❌ Failed to refresh JWT token on retry:", retryError);
@@ -645,7 +636,6 @@ export const getPlansForMembership = async (membershipId: string) => {
     }
 
     const data = await response.json();
-    console.log(`✅ Successfully fetched ${data.length} plans for membership ${membershipId}`);
     return { data, error: null };
   } catch (error) {
     console.error(`❌ Unexpected error while fetching plans for membership ${membershipId}:`, error);
@@ -669,7 +659,6 @@ export const purchaseMembershipPlan = async (planId: string) => {
 
     // If no JWT token, we need to get one from /auth endpoint using Firebase token
     if (!jwtToken) {
-      console.log("🔄 No JWT token found, refreshing from backend...");
       try {
         jwtToken = await refreshBackendJwt();
       } catch (refreshError) {
@@ -681,9 +670,6 @@ export const purchaseMembershipPlan = async (planId: string) => {
     // Use test mode flag to determine effective plan id
     const effectivePlanId = USE_MEMBERSHIP_TEST_MODE ? MEMBERSHIP_TEST_PLAN_ID : planId;
 
-    console.log(
-      `🛒 Purchasing membership plan: ${planId} (using ${USE_MEMBERSHIP_TEST_MODE ? "test" : "real"} ID: ${effectivePlanId})`
-    );
 
     const response = await fetch(`${API_URL}/checkout/membership_plans/${effectivePlanId}`, {
       method: "POST",
@@ -704,7 +690,6 @@ export const purchaseMembershipPlan = async (planId: string) => {
 
       // If 401/403, try refreshing the JWT token once
       if (response.status === 401 || response.status === 403) {
-        console.log("🔄 Token expired, refreshing JWT...");
         try {
           jwtToken = await refreshBackendJwt();
 
@@ -726,7 +711,6 @@ export const purchaseMembershipPlan = async (planId: string) => {
             } catch {}
             // Localize 409 handling on retry path
             if (retryResponse.status === 409) {
-              console.log("Subscription already exists (409), handling locally (retry path).");
               return { data: null, error: { status: 409, message: retryMessage } } as any;
             }
 
@@ -745,7 +729,6 @@ export const purchaseMembershipPlan = async (planId: string) => {
 
       // Localize 409 handling: return structured error object instead of throwing
       if (response.status === 409) {
-        console.log("Subscription already exists (409), handling locally.");
         return { data: null, error: { status: 409, message: errorMessage } } as any;
       }
 
@@ -771,7 +754,6 @@ export const getMembershipByCustomerId = async (customerId: string) => {
   let jwtToken = await AsyncStorage.getItem("authToken");
   
   if (!jwtToken) {
-    console.log("🔄 No JWT token found, refreshing from backend...");
     try {
       jwtToken = await refreshBackendJwt();
     } catch (refreshError) {
@@ -827,7 +809,6 @@ export const getPracticePrograms = async () => {
   let jwtToken = await AsyncStorage.getItem("authToken");
   
   if (!jwtToken) {
-    console.log("🔄 No JWT token found, refreshing from backend...");
     try {
       jwtToken = await refreshBackendJwt();
     } catch (refreshError) {

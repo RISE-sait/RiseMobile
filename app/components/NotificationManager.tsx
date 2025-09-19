@@ -16,7 +16,6 @@ const NotificationManager = () => {
           const pushToken = await notificationService.initialize(user.token);
 
           if (pushToken) {
-            console.log('✅ Push notifications initialized successfully');
           } else {
             console.warn('⚠️ Push notifications initialization failed');
           }

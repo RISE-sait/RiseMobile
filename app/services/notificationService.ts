@@ -9,6 +9,9 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    // Add the following two properties to match the required type
+    shouldShowBanner: true, // For Android banner visibility
+    shouldShowList: true,   // For Android notification list visibility
   }),
 });
 
@@ -74,7 +77,6 @@ class NotificationService {
       // Set up notification listeners
       this.setupNotificationListeners();
 
-      console.log('Push notifications initialized successfully');
       return this.expoPushToken;
     } catch (error) {
       console.error('Error initializing push notifications:', error);
@@ -107,7 +109,6 @@ class NotificationService {
       });
 
       if (response.ok) {
-        console.log('Device registered for notifications successfully');
         return true;
       } else {
         console.error('Failed to register device:', response.status);
@@ -137,7 +138,6 @@ class NotificationService {
       });
 
       if (response.ok) {
-        console.log('Notification sent successfully');
         return true;
       } else {
         console.error('Failed to send notification:', response.status);
@@ -155,13 +155,11 @@ class NotificationService {
   private setupNotificationListeners(): void {
     // Handle notification received while app is foregrounded
     Notifications.addNotificationReceivedListener((notification) => {
-      console.log('Notification received:', notification);
       // You can add custom handling here (e.g., update UI, show custom alert)
     });
 
     // Handle notification tapped/opened
     Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('Notification tapped:', response);
 
       const data = response.notification.request.content.data;
 
@@ -179,7 +177,6 @@ class NotificationService {
   private handleTeamNotification(data: any): void {
     // You can add navigation logic here
     // For example, navigate to team calendar or specific event
-    console.log('Handling team notification:', data);
 
     // Example: Navigate to calendar or team page
     // router.push(`/calendar?team_id=${data.team_id}`);
