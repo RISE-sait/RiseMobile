@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Alert, Modal, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, Alert, Modal, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
@@ -159,48 +159,46 @@ const MembershipScreen: React.FC = () => {
 
   if (status === 'loading') {
     return (
-      <SafeAreaView className="flex-1 bg-[#0C0B0B]">
-        <StatusBar translucent backgroundColor="transparent" style="light" />
+      <SafeAreaView className="flex-1 bg-[#0C0B0B]">
+        <StatusBar translucent backgroundColor="transparent" style="light" />
 
-        {/* Header */}
-        <View className="flex-row items-center py-4 px-5 border-b border-[#222222]">
-          <BackButton />
-          <Text className="text-white text-2xl font-bold ml-3">Membership</Text>
-        </View>
+        {/* Header */}
+        <View className="flex-row items-center py-3 px-4 border-b border-[#222222]">
+          <BackButton />
+          <Text className="text-white-100 text-xl font-bold ml-3">Membership</Text>
+        </View>
 
-        {/* Loading State - Show content with loading indicator */}
-        <View className="flex-1">
-          {/* Your Current Membership Section */}
-          <View className="px-5 py-4">
-            <View className="mb-8">
-              <View className="pb-3 mb-4 border-b border-[#222222]">
-                <Text className="text-white text-lg font-semibold">Your Current Membership</Text>
+        {/* Loading State - Show content with loading indicator */}
+        <MembershipPurchaseList
+          onPurchaseSuccess={refreshMembershipData}
+          onOpenPaymentWebView={handleOpenPaymentWebView}
+          onPurchaseCompleted={() => loadMembershipDataWithRetry()}
+          hasExistingMembership={!!cachedMembership}
+          headerComponent={
+            <View className="px-4 py-3">
+              {/* Your Current Membership Section */}
+              <View className="mb-6">
+                <View className="pb-2 mb-3 border-b border-[#222222]">
+                  <Text className="text-white-100 text-base font-semibold">Your Current Membership</Text>
+                </View>
+                <View className="bg-[#1A1A1A] rounded-lg p-4">
+                  <View className="flex-row items-center justify-center py-8">
+                    <ActivityIndicator size="small" color="#FFD700" />
+                    <Text className="text-[#999999] ml-3 text-sm">Loading your membership...</Text>
+                  </View>
+                </View>
               </View>
-              <View className="bg-[#1A1A1A] rounded-xl p-4">
-                <View className="flex-row items-center justify-center py-8">
-                  <ActivityIndicator size="small" color="#FFD700" />
-                  <Text className="text-[#999999] ml-3">Loading your membership...</Text>
+
+              {/* Conditional Section Header */}
+              <View className="mb-3">
+                <View className="pb-2 mb-3 border-b border-[#222222]">
+                  <Text className="text-white-100 text-base font-semibold">Available Membership Plans</Text>
                 </View>
               </View>
             </View>
-
-            {/* Available Membership Plans Section Header */}
-            <View className="mb-4">
-              <View className="pb-3 mb-4 border-b border-[#222222]">
-                <Text className="text-white text-lg font-semibold">Available Membership Plans</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Show MembershipPurchaseList with loading state */}
-          <MembershipPurchaseList
-            onPurchaseSuccess={refreshMembershipData}
-            onOpenPaymentWebView={handleOpenPaymentWebView}
-            onPurchaseCompleted={() => loadMembershipDataWithRetry()}
-            headerComponent={null} // Don't show header since we already have it above
-          />
-        </View>
-      </SafeAreaView>
+          }
+        />
+      </SafeAreaView>
     );
   }
 
@@ -210,9 +208,9 @@ const MembershipScreen: React.FC = () => {
         <StatusBar translucent backgroundColor="transparent" style="light" />
 
         {/* Header */}
-        <View className="flex-row items-center py-4 px-5 border-b border-[#222222]">
+        <View className="flex-row items-center py-3 px-4 border-b border-[#222222]">
           <BackButton />
-          <Text className="text-white text-2xl font-bold ml-3">Membership</Text>
+          <Text className="text-white-100 text-xl font-bold ml-3">Membership</Text>
         </View>
 
         {/* Error State */}
@@ -240,53 +238,48 @@ const MembershipScreen: React.FC = () => {
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
       {/* Header */}
-      <View className="flex-row items-center py-4 px-5 border-b border-[#222222]">
+      <View className="flex-row items-center py-3 px-4 border-b border-[#222222]">
         <BackButton />
-        <Text className="text-white text-2xl font-bold ml-3">Membership</Text>
+        <Text className="text-white-100 text-xl font-bold ml-3">Membership</Text>
       </View>
 
-      {/* Content - Use SectionList as the main scrollable container */}
-      <MembershipPurchaseList
-        onPurchaseSuccess={refreshMembershipData}
-        onOpenPaymentWebView={handleOpenPaymentWebView}
-        onPurchaseCompleted={() => loadMembershipDataWithRetry()}
-        headerComponent={
-          <View className="px-5 py-4">
-            {/* Your Current Membership Section */}
-            <View className="mb-8">
-              <View className="pb-3 mb-4 border-b border-[#222222]">
-                <Text className="text-white text-lg font-semibold">Your Current Membership</Text>
-              </View>
-              {userMemberships.length > 0 ? (
-                <View className="bg-[#1A1A1A] rounded-xl p-4">
-                  <MembershipDetails
-                    membership={userMemberships[0]}
-                    onRefresh={refreshMembershipData}
-                  />
+      {/* Content */}
+      <>
+        {userMemberships.length > 0 ? (
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <View className="px-4 py-3">
+              <View className="mb-6">
+                <View className="pb-2 mb-3 border-b border-[#222222]">
+                  <Text className="text-white-100 text-base font-semibold">Your Current Membership</Text>
                 </View>
-              ) : (
-                <View className="bg-[#1A1A1A] rounded-xl p-4">
-                  <Text className="text-[#999999] text-center py-8">
-                    No active membership found. Browse available plans below to get started.
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Available Membership Plans Section Header */}
-            <View className="mb-4">
-              <View className="pb-3 mb-4 border-b border-[#222222]">
-                <Text className="text-white text-lg font-semibold">Available Membership Plans</Text>
-                {userMemberships.length > 0 && (
-                  <Text className="text-[#999999] text-sm mt-1">
-                    Explore other plans or upgrade your membership
-                  </Text>
-                )}
+                <MembershipDetails
+                  membership={userMemberships[0]}
+                  onRefresh={refreshMembershipData}
+                />
               </View>
             </View>
-          </View>
-        }
-      />
+          </ScrollView>
+        ) : (
+          <MembershipPurchaseList
+            onPurchaseSuccess={refreshMembershipData}
+            onOpenPaymentWebView={handleOpenPaymentWebView}
+            onPurchaseCompleted={() => loadMembershipDataWithRetry()}
+            hasExistingMembership={false}
+            headerComponent={
+              <View className="px-4 py-3">
+                <View className="mb-3">
+                  <View className="pb-2 mb-3 border-b border-[#222222]">
+                    <Text className="text-white-100 text-base font-semibold">Available Membership Plans</Text>
+                    <Text className="text-[#999999] text-xs mt-1">
+                      Choose a plan to get started with RISE
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            }
+          />
+        )}
+      </>
 
       {/* Payment WebView Modal */}
       <Modal
@@ -319,6 +312,7 @@ const MembershipScreen: React.FC = () => {
               <Text className="text-gray-500">Loading payment page...</Text>
             </View>
           )}
+
         </SafeAreaView>
       </Modal>
     </SafeAreaView>

@@ -90,7 +90,7 @@ export default function CoachHomeScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
-      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         
 
         {/* Header Section - Load user data dynamically */}
@@ -100,11 +100,6 @@ export default function CoachHomeScreen() {
               firstName={user.firstName}
               lastName={user.lastName}
               role={user.role}
-                number={
-                  user?.role === "Player" && user.jerseyNumber
-                    ? String(user.jerseyNumber)
-                    : `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase()
-                }
               profileImage={user.profileImage ? { uri: user.profileImage } : images.coachHeadshot}
               countryCode={user?.countryCode || "US"} // ✅ Ensure countryCode is always defined
               teamLogo={images.teamLogo}

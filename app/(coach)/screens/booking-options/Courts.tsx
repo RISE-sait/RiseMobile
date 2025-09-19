@@ -115,26 +115,27 @@ const CoachCourtsScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    loadCourts();
-  }, [user?.token]);
+    // Start animations immediately
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   useEffect(() => {
-    // Start animations only after courts are loaded
-    if (courts.length > 0 || loading === 'succeeded') {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600, // Reduced duration
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 600, // Reduced duration
-          useNativeDriver: true,
-        }),
-      ]).start();
+    // Load courts when user token becomes available
+    if (user?.token) {
+      loadCourts();
     }
-  }, [courts.length, loading]);
+  }, [user?.token]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

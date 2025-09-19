@@ -95,7 +95,7 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
 
   return (
     <>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.container}>
       {/* Membership Card */}
       <View style={styles.cardContainer}>
         <LinearGradient
@@ -108,7 +108,12 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
           <View style={styles.cardHeader}>
             <View style={styles.membershipBadge}>
               <FontAwesomeIcon icon={faCrown} color="#000000" size={18} />
-              <Text style={styles.membershipType}>
+              <Text
+              style={styles.membershipType}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
                 {membership.membership_name || "Premium Member"}
               </Text>
             </View>
@@ -120,7 +125,12 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
 
           {/* Card Body */}
           <View style={styles.cardBody}>
-            <Text style={styles.planName}>
+            <Text
+              style={styles.planName}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
               {membership.membership_plan_name || "Unknown Plan"}
             </Text>
             <Text style={styles.memberSince}>
@@ -163,7 +173,7 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
         </View>
         <View style={styles.statusBadge}>
           <Text style={styles.statusText}>
-            {membership.status || "Active"}
+            {(membership.status || "Active").toUpperCase()}
           </Text>
         </View>
       </View>
@@ -176,7 +186,7 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
         <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
           <Text style={styles.refreshButtonText}>Refresh Membership Data</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
       {/* Full Details Modal */}
     <Modal
@@ -244,7 +254,7 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
             <Text style={styles.detailLabel}>Status:</Text>
             <View style={styles.statusBadgeModal}>
               <Text style={styles.statusTextModal}>
-                {membership.status || "Active"}
+                {(membership.status || "Active").toUpperCase()}
               </Text>
             </View>
           </View>
@@ -275,23 +285,21 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#0C0B0B",
-    padding: 20,
+    backgroundColor: "transparent",
   },
   cardContainer: {
-    marginBottom: 24,
-    borderRadius: 16,
+    marginBottom: 16,
+    borderRadius: 12,
     overflow: "hidden",
-    elevation: 5,
+    elevation: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   membershipCard: {
-    padding: 20,
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: 12,
   },
   cardHeader: {
     flexDirection: "row",
@@ -302,12 +310,16 @@ const styles = StyleSheet.create({
   membershipBadge: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
+    marginRight: 8,
   },
   membershipType: {
     color: "#000000",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
     marginLeft: 8,
+    flex: 1,
+    flexWrap: "wrap",
   },
   cardBody: {
     marginBottom: 20,
@@ -317,6 +329,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 8,
+    flexWrap: "wrap",
   },
   memberSince: {
     color: "#333333",
@@ -359,9 +372,9 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     backgroundColor: "#1A1A1A",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -389,9 +402,9 @@ const styles = StyleSheet.create({
   },
   benefitsContainer: {
     backgroundColor: "#1A1A1A",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
   },
   sectionTitle: {
     color: "#FFFFFF",
@@ -412,11 +425,11 @@ const styles = StyleSheet.create({
   },
   refreshButton: {
     backgroundColor: "#444444",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 8,
   },
   refreshButtonText: {
     color: "#FFFFFF",

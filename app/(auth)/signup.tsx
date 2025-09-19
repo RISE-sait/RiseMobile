@@ -68,7 +68,7 @@ const SignUpScreen = () => {
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
       {registrationComplete ? (
-        <RegistrationComplete email={formData.email} successAnim={successAnim} checkmarkScale={checkmarkScale} />
+        <RegistrationComplete email={formData.email} successAnim={successAnim} checkmarkScale={checkmarkScale} role={formData.role} />
       ) : (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <KeyboardAvoidingView
