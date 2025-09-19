@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   Modal,
   Animated,
@@ -19,7 +18,7 @@ import { useAppSelector } from "@/store/hooks"
 
 import CalendarCard from "@/components/calendar/CalendarCard"
 import BackButton from "@/components/buttons/BackButton"
-import { getHaircutAndBarberServices, createHaircutBooking } from "@/utils/api"
+import { getHaircutAndBarberServices, createHaircutBooking, getBarberAvailability } from "@/utils/api"
 import { useAuth } from "@/utils/auth"
 
 // Define types for our data
@@ -41,10 +40,6 @@ interface Service {
   description: string
 }
 
-interface TimeSlot {
-  time: string
-  available: boolean
-}
 
 // Mock data for barbers
 const barbers: Barber[] = [
@@ -150,50 +145,13 @@ const services: Service[] = [
   },
 ]
 
-// Generate time slots
-const generateTimeSlots = (selectedBarber: Barber | null): TimeSlot[] => {
-  const slots: TimeSlot[] = []
-  const times = [
-    "9:00 AM",
-    "9:30 AM",
-    "10:00 AM",
-    "10:30 AM",
-    "11:00 AM",
-    "11:30 AM",
-    "12:00 PM",
-    "12:30 PM",
-    "1:00 PM",
-    "1:30 PM",
-    "2:00 PM",
-    "2:30 PM",
-    "3:00 PM",
-    "3:30 PM",
-    "4:00 PM",
-    "4:30 PM",
-    "5:00 PM",
-    "5:30 PM",
-    "6:00 PM",
-    "6:30 PM",
-  ]
-
-  times.forEach((time) => {
-    slots.push({
-      time,
-      available: selectedBarber ? selectedBarber.availability.includes(time) : true,
-    })
-  })
-
-  return slots
-}
-
 const BarberBookingScreen = () => {
   // State variables
   const [currentStep, setCurrentStep] = useState(1)
-  const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))
+  const [selectedDate, setSelectedDate] = useState(dayjs().add(1, 'day').format("YYYY-MM-DD"))
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [isModalVisible, setModalVisible] = useState(false)
   const [isBooking, setIsBooking] = useState(false)
   const [bookingSuccess, setBookingSuccess] = useState(false)
@@ -206,6 +164,12 @@ const BarberBookingScreen = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
 
+  // API-based time slots state
+  const [availableTimes, setAvailableTimes] = useState<string[]>([])
+  const [isTimeSlotsLoading, setTimeSlotsLoading] = useState<boolean>(false)
+  const [showLoadingIndicator, setShowLoadingIndicator] = useState<boolean>(false)
+  const [timeSlotsError, setTimeSlotsError] = useState<string | null>(null)
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(40)).current
@@ -215,6 +179,82 @@ const BarberBookingScreen = () => {
   
   // Get auth functions
   const { forceReLogin } = useAuth()
+
+  // Get specific error message based on error type
+  const getErrorMessage = (error: any): string => {
+    // Network connectivity issues
+    if (!navigator.onLine) {
+      return "Network connection lost. Please check your internet connection and try again."
+    }
+
+    // API response errors
+    if (error?.response?.status) {
+      switch (error.response.status) {
+        case 401:
+          return "Authentication expired. Please log in again to continue."
+        case 403:
+          return "Access denied. Please check your account permissions."
+        case 404:
+          return "Barber availability service not found. Please contact support."
+        case 429:
+          return "Too many requests. Please wait a moment and try again."
+        case 500:
+        case 502:
+        case 503:
+          return "Server temporarily unavailable. Please try again in a few minutes."
+        case 504:
+          return "Request timeout. Please check your connection and try again."
+        default:
+          return `Service error (${error.response.status}). Please try again or contact support.`
+      }
+    }
+
+    // Network timeout or connection errors
+    if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network Error')) {
+      return "Network connection problem. Please check your internet and try again."
+    }
+
+    if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+      return "Request timed out. Please check your connection and try again."
+    }
+
+    // Generic fallback
+    return "Unable to load available times. Please try again or contact support if the problem persists."
+  }
+
+  // Fetch available time slots from API
+  const fetchAvailableTimeSlots = useCallback(async (barberId: string, date: string, serviceDuration: number) => {
+    if (!barberId || !date || !serviceDuration || !user?.token) {
+      setAvailableTimes([])
+      return
+    }
+
+    try {
+      setTimeSlotsLoading(true)
+      setTimeSlotsError(null)
+
+      // Add a debounced loading indicator to prevent flicker for fast requests
+      const loadingTimeout = setTimeout(() => {
+        setShowLoadingIndicator(true)
+      }, 300) // Show loading indicator only if request takes longer than 300ms
+
+      const times = await getBarberAvailability(barberId, date, serviceDuration, user.token)
+
+      // Clear the timeout if request completes quickly
+      clearTimeout(loadingTimeout)
+
+      setAvailableTimes(times)
+      setTimeSlotsLoading(false)
+      setShowLoadingIndicator(false)
+    } catch (error) {
+      console.error("❌ Error fetching available time slots:", error)
+      const errorMessage = getErrorMessage(error)
+      setTimeSlotsError(errorMessage)
+      setAvailableTimes([])
+      setTimeSlotsLoading(false)
+      setShowLoadingIndicator(false)
+    }
+  }, [user?.token])
 
   // Fetch real data from API
   useEffect(() => {
@@ -301,12 +341,20 @@ const BarberBookingScreen = () => {
     fetchHaircutData()
   }, [])
 
-  // Update time slots when barber changes
+  // Fetch time slots when barber, date, or service changes, but only on the scheduling step
   useEffect(() => {
-    setTimeSlots(generateTimeSlots(selectedBarber))
-    // Reset time selection when barber changes
+    if (selectedBarber && selectedDate && selectedService && currentStep === 2) {
+      fetchAvailableTimeSlots(selectedBarber.id, selectedDate, selectedService.duration)
+    } else {
+      // Clear available times if not on the right step or dependencies are missing
+      setAvailableTimes([])
+    }
+  }, [selectedBarber, selectedDate, selectedService, currentStep])
+
+  // Reset time selection only when barber, date, or service changes (not when step changes)
+  useEffect(() => {
     setSelectedTime(null)
-  }, [selectedBarber])
+  }, [selectedBarber, selectedDate, selectedService])
 
   // Handle date selection
   const handleDateSelect = (day: { dateString: string }) => {
@@ -385,8 +433,14 @@ const BarberBookingScreen = () => {
 
   // Handle booking confirmation
   const handleConfirmBooking = async () => {
-    if (!selectedBarber || !selectedService || !selectedTime || !user?.token) {
-      console.error("❌ Missing required data for booking")
+    if (!selectedBarber || !selectedService || !selectedTime || !selectedDate || !user?.token) {
+      console.error("❌ Missing required data for booking", {
+        selectedBarber: !!selectedBarber,
+        selectedService: !!selectedService,
+        selectedTime: !!selectedTime,
+        selectedDate: !!selectedDate,
+        userToken: !!user?.token
+      })
       return
     }
 
@@ -421,9 +475,9 @@ const BarberBookingScreen = () => {
         end_time: endDateTime
       }
 
-      
+
       // Call the real API (pass user email for JWT refresh if needed)
-      const response = await createHaircutBooking(bookingDetails, user.token)
+      await createHaircutBooking(bookingDetails, user.token)
       
       setIsBooking(false)
       setBookingSuccess(true)
@@ -432,10 +486,11 @@ const BarberBookingScreen = () => {
       console.error("❌ Error creating booking:", error)
       setIsBooking(false)
       
+      const status = (error as any).response?.status
+      const errorMessage = (error as any).response?.data?.error?.message || "Unknown error"
+      
       // Check if it's an authentication error (401)
-      if ((error as any).response?.status === 401) {
-        const errorMessage = (error as any).response?.data?.error?.message || "Authentication failed"
-        
+      if (status === 401) {
         if (errorMessage.includes("Invalid or expired token")) {
           setApiError("Booking service is temporarily unavailable due to authentication issues. Please try again later or contact support.")
         } else {
@@ -445,9 +500,13 @@ const BarberBookingScreen = () => {
             forceReLogin("Session expired. Please log in again to make bookings.")
           }, 3000)
         }
-        
-      } else {
-        // Other errors
+      } 
+      // Check if it's a conflict error (409) - time slot already booked
+      else if (status === 409) {
+        setApiError("This time slot is no longer available. Please select a different time and try again.")
+      }
+      // Other errors
+      else {
         setApiError("Failed to create booking. Please try again.")
       }
       
@@ -568,24 +627,47 @@ const BarberBookingScreen = () => {
     </TouchableOpacity>
   )
 
-  // Render time slot item
-  const renderTimeSlot = ({ item }: { item: TimeSlot }) => (
-    <TouchableOpacity
-      disabled={!item.available}
-      onPress={() => handleTimeSelect(item.time)}
-      className={`px-6 py-3 rounded-full mr-3 ${
-        selectedTime === item.time ? "bg-gold-100" : item.available ? "bg-[#222]" : "bg-[#222]/30"
-      }`}
-    >
-      <Text
-        className={`text-base font-medium ${
-          selectedTime === item.time ? "text-black" : item.available ? "text-white-100" : "text-gray-500"
+  // Render time slot item for API-based times
+  const renderTimeSlot = ({ item }: { item: string }) => {
+    const isToday = selectedDate === dayjs().format("YYYY-MM-DD")
+    const currentTime = dayjs()
+    const slotTime = dayjs(`${selectedDate} ${item}`, "YYYY-MM-DD HH:mm")
+    const isPastTime = isToday && slotTime.isBefore(currentTime)
+    const isSelected = selectedTime === item
+
+    // Create accessibility label
+    const accessibilityLabel = `${item}${isPastTime ? ', unavailable, past time' : ', available'}${isSelected ? ', currently selected' : ''}`
+    const accessibilityHint = isPastTime
+      ? "This time slot is no longer available"
+      : isSelected
+        ? "Double tap to deselect this time slot"
+        : "Double tap to select this time slot"
+
+    return (
+      <TouchableOpacity
+        disabled={isPastTime}
+        onPress={() => handleTimeSelect(item)}
+        className={`px-6 py-3 rounded-full mr-3 ${
+          isSelected ? "bg-gold-100" : !isPastTime ? "bg-[#222]" : "bg-[#222]/30"
         }`}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
+        accessibilityState={{
+          selected: isSelected,
+          disabled: isPastTime
+        }}
       >
-        {item.time}
-      </Text>
-    </TouchableOpacity>
-  )
+        <Text
+          className={`text-base font-medium ${
+            isSelected ? "text-black" : !isPastTime ? "text-white-100" : "text-gray-500"
+          }`}
+        >
+          {item}
+        </Text>
+      </TouchableOpacity>
+    )
+  }
 
   // Render step indicator
   const renderStepIndicator = () => (
@@ -676,15 +758,60 @@ const BarberBookingScreen = () => {
       />
 
       <Text className="text-white-100 text-xl font-bold mt-6 mb-4">Select Time</Text>
-      <FlatList
-        data={timeSlots}
-        renderItem={renderTimeSlot}
-        keyExtractor={(item) => item.time}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        nestedScrollEnabled={true} // ✅ Fixes nested scrolling issue
-        className="mb-6"
-      />
+
+      {/* Service duration indicator */}
+      {selectedService && (
+        <Text className="text-gray-400 text-sm mb-4 px-1 -mt-2">
+          Showing available slots for a {selectedService.duration}-minute "{selectedService.name}".
+        </Text>
+      )}
+
+      {/* Loading state for time slots - only show after 300ms delay */}
+      {isTimeSlotsLoading && showLoadingIndicator && (
+        <View className="flex-row items-center justify-center py-6">
+          <ActivityIndicator size="small" color="#FFD700" />
+          <Text className="text-white-100 ml-2">Fetching available times...</Text>
+        </View>
+      )}
+
+      {/* Error state for time slots */}
+      {timeSlotsError && (
+        <View className="bg-red-100/20 p-4 rounded-lg mb-4">
+          <Text className="text-red-400 text-sm text-center mb-3">{timeSlotsError}</Text>
+          <TouchableOpacity
+            onPress={() => selectedBarber && selectedService && fetchAvailableTimeSlots(selectedBarber.id, selectedDate, selectedService.duration)}
+            className="bg-red-500/20 py-2 px-4 rounded-lg"
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading available time slots"
+            accessibilityHint="Double tap to try loading the available time slots again"
+          >
+            <Text className="text-red-400 text-center font-medium">Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Empty state for time slots */}
+      {!isTimeSlotsLoading && !timeSlotsError && availableTimes.length === 0 && selectedBarber && (
+        <View className="bg-yellow-100/20 p-4 rounded-lg mb-4">
+          <Text className="text-yellow-400 text-center">No available slots for this day. Please select another date.</Text>
+        </View>
+      )}
+
+      {/* Time slots list */}
+      {!isTimeSlotsLoading && !timeSlotsError && availableTimes.length > 0 && (
+        <FlatList
+          data={availableTimes}
+          renderItem={renderTimeSlot}
+          keyExtractor={(item) => item}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          className="mb-6"
+          accessibilityRole="list"
+          accessibilityLabel={`Available time slots for ${selectedDate}. ${availableTimes.length} slots available.`}
+          accessibilityHint="Scroll horizontally to see all available time slots"
+        />
+      )}
 
       {selectedBarber && (
         <View className="bg-[#222] p-4 rounded-xl mt-4">
