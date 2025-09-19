@@ -51,13 +51,24 @@ export const fetchCourts = createAsyncThunk(
       const activePractices = allPracticesResponse.data || []
       const activeGames = allGamesResponse.data || []
 
+      // Helper function to check if an event is currently happening
+      const isEventHappeningNow = (startTime: string, endTime: string): boolean => {
+        const now = new Date()
+        const start = new Date(startTime)
+        const end = new Date(endTime)
+        return now >= start && now <= end
+      }
+
       // Process courts with status checking (much faster - no additional API calls)
       const courtsWithStatus = courts.map((court: any) => {
         let status: Court['status'] = 'available'
         let currentEvent: Court['current_event'] | undefined
 
-        // Check if there's an active practice on this court
-        const courtPractice = activePractices.find((p: any) => p.court_id === court.id)
+        // Check if there's an active practice on this court that's happening RIGHT NOW
+        const courtPractice = activePractices.find((p: any) =>
+          p.court_id === court.id &&
+          isEventHappeningNow(p.start_time, p.end_time)
+        )
         if (courtPractice) {
           status = 'in_use'
           currentEvent = {
@@ -68,9 +79,12 @@ export const fetchCourts = createAsyncThunk(
             type: 'practice'
           }
         }
-        // Check if there's an active game on this court
+        // Check if there's an active game on this court that's happening RIGHT NOW
         else {
-          const courtGame = activeGames.find((g: any) => g.court_id === court.id)
+          const courtGame = activeGames.find((g: any) =>
+            g.court_id === court.id &&
+            isEventHappeningNow(g.start_time, g.end_time)
+          )
           if (courtGame) {
             status = 'in_use'
             currentEvent = {

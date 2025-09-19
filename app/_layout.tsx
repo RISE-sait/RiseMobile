@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useCallback } from "react"
 import { refreshBackendJwt } from "@/utils/api"
 import { Stack } from "expo-router"
 import "./globals.css"
@@ -11,6 +11,10 @@ import { PersistGate } from "redux-persist/integration/react"
 import { store, persistor } from "@/store"
 import { initializeStorageCleanup } from "@/utils/storageCleanup"
 import NotificationManager from "@/app/components/NotificationManager"
+import * as SplashScreen from "expo-splash-screen"
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -33,26 +37,30 @@ export default function RootLayout() {
     "ProtestStrike-Regular": require("../assets/fonts/ProtestStrike-Regular.ttf"),
   })
 
-   // ✅ JWT refresh is now handled by useAuth hook on-demand
-   // Removed global interval refresh to prevent conflicts with auth state management
+  // Initialize storage cleanup on app start
+  useEffect(() => {
+    initializeStorageCleanup();
+  }, []);
 
-   // Initialize storage cleanup on app start
-   useEffect(() => {
-     initializeStorageCleanup();
-   }, []);
+  const onLayoutRootView = useCallback(async () => {
+    if (fontsLoaded) {
+      // This tells the splash screen to hide immediately! If we call this after
+      // `setAppIsReady`, then we may see a blank screen while the app is
+      // loading its initial state and rendering its first pixels. So instead,
+      // we hide the splash screen once we know the root view has already
+      // performed layout.
+      await SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
 
   if (!fontsLoaded) {
-    return (
-      <View className="flex-1 justify-center items-center bg-gray-900">
-        <ActivityIndicator size="large" color="#B59422" />
-      </View>
-    )
+    return null;
   }
 
   return (
     <Provider store={store}>
-      <PersistGate loading={<ActivityIndicator size="large" color="#B59422" />} persistor={persistor}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
+      <PersistGate loading={null} persistor={persistor}>
+        <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
           <StatusBar style="auto" />
           <NotificationManager />
           <Stack screenOptions={{ headerShown: false }}>
