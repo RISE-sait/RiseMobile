@@ -289,12 +289,6 @@ const PracticeDetails: React.FC = () => {
               />
               <EventInfoRow icon="user" text={`Coach: ${practice.coach_name}`} />
               <EventInfoRow icon="users" text={`Team: ${practice.team_name}`} />
-              {practice.capacity > 0 && (
-                <EventInfoRow 
-                  icon="users" 
-                  text={`Capacity: ${practice.current_participants}/${practice.capacity} participants`} 
-                />
-              )}
             </View>
 
             <View style={styles.divider} />
@@ -340,34 +334,9 @@ const PracticeDetails: React.FC = () => {
         </ScrollView>
 
         {/* Bottom Action Buttons */}
-        <View style={styles.bottomActions}>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+        <View style={styles.bottomActionsSingle}>
+          <TouchableOpacity style={styles.shareButtonCentered} onPress={handleShare}>
             <FontAwesome5 name="share-alt" size={22} color={COLORS.primary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.joinButton, 
-              registered && styles.registeredButton, 
-              isPastPractice && styles.disabledButton
-            ]}
-            onPress={handleJoinPractice}
-            disabled={isPastPractice}
-          >
-            <Text
-              style={[
-                styles.joinButtonText,
-                registered && styles.registeredButtonText,
-                isPastPractice && styles.disabledButtonText,
-              ]}
-            >
-              {isPastPractice 
-                ? (practice.status === "Cancelled" ? "Practice Cancelled" : "Practice Ended")
-                : registered 
-                ? "Leave Practice" 
-                : "Join Practice"
-              }
-            </Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -507,6 +476,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.1)",
   },
+  bottomActionsSingle: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   shareButton: {
     width: 48,
     height: 48,
@@ -515,6 +491,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+  },
+  shareButtonCentered: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: `${COLORS.primary}20`,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   joinButton: {
     flex: 1,

@@ -7,7 +7,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import UpcomingCard from "@/components/events/UpcomingCard";
-import QRCodeModal from "@/components/QRCodeModal";
 import GoToCards from "../../../components/GoToCards";
 import { useAppSelector } from "@/store/hooks";
 import { useUpcomingEvent } from "@/hooks/useUpcomingEvent";
@@ -93,8 +92,6 @@ export default function CoachHomeScreen() {
       <StatusBar translucent backgroundColor="transparent" style="light" />
       <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
         
-        {/* QR Code Button */}
-        <QRCodeModal />
 
         {/* Header Section - Load user data dynamically */}
         <View className="w-full px-5 mt-20">

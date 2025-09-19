@@ -31,6 +31,7 @@ import { API_URL, getMembershipByCustomerId } from "@/utils/api"
 import { setMembership } from "@/store/slices/membershipSlice"
 import { COLORS } from "@/constants/colors"
 import * as WebBrowser from 'expo-web-browser'
+import { CalendarItem } from "@/types"
 
 const { width } = Dimensions.get("window")
 
@@ -120,7 +121,7 @@ const EventDetails: React.FC = () => {
   const [isCheckingPayment, setIsCheckingPayment] = useState(false)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
-  const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null)
+  const paymentCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Function to fetch user credits
   const fetchUserCredits = async () => {
@@ -155,7 +156,7 @@ const EventDetails: React.FC = () => {
   // Function to get practice data from Redux store
   const getPracticeDataFromStore = (practiceId: string): EventDetails | null => {
     // First try to get from byId mapping
-    let practice = practicesById[practiceId]
+    let practice: CalendarItem | undefined = practicesById[practiceId] as CalendarItem | undefined;
     
     // If not found, try to find in items array
     if (!practice) {
@@ -253,6 +254,7 @@ const EventDetails: React.FC = () => {
       return false
     }
   }
+  
 
   // Function to start payment verification polling
   const startPaymentVerification = () => {
@@ -314,35 +316,46 @@ const EventDetails: React.FC = () => {
     try {
       // Check if event is already cached
       if (cachedEvent) {
-        
+        // Safely read text fields
+        const ce = cachedEvent as any;
+        const ceDescription: string | undefined =
+          typeof ce?.description === "string" ? ce.description : undefined;
+        const ceName: string | undefined =
+          typeof ce?.name === "string" ? ce.name : undefined;
+        const ceType: string | undefined =
+          typeof ce?.type === "string" ? ce.type : undefined;
+
         // Parse description for date/time info from cached event
-        let startDate = null
-        let endDate = null
-        if (cachedEvent.description) {
-          const parsed = parseEventFromDescription(cachedEvent.description, new Date())
-          startDate = parsed.startTime || parsed.eventDate
-          endDate = parsed.endTime
+        let startDate: Date | null = null;
+        let endDate: Date | null = null;
+
+        if (typeof ceDescription === "string" && ceDescription.length > 0) {
+          const parsed = parseEventFromDescription(ceDescription, new Date());
+          startDate = parsed.startTime || parsed.eventDate;
+          endDate = parsed.endTime;
         }
-        
-        // Transform cached Redux event to our EventDetails format
+
         const processedEvent: EventDetails = {
           id: cachedEvent.id,
-          title: cachedEvent.name || "RISE Event",
-          description: cachedEvent.description || "No description provided.",
+          title: ceName || "RISE Event",
+          description: ceDescription || "No description provided.",
           date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
           time: formatTimeRange(startDate, endDate),
           location: "RISE Facility",
           locationAddress: "",
-          image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+          image:
+            "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
           organizer: "RISE Basketball",
-          category: cachedEvent.type || "Event",
-          status: (cachedEvent as any).status || getEventStatus(startDate, endDate), // Prioritize API status
-          capacity: cachedEvent.capacity || 0,
-        }
-        setEvent(processedEvent)
-        setLoading(false)
-        return
+          category: ceType || "Event",
+          status: (ce?.status as string) || getEventStatus(startDate, endDate),
+          capacity: (typeof ce?.capacity === "number" ? ce.capacity : 0),
+        };
+
+        setEvent(processedEvent);
+        setLoading(false);
+        return;
       }
+
 
       // Use the userData from component level
       if (!userData) {
@@ -839,7 +852,7 @@ const EventDetails: React.FC = () => {
                 subText={event.locationAddress ? event.locationAddress : undefined}
               />
               <EventInfoRow icon="user" text={`Organized by: ${event.organizer}`} />
-              {event.capacity > 0 && <EventInfoRow icon="users" text={`Capacity: ${event.capacity} participants`} />}
+              {event.capacity > 0 && !event.title.toLowerCase().includes('practice') && <EventInfoRow icon="users" text={`Capacity: ${event.capacity} participants`} />}
             </View>
 
             <View style={styles.divider} />
@@ -859,30 +872,32 @@ const EventDetails: React.FC = () => {
             <FontAwesome5 name="share-alt" size={22} color={COLORS.primary} />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.registerButton, registered && styles.registeredButton, isPastEvent && styles.disabledButton]}
-            onPress={handleRegister}
-            disabled={isPastEvent || enrolling || isCheckingPayment}
-          >
-            {enrolling || isCheckingPayment ? (
-              <View style={styles.buttonLoadingContainer}>
-                <ActivityIndicator color="#000000" />
-                <Text style={styles.loadingButtonText}>
-                  {isCheckingPayment ? "Verifying Payment..." : "Processing..."}
+          {!event.title.toLowerCase().includes('practice') && (
+            <TouchableOpacity
+              style={[styles.registerButton, registered && styles.registeredButton, isPastEvent && styles.disabledButton]}
+              onPress={handleRegister}
+              disabled={isPastEvent || enrolling || isCheckingPayment}
+            >
+              {enrolling || isCheckingPayment ? (
+                <View style={styles.buttonLoadingContainer}>
+                  <ActivityIndicator color="#000000" />
+                  <Text style={styles.loadingButtonText}>
+                    {isCheckingPayment ? "Verifying Payment..." : "Processing..."}
+                  </Text>
+                </View>
+              ) : (
+                <Text
+                  style={[
+                    styles.registerButtonText,
+                    registered && styles.registeredButtonText,
+                    isPastEvent && styles.disabledButtonText,
+                  ]}
+                >
+                  {isPastEvent ? "Event Ended" : registered ? "You're Already Enrolled" : "Register for Event"}
                 </Text>
-              </View>
-            ) : (
-              <Text
-                style={[
-                  styles.registerButtonText,
-                  registered && styles.registeredButtonText,
-                  isPastEvent && styles.disabledButtonText,
-                ]}
-              >
-                {isPastEvent ? "Event Ended" : registered ? "You're Already Enrolled" : "Register for Event"}
-              </Text>
-            )}
-          </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </Animated.View>
 

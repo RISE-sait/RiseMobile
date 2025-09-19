@@ -25,12 +25,8 @@ import {
   faEnvelope,
   faPhone,
   faUser,
-  faShirt,
-  faList,
   faBasketball,
   faChalkboardTeacher,
-  faUserTie,
-  faChild,
 } from "@fortawesome/free-solid-svg-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { Input } from "@/components/ui/input"
@@ -96,11 +92,7 @@ type User = {
   lastName: string
   role: string
   profileImage?: string
-  jerseyNumber?: string
-  position?: string
   phoneNumber?: string
-  specialties?: string[]
-  experience?: string
   countryCode?: string
 }
 
@@ -127,12 +119,6 @@ export default function EditProfileScreen() {
   const [phoneNumber, setPhoneNumber] = useState("")
   const [profileImage, setProfileImage] = useState<string | null>(null)
 
-  // Role-specific fields
-  const [jerseyNumber, setJerseyNumber] = useState("")
-  const [position, setPosition] = useState("")
-  const [specialties, setSpecialties] = useState<string[]>([])
-  const [experience, setExperience] = useState("")
-  const [newSpecialty, setNewSpecialty] = useState("")
 
   useEffect(() => {
     loadUserData()
@@ -178,11 +164,6 @@ export default function EditProfileScreen() {
         setPhoneNumber(formatPhoneForDisplay(userData.phoneNumber || ""))
         setProfileImage(userData.profileImage || null)
 
-        // Initialize role-specific fields
-        setJerseyNumber(userData.jerseyNumber || "")
-        setPosition(userData.position || "")
-        setSpecialties(userData.specialties || [])
-        setExperience(userData.experience || "")
         return // ✅ Redux data available, return directly
       }
 
@@ -201,11 +182,6 @@ export default function EditProfileScreen() {
         setPhoneNumber(formatPhoneForDisplay(parsedUser.phoneNumber || ""))
         setProfileImage(parsedUser.profileImage || null)
 
-        // Initialize role-specific fields
-        setJerseyNumber(parsedUser.jerseyNumber || "")
-        setPosition(parsedUser.position || "")
-        setSpecialties(parsedUser.specialties || [])
-        setExperience(parsedUser.experience || "")
       } else {
         Alert.alert("Error", "Unable to load user data. Please try logging in again.")
         router.back()
@@ -218,18 +194,6 @@ export default function EditProfileScreen() {
     }
   }
 
-  const handleAddSpecialty = () => {
-    if (newSpecialty.trim() !== "" && !specialties.includes(newSpecialty.trim())) {
-      setSpecialties([...specialties, newSpecialty.trim()])
-      setNewSpecialty("")
-    }
-  }
-
-  const handleRemoveSpecialty = (index: number) => {
-    const updatedSpecialties = [...specialties]
-    updatedSpecialties.splice(index, 1)
-    setSpecialties(updatedSpecialties)
-  }
 
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
@@ -292,14 +256,6 @@ export default function EditProfileScreen() {
         profileImage,
       }
 
-      // Add role-specific fields based on user role
-      if (user?.role === "athlete") {
-        updatedUser.jerseyNumber = jerseyNumber
-        updatedUser.position = position
-      } else if (user?.role === "instructor") {
-        updatedUser.specialties = specialties
-        updatedUser.experience = experience
-      }
 
       // ✅ Update Redux store with new user data
       dispatch(updateProfile(updatedUser))
@@ -333,10 +289,6 @@ export default function EditProfileScreen() {
         return faBasketball
       case "coach":
         return faChalkboardTeacher
-      case "instructor":
-        return faUserTie
-      case "parent":
-        return faChild
       default:
         return faUser
     }
@@ -350,10 +302,6 @@ export default function EditProfileScreen() {
         return images.headshot
       case "coach":
         return images.coachHeadshot
-      case "instructor":
-        return images.instructorHeadshot
-      case "parent":
-        return images.parentHeadshot
       default:
         return images.headshot
     }
@@ -445,7 +393,7 @@ export default function EditProfileScreen() {
       // Step 2: Update user profile with the uploaded image URL
 
       // Use the correct endpoints based on role
-      const isCoach = user.role === 'coach' || user.role === 'staff' || user.role === 'instructor'
+      const isCoach = user.role === 'coach' || user.role === 'staff'
       const profileUpdateUrl = isCoach
         ? `https://api-461776259687.us-west2.run.app/staffs/${user.id}/profile`
         : `https://api-461776259687.us-west2.run.app/athletes/${user.id}/profile`
@@ -537,13 +485,9 @@ export default function EditProfileScreen() {
   const getAccentColor = (role: string) => {
     switch (role) {
       case "athlete":
-        return COLORS.primary // Gold
+        return COLORS.primary
       case "coach":
-        return COLORS.primary // Blue
-      case "instructor":
-        return COLORS.primary // Yellow/Gold
-      case "parent":
-        return COLORS.primary // Green
+        return COLORS.primary
       default:
         return COLORS.primary
     }
@@ -701,115 +645,7 @@ export default function EditProfileScreen() {
               </View>
             </View>
 
-            {/* Role-specific sections */}
-            {user?.role === "athlete" && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Athlete Information</Text>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faShirt}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Jersey Number</Text>
-                  </View>
-                  <Input
-                    value={jerseyNumber}
-                    onChangeText={setJerseyNumber}
-                    keyboardType="numeric"
-                    inputStyle={styles.input}
-                    placeholderTextColor={COLORS.textSecondary}
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faList}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Position</Text>
-                  </View>
-                  <Input
-                    value={position}
-                    onChangeText={setPosition}
-                    inputStyle={styles.input}
-                    placeholderTextColor={COLORS.textSecondary}
-                  />
-                </View>
-              </View>
-            )}
-
-            {user?.role === "instructor" && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Instructor Information</Text>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faList}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Experience</Text>
-                  </View>
-                  <Input
-                    value={experience}
-                    onChangeText={setExperience}
-                    multiline
-                    numberOfLines={3}
-                    inputStyle={[styles.input, styles.textArea]}
-                    placeholderTextColor={COLORS.textSecondary}
-                    textAlignVertical="top"
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faList}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Specialties</Text>
-                  </View>
-
-                  <View style={styles.specialtyInputContainer}>
-                    <Input
-                      value={newSpecialty}
-                      onChangeText={setNewSpecialty}
-                      placeholder="Add a specialty"
-                      inputStyle={[styles.input, { flex: 1 }]}
-                      placeholderTextColor={COLORS.textSecondary}
-                    />
-                    <TouchableOpacity
-                      onPress={handleAddSpecialty}
-                      style={[styles.addButton, { backgroundColor: getAccentColor(user.role) }]}
-                    >
-                      <Text style={styles.addButtonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.specialtiesContainer}>
-                    {specialties.map((specialty, index) => (
-                      <View key={index} style={styles.specialtyTag}>
-                        <Text style={styles.specialtyText}>{specialty}</Text>
-                        <TouchableOpacity onPress={() => handleRemoveSpecialty(index)} style={styles.removeButton}>
-                          <Text style={styles.removeButtonText}>×</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </View>
-            )}
+            {/* Role-specific sections removed - only athlete and coach roles supported */}
 
             {/* Save Button */}
             <TouchableOpacity onPress={handleSave} disabled={isSaving} style={styles.saveProfileButton}>
@@ -993,59 +829,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardDark,
     color: COLORS.textSecondary,
     opacity: 0.6,
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: "top",
-  },
-  specialtyInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  addButton: {
-    marginLeft: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonText: {
-    color: "#000000",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  specialtiesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  specialtyTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.cardDark,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-  },
-  specialtyText: {
-    color: COLORS.text,
-    fontSize: 14,
-    marginRight: 4,
-  },
-  removeButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  removeButtonText: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "bold",
   },
   saveProfileButton: {
     marginTop: 8,
