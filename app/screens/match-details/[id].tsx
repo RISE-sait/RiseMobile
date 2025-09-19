@@ -138,8 +138,8 @@ const MatchDetailsScreen = () => {
             description: gameData.description || `Match between ${gameData.home_team_name} and ${gameData.away_team_name}`,
             win_team: gameData.home_team_name || "Home Team",
             lose_team: gameData.away_team_name || "Away Team",
-            win_score: gameData.winner_score || 0,
-            lose_score: gameData.loser_score || 0,
+            win_score: gameData.home_score || 0,
+            lose_score: gameData.away_score || 0,
             created_at: gameData.start_time || gameData.created_at,
             updated_at: gameData.updated_at,
             status: gameData.status || "scheduled", // Extract actual status from API

@@ -13,7 +13,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faCrown, faCheck, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership, refreshBackendJwt } from "@/utils/api";
-import { USE_MEMBERSHIP_TEST_MODE } from "@/utils/constants";
 import type { RootState } from "@/store";
 
 interface MembershipPlan {
@@ -47,6 +46,7 @@ interface MembershipPurchaseListProps {
   onOpenPaymentWebView?: (url: string) => void;
   onPurchaseCompleted?: () => void;
   headerComponent?: React.ReactNode;
+  hasExistingMembership?: boolean;
 }
 
 const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
@@ -54,6 +54,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   onOpenPaymentWebView,
   onPurchaseCompleted,
   headerComponent,
+  hasExistingMembership = false,
 }) => {
   const [membershipSections, setMembershipSections] = useState<MembershipSection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -315,12 +316,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
             <Text style={styles.planName}>{item.name}</Text>
           </View>
 
-          {/* Test Mode Indicator */}
-          {USE_MEMBERSHIP_TEST_MODE && (
-            <View style={styles.testModeBadge}>
-              <Text style={styles.testModeText}>TEST MODE</Text>
-            </View>
-          )}
 
           {/* Price display */}
           <View style={styles.priceContainer}>
@@ -420,16 +415,22 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     <View>
       {/* Custom header component passed from parent */}
       {headerComponent}
-
-      {/* Original header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Choose Your Membership Plan</Text>
-        <Text style={styles.headerSubtitle}>
-          Select a plan that best fits your needs
-        </Text>
-      </View>
     </View>
   );
+
+  // If user has existing membership, show header but minimal upgrade content
+  if (hasExistingMembership) {
+    return (
+      <View style={styles.container}>
+        {headerComponent}
+        <View style={{ padding: 16 }}>
+          <Text style={{ color: '#999999', fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
+            Membership upgrades and changes will be available soon.{'\n'}Contact support for assistance with your current membership.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <SectionList
@@ -529,24 +530,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#222222",
   },
   headerTitle: {
     color: "#FFFFFF",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headerSubtitle: {
     color: "#999999",
-    fontSize: 14,
+    fontSize: 13,
   },
   listContainer: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 12,
+    paddingBottom: 20,
   },
   planCard: {
     marginBottom: 20,
@@ -562,21 +563,21 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   accordionPlanCard: {
-    marginHorizontal: 20,
-    marginVertical: 10,
-    borderRadius: 12,
+    marginHorizontal: 12,
+    marginVertical: 8,
+    borderRadius: 10,
     overflow: "hidden",
-    elevation: 3,
+    elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 2,
   },
   accordionCardGradient: {
-    padding: 16,
+    padding: 14,
   },
   planHeader: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   planTitleContainer: {
     flexDirection: "row",
@@ -585,7 +586,7 @@ const styles = StyleSheet.create({
   },
   planName: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
     marginLeft: 8,
   },
@@ -594,7 +595,7 @@ const styles = StyleSheet.create({
   },
   priceText: {
     color: "#FFD700",
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
   },
   priceNote: {
@@ -604,29 +605,29 @@ const styles = StyleSheet.create({
   },
   planDescription: {
     color: "#CCCCCC",
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
   },
   benefitsContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   benefitItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   benefitText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 13,
     marginLeft: 8,
     flex: 1,
   },
   purchaseButton: {
     backgroundColor: "#FFD700",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
     alignItems: "center",
   },
   purchaseButtonLoading: {
@@ -639,7 +640,7 @@ const styles = StyleSheet.create({
   },
   purchaseButtonText: {
     color: "#000000",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "bold",
   },
   purchaseButtonSubtext: {
@@ -647,27 +648,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
-  testModeBadge: {
-    backgroundColor: "#FF4444",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: "flex-start",
-  },
-  testModeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  testModeNote: {
-    color: "#FF4444",
-    fontSize: 12,
-    marginTop: 8,
-    textAlign: "center",
-  },
   sectionHeader: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#333333",
     backgroundColor: "#1A1A1A",
@@ -683,14 +666,14 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   sectionDescription: {
     color: "#CCCCCC",
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 16,
   },
   sectionStateContainer: {
     paddingHorizontal: 20,

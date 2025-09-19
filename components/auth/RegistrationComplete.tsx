@@ -7,9 +7,19 @@ interface RegistrationCompleteProps {
   email: string
   successAnim: Animated.Value
   checkmarkScale: Animated.Value
+  role?: string
 }
 
-export const RegistrationComplete = ({ email, successAnim, checkmarkScale }: RegistrationCompleteProps) => {
+export const RegistrationComplete = ({ email, successAnim, checkmarkScale, role }: RegistrationCompleteProps) => {
+  const isAthlete = role === 'athlete'
+
+  const messageText = isAthlete
+    ? "You can now log in immediately and purchase a membership from the membership tab to get started!"
+    : "Your account is pending verification by our team. You'll receive an email when your account is approved and ready to use."
+
+  const approvalTimeText = isAthlete
+    ? "Immediate access"
+    : "1-2 hours within business hours"
   return (
     <View style={styles.successContainer}>
       <Animated.View
@@ -27,8 +37,7 @@ export const RegistrationComplete = ({ email, successAnim, checkmarkScale }: Reg
       <Animated.Text style={[styles.successTitle, { opacity: successAnim }]}>Registration Complete!</Animated.Text>
 
       <Animated.Text style={[styles.successMessage, { opacity: successAnim }]}>
-        Your account is pending verification by our team. You'll receive an email when your account is approved and
-        ready to use.
+        {messageText}
       </Animated.Text>
 
       <Animated.View style={[styles.successInfo, { opacity: successAnim }]}>
@@ -40,9 +49,9 @@ export const RegistrationComplete = ({ email, successAnim, checkmarkScale }: Reg
 
         <View style={styles.infoItem}>
           <Ionicons name="time-outline" size={20} color="#FFD700" />
-          <Text style={styles.infoText}>Estimated approval time:</Text>
+          <Text style={styles.infoText}>{isAthlete ? "Access time:" : "Estimated approval time:"}</Text>
         </View>
-        <Text style={styles.infoValue}>6-12 hours</Text>
+        <Text style={styles.infoValue}>{approvalTimeText}</Text>
       </Animated.View>
 
       <TouchableOpacity style={styles.loginButton} onPress={() => router.replace("/(auth)/login")}>

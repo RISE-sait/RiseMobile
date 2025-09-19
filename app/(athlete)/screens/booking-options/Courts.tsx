@@ -115,9 +115,7 @@ const CourtsScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    loadCourts();
-
-    // Start animations
+    // Start animations immediately
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -130,6 +128,13 @@ const CourtsScreen: React.FC = () => {
         useNativeDriver: true,
       }),
     ]).start();
+  }, []);
+
+  useEffect(() => {
+    // Load courts when user token becomes available
+    if (user?.token) {
+      loadCourts();
+    }
   }, [user?.token]);
 
   const handleRefresh = async () => {
