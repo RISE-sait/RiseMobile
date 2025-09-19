@@ -172,6 +172,7 @@ export const useAuth = () => {
 
       const userRole = userData.role.toLowerCase()
 
+
       // Now it's safe to navigate after login
       switch (userRole) {
         case "athlete":

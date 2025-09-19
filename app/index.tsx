@@ -1,17 +1,22 @@
 import { View, Text, ActivityIndicator } from "react-native"
 import { Redirect } from "expo-router"
 import { useAuth } from "@/utils/auth"
+import * as SplashScreen from "expo-splash-screen"
+import { useEffect } from "react"
 
 export default function Index() {
   const { user, isLoading, isAuthLoaded } = useAuth()
 
-  if (isLoading) {
-    return <LoadingScreen />
-  }
+  // Hide splash screen once auth is loaded
+  useEffect(() => {
+    if (isAuthLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [isAuthLoaded]);
 
-  // Only navigate after auth is fully loaded
-  if (!isAuthLoaded) {
-    return <LoadingScreen message="Initializing app..." />
+  // Show nothing (keep splash screen) while loading
+  if (isLoading || !isAuthLoaded) {
+    return null;
   }
 
   if (!user) {
@@ -35,12 +40,4 @@ export default function Index() {
   return <Redirect href="/(auth)/login" />
 }
 
-function LoadingScreen({ message = "Loading..." }: { message?: string }) {
-  return (
-    <View className="flex-1 justify-center items-center bg-black">
-      <ActivityIndicator size="large" color="#FCA311" />
-      <Text className="text-white-100 text-lg mt-2">{message}</Text>
-    </View>
-  )
-}
 

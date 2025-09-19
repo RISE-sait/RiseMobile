@@ -102,7 +102,6 @@ const AthleteProfileScreen = () => {
           firstName={user.firstName}
           lastName={user.lastName}
           role={user.role}
-          number={user?.jerseyNumber ? user.jerseyNumber.toString() : "0"} // ✅ Ensures it's a string
           profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
           countryCode={user?.countryCode } // ✅ Ensure countryCode is always defined
           teamLogo={images.teamLogo}
@@ -126,7 +125,7 @@ const AthleteProfileScreen = () => {
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
             { icon: "crown", text: "My Membership", onPress: () => router.push("/screens/membership") },
             { icon: "star", text: "Credits", onPress: () => router.push("/screens/profile-options/credits") },
-            { icon: "bell", text: "Notifications", onPress: () => router.push("/screens/comingSoon") },
+            { icon: "bell", text: "Notifications & Security", onPress: () => router.push("/screens/profile-options/notificationSettings") },
             { icon: "arrow-right-from-bracket", text: "Logout", iconColor: "#EF4444", textColor: "#EF4444", onPress: handleLogout },
           ]}
         />

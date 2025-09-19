@@ -87,7 +87,12 @@ export default function AthleteHome() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
-      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+      >
         {/* QR Code Button */}
         <QRCodeModal />
 
@@ -98,7 +103,6 @@ export default function AthleteHome() {
               firstName={user.firstName}
               lastName={user.lastName}
               role={user.role}
-              number={user?.jerseyNumber ? user.jerseyNumber.toString() : "0"} // Ensure it's a string
               profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
               countryCode={user?.countryCode} // Ensure countryCode is always defined
               teamLogo={images.teamLogo}

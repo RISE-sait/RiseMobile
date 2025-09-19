@@ -358,6 +358,12 @@ const BarberBookingScreen = () => {
 
   // Handle date selection
   const handleDateSelect = (day: { dateString: string }) => {
+    // Prevent selecting past dates
+    const today = new Date().toISOString().split('T')[0]
+    if (day.dateString < today) {
+      return // Don't allow past date selection
+    }
+
     setSelectedDate(day.dateString)
     // Reset time selection when date changes
     setSelectedTime(null)
@@ -748,6 +754,7 @@ const BarberBookingScreen = () => {
         selectedDate={selectedDate}
         onDayPress={handleDateSelect}
         events={{}}
+        minDate={new Date().toISOString().split('T')[0]}
       />
 
       <Text className="text-white-100 text-xl font-bold mt-6 mb-4">Select Time</Text>

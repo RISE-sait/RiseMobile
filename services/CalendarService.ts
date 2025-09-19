@@ -335,12 +335,8 @@ class CalendarService {
     if (!response.data) {
       throw new Error('Invalid schedule response: No data received')
     }
-    
-      events: response.data.events?.length || 0,
-      games: response.data.games?.length || 0,
-      practices: response.data.practices?.length || 0
-    })
-    
+
+
     return response.data
   }
   
@@ -354,18 +350,20 @@ class CalendarService {
     response.events?.forEach(event => {
       items.push({
         id: event.id,
-        title: event.name || 'Event',
-        date: dayjs(event.start_time).format('YYYY-MM-DD'),
-        time: dayjs(event.start_time).format('HH:mm'),
-        type: 'event',
-        location: event.location_name || 'TBD',
-        description: event.description || `${event.name} event`,
+        title: event.program?.name || event.name || 'Event',
+        date: dayjs(event.start_at).format('YYYY-MM-DD'),
+        time: dayjs(event.start_at).format('HH:mm'),
+        type: event.program?.type || 'event',
+        location: event.location?.name || event.location?.address || 'TBD',
+        description: event.program?.description || event.description || `${event.program?.name || event.name} event`,
         capacity: event.capacity,
         teamName: event.team?.name,
+        program_type: event.program?.type,
+        program: event.program,
         raw: event,
         created_at: event.created_at,
         updated_at: event.updated_at,
-        status: this.determineStatus(event.start_time, event.end_time)
+        status: this.determineStatus(event.start_at, event.end_at)
       })
     })
     
@@ -377,7 +375,7 @@ class CalendarService {
         title,
         date: dayjs(game.start_time).format('YYYY-MM-DD'),
         time: dayjs(game.start_time).format('HH:mm'),
-        type: 'game',
+        type: 'match',
         location: game.location_name || game.court_name || 'TBD',
         description: `Game: ${title}`,
         homeTeam: game.home_team_name,

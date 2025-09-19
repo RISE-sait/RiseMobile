@@ -26,7 +26,6 @@ import { StepIndicator } from "@/components/auth/StepIndicator"
 import { SignupFormContainer } from "@/components/auth/SignupFormContainer"
 import { RoleSelectionModal } from "@/components/auth/RoleSelectionModal"
 import { RegistrationComplete } from "@/components/auth/RegistrationComplete"
-import { SocialSignup } from "@/components/auth/SocialSignup"
 import { ModernBackground } from "@/components/auth/ModernBackground"
 import { ErrorToast } from "@/components/auth/ErrorToast"
 
@@ -122,8 +121,6 @@ const SignUpScreen = () => {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Social Sign Up Options - Only show on step 1 */}
-                {step === 1 && <SocialSignup />}
               </LinearGradient>
             </ScrollView>
           </KeyboardAvoidingView>

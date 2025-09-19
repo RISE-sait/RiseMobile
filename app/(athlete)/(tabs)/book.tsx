@@ -42,15 +42,15 @@ const COLORS = {
 
 // Upcoming bookings are now loaded from API - removed unused constant
 
-// Featured facilities - filtered to show only Basketball Court and Courtside Kutz
+// Featured facilities - RISE Courts and Courtside Kutz
 const featuredFacilities = [
   {
     id: "1",
-    title: "Drop-In Sessions",
-    description: "Join open basketball sessions with other athletes",
+    title: "RISE Courts",
+    description: "Book basketball courts with real-time availability",
     image:
       "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
-    route: "/screens/booking-options/DropIn",
+    route: "/screens/booking-options/Courts",
   },
   {
     id: "2",
@@ -62,12 +62,12 @@ const featuredFacilities = [
   },
 ]
 
-// Booking options with availability status - filtered to show only Basketball Court and Courtside Kutz
+// Booking options with availability status - RISE Courts and Courtside Kutz
 const bookingOptions = [
   {
-    title: "Basketball Court",
+    title: "RISE Courts",
     icon: "basketball-ball",
-    route: "/screens/booking-options/DropIn",
+    route: "/screens/booking-options/Courts",
     availability: "High",
     color: "#FF7043",
   },

@@ -11,10 +11,17 @@ export interface ScheduleItem {
   date: string
   time: string
   type: "event" | "match" | "practice"
-  location: string
+  location: string | { id: string; name?: string; address?: string }
   description: string
   created_at?: string
   updated_at?: string
+  program_type?: string
+  program?: {
+    id: string
+    name?: string
+    type?: string
+    description?: string
+  }
 }
 
 export interface ScheduleState {
@@ -48,17 +55,53 @@ export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (t
     // Process events
     if (responseData.events && Array.isArray(responseData.events)) {
       responseData.events.forEach((event: any) => {
+        // Parse date correctly - handle both ISO format and space-separated format
+        let parsedDate = event.date
+        if (!parsedDate && event.start_at) {
+          // Handle format like "2025-11-05 18:30:00 -0700 -0700"
+          if (event.start_at.includes('T')) {
+            // ISO format: 2025-11-05T18:30:00
+            parsedDate = event.start_at.split('T')[0]
+          } else {
+            // Space format: 2025-11-05 18:30:00 -0700 -0700
+            parsedDate = event.start_at.split(' ')[0]
+          }
+        }
+        if (!parsedDate) {
+          parsedDate = new Date().toISOString().split('T')[0]
+        }
+
+        // Debug: Uncomment to debug date/time parsing issues
+        // console.log('Processing event:', { id: event.id, parsedDate, programName: event.program?.name })
+
         scheduleItems.push({
           id: event.id,
-          name: event.name || event.title || "Event",
-          title: event.name || event.title || "Event",
-          date: event.date || (event.start_time ? event.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
-          time: event.time || (event.start_time ? new Date(event.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : "TBD"),
-          type: "event",
-          location: event.location_name || event.location || "TBD",
-          description: event.description || "Event scheduled",
+          name: event.program?.name || event.name || event.title || "Event",
+          title: event.program?.name || event.name || event.title || "Event",
+          date: parsedDate,
+          time: event.time || (event.start_at ? (() => {
+            try {
+              // Handle format like "2025-11-05 18:30:00 -0700 -0700"
+              const timeStr = event.start_at.split(' ')[1] // Get "18:30:00"
+              if (timeStr) {
+                const [hours, minutes] = timeStr.split(':')
+                const hour12 = parseInt(hours) > 12 ? parseInt(hours) - 12 : parseInt(hours)
+                const ampm = parseInt(hours) >= 12 ? 'PM' : 'AM'
+                const displayHour = hour12 === 0 ? 12 : hour12
+                return `${displayHour}:${minutes} ${ampm}`
+              }
+              return "TBD"
+            } catch (e) {
+              return "TBD"
+            }
+          })() : "TBD"),
+          type: event.program?.type || "event",
+          location: (typeof event.location === 'object' ? event.location?.name || event.location?.address : event.location) || event.location_name || "TBD",
+          description: event.program?.description || event.description || "Event scheduled",
           created_at: event.created_at,
           updated_at: event.updated_at,
+          program_type: event.program?.type,
+          program: event.program,
         })
       })
     }

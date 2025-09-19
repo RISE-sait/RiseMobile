@@ -134,7 +134,6 @@ const TeamRoster: React.FC = () => {
   const teamStats = {
     totalPlayers: allPlayers.length,
     activePlayers: allPlayers.filter((p) => p.status === "Active").length,
-    injuredPlayers: allPlayers.filter((p) => p.status === "Injured" || p.status === "Day-to-Day").length,
     avgPPG: allPlayers.reduce((sum, player) => sum + player.stats.ppg, 0) / allPlayers.length,
     avgRPG: allPlayers.reduce((sum, player) => sum + player.stats.rpg, 0) / allPlayers.length,
     avgAPG: allPlayers.reduce((sum, player) => sum + player.stats.apg, 0) / allPlayers.length,
@@ -432,10 +431,6 @@ const TeamRoster: React.FC = () => {
           <Text style={styles.statValue}>{teamStats.activePlayers}</Text>
           <Text style={styles.statLabel}>Active</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{teamStats.injuredPlayers}</Text>
-          <Text style={styles.statLabel}>Injured</Text>
-        </View>
         {/* Temporarily hidden until backend supports player stats
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{teamStats.avgPPG.toFixed(1)}</Text>
@@ -518,7 +513,7 @@ const TeamRoster: React.FC = () => {
         },
       ]}
     >
-      <TouchableOpacity style={styles.playerCard} activeOpacity={0.7} onPress={() => handlePlayerPress(item)}>
+      <View style={styles.playerCard}>
         <View style={styles.playerCardContent}>
           {/* Player Number */}
           <View style={styles.playerNumberContainer}>
@@ -534,14 +529,13 @@ const TeamRoster: React.FC = () => {
               {item.firstName} {item.lastName}
             </Text>
 
+            {/* Temporarily hidden until backend supports position data
             <View style={styles.playerDetailRow}>
-              {/* Temporarily hidden until backend supports position data
               <View style={styles.positionBadge}>
                 <Text style={styles.positionText}>{item.position}</Text>
               </View>
-              */}
-              {getStatusBadge(item.status)}
             </View>
+            */}
 
             {/* Temporarily hidden until backend supports player stats
             <View style={styles.statsRow}>
@@ -587,7 +581,7 @@ const TeamRoster: React.FC = () => {
           </View>
           */}
         </View>
-      </TouchableOpacity>
+      </View>
     </Animated.View>
   )
 

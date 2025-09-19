@@ -12,6 +12,7 @@ import coursesReducer from "./slices/coursesSlice"
 import teamsReducer from "./slices/teamsSlice"
 import membershipReducer from "./slices/membershipSlice"
 import scheduleReducer from "./slices/scheduleSlice"
+import courtsReducer from "./slices/courtsSlice"
 
 
 // Define the root state type
@@ -24,7 +25,7 @@ export interface RootState {
   teams: ReturnType<typeof teamsReducer>
   membership: ReturnType<typeof membershipReducer>
   schedule: ReturnType<typeof scheduleReducer>
-
+  courts: ReturnType<typeof courtsReducer>
 }
 
 // Combine all reducers
@@ -37,6 +38,7 @@ const rootReducer = combineReducers({
   teams: teamsReducer,
   membership: membershipReducer,
   schedule: scheduleReducer,
+  courts: courtsReducer,
 })
 
 // Configure persistence - ONLY persist essential user data to prevent storage overflow
@@ -45,7 +47,7 @@ const persistConfig = {
   storage: AsyncStorage,
   whitelist: ["user"], // Only persist user data - everything else should be fetched fresh
   // Blacklist large data that changes frequently
-  blacklist: ["events", "games", "practices", "courses", "teams", "membership", "schedule"],
+  blacklist: ["events", "games", "practices", "courses", "teams", "membership", "schedule", "courts"],
 }
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)

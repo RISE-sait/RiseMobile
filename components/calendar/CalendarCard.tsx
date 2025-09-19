@@ -6,9 +6,10 @@ interface CalendarCardProps {
   selectedDate: string
   events: Record<string, any[]>
   onDayPress: (day: { dateString: string }) => void
+  minDate?: string // Optional prop to restrict past dates
 }
 
-const CalendarCard: React.FC<CalendarCardProps> = ({ selectedDate, events, onDayPress }) => {
+const CalendarCard: React.FC<CalendarCardProps> = ({ selectedDate, events, onDayPress, minDate }) => {
   // Create marked dates object
   const markedDates = {
     // Selected date
@@ -61,6 +62,7 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ selectedDate, events, onDay
         onDayPress={onDayPress}
         markedDates={markedDates}
         markingType="multi-dot"
+        {...(minDate && { minDate })}
         theme={{
           calendarBackground: "#121212",
           textSectionTitleColor: "#FFFFFF",
