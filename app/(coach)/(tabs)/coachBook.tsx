@@ -49,17 +49,24 @@ const COLORS = {
 
 // upcomingBookings now comes from Redux API data - see useMemo below
 
-// Mock data for featured facilities
+// Featured facilities for coaches
 const featuredFacilities = [
-
   {
     id: "1",
     title: "Practice Sessions",
-    description: "Check open slots for practice sessions",
+    description: "Schedule and manage team practice sessions",
     image:
       "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
       route: "/screens/coach-booking/practiceBooking",
-    },
+  },
+  {
+    id: "2",
+    title: "RISE Courts",
+    description: "View court availability and current activities",
+    image:
+      "https://images.unsplash.com/photo-1546519638-68e109498ffc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+      route: "/screens/booking-options/Courts",
+  },
 ]
 
 // Booking options with availability status
@@ -69,8 +76,13 @@ const bookingOptions = [
     icon: "basketball-ball",
     route: "/screens/coach-booking/practiceBooking",
     color: "#FF7043",
-  }
-  
+  },
+  {
+    title: "RISE Courts",
+    icon: "map",
+    route: "/screens/booking-options/Courts",
+    color: "#4CAF50",
+  },
 ]
 
 const CoachBook = () => {
