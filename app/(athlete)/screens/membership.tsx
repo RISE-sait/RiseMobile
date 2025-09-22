@@ -153,16 +153,16 @@ const MembershipScreen: React.FC = () => {
 
   if (status === 'loading') {
     return (
-      <SafeAreaView className="flex-1 bg-[#0C0B0B]">
-        <StatusBar translucent backgroundColor="transparent" style="light" />
+      <SafeAreaView className="flex-1 bg-[#0C0B0B]">
+        <StatusBar translucent backgroundColor="transparent" style="light" />
 
-        {/* Header */}
-        <View className="flex-row items-center py-3 px-4 border-b border-[#222222]">
-          <BackButton />
-          <Text className="text-white-100 text-xl font-bold ml-3">Membership</Text>
-        </View>
+        {/* Header */}
+        <View className="flex-row items-center py-3 px-4 border-b border-[#222222]">
+          <BackButton />
+          <Text className="text-white-100 text-xl font-bold ml-3">Membership</Text>
+        </View>
 
-        {/* Loading State - Show content with loading indicator */}
+        {/* Loading State - Show content with loading indicator */}
         <MembershipPurchaseList
           onPurchaseSuccess={refreshMembershipData}
           onOpenPaymentWebView={handleOpenPaymentWebView}
@@ -192,7 +192,7 @@ const MembershipScreen: React.FC = () => {
             </View>
           }
         />
-      </SafeAreaView>
+      </SafeAreaView>
     );
   }
 
@@ -238,7 +238,7 @@ const MembershipScreen: React.FC = () => {
       </View>
 
       {/* Content */}
-      <>
+      <View className="flex-1">
         {userMemberships.length > 0 ? (
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="px-4 py-3">
@@ -273,7 +273,7 @@ const MembershipScreen: React.FC = () => {
             }
           />
         )}
-      </>
+      </View>
 
       {/* Payment WebView Modal */}
       <Modal
