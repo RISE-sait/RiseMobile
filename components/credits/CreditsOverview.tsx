@@ -148,8 +148,8 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
 
   const usagePercentage = creditsToShow.weekly_limit > 0 ? (creditsToShow.weekly_usage / creditsToShow.weekly_limit) * 100 : 0
 
-  return (
-    <View style={styles.container}>
+  const renderHeaderComponent = () => (
+    <View>
       {/* Credits Balance */}
       <View style={styles.balanceCard}>
         <View style={styles.balanceHeader}>
@@ -199,21 +199,24 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
           color={COLORS.primary}
         />
       </TouchableOpacity>
+    </View>
+  )
 
-      {/* Transactions List */}
-      {showTransactions && (
-        <View style={styles.transactionsList}>
-          <FlatList
-            data={transactions}
-            renderItem={renderTransaction}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No transactions found</Text>
-            }
-          />
-        </View>
-      )}
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={showTransactions ? transactions : []}
+        renderItem={renderTransaction}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={renderHeaderComponent}
+        ListEmptyComponent={
+          showTransactions ? (
+            <Text style={styles.emptyText}>No transactions found</Text>
+          ) : null
+        }
+        contentContainerStyle={styles.listContainer}
+      />
     </View>
   )
 }
@@ -305,18 +308,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
-  transactionsList: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    maxHeight: 300,
+  listContainer: {
+    paddingBottom: 20,
   },
   transactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.cardDark,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    marginBottom: 8,
   },
   transactionDetails: {
     flex: 1,
