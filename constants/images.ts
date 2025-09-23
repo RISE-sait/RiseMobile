@@ -6,7 +6,7 @@ import matchImage from "@/assets/images/matchImage.png";
 import schoolLogo from "@/assets/images/schoolLogo.png";
 import classImage from "@/assets/images/classImage.png";
 import teamLogo from "@/assets/images/teamLogo.png";
-import coachHeadshot from "@/assets/images/coachheadshot.png";
+import coachHeadshot from "@/assets/images/coachHeadshot.png";
 import events from "@/assets/images/events.jpg";
 import schedule from "@/assets/images/schedule.jpg";
 import membership from "@/assets/images/membership.jpg";
