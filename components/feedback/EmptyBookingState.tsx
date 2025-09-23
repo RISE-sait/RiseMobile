@@ -23,7 +23,7 @@ const EmptyBookingsState: React.FC<EmptyBookingsStateProps> = ({
     card: '#1A1A1A',
     text: '#FFFFFF', 
     textSecondary: '#AAAAAA',
-    primary: '#FFD700'
+    primary: '#FCA311'
   }
 }) => {
   const getContent = () => {
