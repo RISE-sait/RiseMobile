@@ -10,16 +10,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BackButton from "@/components/buttons/BackButton";
 import { COLORS } from "@/constants/colors";
-import { useSelector } from "react-redux";
-import type { RootState } from "@/store";
-import { useAuth } from "@/utils/auth";
-import { API_URL } from "@/utils/api";
 import {
   checkBiometricCapability,
   isBiometricLoginEnabled,
@@ -27,6 +22,9 @@ import {
   getBiometricDisplayName,
   type BiometricCapability,
 } from "@/utils/biometricAuth";
+import { useAppSelector } from "@/store/hooks";
+import { useAuth } from "@/utils/auth";
+import { deleteUserAccount } from "@/utils/api";
 
 interface NotificationSettings {
   pushNotifications: boolean;
@@ -47,7 +45,6 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 };
 
 const NotificationSettingsScreen: React.FC = () => {
-  const router = useRouter();
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,7 +55,10 @@ const NotificationSettingsScreen: React.FC = () => {
     supportedTypes: [],
   });
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  const user = useSelector((state: RootState) => state.user.data);
+
+  // Get user data from Redux store
+  const user = useAppSelector((state) => state.user.data);
+  // Get auth functions
   const { logout } = useAuth();
 
   useEffect(() => {
@@ -162,6 +162,55 @@ const NotificationSettingsScreen: React.FC = () => {
     }
   };
 
+  const performAccountDeletion = async () => {
+    if (!user?.token) {
+      Alert.alert("Error", "User authentication information is missing. Please try logging out and back in.");
+      return;
+    }
+    try {
+      setIsDeletingAccount(true);
+      // Call the actual API endpoint
+      const result = await deleteUserAccount(user.token);
+
+      if (result.error) {
+        throw new Error(`Account deletion failed: ${result.error.status} - ${result.error.message}`);
+      }
+
+      // Account successfully deleted
+      Alert.alert(
+        "Account Deleted",
+        "Your account has been successfully deleted. You will now be logged out.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              // Clear all user data and logout
+              await logout();
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Account deletion error:", error);
+      // Handle different types of errors
+      if (error instanceof Error && error.message.includes('404')) {
+        Alert.alert(
+          "Development Mode",
+          "Account deletion API endpoint not yet implemented. This feature will be available when the backend is ready.",
+          [{ text: "OK" }]
+        );
+      } else {
+        Alert.alert(
+          "Deletion Failed",
+          "We encountered an error while trying to delete your account. Please contact support for assistance.",
+          [{ text: "OK" }]
+        );
+      }
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   const requestPermissions = async () => {
     try {
       const { status } = await Notifications.requestPermissionsAsync();
@@ -216,67 +265,6 @@ const NotificationSettingsScreen: React.FC = () => {
         },
       ]
     );
-  };
-
-  const performAccountDeletion = async () => {
-    if (!user?.id || !user?.token) {
-      Alert.alert("Error", "User authentication information is missing. Please try logging out and back in.");
-      return;
-    }
-
-    try {
-      setIsDeletingAccount(true);
-
-      // Placeholder API call for account deletion
-      // TODO: Replace with actual API endpoint when backend is ready
-      const response = await fetch(`${API_URL}/users/${user.id}/delete`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        // Account successfully deleted
-        Alert.alert(
-          "Account Deleted",
-          "Your account has been successfully deleted. You will now be logged out.",
-          [
-            {
-              text: "OK",
-              onPress: async () => {
-                // Clear all user data and logout
-                await logout();
-              },
-            },
-          ]
-        );
-      } else {
-        // Handle API error response
-        const errorData = await response.text();
-        throw new Error(`Account deletion failed: ${response.status} - ${errorData}`);
-      }
-    } catch (error) {
-      console.error("Account deletion error:", error);
-
-      // For development/testing when API endpoint doesn't exist yet
-      if (error instanceof Error && error.message.includes('404')) {
-        Alert.alert(
-          "Development Mode",
-          "Account deletion API endpoint not yet implemented. This feature will be available when the backend is ready.",
-          [{ text: "OK" }]
-        );
-      } else {
-        Alert.alert(
-          "Deletion Failed",
-          "We encountered an error while trying to delete your account. Please contact support for assistance.",
-          [{ text: "OK" }]
-        );
-      }
-    } finally {
-      setIsDeletingAccount(false);
-    }
   };
 
 
