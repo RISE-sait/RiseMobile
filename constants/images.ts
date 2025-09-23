@@ -4,10 +4,9 @@ import headshot from "@/assets/images/headshot.png";
 import qrcode from "@/assets/images/qrcode.png";
 import matchImage from "@/assets/images/matchImage.png";
 import schoolLogo from "@/assets/images/schoolLogo.png";
-import instructorHeadshot from "@/assets/images/instructorHeadshot.png";
 import classImage from "@/assets/images/classImage.png";
 import teamLogo from "@/assets/images/teamLogo.png";
-import coachHeadshot from "@/assets/images/coachHeadshot.png";
+import coachHeadshot from "@/assets/images/coachheadshot.png";
 import events from "@/assets/images/events.jpg";
 import schedule from "@/assets/images/schedule.jpg";
 import membership from "@/assets/images/membership.jpg";
@@ -19,7 +18,6 @@ import stores from "@/assets/images/stores.jpg";
 import teamRoster from "@/assets/images/teamRoster.jpg";
 import matchHistory from "@/assets/images/matchHistory.jpg";
 import playerStats from "@/assets/images/playerStats.jpg";
-import parentHeadshot from "@/assets/images/parentHeadshot.png";
 
 export default {
     onboarding,
@@ -28,7 +26,6 @@ export default {
     qrcode,
     matchImage,
     schoolLogo,
-    instructorHeadshot,
     classImage,
     teamLogo,
     coachHeadshot,
@@ -43,6 +40,5 @@ export default {
     teamRoster,
     matchHistory,
     playerStats,
-    parentHeadshot,
 
 };

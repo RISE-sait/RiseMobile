@@ -98,7 +98,11 @@ const CourtsScreen: React.FC = () => {
   const error = useAppSelector(selectCourtsError);
   const user = useAppSelector((state) => state.user.data);
 
+  // Detect if user is a coach for conditional UI
+  const isCoach = user?.role?.toLowerCase() === 'coach';
+
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -115,27 +119,55 @@ const CourtsScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    // Start animations immediately
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+    // Load courts immediately if user token is already available
+    if (user?.token) {
+      dispatch(fetchCourts(user.token)).finally(() => {
+        setInitialLoad(false);
+        // Start animations after data is loaded or attempt is made
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    } else {
+      // If no user token, still set initial load to false after a delay
+      const timeout = setTimeout(() => {
+        setInitialLoad(false);
+      }, 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [fadeAnim, slideAnim, dispatch, user?.token]);
 
   useEffect(() => {
-    // Load courts when user token becomes available
-    if (user?.token) {
-      loadCourts();
+    // Load courts when user token becomes available (for delayed authentication)
+    if (user?.token && courts.length === 0 && loading !== 'pending' && !initialLoad) {
+      dispatch(fetchCourts(user.token)).finally(() => {
+        // Start animations if they haven't started yet
+        if (fadeAnim._value === 0) {
+          Animated.parallel([
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 800,
+              useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+              toValue: 0,
+              duration: 800,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
+      });
     }
-  }, [user?.token]);
+  }, [dispatch, user?.token, courts.length, loading, initialLoad, fadeAnim, slideAnim]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -145,27 +177,34 @@ const CourtsScreen: React.FC = () => {
 
   const handleCourtPress = (court: any) => {
     if (court.status === 'available') {
-      // Navigate to court booking flow (to be implemented)
+      const actionText = isCoach ? 'Schedule Practice' : 'Book Court';
+      const buttonText = isCoach ? 'Schedule Practice' : 'Book Now';
+
       Alert.alert(
-        'Court Booking',
-        `Would you like to book ${court.name}?`,
+        actionText,
+        `Would you like to ${isCoach ? 'schedule a practice on' : 'book'} ${court.name}?`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: 'Book Now',
+            text: buttonText,
             onPress: () => {
-              // TODO: Navigate to booking flow
-              Alert.alert('Coming Soon', 'Court booking will be available soon!');
+              if (isCoach) {
+                // Navigate to practice booking with court pre-selected
+                router.push('/screens/coach-booking/practiceBooking');
+              } else {
+                // Navigate to court booking flow
+                Alert.alert('Coming Soon', 'Court booking will be available soon!');
+              }
             }
           },
         ]
       );
     } else {
       Alert.alert(
-        'Court Unavailable',
+        'Court Information',
         `${court.name} is currently ${getStatusText(court.status).toLowerCase()}.${
           court.current_event
-            ? `\n\nCurrent activity: ${court.current_event.title}\nUntil: ${formatTime(court.current_event.end_time)}`
+            ? `\n\nCurrent activity: ${court.current_event.title}\nEnds at: ${formatTime(court.current_event.end_time)}`
             : ''
         }`
       );
@@ -224,6 +263,32 @@ const CourtsScreen: React.FC = () => {
             }}>
               <FontAwesome5 name={getStatusIcon(court.status)} size={16} color={statusColor} />
             </View>
+
+            {/* Coach Badge */}
+            {isCoach && (
+              <View style={{
+                position: 'absolute',
+                top: 15,
+                right: 80, // Position it away from the status indicator
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 12,
+                backgroundColor: COLORS.primary + '20',
+                zIndex: 2,
+              }}>
+                <FontAwesome5 name="chalkboard-teacher" size={12} color={COLORS.primary} />
+                <Text style={{
+                  color: COLORS.primary,
+                  fontSize: 10,
+                  fontWeight: '600',
+                  marginLeft: 4,
+                }}>
+                  COACH
+                </Text>
+              </View>
+            )}
 
             {/* Court Header */}
             <View style={{ marginBottom: 16 }}>
@@ -348,7 +413,7 @@ const CourtsScreen: React.FC = () => {
               </View>
             )}
 
-            {/* Action Section */}
+            {/* Role-based Action Section */}
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -362,7 +427,10 @@ const CourtsScreen: React.FC = () => {
                 fontSize: 14,
                 fontWeight: '500',
               }}>
-                {isAvailable ? 'Ready to book' : 'View details'}
+                {isAvailable
+                  ? (isCoach ? 'Schedule practice here' : 'Ready to book')
+                  : 'View activity details'
+                }
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -370,20 +438,27 @@ const CourtsScreen: React.FC = () => {
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 20,
-                backgroundColor: isAvailable ? COLORS.success + '20' : COLORS.textSecondary + '20',
+                backgroundColor: isAvailable
+                  ? (isCoach ? COLORS.primary + '20' : COLORS.success + '20')
+                  : COLORS.textSecondary + '20',
               }}>
                 <Ionicons
-                  name={isAvailable ? 'add-circle' : 'information-circle'}
+                  name={isAvailable ? (isCoach ? 'calendar' : 'add-circle') : 'information-circle'}
                   size={16}
-                  color={isAvailable ? COLORS.success : COLORS.textSecondary}
+                  color={isAvailable
+                    ? (isCoach ? COLORS.primary : COLORS.success)
+                    : COLORS.textSecondary
+                  }
                 />
                 <Text style={{
-                  color: isAvailable ? COLORS.success : COLORS.textSecondary,
+                  color: isAvailable
+                    ? (isCoach ? COLORS.primary : COLORS.success)
+                    : COLORS.textSecondary,
                   fontSize: 12,
                   fontWeight: '600',
                   marginLeft: 6,
                 }}>
-                  {isAvailable ? 'BOOK' : 'INFO'}
+                  {isAvailable ? (isCoach ? 'SCHEDULE' : 'BOOK') : 'INFO'}
                 </Text>
               </View>
             </View>
@@ -393,16 +468,75 @@ const CourtsScreen: React.FC = () => {
     );
   };
 
-  if (loading === 'pending' && courts.length === 0) {
+  const SkeletonCard = () => (
+    <View style={{
+      backgroundColor: COLORS.card,
+      borderRadius: 20,
+      padding: 20,
+      marginBottom: 20,
+      height: 180,
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+        <View style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: COLORS.cardDark,
+          marginRight: 12,
+        }} />
+        <View style={{ flex: 1 }}>
+          <View style={{
+            height: 20,
+            backgroundColor: COLORS.cardDark,
+            borderRadius: 4,
+            marginBottom: 8,
+            width: '70%',
+          }} />
+          <View style={{
+            height: 16,
+            backgroundColor: COLORS.cardDark,
+            borderRadius: 4,
+            width: '50%',
+          }} />
+        </View>
+      </View>
+    </View>
+  );
+
+  // Show loading state during initial load, when we're loading and have no courts, or if we don't have user token yet
+  if (initialLoad || (loading === 'pending' && courts.length === 0) || !user?.token) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <StatusBar style="light" />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={{ color: COLORS.textSecondary, marginTop: 16, fontSize: 16 }}>
-            Loading courts...
-          </Text>
+
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: COLORS.cardDark,
+          }}
+        >
+          <BackButton />
+          <View style={{ flex: 1, marginLeft: 16 }}>
+            <Text style={{ color: COLORS.text, fontSize: 24, fontWeight: 'bold' }}>
+              RISE Courts
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginTop: 2 }}>
+              {!user?.token ? 'Authenticating...' : 'Loading courts...'}
+            </Text>
+          </View>
+          <ActivityIndicator size="small" color={COLORS.primary} />
         </View>
+
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -428,7 +562,7 @@ const CourtsScreen: React.FC = () => {
             RISE Courts
           </Text>
           <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginTop: 2 }}>
-            View availability and book courts
+            {isCoach ? 'Coach view - Schedule practices & monitor activities' : 'View availability and book courts'}
           </Text>
         </View>
         <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
@@ -472,15 +606,29 @@ const CourtsScreen: React.FC = () => {
               shadowRadius: 4,
             }}
           >
-            <Text style={{
-              color: COLORS.text,
-              fontSize: 18,
-              fontWeight: 'bold',
-              textAlign: 'center',
-              marginBottom: 16,
-            }}>
-              Court Availability
-            </Text>
+            {isCoach ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <FontAwesome5 name="chalkboard-teacher" size={20} color={COLORS.primary} />
+                <Text style={{
+                  color: COLORS.text,
+                  fontSize: 18,
+                  fontWeight: 'bold',
+                  marginLeft: 12,
+                }}>
+                  Coach Dashboard
+                </Text>
+              </View>
+            ) : (
+              <Text style={{
+                color: COLORS.text,
+                fontSize: 18,
+                fontWeight: 'bold',
+                textAlign: 'center',
+                marginBottom: 16,
+              }}>
+                Court Availability
+              </Text>
+            )}
             <View style={{ flexDirection: 'row' }}>
               <View style={{ flex: 1, alignItems: 'center' }}>
                 <View style={{
@@ -497,7 +645,7 @@ const CourtsScreen: React.FC = () => {
                     fontSize: 20,
                     fontWeight: 'bold',
                   }}>
-                    {courts.filter(c => c.status === 'available').length}
+                    {courts.filter((c: any) => c.status === 'available').length}
                   </Text>
                 </View>
                 <Text style={{
@@ -523,7 +671,7 @@ const CourtsScreen: React.FC = () => {
                     fontSize: 20,
                     fontWeight: 'bold',
                   }}>
-                    {courts.filter(c => c.status === 'in_use').length}
+                    {courts.filter((c: any) => c.status === 'in_use').length}
                   </Text>
                 </View>
                 <Text style={{
@@ -629,9 +777,27 @@ const CourtsScreen: React.FC = () => {
                 fontSize: 15,
                 textAlign: 'center',
                 lineHeight: 22,
+                marginBottom: 16,
               }}>
                 We couldn't find any courts at the moment.{'\n'}Pull down to refresh and try again.
               </Text>
+              <TouchableOpacity
+                onPress={() => loadCourts(true)}
+                style={{
+                  backgroundColor: COLORS.primary,
+                  paddingHorizontal: 20,
+                  paddingVertical: 10,
+                  borderRadius: 20,
+                }}
+              >
+                <Text style={{
+                  color: COLORS.background,
+                  fontSize: 14,
+                  fontWeight: '600',
+                }}>
+                  Reload Courts
+                </Text>
+              </TouchableOpacity>
             </LinearGradient>
           </Animated.View>
         ) : (
@@ -641,7 +807,7 @@ const CourtsScreen: React.FC = () => {
               transform: [{ translateY: slideAnim }],
             }}
           >
-            {courts.map((court, index) => renderCourtCard(court, index))}
+            {courts.map((court: any, index: number) => renderCourtCard(court, index))}
           </Animated.View>
         )}
       </ScrollView>

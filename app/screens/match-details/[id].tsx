@@ -69,7 +69,6 @@ const MatchDetailsScreen = () => {
 
   // Extract the ID from params and ensure it's a clean string
   const rawId = id
-  // Log the raw ID we received
 
   // Clean the ID - ensure it's a string and remove any query parameters
   const programId =
@@ -79,7 +78,6 @@ const MatchDetailsScreen = () => {
         ? rawId[0].split("?")[0]
         : String(rawId).split("?")[0]
 
-  // Log the cleaned ID
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -149,7 +147,7 @@ const MatchDetailsScreen = () => {
           
           setGame(transformedGame)
         } catch (error) {
-          console.error("MATCH DETAILS: Error fetching game data:", error)
+          console.error("Error fetching game data:", error)
           setError("Failed to load game data. Please try again.")
         } finally {
           setLoading(false)
@@ -243,21 +241,6 @@ const MatchDetailsScreen = () => {
   const { color, label, bgColor } = statusStyles[status as keyof typeof statusStyles]
 
 
-  // Basketball stats (mock data - in a real app, this would come from your API)
-  const basketballStats = {
-    home: {
-      rebounds: 42,
-      assists: 23,
-      steals: 8,
-      blocks: 5,
-    },
-    away: {
-      rebounds: 38,
-      assists: 19,
-      steals: 10,
-      blocks: 3,
-    },
-  }
 
   return (
     <SafeAreaView style={styles.container}>

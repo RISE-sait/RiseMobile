@@ -64,7 +64,7 @@ class NotificationService {
 
       // Get the Expo push token
       const expoPushTokenData = await Notifications.getExpoPushTokenAsync({
-        // projectId will be automatically detected from app.json/app.config.js
+        projectId: process.env.EXPO_PUBLIC_PROJECT_ID || undefined
       });
 
       this.expoPushToken = expoPushTokenData.data;

@@ -45,7 +45,7 @@ const SelectTeamForRoster: React.FC = () => {
   
   // Get teams data from Redux store
   const teams = useSelector(selectAllTeams)
-  const loading = useSelector(selectTeamsLoading) === 'loading'
+  const loading = useSelector(selectTeamsLoading) === 'pending'
   const error = useSelector(selectTeamsError)
   const dispatch = useDispatch()
 
@@ -69,14 +69,14 @@ const SelectTeamForRoster: React.FC = () => {
 
     // Fetch teams data using Redux
     if (user?.token) {
-      dispatch(fetchTeams(user.token))
+      dispatch(fetchTeams(user.token) as any)
     }
   }, [dispatch, user?.token])
 
   const handleRefresh = async () => {
     setRefreshing(true)
     if (user?.token) {
-      await dispatch(fetchTeams(user.token))
+      await dispatch(fetchTeams(user.token) as any)
     }
     setRefreshing(false)
   }
