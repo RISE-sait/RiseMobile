@@ -909,7 +909,7 @@ export const deleteUserAccount = async (userToken: string) => {
         'Content-Type': 'application/json',
       },
       data: {
-        confirmation: true
+        confirm_deletion: true
       }
     });
 
