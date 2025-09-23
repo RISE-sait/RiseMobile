@@ -897,3 +897,41 @@ export const getBarberAvailability = async (barberId: string, date: string, serv
     throw error;
   }
 };
+
+// 🔹 **Account Deletion API Function**
+
+// Delete user account
+export const deleteUserAccount = async (userToken: string) => {
+  try {
+    const response = await axios.delete(`${API_URL}/secure/customers/delete-account`, {
+      headers: {
+        'Authorization': `Bearer ${userToken}`,
+        'Content-Type': 'application/json',
+      },
+      data: {
+        confirm_deletion: true
+      }
+    });
+
+    if (response.status === 200) {
+      return { data: true, error: null };
+    } else {
+      return {
+        data: null,
+        error: {
+          message: `Account deletion failed with status: ${response.status}`,
+          status: response.status
+        }
+      };
+    }
+  } catch (error) {
+    console.error("❌ Account deletion API error:", error);
+    return {
+      data: null,
+      error: {
+        message: (error as any).response?.data?.error?.message || "Failed to delete account",
+        status: (error as any).response?.status || 500
+      }
+    };
+  }
+};
