@@ -91,7 +91,7 @@ type User = {
   firstName: string
   lastName: string
   role: string
-  profileImage?: string
+  profileImage?: string | null
   phoneNumber?: string
   countryCode?: string
 }
@@ -102,10 +102,8 @@ export default function EditProfileScreen() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
-  
   // ✅ Use Redux as primary data source
-  const reduxUser = useSelector((state: RootState) => state.user.data)
+  const user = useSelector((state: RootState) => state.user.data)
   const dispatch = useDispatch()
 
   // Animation values
@@ -122,7 +120,7 @@ export default function EditProfileScreen() {
 
   useEffect(() => {
     loadUserData()
-  }, [reduxUser]) // ✅ Depend on reduxUser changes
+  }, [user]) // ✅ Depend on user changes
 
   useEffect(() => {
     if (!isLoading) {
@@ -147,14 +145,15 @@ export default function EditProfileScreen() {
       setIsLoading(true)
       
       // ✅ Prioritize Redux data (same pattern as other EditProfile components)
-      if (reduxUser) {
+      if (user) {
         const userData = {
-          ...reduxUser,
-          firstName: reduxUser.firstName || reduxUser.first_name || "",
-          lastName: reduxUser.lastName || reduxUser.last_name || "",
-          countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
+          ...user,
+          firstName: user.firstName || user.first_name || "",
+          lastName: user.lastName || user.last_name || "",
+          countryCode: user.countryCode || user.country_code || "US",
+          phoneNumber: user.phoneNumber || "",
         }
-        setUser(userData)
+        // Using Redux state directly, no need to set local state
         
         // Initialize common form fields
         setFirstName(userData.firstName)
@@ -172,7 +171,7 @@ export default function EditProfileScreen() {
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser)
-        setUser(parsedUser)
+        // Using Redux state directly, no need to set local state
 
         // Initialize common form fields
         setFirstName(parsedUser.firstName || parsedUser.first_name || "")
@@ -246,19 +245,19 @@ export default function EditProfileScreen() {
 
       // Create updated user object with API response data
       const apiResponse = response.data
-      const updatedUser: User = {
+      const updatedUser = {
         ...user,
         firstName: apiResponse.first_name || firstName.trim(),
         lastName: apiResponse.last_name || lastName.trim(),
         email: apiResponse.email || email.trim(),
         phoneNumber: apiResponse.phone || phoneNumber?.trim(),
-        countryCode: apiResponse.country_alpha2_code || user.countryCode,
-        profileImage,
-      }
+        countryCode: apiResponse.country_alpha2_code || user.countryCode || "US",
+        ...(profileImage && { profileImage }),
+      } as User
 
 
       // ✅ Update Redux store with new user data
-      dispatch(updateProfile(updatedUser))
+      dispatch(updateProfile({ ...updatedUser, profileImage: updatedUser.profileImage || undefined }))
       
       // Update AsyncStorage with new data for offline access
       await AsyncStorage.setItem("user", JSON.stringify(updatedUser))
@@ -558,7 +557,7 @@ export default function EditProfileScreen() {
                     size={12}
                     style={styles.roleIcon}
                   />
-                  <Text style={styles.roleText}>{user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)}</Text>
+                  <Text style={styles.roleText}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'}</Text>
                 </View>
               </View>
             </View>

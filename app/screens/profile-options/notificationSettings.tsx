@@ -16,6 +16,10 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BackButton from "@/components/buttons/BackButton";
 import { COLORS } from "@/constants/colors";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
+import { useAuth } from "@/utils/auth";
+import { API_URL } from "@/utils/api";
 import {
   checkBiometricCapability,
   isBiometricLoginEnabled,
@@ -53,6 +57,9 @@ const NotificationSettingsScreen: React.FC = () => {
     biometricType: 'none',
     supportedTypes: [],
   });
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const user = useSelector((state: RootState) => state.user.data);
+  const { logout } = useAuth();
 
   useEffect(() => {
     loadSettings();
@@ -172,6 +179,103 @@ const NotificationSettingsScreen: React.FC = () => {
     } catch (error) {
       console.error("Error requesting permissions:", error);
       Alert.alert("Error", "Failed to request notification permissions.");
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Continue",
+          style: "destructive",
+          onPress: () => showFinalDeleteConfirmation(),
+        },
+      ]
+    );
+  };
+
+  const showFinalDeleteConfirmation = () => {
+    Alert.alert(
+      "Final Confirmation",
+      "This will permanently delete your RISE Sports Platform account and all associated data including:\n\n• Your profile and statistics\n• Match history and performance data\n• Team memberships and connections\n• All stored preferences\n\nClick 'I understand, delete my account' below to confirm:",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "I understand, delete my account",
+          style: "destructive",
+          onPress: () => performAccountDeletion(),
+        },
+      ]
+    );
+  };
+
+  const performAccountDeletion = async () => {
+    if (!user?.id || !user?.token) {
+      Alert.alert("Error", "User authentication information is missing. Please try logging out and back in.");
+      return;
+    }
+
+    try {
+      setIsDeletingAccount(true);
+
+      // Placeholder API call for account deletion
+      // TODO: Replace with actual API endpoint when backend is ready
+      const response = await fetch(`${API_URL}/users/${user.id}/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Account successfully deleted
+        Alert.alert(
+          "Account Deleted",
+          "Your account has been successfully deleted. You will now be logged out.",
+          [
+            {
+              text: "OK",
+              onPress: async () => {
+                // Clear all user data and logout
+                await logout();
+              },
+            },
+          ]
+        );
+      } else {
+        // Handle API error response
+        const errorData = await response.text();
+        throw new Error(`Account deletion failed: ${response.status} - ${errorData}`);
+      }
+    } catch (error) {
+      console.error("Account deletion error:", error);
+
+      // For development/testing when API endpoint doesn't exist yet
+      if (error instanceof Error && error.message.includes('404')) {
+        Alert.alert(
+          "Development Mode",
+          "Account deletion API endpoint not yet implemented. This feature will be available when the backend is ready.",
+          [{ text: "OK" }]
+        );
+      } else {
+        Alert.alert(
+          "Deletion Failed",
+          "We encountered an error while trying to delete your account. Please contact support for assistance.",
+          [{ text: "OK" }]
+        );
+      }
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -295,22 +399,46 @@ const NotificationSettingsScreen: React.FC = () => {
         </View>
 
         {/* Security Settings */}
-        {biometricCapability.isAvailable && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Security</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Security</Text>
+        </View>
+        <View style={styles.section}>
+          {biometricCapability.isAvailable && (
+            renderSettingRow(
+              `${getBiometricDisplayName(biometricCapability.biometricType)} Login`,
+              `Use ${getBiometricDisplayName(biometricCapability.biometricType)} to sign in quickly and securely`,
+              "biometricLogin",
+              biometricCapability.biometricType === 'face' ? 'scan' : 'finger-print',
+              false
+            )
+          )}
+
+          {/* Delete Account Button */}
+          <TouchableOpacity
+            style={styles.deleteAccountRow}
+            onPress={handleDeleteAccount}
+            disabled={isDeletingAccount}
+          >
+            <View style={styles.settingIcon}>
+              <Ionicons
+                name="trash"
+                size={24}
+                color="#EF4444"
+              />
             </View>
-            <View style={styles.section}>
-              {renderSettingRow(
-                `${getBiometricDisplayName(biometricCapability.biometricType)} Login`,
-                `Use ${getBiometricDisplayName(biometricCapability.biometricType)} to sign in quickly and securely`,
-                "biometricLogin",
-                biometricCapability.biometricType === 'face' ? 'scan' : 'finger-print',
-                false
-              )}
+            <View style={styles.settingContent}>
+              <Text style={styles.deleteAccountTitle}>
+                Delete Account
+              </Text>
+              <Text style={styles.deleteAccountDescription}>
+                Permanently delete your account and all data
+              </Text>
             </View>
-          </>
-        )}
+            {isDeletingAccount && (
+              <ActivityIndicator size="small" color="#EF4444" />
+            )}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
     </SafeAreaView>
@@ -428,6 +556,24 @@ const styles = {
   },
   disabledText: {
     opacity: 0.5,
+  },
+  deleteAccountRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  deleteAccountTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#EF4444',
+  },
+  deleteAccountDescription: {
+    fontSize: 14,
+    color: '#EF4444',
+    marginTop: 2,
+    opacity: 0.8,
   },
 };
 

@@ -14,6 +14,7 @@ type User = {
   lastName: string;
   role: string;
   countryCode: string;
+  phoneNumber?: string;
   token: string;
   firebaseId: string;
   profileImage?: string;
@@ -78,6 +79,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       lastName: (response.data as any).last_name || "",
       role: (response.data as any).role,
       countryCode: (response.data as any).country_code || "US",
+      phoneNumber: (response.data as any).phone || (response.data as any).phone_number || "", // ✅ Include phone number from backend
       token: jwtToken, // ✅ Now this is set correctly!
       firebaseId: firebaseUser.uid,
       profileImage: (response.data as any).photo_url || "", // ✅ Include profile image from backend

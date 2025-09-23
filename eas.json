@@ -9,13 +9,27 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
+      "cache": {
+        "disabled": false
+      }
     },
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
+      "cache": {
+        "disabled": false
       }
     },
     "production": {
@@ -26,6 +40,13 @@
       },
       "android": {
         "gradleCommand": ":app:bundleRelease"
+      },
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
+      "cache": {
+        "disabled": false
       }
     }
   },
@@ -38,7 +59,7 @@
     },
     "production": {
       "ios": {
-        "appleId": "your-apple-id@example.com"
+        "appleId": "mostapha4567@icloud.com"
       },
       "android": {
         "track": "production"
