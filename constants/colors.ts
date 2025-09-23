@@ -14,5 +14,6 @@ export const COLORS = {
   info: "#2196F3",
   chart: "#FFD700",
   chartBackground: "rgba(255, 215, 0, 0.1)",
+  emptyState:"#FCA311",
 }
 

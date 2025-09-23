@@ -2,6 +2,7 @@ import type React from "react"
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { FontAwesome6 } from "@expo/vector-icons"
 import { MotiView } from "moti"
+import { COLORS } from "@/constants/colors"
 
 interface EmptyStateProps {
   icon: string
@@ -19,7 +20,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   message,
   iconSize = 60,
-  iconColor = "#FFD700",
+  iconColor = COLORS.emptyState,
   actionLabel,
   onAction,
   containerStyle,
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   actionButton: {
-    backgroundColor: "#FFD700",
+    backgroundColor: COLORS.primaryDark,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
