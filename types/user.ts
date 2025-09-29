@@ -7,6 +7,7 @@ export interface MembershipInfo {
   plan_name: string
   start_date: string
   renewal_date: string
+  next_payment_date?: string | null
 }
 
 export interface MembershipState {
