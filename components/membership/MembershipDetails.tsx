@@ -25,6 +25,7 @@ interface MembershipData {
   price?: string;
   start_date?: string;
   renewal_date?: string;
+  next_payment_date?: string | null;
   status?: string;
   benefits?: string;
 }
@@ -154,14 +155,16 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
           </View>
 
           {/* Card Footer */}
-          <View style={styles.cardFooter}>
-            <View style={styles.footerItem}>
-              <FontAwesomeIcon icon={faCalendarAlt} color="#000000" size={14} />
-              <Text style={styles.footerText}>
-                Next renewal: {formatDate(membership.renewal_date)}
-              </Text>
+          {membership.next_payment_date && (
+            <View style={styles.cardFooter}>
+              <View style={styles.footerItem}>
+                <FontAwesomeIcon icon={faCalendarAlt} color="#000000" size={14} />
+                <Text style={styles.footerText}>
+                  Next Payment Date: {formatDate(membership.next_payment_date)}
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
         </LinearGradient>
       </View>
 
@@ -241,13 +244,15 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
             </Text>
           </View>
 
-          {/* Next Renewal */}
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Next Renewal:</Text>
-            <Text style={styles.detailValue}>
-              {formatDate(membership.renewal_date)}
-            </Text>
-          </View>
+          {/* Next Payment Date */}
+          {membership.next_payment_date && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Next Payment Date:</Text>
+              <Text style={styles.detailValue}>
+                {formatDate(membership.next_payment_date)}
+              </Text>
+            </View>
+          )}
 
           {/* Status */}
           <View style={styles.detailRow}>
@@ -487,12 +492,6 @@ const styles = StyleSheet.create({
   },
   detailSection: {
     marginTop: 20,
-  },
-  sectionTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 12,
   },
   detailText: {
     color: "#CCCCCC",
