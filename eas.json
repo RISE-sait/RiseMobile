@@ -6,10 +6,12 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "env": {
         "NODE_OPTIONS": "--max-old-space-size=4096",
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
@@ -21,6 +23,7 @@
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
+      "channel": "testflight",
       "ios": {
         "simulator": false
       },
@@ -35,6 +38,7 @@
     "production": {
       "autoIncrement": true,
       "distribution": "store",
+      "channel": "production",
       "ios": {
         "simulator": false
       },

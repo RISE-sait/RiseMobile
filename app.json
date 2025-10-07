@@ -8,6 +8,12 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "updates": {
+      "url": "https://u.expo.dev/3ba470f8-c0f8-431f-baad-6474e2cbe4a4"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/images/riseSplash.png",
       "resizeMode": "contain",
