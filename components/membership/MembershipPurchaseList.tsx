@@ -180,9 +180,14 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
       const result = await getPlansForMembership(membershipId);
 
-      // If successful, return the result
+      // If successful, filter plans by is_visible field and return the result
       if (!result.error) {
-        return result;
+        // Filter to only show visible plans (is_visible === true)
+        const visiblePlans = (result.data || []).filter((plan: any) => plan.is_visible === true);
+        return {
+          ...result,
+          data: visiblePlans
+        };
       }
 
       // Gracefully handle 503 errors (membership with no plans configured)

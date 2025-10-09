@@ -315,6 +315,40 @@ export const getTeamById = async (teamId: string, token: string): Promise<any> =
 
 // 🔹 **Membership API Functions**
 
+// Get all available credit packages (no authentication required)
+export const getCreditPackages = async () => {
+  try {
+    const response = await fetch(`${API_URL}/credit_packages`, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        data: null,
+        error: {
+          message: `Failed to fetch credit packages: ${response.status} ${errorText}`,
+          status: response.status
+        }
+      };
+    }
+
+    const data = await response.json();
+    return { data, error: null };
+  } catch (error) {
+    console.error("❌ Failed to fetch credit packages:", error);
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || "Failed to fetch credit packages",
+        status: 500
+      }
+    };
+  }
+};
+
 // Get all available membership plans (no authentication required)
 export const getAllMembershipPlans = async () => {
   try {
