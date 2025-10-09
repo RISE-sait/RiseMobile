@@ -8,7 +8,7 @@ import BackButton from "@/components/buttons/BackButton";
 import { getUserMemberships } from "@/utils/api";
 import MembershipDetails from "@/components/membership/MembershipDetails";
 import MembershipPurchaseList from "@/components/membership/MembershipPurchaseList";
-import { setMembership } from "@/store/slices/membershipSlice";
+import { setMembership, clearMembership } from "@/store/slices/membershipSlice";
 import type { RootState } from "@/store";
 
 const MembershipScreen: React.FC = () => {
@@ -84,13 +84,10 @@ const MembershipScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    // If we have cached membership data, use it immediately for faster loading
-    if (cachedMembership) {
-      setUserMemberships([cachedMembership]);
-      setStatus('success');
-    }
-    
-    // Always fetch fresh data in the background
+    // Clear stale membership data before loading fresh data
+    dispatch(clearMembership());
+
+    // Always fetch fresh data from the API
     loadMembershipData();
   }, []);
 
