@@ -315,7 +315,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
             <Text style={styles.priceText}>
               {item.price ? (typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : item.price.toString().replace(/\$\$/g, '$')) : "Price not available"}
             </Text>
-            {item.price && <Text style={styles.priceNote}>per month</Text>}
+            {item.price && <Text style={styles.priceNote}>bi-weekly</Text>}
           </View>
         </View>
 
