@@ -576,12 +576,16 @@ export const getPlansForMembership = async (membershipId: string) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ Request failed for membership ${membershipId}:`, {
-        url: requestUrl,
-        status: response.status,
-        statusText: response.statusText,
-        errorBody: errorText
-      });
+
+      // Don't log 503 errors (known issue with incomplete membership configurations)
+      if (response.status !== 503) {
+        console.error(`❌ Request failed for membership ${membershipId}:`, {
+          url: requestUrl,
+          status: response.status,
+          statusText: response.statusText,
+          errorBody: errorText
+        });
+      }
 
       // If 401/403, try refreshing the JWT token once
       if (response.status === 401 || response.status === 403) {
