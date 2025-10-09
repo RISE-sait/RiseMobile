@@ -117,11 +117,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           const plansResult = plansResults[index];
           const plans = plansResult.error ? [] : (plansResult.data || []);
 
-          if (plansResult.error) {
-            console.warn(`⚠️ Failed to fetch plans for membership type "${type.name}":`, plansResult.error);
-          } else {
-          }
-
           // Add a placeholder item for error/empty states when expanded
           let sectionData = plans;
           if (plans.length === 0) {
@@ -190,13 +185,21 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         return result;
       }
 
+      // Gracefully handle 503 errors (membership with no plans configured)
+      // This is a known backend issue - treat as empty plans instead of error
+      if (result.error.status === 503) {
+        return {
+          data: [],
+          error: null
+        };
+      }
+
       // If it's an auth error and we haven't exhausted retries, try refreshing token
       if (result.error.type === 'auth' && attempt < maxRetries) {
         try {
           await refreshBackendJwt();
           // Continue to next iteration to retry
         } catch (refreshError) {
-          console.error(`❌ Failed to refresh token for membership ${membershipId}:`, refreshError);
           // Return the original error if token refresh fails
           return result;
         }
