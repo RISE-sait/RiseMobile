@@ -15,6 +15,7 @@ import type { RootState } from "@/store"
 import { setUser as setReduxUser, logout as reduxLogout } from "@/store/slices/userSlice"
 import { clearPractices } from "@/store/slices/practicesSlice"
 import { clearMatches } from "@/store/slices/gamesSlice"
+import { clearMembership } from "@/store/slices/membershipSlice"
 import { persistor } from "@/store"
 
 type User = {
@@ -565,6 +566,7 @@ export const useAuth = () => {
       dispatch(reduxLogout())           // Clear user data
       dispatch(clearPractices())        // Clear practices cache
       dispatch(clearMatches())          // Clear match history cache
+      dispatch(clearMembership())       // Clear membership cache
       
       // 🔄 Now purge the persisted data
       await persistor.purge()
