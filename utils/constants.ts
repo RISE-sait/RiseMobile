@@ -3,7 +3,7 @@
 
 // Membership test mode flags (read from Expo public env variables)
 export const USE_MEMBERSHIP_TEST_MODE: boolean =
-  (process.env.EXPO_PUBLIC_MEMBERSHIP_TEST_MODE ?? "true").toLowerCase() ===
+  (process.env.EXPO_PUBLIC_MEMBERSHIP_TEST_MODE ?? "false").toLowerCase() ===
   "true";
 
 // Default to the only valid plan ID provided by backend until fixed
