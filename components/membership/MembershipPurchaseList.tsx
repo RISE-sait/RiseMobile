@@ -117,11 +117,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           const plansResult = plansResults[index];
           const plans = plansResult.error ? [] : (plansResult.data || []);
 
-          // Only log errors for auth failures or unexpected errors (not for membership types with no plans)
-          if (plansResult.error && plansResult.error.type === 'auth') {
-            console.warn(`⚠️ Authentication error for membership type "${type.name}":`, plansResult.error);
-          }
-
           // Add a placeholder item for error/empty states when expanded
           let sectionData = plans;
           if (plans.length === 0) {
@@ -205,7 +200,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           await refreshBackendJwt();
           // Continue to next iteration to retry
         } catch (refreshError) {
-          console.warn(`⚠️ Failed to refresh token for membership ${membershipId}:`, refreshError);
           // Return the original error if token refresh fails
           return result;
         }
