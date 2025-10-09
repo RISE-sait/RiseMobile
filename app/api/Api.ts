@@ -398,6 +398,7 @@ export interface MembershipPlanPlanResponse {
   amt_periods?: number;
   created_at?: string;
   id?: string;
+  is_visible?: boolean;
   membership_id?: string;
   name?: string;
   stripe_joining_fees_id?: string;
