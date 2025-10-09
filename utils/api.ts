@@ -789,10 +789,117 @@ export const purchaseMembershipPlan = async (planId: string) => {
   }
 };
 
+// Initiate credit package purchase (requires authentication)
+export const purchaseCreditPackage = async (packageId: string) => {
+  try {
+    // Get stored JWT token for backend authentication
+    let jwtToken = await AsyncStorage.getItem("authToken");
+
+    // If no JWT token, we need to get one from /auth endpoint using Firebase token
+    if (!jwtToken) {
+      try {
+        jwtToken = await refreshBackendJwt();
+      } catch (refreshError) {
+        console.error("❌ Failed to refresh JWT token:", refreshError);
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401
+          }
+        };
+      }
+    }
+
+    const response = await fetch(`${API_URL}/checkout/credit_packages/${packageId}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      // Try to read structured error from backend
+      let errorText = await response.text();
+      let errorMessage = "Failed to initiate credit package purchase";
+      try {
+        const parsed = JSON.parse(errorText || "{}");
+        errorMessage = parsed?.error?.message || errorMessage;
+      } catch {}
+
+      // If 401/403, try refreshing the JWT token once
+      if (response.status === 401 || response.status === 403) {
+        try {
+          jwtToken = await refreshBackendJwt();
+
+          // Retry the request with new token
+          const retryResponse = await fetch(`${API_URL}/checkout/credit_packages/${packageId}`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            let retryMessage = errorMessage;
+            try {
+              const parsed = JSON.parse(retryErrorText || "{}");
+              retryMessage = parsed?.error?.message || retryMessage;
+            } catch {}
+
+            return {
+              data: null,
+              error: {
+                status: retryResponse.status,
+                message: retryMessage
+              }
+            };
+          }
+
+          const retryData = await retryResponse.json();
+          return { data: retryData, error: null };
+        } catch (refreshError) {
+          console.error("❌ Failed to refresh token on retry:", refreshError);
+          return {
+            data: null,
+            error: {
+              message: `Authentication failed: ${response.status} ${errorText}`,
+              status: response.status
+            }
+          };
+        }
+      }
+
+      return {
+        data: null,
+        error: {
+          status: response.status,
+          message: errorMessage
+        }
+      };
+    }
+
+    const data = await response.json();
+    return { data, error: null };
+  } catch (error) {
+    console.error("❌ Failed to purchase credit package:", error);
+    return {
+      data: null,
+      error: {
+        status: 500,
+        message: (error as Error).message || "Failed to purchase credit package"
+      }
+    };
+  }
+};
+
 export const getMembershipByCustomerId = async (customerId: string) => {
   // Get stored JWT token for backend authentication
   let jwtToken = await AsyncStorage.getItem("authToken");
-  
+
   if (!jwtToken) {
     try {
       jwtToken = await refreshBackendJwt();

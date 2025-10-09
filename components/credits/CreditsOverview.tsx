@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, Modal } from 'react-native'
 import { FontAwesome5 } from '@expo/vector-icons'
+import { WebView } from 'react-native-webview'
 import axios from 'axios'
-import { API_URL, getCreditPackages } from '@/utils/api'
+import { API_URL, getCreditPackages, purchaseCreditPackage } from '@/utils/api'
 import { COLORS } from '@/constants/colors'
 import type { CreditPackage } from '@/types/credit'
 
@@ -44,6 +45,9 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
   const [loading, setLoading] = useState(true)
   const [packagesLoading, setPackagesLoading] = useState(false)
   const [showTransactions, setShowTransactions] = useState(false)
+  const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null)
+  const [showWebView, setShowWebView] = useState(false)
+  const [paymentUrl, setPaymentUrl] = useState('')
 
   const fetchCreditsData = async () => {
     try {
@@ -192,6 +196,57 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
     )
   }
 
+  const handlePurchasePackage = async (packageId: string, packageName: string) => {
+    setPurchaseLoading(packageId)
+    try {
+      const result = await purchaseCreditPackage(packageId)
+
+      if (result?.error) {
+        const errorMessage = result.error.message || 'Unable to initiate purchase. Please try again.'
+        console.error('Purchase error:', errorMessage)
+        alert(`Purchase Failed\n${errorMessage}`)
+        return
+      }
+
+      // Success - open WebView with payment URL
+      const data = result?.data
+      if (data && data.payment_url) {
+        setPaymentUrl(data.payment_url)
+        setShowWebView(true)
+      } else {
+        alert('Purchase Unavailable\nUnable to initiate purchase. Please try again later.')
+      }
+    } catch (error) {
+      console.error('Purchase error:', error)
+      alert(`Purchase Failed\n${(error as Error)?.message || 'Unable to initiate purchase.'}`)
+    } finally {
+      setPurchaseLoading(null)
+    }
+  }
+
+  const handleWebViewNavigationStateChange = (navState: any) => {
+    const { url } = navState
+
+    // Check for payment success patterns
+    if (url.includes('success') || url.includes('complete')) {
+      setShowWebView(false)
+      alert('Payment Successful\nYour credit package purchase was completed successfully!')
+      // Refresh credits data
+      fetchCreditsData()
+    }
+
+    // Check for payment failure patterns
+    if (url.includes('cancel') || url.includes('error') || url.includes('fail')) {
+      setShowWebView(false)
+      alert('Payment Cancelled\nYour payment was cancelled or failed. Please try again.')
+    }
+  }
+
+  const handleCloseWebView = () => {
+    setShowWebView(false)
+    setPaymentUrl('')
+  }
+
   const renderCreditPackage = ({ item }: { item: CreditPackage }) => (
     <View style={styles.packageCard}>
       <View style={styles.packageHeader}>
@@ -214,13 +269,21 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
       </View>
 
       <TouchableOpacity
-        style={styles.packageBuyButton}
-        onPress={() => {
-          // TODO: Implement purchase logic in future task
-          console.log('Purchase package:', item.id)
-        }}
+        style={[
+          styles.packageBuyButton,
+          purchaseLoading !== null && styles.packageBuyButtonDisabled
+        ]}
+        onPress={() => handlePurchasePackage(item.id, item.name)}
+        disabled={purchaseLoading !== null}
       >
-        <Text style={styles.packageBuyButtonText}>Purchase</Text>
+        {purchaseLoading === item.id ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ActivityIndicator size="small" color="#000000" />
+            <Text style={[styles.packageBuyButtonText, { marginLeft: 8 }]}>Processing...</Text>
+          </View>
+        ) : (
+          <Text style={styles.packageBuyButtonText}>Purchase</Text>
+        )}
       </TouchableOpacity>
     </View>
   )
@@ -327,6 +390,47 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
         }
         contentContainerStyle={styles.listContainer}
       />
+
+      {/* Payment WebView Modal */}
+      <Modal
+        visible={showWebView}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCloseWebView}
+      >
+        <View style={{ flex: 1, backgroundColor: '#fff' }}>
+          {/* WebView Header */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: '#e0e0e0'
+          }}>
+            <Text style={{ fontSize: 18, fontWeight: '600' }}>Complete Payment</Text>
+            <TouchableOpacity onPress={handleCloseWebView}>
+              <Text style={{ color: '#007AFF', fontSize: 16 }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* WebView */}
+          {paymentUrl ? (
+            <WebView
+              source={{ uri: paymentUrl }}
+              onNavigationStateChange={handleWebViewNavigationStateChange}
+              startInLoadingState={true}
+              scalesPageToFit={true}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+            />
+          ) : (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: '#999999' }}>Loading payment page...</Text>
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -353,6 +457,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 20,
+    marginTop: 16,
     marginBottom: 16,
     alignItems: 'center',
   },
@@ -534,6 +639,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
+  },
+  packageBuyButtonDisabled: {
+    backgroundColor: '#B8860B',
+    opacity: 0.7,
   },
   packageBuyButtonText: {
     fontSize: 16,
