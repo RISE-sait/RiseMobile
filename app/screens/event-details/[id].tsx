@@ -27,7 +27,7 @@ import { FontAwesome5 } from "@expo/vector-icons"
 import EventImageHeader from "@/components/events/EventImageHeader"
 import BackButton from "@/components/buttons/BackButton"
 import EventInfoRow from "@/components/events/EventInfoRow"
-import { API_URL, getMembershipByCustomerId, getEventEnrollmentOptions } from "@/utils/api"
+import { API_URL, getMembershipByCustomerId, getEventEnrollmentOptions, enrollEventWithCredits } from "@/utils/api"
 import { setMembership } from "@/store/slices/membershipSlice"
 import { COLORS } from "@/constants/colors"
 import * as WebBrowser from 'expo-web-browser'
@@ -728,49 +728,63 @@ const EventDetails: React.FC = () => {
 
     setEnrolling(true)
     try {
-      const response = await fetch(
-        `${API_URL}/checkout/events/${event.id}/enhanced`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ payment_method: paymentMethod })
-        }
-      )
+      // Use credit-specific API function for credit payments
+      if (paymentMethod === 'credits') {
+        const data = await enrollEventWithCredits(event.id, userData.token)
 
-      const data = await response.json()
-
-      if (response.ok) {
-        if (data.payment_link || data.payment_url) {
-          // Outcome 2: Stripe payment required
-          const paymentUrl = data.payment_link || data.payment_url
-          setIsCheckingPayment(true)
-          await WebBrowser.openBrowserAsync(paymentUrl)
-          // Don't show alert immediately - let app state handling take care of verification
-        } else {
-          // Outcome 1 or 3: Free enrollment or credit payment successful
-          setRegistered(true)
-          Alert.alert(
-            "Registration Successful!",
-            data.message || "You've been successfully enrolled in this event.",
-            [{ text: "OK", onPress: () => fetchEventDetails() }]
-          )
-          // Refresh credits if used
-          if (paymentMethod === 'credits') {
-            fetchUserCredits()
-          }
-        }
+        // Credit payment successful
+        setRegistered(true)
+        Alert.alert(
+          "Registration Successful!",
+          data.message || "You've been successfully enrolled using credits.",
+          [{ text: "OK", onPress: () => fetchEventDetails() }]
+        )
+        // Refresh credit balance after successful enrollment
+        fetchUserCredits()
         setShowPaymentOptions(false)
       } else {
-        // Handle API errors with server message
-        const errorMessage = data?.error?.message || data?.message || "Registration failed. Please try again."
-        Alert.alert("Registration Failed", errorMessage)
+        // Stripe or free enrollment - use enhanced endpoint
+        const response = await fetch(
+          `${API_URL}/checkout/events/${event.id}/enhanced`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${userData.token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ payment_option: paymentMethod })
+          }
+        )
+
+        const data = await response.json()
+
+        if (response.ok) {
+          if (data.payment_link || data.payment_url) {
+            // Outcome 2: Stripe payment required
+            const paymentUrl = data.payment_link || data.payment_url
+            setIsCheckingPayment(true)
+            await WebBrowser.openBrowserAsync(paymentUrl)
+            // Don't show alert immediately - let app state handling take care of verification
+          } else {
+            // Outcome 1: Free enrollment successful
+            setRegistered(true)
+            Alert.alert(
+              "Registration Successful!",
+              data.message || "You've been successfully enrolled in this event.",
+              [{ text: "OK", onPress: () => fetchEventDetails() }]
+            )
+          }
+          setShowPaymentOptions(false)
+        } else {
+          // Handle API errors with server message
+          const errorMessage = data?.error?.message || data?.message || "Registration failed. Please try again."
+          Alert.alert("Registration Failed", errorMessage)
+        }
       }
     } catch (error: any) {
       console.error("Enrollment error:", error)
-      Alert.alert("Connection Error", "Unable to connect to our servers. Please check your internet connection and try again.")
+      const errorMessage = error.response?.data?.error?.message || error.message || "Unable to connect to our servers. Please check your internet connection and try again."
+      Alert.alert("Connection Error", errorMessage)
     } finally {
       setEnrolling(false)
     }
