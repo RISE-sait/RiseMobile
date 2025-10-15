@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { loginUser, registerUser } from "./api" // Import API functions
+import { loginUser, registerUser, verifyEmail as apiVerifyEmail, resendVerificationEmail as apiResendVerificationEmail } from "./api" // Import API functions
 import { auth } from "@/firebase/firebaseConfig"
 import { GoogleAuthProvider, signInWithCredential, OAuthProvider, onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth"
 import * as WebBrowser from "expo-web-browser"
@@ -629,6 +629,28 @@ export const useAuth = () => {
     }
   }, [firebaseUser, isAuthLoaded, isLoadingFromStorage])
 
+  // 🔹 Verify email with token
+  const verifyEmail = async (token: string) => {
+    try {
+      const result = await apiVerifyEmail(token)
+      return result
+    } catch (error) {
+      console.error("❌ Email verification failed:", error)
+      throw error
+    }
+  }
+
+  // 🔹 Resend verification email
+  const resendVerificationEmail = async (email: string) => {
+    try {
+      const result = await apiResendVerificationEmail(email)
+      return result
+    } catch (error) {
+      console.error("❌ Resend verification failed:", error)
+      throw error
+    }
+  }
+
   return {
     user,
     isLoading,
@@ -645,6 +667,8 @@ export const useAuth = () => {
     forceReLogin,
     getValidToken,
     getValidFirebaseToken,
+    verifyEmail,
+    resendVerificationEmail,
   }
 }
 

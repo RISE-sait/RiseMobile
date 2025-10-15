@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/colors";
 import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector";
 import TeamSelector from "@/components/practiceBooking/TeamSelector";
+import CourtSelector from "@/components/practiceBooking/CourtSelector";
 import RecurringOptions from "@/components/practiceBooking/RecurringOptions";
 import ConfirmationModal from "@/components/practiceBooking/ConfirmationModal";
 import StepIndicator from "@/components/practiceBooking/StepIndicator";
@@ -27,6 +28,8 @@ import { useAppDispatch } from "@/store/hooks";
 import { API_URL } from "@/utils/api";
 import { useSelector } from "react-redux"
 import { fetchTeams, selectTeamsForCoach, selectAllTeams } from "@/store/slices/teamsSlice"
+import { fetchCourts, forceFetchCourts, selectAllCourts } from "@/store/slices/courtsSlice"
+import type { Court } from "@/store/slices/courtsSlice"
 import { selectCurrentUser } from "@/store/selectors/userSelectors"
 import { RootState } from "@/store"
 import type { CreatePracticePayload, CreateRecurringPracticePayload } from "@/types/practice"
@@ -66,13 +69,18 @@ const CoachPracticeBooking = () => {
   const translateY = useRef(new Animated.Value(20)).current
 
   // Form State
-  const [date, setDate] = useState(new Date())
+  const [date, setDate] = useState(() => new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
-  const [startTime, setStartTime] = useState(new Date())
+  const [startTime, setStartTime] = useState(() => new Date())
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
-  const [endTime, setEndTime] = useState(new Date(new Date().setHours(new Date().getHours() + 2)))
+  const [endTime, setEndTime] = useState(() => {
+    const now = new Date()
+    now.setHours(now.getHours() + 2)
+    return now
+  })
   const [showEndTimePicker, setShowEndTimePicker] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState<TeamDisplay | null>(null)
+  const [selectedCourt, setSelectedCourt] = useState<Court | null>(null)
   const [isRecurring, setIsRecurring] = useState(false)
   const [recurringOptions, setRecurringOptions] = useState<RecurringOptionsType>({
     weekly: true,
@@ -95,13 +103,15 @@ const CoachPracticeBooking = () => {
     }
   )
 
+  const courts = useSelector(selectAllCourts)
+
 
 
 
 
 
 useEffect(() => {
-  const fetchCoachTeams = async () => {
+  const fetchCoachData = async () => {
     try {
       if (!firebaseUser) {
         return
@@ -117,14 +127,17 @@ useEffect(() => {
         return
       }
 
+      // Fetch both teams and courts
       dispatch(fetchTeams(token))
+      dispatch(fetchCourts(token))
     } catch (error) {
       // Silent error handling
     }
   }
 
-  fetchCoachTeams()
-}, [dispatch, firebaseUser, getValidToken, user?.id])
+  fetchCoachData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [dispatch, user?.id])
 
   
 
@@ -139,14 +152,19 @@ useEffect(() => {
 
   const validateCurrentStep = () => {
     const errors: {[key: string]: string} = {}
-    
-   
+
+    if (currentStep === 1) {
+      if (!selectedCourt) {
+        errors.court = "Please select a court"
+      }
+    }
+
     if (currentStep === 2) {
       if (!selectedTeam) {
         errors.team = "Please select a team"
       }
     }
-    
+
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -198,7 +216,11 @@ const handleConfirmBooking = async () => {
     return
   }
 
-  
+  if (!selectedCourt) {
+    Alert.alert("Missing Info", "Please select a court.")
+    return
+  }
+
   if (!user?.id) {
     // No user logged in
     Alert.alert("Error", "User not found. Please log in again.")
@@ -243,21 +265,21 @@ const handleConfirmBooking = async () => {
       return
     }
 
-    // Create payloads with proper date/time combination
+    // Create payloads with proper date/time combination and selected court
     const payload: CreatePracticePayload = {
       booked_by: user.id,
-      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
+      court_id: selectedCourt.id,
       end_time: combinedEndDateTime.toISOString(),
-      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
+      location_id: selectedCourt.location_id,
       start_time: combinedStartDateTime.toISOString(),
       status: "scheduled",
       team_id: selectedTeam.id,
     };
 
     const recurringPayload = {
-      court_id: DEFAULT_BOOKING_CONFIG.COURT_ID,
+      court_id: selectedCourt.id,
       day: dayjs(date).format("dddd").toUpperCase(), // "MONDAY" (uppercase)
-      location_id: DEFAULT_BOOKING_CONFIG.LOCATION_ID,
+      location_id: selectedCourt.location_id,
       practice_start_at: combinedStartDateTime.format("HH:mm:ss+00:00"), // "18:00:00+00:00"
       practice_end_at: combinedEndDateTime.format("HH:mm:ss+00:00"), // "20:00:00+00:00"
       recurrence_start_at: dayjs(date).startOf('day').toISOString(), // "2025-10-01T00:00:00Z"
@@ -367,13 +389,15 @@ const handleConfirmBooking = async () => {
           keyExtractor={(item) => item.key}
           renderItem={() => (
             <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY }] }]}>
-              {/* Step 1: Facility, Date & Time Selection */}
+              {/* Step 1: Date, Time & Court Selection */}
               {currentStep === 1 && (
                 <>
                   <View style={styles.sectionContainer}>
                     <Text style={styles.sectionTitle}>Schedule Details</Text>
-                    <Text style={styles.sectionSubtitle}>Select when you want to schedule this practice</Text>
+                    <Text style={styles.sectionSubtitle}>Select when and where you want to schedule this practice</Text>
                   </View>
+
+                  {/* Date & Time Selection - BEFORE Court Selection */}
                   <DateTimeSelector
                     label="Date"
                     date={date}
@@ -384,7 +408,7 @@ const handleConfirmBooking = async () => {
                     hasError={!!formErrors.date}
                     errorMessage={formErrors.date}
                   />
-                  
+
                   <View style={styles.timeRangeContainer}>
                     <DateTimeSelector
                       label="Start Time"
@@ -406,6 +430,35 @@ const handleConfirmBooking = async () => {
                       errorMessage={formErrors.time}
                     />
                   </View>
+
+                  {/* Court Selection - AFTER Date/Time */}
+                  {courts.length === 0 ? (
+                    <View style={styles.noCourtsContainer}>
+                      <Text style={styles.noCourtsText}>No courts found. Pull down to refresh or check your connection.</Text>
+                      <TouchableOpacity
+                        style={styles.refreshButton}
+                        onPress={async () => {
+                          const token = await getValidToken()
+                          if (token) {
+                            dispatch(forceFetchCourts(token))
+                          }
+                        }}
+                      >
+                        <Text style={styles.refreshButtonText}>Refresh Courts</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <CourtSelector
+                      courts={courts}
+                      selectedCourt={selectedCourt}
+                      setSelectedCourt={setSelectedCourt}
+                      selectedDate={date}
+                      startTime={startTime}
+                      endTime={endTime}
+                      hasError={!!formErrors.court}
+                      errorMessage={formErrors.court}
+                    />
+                  )}
                 </>
               )}
 
@@ -497,11 +550,11 @@ const handleConfirmBooking = async () => {
         startTime={startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         endTime={endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         team={selectedTeam ? selectedTeam.name : undefined}
-        facility={DEFAULT_BOOKING_CONFIG.LOCATION_NAME}
+        facility={selectedCourt ? `${selectedCourt.location_name || 'Court'} - ${selectedCourt.name}` : 'No court selected'}
         notes={undefined}
         isRecurring={isRecurring}
-        recurringDetails={isRecurring ? 
-          `Repeats ${recurringOptions.weekly ? 'weekly' : recurringOptions.biweekly ? 'biweekly' : 'monthly'} for ${recurringOptions.occurrences} occurrences` : 
+        recurringDetails={isRecurring ?
+          `Repeats ${recurringOptions.weekly ? 'weekly' : recurringOptions.biweekly ? 'biweekly' : 'monthly'} for ${recurringOptions.occurrences} occurrences` :
           undefined
         }
         isSubmitting={isSubmitting}
@@ -659,6 +712,19 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   noTeamsText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  noCourtsContainer: {
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: COLORS.cardLight,
+    borderRadius: 8,
+    marginVertical: 10,
+  },
+  noCourtsText: {
     fontSize: 14,
     color: COLORS.textSecondary,
     textAlign: "center",

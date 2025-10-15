@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal, View, Text, TouchableOpacity, Image, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { fetchQRCode } from "@/utils/api"; // Import the API function
 
 interface SlideUpModalProps {
   visible: boolean;
@@ -12,23 +11,6 @@ export default function SlideUpModal({ visible, onClose }: SlideUpModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (visible) {
-      // Fetch QR code when the modal is visible
-      setIsLoading(true);
-      fetchQRCode()
-        .then((url) => {
-          setQrCode(url);
-          setIsLoading(false);
-        })
-        .catch((error) => {
-          console.error("Error fetching QR code:", error);
-          setIsLoading(false);
-        });
-    } else {
-      setQrCode(null); // Reset QR code when the modal is closed
-    }
-  }, [visible]);
 
   return (
     <Modal

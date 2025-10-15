@@ -39,6 +39,7 @@ const SignUpScreen = () => {
     phoneInputFocused,
     roleModalVisible,
     countryPickerVisible,
+    phoneCountryPickerVisible,
     updateFormData,
     setErrors,
     setPasswordVisible,
@@ -46,6 +47,7 @@ const SignUpScreen = () => {
     setPhoneInputFocused,
     setRoleModalVisible,
     setCountryPickerVisible,
+    setPhoneCountryPickerVisible,
     formatPhoneNumber,
     validateForm,
     validatePassword,
@@ -106,9 +108,12 @@ const SignUpScreen = () => {
                   validatePassword={validatePassword}
                   onSignUp={handleSignUp}
                   onOpenRoleModal={() => setRoleModalVisible(true)}
+                  onCancelRegistration={() => router.replace("/(auth)/login")}
                   isLoading={isLoading}
                   setCountryPickerVisible={setCountryPickerVisible}
                   countryPickerVisible={countryPickerVisible}
+                  setPhoneCountryPickerVisible={setPhoneCountryPickerVisible}
+                  phoneCountryPickerVisible={phoneCountryPickerVisible}
                   formatPhoneNumber={formatPhoneNumber}
                   step={step}
                   setStep={setStep}

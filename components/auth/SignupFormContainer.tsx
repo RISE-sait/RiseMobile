@@ -1,9 +1,10 @@
 import type React from "react"
-import { View, StyleSheet } from "react-native"
+import { View, StyleSheet, Alert, Platform } from "react-native"
 import { SignupStep1Form } from "./SignupStep1Form"
 import { SignupStep2Form } from "./SignupStep2Form"
 import type { Animated } from "react-native"
 import type { SignupFormData, SignupFormErrors } from "@/hooks/auth/useSignupForm"
+import * as Haptics from "expo-haptics"
 
 interface SignupFormContainerProps {
   formData: SignupFormData
@@ -21,9 +22,12 @@ interface SignupFormContainerProps {
   validatePassword: (password: string) => { valid: boolean; strength: string; message: string }
   onSignUp: () => void
   onOpenRoleModal: () => void
+  onCancelRegistration: () => void
   isLoading: boolean
   setCountryPickerVisible: (visible: boolean) => void
   countryPickerVisible: boolean
+  setPhoneCountryPickerVisible: (visible: boolean) => void
+  phoneCountryPickerVisible: boolean
   formatPhoneNumber: (text: string) => void
   step: number
   setStep: (step: number) => void
@@ -45,16 +49,19 @@ export const SignupFormContainer: React.FC<SignupFormContainerProps> = ({
   validatePassword,
   onSignUp,
   onOpenRoleModal,
+  onCancelRegistration,
   isLoading,
   setCountryPickerVisible,
   countryPickerVisible,
+  setPhoneCountryPickerVisible,
+  phoneCountryPickerVisible,
   formatPhoneNumber,
   step,
   setStep,
 }) => {
   // Handle continue to step 2
   const handleContinueToStep2 = () => {
-    const newErrors = {}
+    const newErrors: SignupFormErrors = {}
 
     if (!formData.email) newErrors.email = "Email is required"
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email format"
@@ -65,7 +72,20 @@ export const SignupFormContainer: React.FC<SignupFormContainerProps> = ({
       if (!passwordCheck.valid) newErrors.password = passwordCheck.message
     }
 
-    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords don't match"
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords don't match"
+
+      // Show alert for password mismatch
+      if (Platform.OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      }
+
+      Alert.alert(
+        "Passwords Don't Match",
+        "Please make sure both password fields contain the same password.",
+        [{ text: "OK" }]
+      )
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -112,6 +132,8 @@ export const SignupFormContainer: React.FC<SignupFormContainerProps> = ({
           setFormattedPhoneNumber={(value) => updateFormData("formattedPhoneNumber", value)}
           phoneInputFocused={phoneInputFocused}
           setPhoneInputFocused={setPhoneInputFocused}
+          phoneCountry={formData.phoneCountry}
+          setPhoneCountry={(value) => updateFormData("phoneCountry", value)}
           country={formData.country}
           setCountry={(value) => updateFormData("country", value)}
           errors={errors}
@@ -120,10 +142,17 @@ export const SignupFormContainer: React.FC<SignupFormContainerProps> = ({
           slideAnim={slideAnim}
           onSignUp={onSignUp}
           onOpenRoleModal={onOpenRoleModal}
+          onCancelRegistration={onCancelRegistration}
           isLoading={isLoading}
           setCountryPickerVisible={setCountryPickerVisible}
           countryPickerVisible={countryPickerVisible}
+          setPhoneCountryPickerVisible={setPhoneCountryPickerVisible}
+          phoneCountryPickerVisible={phoneCountryPickerVisible}
           formatPhoneNumber={formatPhoneNumber}
+          acceptedTerms={formData.acceptedTerms}
+          setAcceptedTerms={(value) => updateFormData("acceptedTerms", value)}
+          acceptedWaiver={formData.acceptedWaiver}
+          setAcceptedWaiver={(value) => updateFormData("acceptedWaiver", value)}
         />
       )}
     </View>
