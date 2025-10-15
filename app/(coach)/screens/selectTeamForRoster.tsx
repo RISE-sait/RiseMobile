@@ -25,6 +25,7 @@ import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError } from
 import type { RootState } from "@/store"
 import images from "@/constants/images"
 import { createTeam, updateTeam, deleteTeam } from "@/utils/api"
+import { ErrorToast } from "@/components/auth/ErrorToast"
 
 const { width } = Dimensions.get("window")
 
@@ -62,6 +63,7 @@ const SelectTeamForRoster: React.FC = () => {
   const [teamName, setTeamName] = useState("")
   const [teamCapacity, setTeamCapacity] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -181,8 +183,13 @@ const SelectTeamForRoster: React.FC = () => {
       closeTeamModal()
     } catch (error: any) {
       console.error("Error saving team:", error)
-      const errorMessage = error.response?.data?.error?.message || error.message || "Failed to save team"
-      Alert.alert("Error", errorMessage)
+      const errorMsg = error.response?.data?.error?.message || error.message || "Failed to save team"
+
+      // Use ErrorToast instead of Alert for non-blocking error display
+      setErrorMessage(errorMsg)
+
+      // Auto-clear error message after 3 seconds
+      setTimeout(() => setErrorMessage(null), 3000)
     } finally {
       setSubmitting(false)
     }
@@ -215,8 +222,13 @@ const SelectTeamForRoster: React.FC = () => {
               await dispatch(fetchTeams(user.token) as any)
             } catch (error: any) {
               console.error("Error deleting team:", error)
-              const errorMessage = error.response?.data?.error?.message || error.message || "Failed to delete team"
-              Alert.alert("Error", errorMessage)
+              const errorMsg = error.response?.data?.error?.message || error.message || "Failed to delete team"
+
+              // Use ErrorToast instead of Alert for non-blocking error display
+              setErrorMessage(errorMsg)
+
+              // Auto-clear error message after 3 seconds
+              setTimeout(() => setErrorMessage(null), 3000)
             }
           },
         },
@@ -470,6 +482,9 @@ const SelectTeamForRoster: React.FC = () => {
       </Animated.View>
 
       {renderTeamModal()}
+
+      {/* Error Toast for non-blocking error display */}
+      <ErrorToast message={errorMessage} />
     </SafeAreaView>
   )
 }
