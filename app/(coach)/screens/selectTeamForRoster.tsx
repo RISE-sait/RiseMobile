@@ -174,6 +174,15 @@ const SelectTeamForRoster: React.FC = () => {
         await updateTeam(editingTeam.id!, updateData, user.token)
         Alert.alert("Success", "Team updated successfully")
       } else {
+        // Debug logging
+        console.log("Creating new team with data:", {
+          name: teamName.trim(),
+          capacity,
+          coach_id: user.id,
+          user_role: user.role,
+          user_id: user.id
+        });
+        
         // Create new team - include coach_id as required by backend
         const createData = {
           name: teamName.trim(),

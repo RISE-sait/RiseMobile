@@ -395,6 +395,14 @@ export const createTeam = async (teamData: { name: string; capacity: number; log
       headers["firebase_token"] = firebaseToken;
     }
 
+    // Debug logging
+    console.log("Sending team creation request:", {
+      url: `${API_URL}/teams`,
+      teamData,
+      hasToken: !!token,
+      hasFirebaseToken: !!firebaseToken
+    });
+
     const response = await axios.post(`${API_URL}/teams`, teamData, {
       headers,
     });
