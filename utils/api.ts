@@ -85,8 +85,53 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       profileImage: (response.data as any).photo_url || "", // ✅ Include profile image from backend
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error logging in:", error);
+
+    // ✅ Handle unverified email error (403 Forbidden)
+    if (error.response?.status === 403) {
+      const customError: any = new Error("EMAIL_NOT_VERIFIED");
+      customError.code = "EMAIL_NOT_VERIFIED";
+      customError.email = email;
+      throw customError;
+    }
+
+    throw error;
+  }
+};
+
+// 🔹 **Verify Email with Token**
+export const verifyEmail = async (token: string): Promise<{ message: string; verified: boolean }> => {
+  try {
+    console.log("🔍 Verifying email with token:", token?.substring(0, 20) + "...");
+    const response = await axios.post(`${API_URL}/auth/verify-email`, { token });
+    console.log("✅ Verification response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Email verification failed:", {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+    });
+    throw error;
+  }
+};
+
+// 🔹 **Resend Verification Email**
+export const resendVerificationEmail = async (email: string): Promise<{ message: string }> => {
+  try {
+    console.log("📧 Resending verification email to:", email);
+    const response = await axios.post(`${API_URL}/auth/resend-verification`, { email });
+    console.log("✅ Resend response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Resend verification failed:", {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+    });
     throw error;
   }
 };
@@ -146,9 +191,23 @@ export const registerUser = async (
   countryCode: string
 ): Promise<any> => {
   try {
+    // 🔹 Validate and clean inputs
+    const cleanEmail = email?.trim() || "";
+    const cleanPassword = password?.trim() || "";
+
+    console.log("📧 Registration attempt:", {
+      email: cleanEmail,
+      emailLength: cleanEmail.length,
+      hasEmail: !!cleanEmail,
+      role,
+    });
+
+    if (!cleanEmail || !cleanPassword) {
+      throw new Error("Email and password are required");
+    }
 
     // ✅ Create user in Firebase Authentication
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
     const firebaseUser = userCredential.user;
 
     if (!firebaseUser) {
@@ -223,7 +282,7 @@ export const registerUser = async (
 
     return {
       id: firebaseUser.uid,
-      email: firebaseUser.email || email,
+      email: firebaseUser.email || cleanEmail,
       firstName,
       lastName,
       role,

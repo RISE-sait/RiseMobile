@@ -24,29 +24,41 @@ const MembershipScreen: React.FC = () => {
   const cachedMembership = useSelector((state: RootState) => state.membership.data);
   const userToken = useSelector((state: RootState) => state.user.data?.token);
 
-  const loadMembershipData = async () => {
-    setStatus('loading');
+  const loadMembershipData = async (showLoading = false) => {
+    // Only show loading state if explicitly requested (e.g., first load without cache)
+    if (showLoading) {
+      setStatus('loading');
+    }
+
     try {
       // Call GET /secure/customers/memberships with unified response format
       const result = await getUserMemberships();
 
       if (result.error) {
         console.error("❌ Error loading membership info:", result.error);
-        setStatus('error');
+        // Only set error if we don't have cached data to show
+        if (!cachedMembership) {
+          setStatus('error');
+        }
       } else {
         const memberships = result.data || [];
         setUserMemberships(memberships);
-        
+
         // Cache the membership data in Redux store
         if (memberships.length > 0) {
           dispatch(setMembership(memberships[0]));
+        } else {
+          dispatch(clearMembership());
         }
-        
+
         setStatus('success');
       }
     } catch (e) {
       console.error("An unexpected error occurred in loadMembershipData:", e);
-      setStatus('error'); // Ensure program exits loading state under any exception
+      // Only set error if we don't have cached data to show
+      if (!cachedMembership) {
+        setStatus('error');
+      }
     }
   };
 
@@ -87,11 +99,16 @@ const MembershipScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    // Clear stale membership data before loading fresh data
-    dispatch(clearMembership());
-
-    // Always fetch fresh data from the API
-    loadMembershipData();
+    // If we have cached membership, show it immediately while fetching fresh data
+    if (cachedMembership) {
+      setUserMemberships([cachedMembership]);
+      setStatus('success');
+      // Fetch fresh data in the background without showing loading state
+      loadMembershipData(false);
+    } else {
+      // No cached data, show loading state while fetching
+      loadMembershipData(true);
+    }
   }, []);
 
 

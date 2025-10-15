@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchCourts, selectAllCourts, selectCourtsLoading, selectCourtsError } from '@/store/slices/courtsSlice';
+import { fetchCourts, forceFetchCourts, selectAllCourts, selectCourtsLoading, selectCourtsError } from '@/store/slices/courtsSlice';
 import BackButton from '@/components/buttons/BackButton';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -171,44 +171,29 @@ const CourtsScreen: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadCourts();
+    // Use forceFetchCourts to bypass cache on manual refresh
+    if (user?.token) {
+      try {
+        await dispatch(forceFetchCourts(user.token)).unwrap();
+      } catch (err) {
+        Alert.alert('Error', 'Failed to refresh courts. Please try again.');
+      }
+    }
     setRefreshing(false);
   };
 
   const handleCourtPress = (court: any) => {
-    if (court.status === 'available') {
-      const actionText = isCoach ? 'Schedule Practice' : 'Book Court';
-      const buttonText = isCoach ? 'Schedule Practice' : 'Book Now';
+    // Show court information only - no booking functionality
+    const statusMessage = `${court.name} is currently ${getStatusText(court.status).toLowerCase()}.`;
+    const eventInfo = court.current_event
+      ? `\n\nCurrent activity: ${court.current_event.title}\nStarts: ${formatTime(court.current_event.start_time)}\nEnds: ${formatTime(court.current_event.end_time)}`
+      : '';
 
-      Alert.alert(
-        actionText,
-        `Would you like to ${isCoach ? 'schedule a practice on' : 'book'} ${court.name}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: buttonText,
-            onPress: () => {
-              if (isCoach) {
-                // Navigate to practice booking with court pre-selected
-                router.push('/screens/coach-booking/practiceBooking');
-              } else {
-                // Navigate to court booking flow
-                Alert.alert('Coming Soon', 'Court booking will be available soon!');
-              }
-            }
-          },
-        ]
-      );
-    } else {
-      Alert.alert(
-        'Court Information',
-        `${court.name} is currently ${getStatusText(court.status).toLowerCase()}.${
-          court.current_event
-            ? `\n\nCurrent activity: ${court.current_event.title}\nEnds at: ${formatTime(court.current_event.end_time)}`
-            : ''
-        }`
-      );
-    }
+    Alert.alert(
+      'Court Information',
+      statusMessage + eventInfo,
+      [{ text: 'OK' }]
+    );
   };
 
   const renderCourtCard = (court: any, index: number) => {
@@ -264,31 +249,6 @@ const CourtsScreen: React.FC = () => {
               <FontAwesome5 name={getStatusIcon(court.status)} size={16} color={statusColor} />
             </View>
 
-            {/* Coach Badge */}
-            {isCoach && (
-              <View style={{
-                position: 'absolute',
-                top: 15,
-                right: 80, // Position it away from the status indicator
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 12,
-                backgroundColor: COLORS.primary + '20',
-                zIndex: 2,
-              }}>
-                <FontAwesome5 name="chalkboard-teacher" size={12} color={COLORS.primary} />
-                <Text style={{
-                  color: COLORS.primary,
-                  fontSize: 10,
-                  fontWeight: '600',
-                  marginLeft: 4,
-                }}>
-                  COACH
-                </Text>
-              </View>
-            )}
 
             {/* Court Header */}
             <View style={{ marginBottom: 16 }}>
@@ -398,14 +358,14 @@ const CourtsScreen: React.FC = () => {
                     }}>
                       {court.current_event.title}
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name="time" size={14} color={COLORS.textSecondary} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                      <Ionicons name="time-outline" size={14} color={COLORS.textSecondary} />
                       <Text style={{
                         color: COLORS.textSecondary,
                         fontSize: 13,
                         marginLeft: 6,
                       }}>
-                        Ends at {formatTime(court.current_event.end_time)}
+                        {formatTime(court.current_event.start_time)} - {formatTime(court.current_event.end_time)}
                       </Text>
                     </View>
                   </View>
@@ -413,7 +373,7 @@ const CourtsScreen: React.FC = () => {
               </View>
             )}
 
-            {/* Role-based Action Section */}
+            {/* View Info Action Section */}
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -427,10 +387,7 @@ const CourtsScreen: React.FC = () => {
                 fontSize: 14,
                 fontWeight: '500',
               }}>
-                {isAvailable
-                  ? (isCoach ? 'Schedule practice here' : 'Ready to book')
-                  : 'View activity details'
-                }
+                Tap for more details
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -438,27 +395,20 @@ const CourtsScreen: React.FC = () => {
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 20,
-                backgroundColor: isAvailable
-                  ? (isCoach ? COLORS.primary + '20' : COLORS.success + '20')
-                  : COLORS.textSecondary + '20',
+                backgroundColor: COLORS.primary + '20',
               }}>
                 <Ionicons
-                  name={isAvailable ? (isCoach ? 'calendar' : 'add-circle') : 'information-circle'}
+                  name="information-circle"
                   size={16}
-                  color={isAvailable
-                    ? (isCoach ? COLORS.primary : COLORS.success)
-                    : COLORS.textSecondary
-                  }
+                  color={COLORS.primary}
                 />
                 <Text style={{
-                  color: isAvailable
-                    ? (isCoach ? COLORS.primary : COLORS.success)
-                    : COLORS.textSecondary,
+                  color: COLORS.primary,
                   fontSize: 12,
                   fontWeight: '600',
                   marginLeft: 6,
                 }}>
-                  {isAvailable ? (isCoach ? 'SCHEDULE' : 'BOOK') : 'INFO'}
+                  VIEW
                 </Text>
               </View>
             </View>
@@ -562,7 +512,7 @@ const CourtsScreen: React.FC = () => {
             RISE Courts
           </Text>
           <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginTop: 2 }}>
-            {isCoach ? 'Coach view - Schedule practices & monitor activities' : 'View availability and book courts'}
+            View court status and current activities
           </Text>
         </View>
         <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
@@ -606,29 +556,15 @@ const CourtsScreen: React.FC = () => {
               shadowRadius: 4,
             }}
           >
-            {isCoach ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-                <FontAwesome5 name="chalkboard-teacher" size={20} color={COLORS.primary} />
-                <Text style={{
-                  color: COLORS.text,
-                  fontSize: 18,
-                  fontWeight: 'bold',
-                  marginLeft: 12,
-                }}>
-                  Coach Dashboard
-                </Text>
-              </View>
-            ) : (
-              <Text style={{
-                color: COLORS.text,
-                fontSize: 18,
-                fontWeight: 'bold',
-                textAlign: 'center',
-                marginBottom: 16,
-              }}>
-                Court Availability
-              </Text>
-            )}
+            <Text style={{
+              color: COLORS.text,
+              fontSize: 18,
+              fontWeight: 'bold',
+              textAlign: 'center',
+              marginBottom: 16,
+            }}>
+              Court Status Overview
+            </Text>
             <View style={{ flexDirection: 'row' }}>
               <View style={{ flex: 1, alignItems: 'center' }}>
                 <View style={{
@@ -782,7 +718,7 @@ const CourtsScreen: React.FC = () => {
                 We couldn't find any courts at the moment.{'\n'}Pull down to refresh and try again.
               </Text>
               <TouchableOpacity
-                onPress={() => loadCourts(true)}
+                onPress={handleRefresh}
                 style={{
                   backgroundColor: COLORS.primary,
                   paddingHorizontal: 20,

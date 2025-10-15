@@ -2,12 +2,14 @@
 
 import type React from "react"
 import { useState } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated } from "react-native"
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, Linking, Alert, Platform } from "react-native"
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import DateTimePickerModal from "react-native-modal-datetime-picker"
-import { format } from "date-fns"
+import { format, differenceInYears } from "date-fns"
 import CountryPicker from "react-native-country-picker-modal"
+import * as Haptics from "expo-haptics"
+import type { SignupFormErrors } from "@/hooks/auth/useSignupForm"
 
 interface SignupStep2FormProps {
   firstName: string
@@ -24,18 +26,27 @@ interface SignupStep2FormProps {
   setFormattedPhoneNumber: (number: string) => void
   phoneInputFocused: boolean
   setPhoneInputFocused: (focused: boolean) => void
+  phoneCountry: any
+  setPhoneCountry: (country: any) => void
   country: any
   setCountry: (country: any) => void
-  errors: Record<string, string>
-  setErrors: (errors: Record<string, string>) => void
+  errors: SignupFormErrors
+  setErrors: (errors: SignupFormErrors) => void
   fadeAnim: Animated.Value
   slideAnim: Animated.Value
   onSignUp: () => void
   onOpenRoleModal: () => void
+  onCancelRegistration: () => void
   isLoading: boolean
   setCountryPickerVisible: (visible: boolean) => void
   countryPickerVisible: boolean
+  setPhoneCountryPickerVisible: (visible: boolean) => void
+  phoneCountryPickerVisible: boolean
   formatPhoneNumber: (text: string) => void
+  acceptedTerms: boolean
+  setAcceptedTerms: (accepted: boolean) => void
+  acceptedWaiver: boolean
+  setAcceptedWaiver: (accepted: boolean) => void
 }
 
 export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
@@ -51,6 +62,8 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
   phoneInputFocused,
   setPhoneInputFocused,
   formattedPhoneNumber,
+  phoneCountry,
+  setPhoneCountry,
   country,
   setCountry,
   errors,
@@ -59,10 +72,17 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
   slideAnim,
   onSignUp,
   onOpenRoleModal,
+  onCancelRegistration,
   isLoading,
   setCountryPickerVisible,
   countryPickerVisible,
+  setPhoneCountryPickerVisible,
+  phoneCountryPickerVisible,
   formatPhoneNumber,
+  acceptedTerms,
+  setAcceptedTerms,
+  acceptedWaiver,
+  setAcceptedWaiver,
 }) => {
   const [isDatePickerVisible, setDatePickerVisible] = useState(false)
 
@@ -74,10 +94,73 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
     setDatePickerVisible(false)
   }
 
-  const handleConfirmDate = (date) => {
-    setDateOfBirth(format(date, "yyyy-MM-dd"))
-    hideDatePicker()
-    if (errors.dateOfBirth) setErrors({ ...errors, dateOfBirth: null })
+  const handleConfirmDate = (date: Date) => {
+    const age = differenceInYears(new Date(), date)
+
+    // Check if user is under 13
+    if (age < 13) {
+      // Close the picker first
+      hideDatePicker()
+
+      if (Platform.OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      }
+
+      // Use setTimeout to ensure the picker is closed before showing alert
+      setTimeout(() => {
+        Alert.alert(
+          "Parental Consent Required",
+          "You must be at least 13 years old to create an account. Please use your parent's or guardian's email address to register.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Show second confirmation
+                Alert.alert(
+                  "Confirm",
+                  "Are you using your parent or guardian's email address?",
+                  [
+                    {
+                      text: "No, I can't register",
+                      style: "destructive",
+                      onPress: () => {
+                        // Cancel the registration and go back to login
+                        Alert.alert(
+                          "Registration Cancelled",
+                          "You must be 13 or older, or have parental consent to create an account.",
+                          [
+                            {
+                              text: "OK",
+                              onPress: () => {
+                                onCancelRegistration()
+                              },
+                            },
+                          ]
+                        )
+                      },
+                    },
+                    {
+                      text: "Yes, continue",
+                      onPress: () => {
+                        setDateOfBirth(format(date, "yyyy-MM-dd"))
+                        if (errors.dateOfBirth) setErrors({ ...errors, dateOfBirth: null })
+                      },
+                    },
+                  ],
+                  { cancelable: false }
+                )
+              },
+            },
+          ],
+          { cancelable: false }
+        )
+      }, 100)
+    } else {
+      // User is 13 or older
+      setDateOfBirth(format(date, "yyyy-MM-dd"))
+      hideDatePicker()
+      if (errors.dateOfBirth) setErrors({ ...errors, dateOfBirth: null })
+    }
   }
 
   const renderRoleIcon = () => {
@@ -182,8 +265,8 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
         <View style={[styles.inputWrapper, errors.phoneNumber && styles.inputError]}>
           <Ionicons name="call-outline" size={20} color="#9EA0A4" style={styles.inputIcon} />
 
-          <TouchableOpacity style={styles.countryCodeContainer} onPress={() => setCountryPickerVisible(true)}>
-            <Text style={styles.countryCodeText}>{country ? `+${country.callingCode?.[0] || "1"}` : "+1"}</Text>
+          <TouchableOpacity style={styles.countryCodeContainer} onPress={() => setPhoneCountryPickerVisible(true)}>
+            <Text style={styles.countryCodeText}>{phoneCountry ? `+${phoneCountry.callingCode?.[0] || "1"}` : "+1"}</Text>
             <Ionicons name="chevron-down" size={16} color="#9EA0A4" />
           </TouchableOpacity>
 
@@ -201,6 +284,24 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
         {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
       </View>
 
+      {/* Phone Country Picker Modal */}
+      {phoneCountryPickerVisible && (
+        <CountryPicker
+          withFilter
+          withFlag
+          withCallingCode
+          withAlphaFilter
+          withEmoji
+          countryCode={phoneCountry?.cca2 || "US"}
+          onSelect={(selectedCountry) => {
+            setPhoneCountry(selectedCountry)
+            setPhoneCountryPickerVisible(false)
+          }}
+          onClose={() => setPhoneCountryPickerVisible(false)}
+          visible={true}
+        />
+      )}
+
       {/* Country Picker */}
       <View style={styles.inputContainer}>
         <TouchableOpacity style={styles.inputWrapper} onPress={() => setCountryPickerVisible(true)}>
@@ -212,7 +313,7 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Country Picker Modal */}
+      {/* Country Picker Modal (for location only, not phone) */}
       {countryPickerVisible && (
         <CountryPicker
           withFilter
@@ -229,6 +330,56 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
           visible={true}
         />
       )}
+
+      {/* Terms of Service Checkbox */}
+      <View style={styles.checkboxContainer}>
+        <TouchableOpacity
+          style={styles.checkbox}
+          onPress={() => {
+            setAcceptedTerms(!acceptedTerms)
+            if (errors.acceptedTerms) setErrors({ ...errors, acceptedTerms: null })
+          }}
+        >
+          <View style={[styles.checkboxBox, acceptedTerms && styles.checkboxBoxChecked]}>
+            {acceptedTerms && <Ionicons name="checkmark" size={18} color="#000" />}
+          </View>
+          <Text style={styles.checkboxText}>
+            I accept the{" "}
+            <Text
+              style={styles.linkText}
+              onPress={() => Linking.openURL("https://storage.googleapis.com/rise-sports/waivers/terms.pdf")}
+            >
+              Terms of Service
+            </Text>
+          </Text>
+        </TouchableOpacity>
+        {errors.acceptedTerms && <Text style={styles.checkboxError}>{errors.acceptedTerms}</Text>}
+      </View>
+
+      {/* Liability Waiver Checkbox */}
+      <View style={styles.checkboxContainer}>
+        <TouchableOpacity
+          style={styles.checkbox}
+          onPress={() => {
+            setAcceptedWaiver(!acceptedWaiver)
+            if (errors.acceptedWaiver) setErrors({ ...errors, acceptedWaiver: null })
+          }}
+        >
+          <View style={[styles.checkboxBox, acceptedWaiver && styles.checkboxBoxChecked]}>
+            {acceptedWaiver && <Ionicons name="checkmark" size={18} color="#000" />}
+          </View>
+          <Text style={styles.checkboxText}>
+            I accept the{" "}
+            <Text
+              style={styles.linkText}
+              onPress={() => Linking.openURL("https://storage.googleapis.com/rise-sports/waivers/waiver.pdf")}
+            >
+              Liability Waiver
+            </Text>
+          </Text>
+        </TouchableOpacity>
+        {errors.acceptedWaiver && <Text style={styles.checkboxError}>{errors.acceptedWaiver}</Text>}
+      </View>
 
       <TouchableOpacity style={styles.signUpButton} onPress={onSignUp} disabled={isLoading}>
         <LinearGradient
@@ -299,6 +450,44 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     marginRight: 5,
+  },
+  checkboxContainer: {
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  checkbox: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  checkboxBox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: "#333",
+    borderRadius: 4,
+    marginRight: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxBoxChecked: {
+    backgroundColor: "#FFD700",
+    borderColor: "#FFD700",
+  },
+  checkboxText: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  linkText: {
+    color: "#FFD700",
+    textDecorationLine: "underline",
+  },
+  checkboxError: {
+    color: "#FF4D4F",
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 36,
   },
   signUpButton: {
     marginTop: 20,

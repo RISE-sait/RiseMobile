@@ -7,11 +7,16 @@ import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
 import { router } from "expo-router"
 
+interface LoginFormErrors {
+  email?: string | null
+  password?: string | null
+}
+
 interface LoginFormProps {
   onLogin: (email: string, password: string) => Promise<void>
   isLoading: boolean
-  errors: any
-  setErrors: (errors: any) => void
+  errors: LoginFormErrors
+  setErrors: (errors: LoginFormErrors) => void
 }
 
 export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormProps) => {
@@ -21,10 +26,10 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
   const [emailFocused, setEmailFocused] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
 
-  const passwordRef = useRef(null)
+  const passwordRef = useRef<TextInput>(null)
 
   const handleSubmit = async () => {
-    const newErrors = {}
+    const newErrors: LoginFormErrors = {}
 
     if (!email) newErrors.email = "Email is required"
     if (!password) newErrors.password = "Password is required"

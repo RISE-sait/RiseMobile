@@ -38,24 +38,33 @@ export interface SignupFormData {
   role: string
   dateOfBirth: string
   phoneNumber: string
+  phoneCountry: {
+    cca2: string
+    callingCode?: string[]
+  }
   country: {
     cca2: string
     name: string
     callingCode?: string[]
   }
   formattedPhoneNumber: string
+  acceptedTerms: boolean
+  acceptedWaiver: boolean
 }
 
 export interface SignupFormErrors {
-  email?: string
-  password?: string
-  confirmPassword?: string
-  firstName?: string
-  lastName?: string
-  role?: string
-  dateOfBirth?: string
-  phoneNumber?: string
-  general?: string
+  email?: string | null
+  password?: string | null
+  confirmPassword?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  role?: string | null
+  dateOfBirth?: string | null
+  phoneNumber?: string | null
+  acceptedTerms?: string | null
+  acceptedWaiver?: string | null
+  general?: string | null
+  [key: string]: string | null | undefined
 }
 
 export const useSignupForm = () => {
@@ -69,11 +78,17 @@ export const useSignupForm = () => {
     role: "",
     dateOfBirth: "",
     phoneNumber: "",
+    phoneCountry: {
+      cca2: "US",
+      callingCode: ["1"],
+    },
     country: {
       cca2: "US",
       name: "United States",
     },
     formattedPhoneNumber: "",
+    acceptedTerms: false,
+    acceptedWaiver: false,
   })
 
   // UI state
@@ -83,6 +98,7 @@ export const useSignupForm = () => {
   const [phoneInputFocused, setPhoneInputFocused] = useState(false)
   const [roleModalVisible, setRoleModalVisible] = useState(false)
   const [countryPickerVisible, setCountryPickerVisible] = useState(false)
+  const [phoneCountryPickerVisible, setPhoneCountryPickerVisible] = useState(false)
 
   // Update form data
   const updateFormData = (field: keyof SignupFormData, value: any) => {
@@ -134,6 +150,10 @@ export const useSignupForm = () => {
 
     if (formData.role === "athlete" && !formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required"
 
+    // Waiver and terms validation
+    if (!formData.acceptedTerms) newErrors.acceptedTerms = "You must accept the Terms of Service"
+    if (!formData.acceptedWaiver) newErrors.acceptedWaiver = "You must accept the Liability Waiver"
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -146,6 +166,7 @@ export const useSignupForm = () => {
     phoneInputFocused,
     roleModalVisible,
     countryPickerVisible,
+    phoneCountryPickerVisible,
     updateFormData,
     setErrors,
     setPasswordVisible,
@@ -153,6 +174,7 @@ export const useSignupForm = () => {
     setPhoneInputFocused,
     setRoleModalVisible,
     setCountryPickerVisible,
+    setPhoneCountryPickerVisible,
     formatPhoneNumber,
     validateForm,
     validatePassword,

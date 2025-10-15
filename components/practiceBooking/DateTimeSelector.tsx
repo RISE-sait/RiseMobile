@@ -31,9 +31,23 @@ const DateTimeSelector: React.FC<DateTimeSelectorProps> = ({
   errorMessage,
 }) => {
   const onChange = (event: any, selectedDate?: Date) => {
-    setShowPicker(Platform.OS === "ios")
-    if (selectedDate) {
-      setDate(selectedDate)
+    const currentPlatform = Platform.OS
+
+    // Handle platform-specific behavior
+    if (currentPlatform === 'android') {
+      // On Android, the picker shows a dialog
+      // Only update the date if the user pressed "OK" (event.type === 'set')
+      // If they pressed "Cancel", event.type will be 'dismissed'
+      if (event.type === 'set' && selectedDate) {
+        setDate(selectedDate)
+      }
+      // Always close the picker after any event on Android
+      setShowPicker(false)
+    } else {
+      // On iOS, the picker is inline and updates continuously
+      if (selectedDate) {
+        setDate(selectedDate)
+      }
     }
   }
 

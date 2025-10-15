@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, Platform
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
+import type { SignupFormErrors } from "@/hooks/auth/useSignupForm"
 
 interface SignupStep1FormProps {
   email: string
@@ -15,8 +16,8 @@ interface SignupStep1FormProps {
   setPasswordVisible: (visible: boolean) => void
   confirmPasswordVisible: boolean
   setConfirmPasswordVisible: (visible: boolean) => void
-  errors: Record<string, string>
-  setErrors: (errors: Record<string, string>) => void
+  errors: SignupFormErrors
+  setErrors: (errors: SignupFormErrors) => void
   fadeAnim: Animated.Value
   slideAnim: Animated.Value
   onContinue: () => void

@@ -137,9 +137,29 @@ const handleLogin = async (email: string, password: string, saveForBiometric?: b
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to login:", error)
-    setErrors({ general: "Invalid email or password. Please try again." })
+
+    // Check if email is not verified
+    if (error.code === "EMAIL_NOT_VERIFIED") {
+      Alert.alert(
+        "Email Not Verified",
+        "Please verify your email address before logging in. Check your inbox for the verification link.",
+        [
+          {
+            text: "Resend Email",
+            onPress: () => router.push(`/(auth)/resend-verification?email=${encodeURIComponent(email)}`),
+          },
+          {
+            text: "OK",
+            style: "cancel",
+          },
+        ]
+      )
+    } else {
+      setErrors({ general: "Invalid email or password. Please try again." })
+    }
+
     if (Platform.OS === "ios") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     }
