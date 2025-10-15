@@ -1,17 +1,37 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, Modal, TextInput, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MatchCard from "../../../components/events/MatchCard";
 import { StatusBar } from "expo-status-bar";
-import { FontAwesome6 } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons, AntDesign } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
 import EmptyState from "@/components/feedback/EmptyState"
+import { createGame, updateGame, deleteGame, getLocations } from "@/utils/api"
+import { fetchTeams } from "@/store/slices/teamsSlice"
+import { ErrorToast } from "@/components/auth/ErrorToast"
+import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector"
+import * as Haptics from "expo-haptics"
 
 const { width } = Dimensions.get("window");
+
+// Define color constants matching the team management screen
+const COLORS = {
+  primary: "#FFD700",
+  primaryDark: "#E6C200",
+  background: "#0C0B0B",
+  card: "#1A1A1A",
+  cardDark: "#141414",
+  text: "#FFFFFF",
+  textSecondary: "#AAAAAA",
+  success: "#4CAF50",
+  warning: "#FFC107",
+  danger: "#FF5252",
+  info: "#2196F3",
+};
 
 // Fixed function to generate exactly 13 days (6 before + today + 6 after)
 const generateWeekDates = (): dayjs.Dayjs[] => {
@@ -29,10 +49,28 @@ const CoachMatches: React.FC = () => {
   const status = useAppSelector((state) => state.games.status)
   const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
+  const teams = useAppSelector((state) => state.teams.items)
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [weekDates] = useState(() => generateWeekDates()); // Use function to ensure fresh generation
   const flatListRef = useRef<FlatList>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Game creation modal state
+  const [showGameModal, setShowGameModal] = useState(false);
+  const [editingGame, setEditingGame] = useState<any>(null);
+  const [homeTeamId, setHomeTeamId] = useState("");
+  const [awayTeamId, setAwayTeamId] = useState("");
+  const [externalTeamName, setExternalTeamName] = useState("");
+  const [isExternalTeam, setIsExternalTeam] = useState(false);
+  const [locationId, setLocationId] = useState("");
+  const [locations, setLocations] = useState<any[]>([]);
+  const [gameDate, setGameDate] = useState(new Date());
+  const [gameTime, setGameTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const modalAnim = useRef(new Animated.Value(0)).current;
 
   // Center on today function
   const centerOnToday = useCallback(() => {
@@ -80,14 +118,148 @@ const CoachMatches: React.FC = () => {
         // Clear existing matches to force fresh fetch with new API
         dispatch(clearMatches())
         dispatch(fetchMatches(authToken))
+        // Fetch teams for game creation
+        dispatch(fetchTeams(authToken) as any)
       }
     }
 
     fetchData()
   }, [dispatch, token])
 
+  // Fetch locations for game creation
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const locationsData = await getLocations();
+        setLocations(Array.isArray(locationsData) ? locationsData : []);
+      } catch (error) {
+        console.error("Failed to load locations:", error);
+        setLocations([]);
+      }
+    };
+
+    loadLocations();
+  }, []);
+
+  // Animation for modal
+  useEffect(() => {
+    if (showGameModal) {
+      Animated.timing(modalAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(modalAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showGameModal]);
+
+  // Modal handlers
+  const openCreateGameModal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditingGame(null);
+    setHomeTeamId("");
+    setAwayTeamId("");
+    setExternalTeamName("");
+    setIsExternalTeam(false);
+    setLocationId("");
+    setGameDate(new Date());
+    setGameTime(new Date());
+    setShowGameModal(true);
+  };
+
+  const closeGameModal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowGameModal(false);
+    setTimeout(() => {
+      setEditingGame(null);
+      setHomeTeamId("");
+      setAwayTeamId("");
+      setExternalTeamName("");
+      setIsExternalTeam(false);
+      setLocationId("");
+      setGameDate(new Date());
+      setGameTime(new Date());
+    }, 300);
+  };
+
+  const handleSaveGame = async () => {
+    // Validation
+    if (!homeTeamId) {
+      Alert.alert("Validation Error", "Please select a home team");
+      return;
+    }
+
+    if (!isExternalTeam && !awayTeamId) {
+      Alert.alert("Validation Error", "Please select an away team");
+      return;
+    }
+
+    if (isExternalTeam && !externalTeamName.trim()) {
+      Alert.alert("Validation Error", "Please enter external team name");
+      return;
+    }
+
+    if (!locationId) {
+      Alert.alert("Validation Error", "Please select a location");
+      return;
+    }
+
+    if (!token) {
+      Alert.alert("Error", "Authentication token not found. Please log in again.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Combine date and time into a single datetime
+      const combinedDateTime = dayjs(gameDate)
+        .hour(gameTime.getHours())
+        .minute(gameTime.getMinutes())
+        .toISOString();
+
+      const gameData = {
+        home_team_id: homeTeamId,
+        away_team_id: isExternalTeam ? "external" : awayTeamId,
+        location_id: locationId,
+        start_time: combinedDateTime,
+        status: "scheduled",
+      };
+
+      if (editingGame) {
+        // Update existing game
+        await updateGame(editingGame.id!, gameData, token);
+        Alert.alert("Success", "Game updated successfully");
+      } else {
+        // Create new game
+        await createGame(gameData, token);
+        Alert.alert("Success", "Game created successfully");
+      }
+
+      // Refresh games list
+      dispatch(clearMatches());
+      dispatch(fetchMatches(token));
+      closeGameModal();
+    } catch (error: any) {
+      console.error("Error saving game:", error);
+      const errorMsg = error.response?.data?.error?.message || error.message || "Failed to save game";
+
+      // Use ErrorToast instead of Alert for non-blocking error display
+      setErrorMessage(errorMsg);
+
+      // Auto-clear error message after 3 seconds
+      setTimeout(() => setErrorMessage(null), 3000);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Debug logging
-  
+
   // Filter matches by selected date - use match.date instead of created_at
   const filteredMatches = matches.filter((match) => {
     const matchDate = match.date || dayjs().format("YYYY-MM-DD")
@@ -179,24 +351,33 @@ const CoachMatches: React.FC = () => {
         {/* Header */}
         <View className="px-6 pb-4 border-b border-white-100/10 flex-row justify-between items-center">
           <Text className="text-white-100 text-3xl font-bold">Matches</Text>
-          <TouchableOpacity
-            onPress={async () => {
-              let authToken = token
-              if (!authToken) {
-                const userString = await AsyncStorage.getItem("user")
-                if (userString) {
-                  authToken = JSON.parse(userString)?.token
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={openCreateGameModal}
+            >
+              <Ionicons name="add" size={20} color="#000" />
+              <Text style={styles.createButtonText}>Create</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={async () => {
+                let authToken = token
+                if (!authToken) {
+                  const userString = await AsyncStorage.getItem("user")
+                  if (userString) {
+                    authToken = JSON.parse(userString)?.token
+                  }
                 }
-              }
 
-              if (authToken) {
-                dispatch(clearMatches())
-                dispatch(fetchMatches(authToken))
-              }
-            }}
-          >
-            <Text className="text-gold-100 font-semibold">Refresh</Text>
-          </TouchableOpacity>
+                if (authToken) {
+                  dispatch(clearMatches())
+                  dispatch(fetchMatches(authToken))
+                }
+              }}
+            >
+              <Text className="text-gold-100 font-semibold">Refresh</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Horizontal Calendar */}
@@ -251,8 +432,337 @@ const CoachMatches: React.FC = () => {
           />
         )}
       </Animated.View>
+
+      {/* Game Creation/Edit Modal */}
+      {showGameModal && (
+        <Modal transparent visible={showGameModal} animationType="none" onRequestClose={closeGameModal}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeGameModal}>
+            <Animated.View
+              style={[
+                styles.gameModal,
+                {
+                  opacity: modalAnim,
+                  transform: [
+                    {
+                      translateY: modalAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [50, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>{editingGame ? "Edit Game" : "Create Game"}</Text>
+                    <TouchableOpacity onPress={closeGameModal}>
+                      <AntDesign name="close" size={24} color="white" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.formContainer}>
+                    {/* Home Team Selection */}
+                    <Text style={styles.fieldLabel}>Home Team *</Text>
+                    <View style={styles.pickerContainer}>
+                      <TouchableOpacity
+                        style={[styles.picker, !homeTeamId && styles.pickerPlaceholder]}
+                        onPress={() => {
+                          Alert.alert(
+                            "Select Home Team",
+                            "",
+                            teams.map((team: any) => ({
+                              text: team.name,
+                              onPress: () => setHomeTeamId(team.id),
+                            })).concat([{ text: "Cancel", style: "cancel" }])
+                          );
+                        }}
+                      >
+                        <Text style={[styles.pickerText, !homeTeamId && styles.pickerPlaceholderText]}>
+                          {homeTeamId ? teams.find((t: any) => t.id === homeTeamId)?.name : "Select home team"}
+                        </Text>
+                        <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Away Team Type Toggle */}
+                    <View style={styles.toggleContainer}>
+                      <TouchableOpacity
+                        style={[styles.toggleButton, !isExternalTeam && styles.toggleButtonActive]}
+                        onPress={() => setIsExternalTeam(false)}
+                      >
+                        <Text style={[styles.toggleButtonText, !isExternalTeam && styles.toggleButtonTextActive]}>
+                          Internal Team
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.toggleButton, isExternalTeam && styles.toggleButtonActive]}
+                        onPress={() => setIsExternalTeam(true)}
+                      >
+                        <Text style={[styles.toggleButtonText, isExternalTeam && styles.toggleButtonTextActive]}>
+                          External Team
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Away Team Selection or Input */}
+                    {!isExternalTeam ? (
+                      <>
+                        <Text style={styles.fieldLabel}>Away Team *</Text>
+                        <View style={styles.pickerContainer}>
+                          <TouchableOpacity
+                            style={[styles.picker, !awayTeamId && styles.pickerPlaceholder]}
+                            onPress={() => {
+                              Alert.alert(
+                                "Select Away Team",
+                                "",
+                                teams
+                                  .filter((team: any) => team.id !== homeTeamId)
+                                  .map((team: any) => ({
+                                    text: team.name,
+                                    onPress: () => setAwayTeamId(team.id),
+                                  }))
+                                  .concat([{ text: "Cancel", style: "cancel" }])
+                              );
+                            }}
+                          >
+                            <Text style={[styles.pickerText, !awayTeamId && styles.pickerPlaceholderText]}>
+                              {awayTeamId ? teams.find((t: any) => t.id === awayTeamId)?.name : "Select away team"}
+                            </Text>
+                            <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.fieldLabel}>External Team Name *</Text>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Enter external team name"
+                          placeholderTextColor={COLORS.textSecondary}
+                          value={externalTeamName}
+                          onChangeText={setExternalTeamName}
+                          editable={!submitting}
+                        />
+                      </>
+                    )}
+
+                    {/* Location Selection */}
+                    <Text style={styles.fieldLabel}>Location *</Text>
+                    <View style={styles.pickerContainer}>
+                      <TouchableOpacity
+                        style={[styles.picker, !locationId && styles.pickerPlaceholder]}
+                        onPress={() => {
+                          Alert.alert(
+                            "Select Location",
+                            "",
+                            locations.map((location: any) => ({
+                              text: `${location.name} - ${location.address}`,
+                              onPress: () => setLocationId(location.id),
+                            })).concat([{ text: "Cancel", style: "cancel" }])
+                          );
+                        }}
+                      >
+                        <Text style={[styles.pickerText, !locationId && styles.pickerPlaceholderText]}>
+                          {locationId ? locations.find((l: any) => l.id === locationId)?.name : "Select location"}
+                        </Text>
+                        <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Date and Time Pickers */}
+                    <DateTimeSelector
+                      label="Game Date *"
+                      date={gameDate}
+                      setDate={setGameDate}
+                      showPicker={showDatePicker}
+                      setShowPicker={setShowDatePicker}
+                      mode="date"
+                    />
+
+                    <DateTimeSelector
+                      label="Game Time *"
+                      date={gameTime}
+                      setDate={setGameTime}
+                      showPicker={showTimePicker}
+                      setShowPicker={setShowTimePicker}
+                      mode="time"
+                    />
+
+                    {/* Action Buttons */}
+                    <View style={styles.modalActions}>
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.cancelButton]}
+                        onPress={closeGameModal}
+                        disabled={submitting}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.saveButton]}
+                        onPress={handleSaveGame}
+                        disabled={submitting}
+                      >
+                        {submitting ? (
+                          <ActivityIndicator size="small" color="#000" />
+                        ) : (
+                          <Text style={styles.saveButtonText}>{editingGame ? "Update" : "Create"}</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </ScrollView>
+              </TouchableOpacity>
+            </Animated.View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Error Toast for non-blocking error display */}
+      <ErrorToast message={errorMessage} />
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  createButton: {
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  createButtonText: {
+    color: "#000",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  gameModal: {
+    width: width * 0.9,
+    maxHeight: "85%",
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.text,
+  },
+  formContainer: {
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  input: {
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: COLORS.text,
+    borderWidth: 1,
+    borderColor: "#333",
+    marginBottom: 16,
+  },
+  pickerContainer: {
+    marginBottom: 16,
+  },
+  picker: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  pickerPlaceholder: {
+    borderColor: COLORS.textSecondary,
+  },
+  pickerText: {
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  pickerPlaceholderText: {
+    color: COLORS.textSecondary,
+  },
+  toggleContainer: {
+    flexDirection: "row",
+    marginBottom: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.cardDark,
+    padding: 4,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  toggleButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontWeight: "600",
+  },
+  toggleButtonTextActive: {
+    color: "#000",
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginHorizontal: 4,
+  },
+  cancelButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: COLORS.textSecondary,
+  },
+  cancelButtonText: {
+    color: COLORS.textSecondary,
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  saveButton: {
+    backgroundColor: COLORS.primary,
+  },
+  saveButtonText: {
+    color: "#000",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+});
 
 export default CoachMatches;
