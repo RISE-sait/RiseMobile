@@ -1479,6 +1479,112 @@ export const getBarberAvailability = async (barberId: string, date: string, serv
   }
 };
 
+// 🔹 **Credit API Functions**
+
+// Get current user's credit balance
+export const getUserCredits = async (token: string): Promise<any> => {
+  try {
+    const firebaseUser = auth.currentUser;
+
+    let firebaseToken = null;
+    if (firebaseUser) {
+      try {
+        firebaseToken = await firebaseUser.getIdToken(true);
+      } catch (firebaseError) {
+        console.error("Failed to get Firebase token:", firebaseError);
+      }
+    }
+
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    if (firebaseToken) {
+      headers["firebase_token"] = firebaseToken;
+    }
+
+    const response = await axios.get(`${API_URL}/secure/credits`, {
+      headers,
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to fetch user credits:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
+// Get event enrollment options including credit cost
+export const getEventEnrollmentOptions = async (eventId: string, token: string): Promise<any> => {
+  try {
+    const firebaseUser = auth.currentUser;
+
+    let firebaseToken = null;
+    if (firebaseUser) {
+      try {
+        firebaseToken = await firebaseUser.getIdToken(true);
+      } catch (firebaseError) {
+        console.error("Failed to get Firebase token:", firebaseError);
+      }
+    }
+
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    if (firebaseToken) {
+      headers["firebase_token"] = firebaseToken;
+    }
+
+    const response = await axios.get(`${API_URL}/checkout/events/${eventId}/options`, {
+      headers,
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Failed to fetch enrollment options for event ${eventId}:`, (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
+// Enroll in event using credits
+export const enrollEventWithCredits = async (eventId: string, token: string): Promise<any> => {
+  try {
+    const firebaseUser = auth.currentUser;
+
+    let firebaseToken = null;
+    if (firebaseUser) {
+      try {
+        firebaseToken = await firebaseUser.getIdToken(true);
+      } catch (firebaseError) {
+        console.error("Failed to get Firebase token:", firebaseError);
+      }
+    }
+
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    if (firebaseToken) {
+      headers["firebase_token"] = firebaseToken;
+    }
+
+    const response = await axios.post(
+      `${API_URL}/checkout/events/${eventId}/enhanced`,
+      { payment_option: "credit" },
+      { headers }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Failed to enroll in event ${eventId} with credits:`, (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
 // 🔹 **Account Deletion API Function**
 
 // Delete user account

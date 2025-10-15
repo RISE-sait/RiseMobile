@@ -27,7 +27,7 @@ import { FontAwesome5 } from "@expo/vector-icons"
 import EventImageHeader from "@/components/events/EventImageHeader"
 import BackButton from "@/components/buttons/BackButton"
 import EventInfoRow from "@/components/events/EventInfoRow"
-import { API_URL, getMembershipByCustomerId } from "@/utils/api"
+import { API_URL, getMembershipByCustomerId, getEventEnrollmentOptions } from "@/utils/api"
 import { setMembership } from "@/store/slices/membershipSlice"
 import { COLORS } from "@/constants/colors"
 import * as WebBrowser from 'expo-web-browser'
@@ -119,6 +119,8 @@ const EventDetails: React.FC = () => {
   const [credits, setCredits] = useState<number>(0)
   const [showPaymentOptions, setShowPaymentOptions] = useState(false)
   const [isCheckingPayment, setIsCheckingPayment] = useState(false)
+  const [enrollmentOptions, setEnrollmentOptions] = useState<any>(null)
+  const [loadingEnrollmentOptions, setLoadingEnrollmentOptions] = useState(false)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
   const paymentCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -136,6 +138,23 @@ const EventDetails: React.FC = () => {
       setCredits(response.data.balance || 0)
     } catch (error) {
       console.error("Error fetching credits:", error)
+    }
+  }
+
+  // Function to fetch event enrollment options
+  const fetchEnrollmentOptions = async (eventId: string) => {
+    try {
+      const token = userData?.token
+      if (!token) return
+
+      setLoadingEnrollmentOptions(true)
+      const options = await getEventEnrollmentOptions(eventId, token)
+      setEnrollmentOptions(options)
+    } catch (error) {
+      console.error("Error fetching enrollment options:", error)
+      setEnrollmentOptions(null)
+    } finally {
+      setLoadingEnrollmentOptions(false)
     }
   }
 
@@ -205,6 +224,10 @@ const EventDetails: React.FC = () => {
     fetchEventDetails()
     fetchUserCredits()
     fetchUserMembership()
+    if (id) {
+      const cleanedId = cleanId(id as string)
+      fetchEnrollmentOptions(cleanedId)
+    }
   }, [id])
 
   // Handle app state changes to detect return from Stripe checkout
@@ -908,6 +931,28 @@ const EventDetails: React.FC = () => {
             <Text style={styles.modalTitle}>Enroll in Event</Text>
             <Text style={styles.modalSubtitle}>Choose your payment method</Text>
 
+            {/* Display Enrollment Options Info */}
+            {loadingEnrollmentOptions ? (
+              <View style={styles.loadingOptionContainer}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingOptionText}>Loading options...</Text>
+              </View>
+            ) : enrollmentOptions ? (
+              <View style={styles.enrollmentInfoContainer}>
+                {enrollmentOptions.can_enroll_free && (
+                  <Text style={styles.enrollmentInfoText}>✓ Free enrollment available</Text>
+                )}
+                {enrollmentOptions.credit_cost > 0 && (
+                  <Text style={styles.enrollmentInfoText}>
+                    Credit cost: {enrollmentOptions.credit_cost} credits
+                  </Text>
+                )}
+                <Text style={styles.enrollmentInfoText}>
+                  Your balance: {credits} credits
+                </Text>
+              </View>
+            ) : null}
+
             {/* Stripe Payment Option (Default) */}
             <TouchableOpacity
               style={styles.paymentOption}
@@ -917,21 +962,44 @@ const EventDetails: React.FC = () => {
               <FontAwesome5 name="credit-card" size={20} color={COLORS.primary} />
               <View style={styles.paymentOptionText}>
                 <Text style={styles.paymentOptionTitle}>Enroll</Text>
-                <Text style={styles.paymentOptionSubtitle}>Free for members or pay with card</Text>
+                <Text style={styles.paymentOptionSubtitle}>
+                  {enrollmentOptions?.can_enroll_free
+                    ? "Free enrollment"
+                    : "Free for members or pay with card"}
+                </Text>
               </View>
             </TouchableOpacity>
 
-            {/* Credits Option (Only if user has credits) */}
-            {credits > 0 && (
+            {/* Credits Option - Show if enrollment options indicate credit payment is possible */}
+            {enrollmentOptions && enrollmentOptions.credit_cost > 0 && (
               <TouchableOpacity
-                style={styles.paymentOption}
+                style={[
+                  styles.paymentOption,
+                  !enrollmentOptions.has_sufficient_credits && styles.disabledPaymentOption
+                ]}
                 onPress={() => enrollInEvent('credits')}
-                disabled={enrolling}
+                disabled={enrolling || !enrollmentOptions.has_sufficient_credits}
               >
-                <FontAwesome5 name="star" size={20} color={COLORS.primary} />
+                <FontAwesome5
+                  name="star"
+                  size={20}
+                  color={enrollmentOptions.has_sufficient_credits ? COLORS.primary : COLORS.textSecondary}
+                />
                 <View style={styles.paymentOptionText}>
-                  <Text style={styles.paymentOptionTitle}>Use Credits</Text>
-                  <Text style={styles.paymentOptionSubtitle}>Balance: {credits} credits</Text>
+                  <Text style={[
+                    styles.paymentOptionTitle,
+                    !enrollmentOptions.has_sufficient_credits && styles.disabledPaymentOptionText
+                  ]}>
+                    Use Credits ({enrollmentOptions.credit_cost} credits)
+                  </Text>
+                  <Text style={[
+                    styles.paymentOptionSubtitle,
+                    !enrollmentOptions.has_sufficient_credits && styles.insufficientCreditsText
+                  ]}>
+                    {enrollmentOptions.has_sufficient_credits
+                      ? `Balance: ${credits} credits`
+                      : `Insufficient credits (need ${enrollmentOptions.credit_cost}, have ${credits})`}
+                  </Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -1198,6 +1266,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 8,
     fontWeight: "500",
+  },
+  loadingOptionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    marginBottom: 16,
+  },
+  loadingOptionText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  enrollmentInfoContainer: {
+    backgroundColor: COLORS.cardLight,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  enrollmentInfoText: {
+    color: COLORS.text,
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  disabledPaymentOption: {
+    opacity: 0.5,
+  },
+  disabledPaymentOptionText: {
+    color: COLORS.textSecondary,
+  },
+  insufficientCreditsText: {
+    color: '#FF5252',
   },
 })
 
