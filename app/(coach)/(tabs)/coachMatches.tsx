@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, Modal, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, Modal, StyleSheet, ActivityIndicator, Alert, TextInput } from "react-native";
 import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MatchCard from "../../../components/events/MatchCard";
@@ -10,7 +10,7 @@ import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
 import EmptyState from "@/components/feedback/EmptyState"
-import { createGame, updateGame, deleteGame, getLocations } from "@/utils/api"
+import { createGame, updateGame, deleteGame, getLocations, getExternalTeams, createExternalTeam } from "@/utils/api"
 import { fetchTeams } from "@/store/slices/teamsSlice"
 import { ErrorToast } from "@/components/auth/ErrorToast"
 import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector"
@@ -49,6 +49,7 @@ const CoachMatches: React.FC = () => {
   const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
   const teams = useAppSelector((state) => state.teams.items)
+  const [externalTeams, setExternalTeams] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [weekDates] = useState(() => generateWeekDates()); // Use function to ensure fresh generation
   const flatListRef = useRef<FlatList>(null);
@@ -73,6 +74,13 @@ const CoachMatches: React.FC = () => {
   const [showHomeTeamPicker, setShowHomeTeamPicker] = useState(false);
   const [showAwayTeamPicker, setShowAwayTeamPicker] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+
+  // External team creation states
+  const [showExternalTeamModal, setShowExternalTeamModal] = useState(false);
+  const [externalTeamName, setExternalTeamName] = useState("");
+  const [externalTeamCapacity, setExternalTeamCapacity] = useState("");
+  const [externalTeamLogoUrl, setExternalTeamLogoUrl] = useState("");
+  const [creatingExternalTeam, setCreatingExternalTeam] = useState(false);
 
   // Center on today function
   const centerOnToday = useCallback(() => {
@@ -128,7 +136,7 @@ const CoachMatches: React.FC = () => {
     fetchData()
   }, [dispatch, token])
 
-  // Fetch locations for game creation
+  // Fetch locations and external teams for game creation
   useEffect(() => {
     const loadLocations = async () => {
       try {
@@ -140,7 +148,18 @@ const CoachMatches: React.FC = () => {
       }
     };
 
+    const loadExternalTeams = async () => {
+      try {
+        const externalTeamsData = await getExternalTeams();
+        setExternalTeams(Array.isArray(externalTeamsData) ? externalTeamsData : []);
+      } catch (error) {
+        console.error("Failed to load external teams:", error);
+        setExternalTeams([]);
+      }
+    };
+
     loadLocations();
+    loadExternalTeams();
   }, []);
 
   // Animation for modal
@@ -253,6 +272,61 @@ const CoachMatches: React.FC = () => {
     }, 300);
   };
 
+  const handleCreateExternalTeam = async () => {
+    // Validation
+    if (!externalTeamName.trim()) {
+      setErrorMessage("Please enter team name");
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
+
+    const capacity = parseInt(externalTeamCapacity);
+    if (!externalTeamCapacity || isNaN(capacity) || capacity <= 0) {
+      setErrorMessage("Please enter a valid capacity (greater than 0)");
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
+
+    if (!token) {
+      setErrorMessage("Authentication token not found. Please log in again.");
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
+
+    setCreatingExternalTeam(true);
+    try {
+      const teamData: { name: string; capacity: number; logo_url?: string } = {
+        name: externalTeamName.trim(),
+        capacity,
+      };
+
+      if (externalTeamLogoUrl.trim()) {
+        teamData.logo_url = externalTeamLogoUrl.trim();
+      }
+
+      await createExternalTeam(teamData, token);
+
+      // Refresh external teams list
+      const updatedExternalTeams = await getExternalTeams();
+      setExternalTeams(Array.isArray(updatedExternalTeams) ? updatedExternalTeams : []);
+
+      // Close modal and reset form
+      setShowExternalTeamModal(false);
+      setExternalTeamName("");
+      setExternalTeamCapacity("");
+      setExternalTeamLogoUrl("");
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error: any) {
+      console.error("Error creating external team:", error);
+      const errorMsg = error.response?.data?.error?.message || error.message || "Failed to create external team";
+      setErrorMessage(errorMsg);
+      setTimeout(() => setErrorMessage(null), 3000);
+    } finally {
+      setCreatingExternalTeam(false);
+    }
+  };
+
   const handleSaveGame = async () => {
     // Validation with ErrorToast instead of Alert
     if (!homeTeamId) {
@@ -293,8 +367,6 @@ const CoachMatches: React.FC = () => {
         .minute(gameTime.getMinutes())
         .toISOString();
 
-      // Note: Current implementation only supports internal teams (both home and away must be from /teams)
-      // External team support would require backend API changes to accept external_team_name field
       const gameData = {
         home_team_id: homeTeamId,
         away_team_id: awayTeamId,
@@ -561,9 +633,17 @@ const CoachMatches: React.FC = () => {
                         style={[styles.picker, !awayTeamId && styles.pickerPlaceholder]}
                         onPress={() => setShowAwayTeamPicker(true)}
                       >
-                        <Text style={[styles.pickerText, !awayTeamId && styles.pickerPlaceholderText]}>
-                          {awayTeamId ? teams.find((t: any) => t.id === awayTeamId)?.name : "Select away team"}
-                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.pickerText, !awayTeamId && styles.pickerPlaceholderText]}>
+                            {awayTeamId
+                              ? (teams.find((t: any) => t.id === awayTeamId)?.name ||
+                                 externalTeams.find((t: any) => t.id === awayTeamId)?.name)
+                              : "Select away team"}
+                          </Text>
+                          {awayTeamId && externalTeams.find((t: any) => t.id === awayTeamId) && (
+                            <Text style={[styles.pickerItemSubtext, { marginTop: 2 }]}>External Team</Text>
+                          )}
+                        </View>
                         <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
                       </TouchableOpacity>
                     </View>
@@ -682,32 +762,87 @@ const CoachMatches: React.FC = () => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.pickerList}>
-              {teams
-                .filter((team: any) => team.id !== homeTeamId)
-                .map((team: any) => (
-                  <TouchableOpacity
-                    key={team.id}
-                    style={[
-                      styles.pickerItem,
-                      awayTeamId === team.id && styles.pickerItemSelected,
-                    ]}
-                    onPress={() => {
-                      setAwayTeamId(team.id);
-                      setShowAwayTeamPicker(false);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <Text style={[
-                      styles.pickerItemText,
-                      awayTeamId === team.id && styles.pickerItemTextSelected,
-                    ]}>
-                      {team.name}
-                    </Text>
-                    {awayTeamId === team.id && (
-                      <Ionicons name="checkmark" size={20} color={COLORS.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
+              {/* Create External Team Button */}
+              <TouchableOpacity
+                style={[styles.pickerItem, { backgroundColor: COLORS.primary + '20', borderColor: COLORS.primary, borderWidth: 1 }]}
+                onPress={() => {
+                  setShowAwayTeamPicker(false);
+                  setShowExternalTeamModal(true);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <Ionicons name="add-circle" size={20} color={COLORS.primary} />
+                <Text style={[styles.pickerItemText, { color: COLORS.primary, marginLeft: 8 }]}>
+                  Create External Team
+                </Text>
+              </TouchableOpacity>
+
+              {/* Internal Teams */}
+              {teams.filter((team: any) => team.id !== homeTeamId).length > 0 && (
+                <>
+                  <Text style={styles.sectionHeader}>Internal Teams</Text>
+                  {teams
+                    .filter((team: any) => team.id !== homeTeamId)
+                    .map((team: any) => (
+                      <TouchableOpacity
+                        key={team.id}
+                        style={[
+                          styles.pickerItem,
+                          awayTeamId === team.id && styles.pickerItemSelected,
+                        ]}
+                        onPress={() => {
+                          setAwayTeamId(team.id);
+                          setShowAwayTeamPicker(false);
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                      >
+                        <Text style={[
+                          styles.pickerItemText,
+                          awayTeamId === team.id && styles.pickerItemTextSelected,
+                        ]}>
+                          {team.name}
+                        </Text>
+                        {awayTeamId === team.id && (
+                          <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                </>
+              )}
+
+              {/* External Teams */}
+              {externalTeams.length > 0 && (
+                <>
+                  <Text style={styles.sectionHeader}>External Teams</Text>
+                  {externalTeams.map((team: any) => (
+                    <TouchableOpacity
+                      key={team.id}
+                      style={[
+                        styles.pickerItem,
+                        awayTeamId === team.id && styles.pickerItemSelected,
+                      ]}
+                      onPress={() => {
+                        setAwayTeamId(team.id);
+                        setShowAwayTeamPicker(false);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[
+                          styles.pickerItemText,
+                          awayTeamId === team.id && styles.pickerItemTextSelected,
+                        ]}>
+                          {team.name}
+                        </Text>
+                        <Text style={styles.pickerItemSubtext}>External Team</Text>
+                      </View>
+                      {awayTeamId === team.id && (
+                        <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -751,6 +886,82 @@ const CoachMatches: React.FC = () => {
                   )}
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* External Team Creation Modal */}
+      <Modal transparent visible={showExternalTeamModal} animationType="slide" onRequestClose={() => setShowExternalTeamModal(false)}>
+        <View style={styles.pickerModalOverlay}>
+          <View style={styles.pickerModal}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Create External Team</Text>
+              <TouchableOpacity onPress={() => setShowExternalTeamModal(false)} disabled={creatingExternalTeam}>
+                <AntDesign name="close" size={24} color="white" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled">
+              <View style={{ padding: 16 }}>
+                <Text style={styles.fieldLabel}>Team Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter team name"
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={externalTeamName}
+                  onChangeText={setExternalTeamName}
+                  editable={!creatingExternalTeam}
+                />
+
+                <Text style={styles.fieldLabel}>Capacity *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter capacity (e.g., 15)"
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={externalTeamCapacity}
+                  onChangeText={setExternalTeamCapacity}
+                  keyboardType="number-pad"
+                  editable={!creatingExternalTeam}
+                />
+
+                <Text style={styles.fieldLabel}>Logo URL (Optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter logo URL"
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={externalTeamLogoUrl}
+                  onChangeText={setExternalTeamLogoUrl}
+                  autoCapitalize="none"
+                  editable={!creatingExternalTeam}
+                />
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => {
+                      setShowExternalTeamModal(false);
+                      setExternalTeamName("");
+                      setExternalTeamCapacity("");
+                      setExternalTeamLogoUrl("");
+                    }}
+                    disabled={creatingExternalTeam}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.saveButton]}
+                    onPress={handleCreateExternalTeam}
+                    disabled={creatingExternalTeam}
+                  >
+                    {creatingExternalTeam ? (
+                      <ActivityIndicator size="small" color="#000" />
+                    ) : (
+                      <Text style={styles.saveButtonText}>Create</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
             </ScrollView>
           </View>
         </View>
@@ -955,6 +1166,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 4,
+  },
+  sectionHeader: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    marginTop: 16,
+    marginBottom: 8,
+    marginLeft: 12,
+    textTransform: "uppercase",
   },
 });
 

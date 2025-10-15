@@ -474,6 +474,56 @@ export const deleteTeam = async (teamId: string, token: string): Promise<any> =>
   }
 };
 
+// 🔹 **External Team API Functions**
+
+// Get all external teams (opponent teams)
+export const getExternalTeams = async (): Promise<any> => {
+  try {
+    const response = await axios.get(`${API_URL}/teams/external`);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to fetch external teams:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
+// Create a new external team
+export const createExternalTeam = async (
+  teamData: { name: string; capacity: number; logo_url?: string },
+  token: string
+): Promise<any> => {
+  try {
+    const firebaseUser = auth.currentUser;
+
+    let firebaseToken = null;
+    if (firebaseUser) {
+      try {
+        firebaseToken = await firebaseUser.getIdToken(true);
+      } catch (firebaseError) {
+        console.error("Failed to get Firebase token:", firebaseError);
+      }
+    }
+
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    if (firebaseToken) {
+      headers["firebase_token"] = firebaseToken;
+    }
+
+    const response = await axios.post(`${API_URL}/teams/external`, teamData, {
+      headers,
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to create external team:", (error as any).response?.data || (error as any).message);
+    throw error;
+  }
+};
+
 // 🔹 **Location API Functions**
 
 // Get all locations
