@@ -27,7 +27,15 @@ interface MatchProps {
     // Team logo URLs from API
     home_team_logo_url?: string
     away_team_logo_url?: string
+    // Additional fields for edit/delete
+    home_team_id?: string
+    away_team_id?: string
+    location_id?: string
+    start_time?: string
   }
+  onEdit?: (match: any) => void
+  onDelete?: (match: any) => void
+  showActions?: boolean
 }
 
 const statusStyles = {
@@ -37,7 +45,7 @@ const statusStyles = {
   canceled: { color: "#9CA3AF", label: "CANCELED", icon: "x-circle" },
 }
 
-const MatchCard: React.FC<MatchProps> = ({ match }) => {
+const MatchCard: React.FC<MatchProps> = ({ match, onEdit, onDelete, showActions = false }) => {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
@@ -71,10 +79,24 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
     // Navigate to match details - calls GET /games/{id}
     router.push(`/screens/match-details/${match.id}`)
   }
-  
+
+  const handleEdit = (e: any) => {
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(match);
+    }
+  };
+
+  const handleDelete = (e: any) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(match);
+    }
+  };
 
   return (
-    <TouchableOpacity activeOpacity={0.8} onPress={handlePress} className="mb-4">
+    <View className="mb-4">
+      <TouchableOpacity activeOpacity={0.8} onPress={handlePress}>
       <LinearGradient
         colors={["rgba(255,255,255,0.15)", "rgba(255,255,255,0.03)"]}
         className="shadow-lg shadow-black overflow-hidden"
@@ -132,6 +154,30 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
         </View>
       </LinearGradient>
     </TouchableOpacity>
+
+    {/* Edit and Delete buttons - only shown for coaches */}
+    {showActions && (status === "scheduled" || status === "in_progress") && (
+      <View className="flex-row justify-around mt-2 px-2">
+        <TouchableOpacity
+          onPress={handleEdit}
+          className="flex-1 bg-gold-100/20 py-2 px-4 rounded-lg mr-2 flex-row items-center justify-center"
+          activeOpacity={0.7}
+        >
+          <FontAwesome6 name="edit" size={14} color="#FFD700" />
+          <Text className="text-gold-100 font-semibold ml-2 text-sm">Edit</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleDelete}
+          className="flex-1 bg-red-500/20 py-2 px-4 rounded-lg ml-2 flex-row items-center justify-center"
+          activeOpacity={0.7}
+        >
+          <FontAwesome6 name="trash" size={14} color="#EF4444" />
+          <Text className="text-red-500 font-semibold ml-2 text-sm">Delete</Text>
+        </TouchableOpacity>
+      </View>
+    )}
+    </View>
   )
 }
 

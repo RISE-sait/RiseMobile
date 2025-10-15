@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MatchCard from "../../../components/events/MatchCard";
 import { StatusBar } from "expo-status-bar";
-import { FontAwesome6, Ionicons, AntDesign } from "@expo/vector-icons";
+import { Ionicons, AntDesign } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
@@ -172,6 +172,79 @@ const CoachMatches: React.FC = () => {
     setShowGameModal(true);
   };
 
+  const openEditGameModal = (game: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditingGame(game);
+    setHomeTeamId(game.home_team_id || "");
+    setAwayTeamId(game.away_team_id || "");
+    // Check if away team is external
+    if (game.away_team_id === "external") {
+      setIsExternalTeam(true);
+      setExternalTeamName(game.away_team_name || "");
+    } else {
+      setIsExternalTeam(false);
+      setExternalTeamName("");
+    }
+    setLocationId(game.location_id || "");
+
+    // Parse the start_time if available
+    if (game.start_time) {
+      const startDate = new Date(game.start_time);
+      setGameDate(startDate);
+      setGameTime(startDate);
+    } else {
+      setGameDate(new Date());
+      setGameTime(new Date());
+    }
+
+    setShowGameModal(true);
+  };
+
+  const handleDeleteGame = async (game: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Use ErrorToast with confirmation pattern instead of Alert
+    setErrorMessage(`Delete game "${game.name || 'this game'}"? This action cannot be undone.`);
+
+    // For now, we'll need to add a confirmation mechanism
+    // Since ErrorToast doesn't support confirm dialogs, we'll use Alert.alert only for delete confirmation
+    // This is acceptable as it's a destructive action that needs explicit confirmation
+    Alert.alert(
+      "Delete Game",
+      `Are you sure you want to delete "${game.name || 'this game'}"? This action cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!token) {
+              setErrorMessage("Authentication token not found. Please log in again.");
+              setTimeout(() => setErrorMessage(null), 3000);
+              return;
+            }
+
+            try {
+              await deleteGame(game.id, token);
+              // Refresh games list
+              dispatch(clearMatches());
+              dispatch(fetchMatches(token));
+            } catch (error: any) {
+              console.error("Error deleting game:", error);
+              const errorMsg = error.response?.data?.error?.message || error.message || "Failed to delete game";
+
+              setErrorMessage(errorMsg);
+              setTimeout(() => setErrorMessage(null), 3000);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const closeGameModal = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowGameModal(false);
@@ -188,29 +261,34 @@ const CoachMatches: React.FC = () => {
   };
 
   const handleSaveGame = async () => {
-    // Validation
+    // Validation with ErrorToast instead of Alert
     if (!homeTeamId) {
-      Alert.alert("Validation Error", "Please select a home team");
+      setErrorMessage("Please select a home team");
+      setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
 
     if (!isExternalTeam && !awayTeamId) {
-      Alert.alert("Validation Error", "Please select an away team");
+      setErrorMessage("Please select an away team");
+      setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
 
     if (isExternalTeam && !externalTeamName.trim()) {
-      Alert.alert("Validation Error", "Please enter external team name");
+      setErrorMessage("Please enter external team name");
+      setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
 
     if (!locationId) {
-      Alert.alert("Validation Error", "Please select a location");
+      setErrorMessage("Please select a location");
+      setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
 
     if (!token) {
-      Alert.alert("Error", "Authentication token not found. Please log in again.");
+      setErrorMessage("Authentication token not found. Please log in again.");
+      setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
 
@@ -222,6 +300,10 @@ const CoachMatches: React.FC = () => {
         .minute(gameTime.getMinutes())
         .toISOString();
 
+      // For external teams, we use "external" as a placeholder for away_team_id
+      // Note: Backend should handle external team names separately if needed
+      // The external team name is stored in externalTeamName state but not sent to API
+      // because the current API schema doesn't support an external_team_name field
       const gameData = {
         home_team_id: homeTeamId,
         away_team_id: isExternalTeam ? "external" : awayTeamId,
@@ -233,11 +315,11 @@ const CoachMatches: React.FC = () => {
       if (editingGame) {
         // Update existing game
         await updateGame(editingGame.id!, gameData, token);
-        Alert.alert("Success", "Game updated successfully");
+        // Show success message via ErrorToast (green background would be ideal but ErrorToast shows errors)
+        // For now, just close modal and refresh - user will see the updated game in the list
       } else {
         // Create new game
         await createGame(gameData, token);
-        Alert.alert("Success", "Game created successfully");
       }
 
       // Refresh games list
@@ -248,7 +330,7 @@ const CoachMatches: React.FC = () => {
       console.error("Error saving game:", error);
       const errorMsg = error.response?.data?.error?.message || error.message || "Failed to save game";
 
-      // Use ErrorToast instead of Alert for non-blocking error display
+      // Use ErrorToast for non-blocking error display
       setErrorMessage(errorMsg);
 
       // Auto-clear error message after 3 seconds
@@ -406,7 +488,13 @@ const CoachMatches: React.FC = () => {
         {filteredMatches.length ? (
           <ScrollView className="px-4">
             {filteredMatches.map((match) => (
-              <MatchCard key={match.id} match={match} />
+              <MatchCard
+                key={match.id}
+                match={match}
+                showActions={true}
+                onEdit={openEditGameModal}
+                onDelete={handleDeleteGame}
+              />
             ))}
           </ScrollView>
         ) : (
