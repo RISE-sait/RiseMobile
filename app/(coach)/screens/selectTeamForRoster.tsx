@@ -163,18 +163,22 @@ const SelectTeamForRoster: React.FC = () => {
 
     setSubmitting(true)
     try {
-      const teamData = {
-        name: teamName.trim(),
-        capacity,
-      }
-
       if (editingTeam) {
-        // Update existing team
-        await updateTeam(editingTeam.id!, teamData, user.token)
+        // Update existing team - must include coach_id (required by backend)
+        const updateData = {
+          name: teamName.trim(),
+          capacity,
+          coach_id: editingTeam.coach?.id || user.id, // Use team's coach_id or fallback to current user
+        }
+        await updateTeam(editingTeam.id!, updateData, user.token)
         Alert.alert("Success", "Team updated successfully")
       } else {
-        // Create new team
-        await createTeam(teamData, user.token)
+        // Create new team - coach_id will be inferred from JWT token on backend
+        const createData = {
+          name: teamName.trim(),
+          capacity,
+        }
+        await createTeam(createData, user.token)
         Alert.alert("Success", "Team created successfully")
       }
 
