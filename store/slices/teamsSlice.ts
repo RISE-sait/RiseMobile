@@ -101,6 +101,13 @@ const teamsSlice = createSlice({
     clearTeamsCache(state) {
       state.lastFetched = null
     },
+    removeTeam(state, action: { payload: string }) {
+      const teamId = action.payload
+      // Remove the team from entities
+      delete state.entities[teamId]
+      // Remove the team ID from the ids array
+      state.ids = state.ids.filter(id => id !== teamId)
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -172,7 +179,7 @@ export const selectTeamById = (state: RootState, teamId: string | undefined) =>
 export const selectTeamsLoading = (state: RootState) => state.teams.loading
 export const selectTeamsError = (state: RootState) => state.teams.error
 
-export const { clearTeamsCache } = teamsSlice.actions
+export const { clearTeamsCache, removeTeam } = teamsSlice.actions
 
 export default teamsSlice.reducer
 

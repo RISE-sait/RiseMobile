@@ -21,11 +21,12 @@ import * as Haptics from "expo-haptics"
 import BackButton from "@/components/buttons/BackButton"
 import { TeamResponse } from "@/app/api/Api"
 import { useSelector, useDispatch } from "react-redux"
-import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError } from "@/store/slices/teamsSlice"
+import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError, removeTeam } from "@/store/slices/teamsSlice"
 import type { RootState } from "@/store"
 import images from "@/constants/images"
 import { createTeam, updateTeam, deleteTeam } from "@/utils/api"
 import { ErrorToast } from "@/components/auth/ErrorToast"
+import { removeTeam } from "@/store/slices/teamsSlice"
 
 const { width } = Dimensions.get("window")
 
@@ -221,9 +222,15 @@ const SelectTeamForRoster: React.FC = () => {
 
             try {
               await deleteTeam(team.id!, user.token)
-              Alert.alert("Success", "Team deleted successfully")
-              // Refresh teams list
+              
+              // Remove team from Redux store immediately for instant UI update
+              dispatch(removeTeam(team.id!))
+              
+              // Also refresh teams list from API to ensure consistency
               await dispatch(fetchTeams(user.token) as any)
+              
+              // Close any modals and show success message
+              Alert.alert("Success", "Team deleted successfully")
             } catch (error: any) {
               console.error("Error deleting team:", error)
               const errorMsg = error.response?.data?.error?.message || error.message || "Failed to delete team"
