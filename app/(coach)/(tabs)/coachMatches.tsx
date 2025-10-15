@@ -60,8 +60,6 @@ const CoachMatches: React.FC = () => {
   const [editingGame, setEditingGame] = useState<any>(null);
   const [homeTeamId, setHomeTeamId] = useState("");
   const [awayTeamId, setAwayTeamId] = useState("");
-  const [externalTeamName, setExternalTeamName] = useState("");
-  const [isExternalTeam, setIsExternalTeam] = useState(false);
   const [locationId, setLocationId] = useState("");
   const [locations, setLocations] = useState<any[]>([]);
   const [gameDate, setGameDate] = useState(new Date());
@@ -164,8 +162,6 @@ const CoachMatches: React.FC = () => {
     setEditingGame(null);
     setHomeTeamId("");
     setAwayTeamId("");
-    setExternalTeamName("");
-    setIsExternalTeam(false);
     setLocationId("");
     setGameDate(new Date());
     setGameTime(new Date());
@@ -177,14 +173,6 @@ const CoachMatches: React.FC = () => {
     setEditingGame(game);
     setHomeTeamId(game.home_team_id || "");
     setAwayTeamId(game.away_team_id || "");
-    // Check if away team is external
-    if (game.away_team_id === "external") {
-      setIsExternalTeam(true);
-      setExternalTeamName(game.away_team_name || "");
-    } else {
-      setIsExternalTeam(false);
-      setExternalTeamName("");
-    }
     setLocationId(game.location_id || "");
 
     // Parse the start_time if available
@@ -252,8 +240,6 @@ const CoachMatches: React.FC = () => {
       setEditingGame(null);
       setHomeTeamId("");
       setAwayTeamId("");
-      setExternalTeamName("");
-      setIsExternalTeam(false);
       setLocationId("");
       setGameDate(new Date());
       setGameTime(new Date());
@@ -268,14 +254,14 @@ const CoachMatches: React.FC = () => {
       return;
     }
 
-    if (!isExternalTeam && !awayTeamId) {
+    if (!awayTeamId) {
       setErrorMessage("Please select an away team");
       setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
 
-    if (isExternalTeam && !externalTeamName.trim()) {
-      setErrorMessage("Please enter external team name");
+    if (homeTeamId === awayTeamId) {
+      setErrorMessage("Home team and away team must be different");
       setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
@@ -300,23 +286,19 @@ const CoachMatches: React.FC = () => {
         .minute(gameTime.getMinutes())
         .toISOString();
 
-      // For external teams, we use "external" as a placeholder for away_team_id
-      // Note: Backend should handle external team names separately if needed
-      // The external team name is stored in externalTeamName state but not sent to API
-      // because the current API schema doesn't support an external_team_name field
+      // Note: Current implementation only supports internal teams (both home and away must be from /teams)
+      // External team support would require backend API changes to accept external_team_name field
       const gameData = {
         home_team_id: homeTeamId,
-        away_team_id: isExternalTeam ? "external" : awayTeamId,
+        away_team_id: awayTeamId,
         location_id: locationId,
         start_time: combinedDateTime,
-        status: "scheduled",
+        status: "scheduled" as const,
       };
 
       if (editingGame) {
         // Update existing game
         await updateGame(editingGame.id!, gameData, token);
-        // Show success message via ErrorToast (green background would be ideal but ErrorToast shows errors)
-        // For now, just close modal and refresh - user will see the updated game in the list
       } else {
         // Create new game
         await createGame(gameData, token);
@@ -574,67 +556,31 @@ const CoachMatches: React.FC = () => {
                       </TouchableOpacity>
                     </View>
 
-                    {/* Away Team Type Toggle */}
-                    <View style={styles.toggleContainer}>
+                    {/* Away Team Selection */}
+                    <Text style={styles.fieldLabel}>Away Team *</Text>
+                    <View style={styles.pickerContainer}>
                       <TouchableOpacity
-                        style={[styles.toggleButton, !isExternalTeam && styles.toggleButtonActive]}
-                        onPress={() => setIsExternalTeam(false)}
+                        style={[styles.picker, !awayTeamId && styles.pickerPlaceholder]}
+                        onPress={() => {
+                          Alert.alert(
+                            "Select Away Team",
+                            "",
+                            teams
+                              .filter((team: any) => team.id !== homeTeamId)
+                              .map((team: any) => ({
+                                text: team.name,
+                                onPress: () => setAwayTeamId(team.id),
+                              }))
+                              .concat([{ text: "Cancel", style: "cancel" }])
+                          );
+                        }}
                       >
-                        <Text style={[styles.toggleButtonText, !isExternalTeam && styles.toggleButtonTextActive]}>
-                          Internal Team
+                        <Text style={[styles.pickerText, !awayTeamId && styles.pickerPlaceholderText]}>
+                          {awayTeamId ? teams.find((t: any) => t.id === awayTeamId)?.name : "Select away team"}
                         </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.toggleButton, isExternalTeam && styles.toggleButtonActive]}
-                        onPress={() => setIsExternalTeam(true)}
-                      >
-                        <Text style={[styles.toggleButtonText, isExternalTeam && styles.toggleButtonTextActive]}>
-                          External Team
-                        </Text>
+                        <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
                       </TouchableOpacity>
                     </View>
-
-                    {/* Away Team Selection or Input */}
-                    {!isExternalTeam ? (
-                      <>
-                        <Text style={styles.fieldLabel}>Away Team *</Text>
-                        <View style={styles.pickerContainer}>
-                          <TouchableOpacity
-                            style={[styles.picker, !awayTeamId && styles.pickerPlaceholder]}
-                            onPress={() => {
-                              Alert.alert(
-                                "Select Away Team",
-                                "",
-                                teams
-                                  .filter((team: any) => team.id !== homeTeamId)
-                                  .map((team: any) => ({
-                                    text: team.name,
-                                    onPress: () => setAwayTeamId(team.id),
-                                  }))
-                                  .concat([{ text: "Cancel", style: "cancel" }])
-                              );
-                            }}
-                          >
-                            <Text style={[styles.pickerText, !awayTeamId && styles.pickerPlaceholderText]}>
-                              {awayTeamId ? teams.find((t: any) => t.id === awayTeamId)?.name : "Select away team"}
-                            </Text>
-                            <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
-                          </TouchableOpacity>
-                        </View>
-                      </>
-                    ) : (
-                      <>
-                        <Text style={styles.fieldLabel}>External Team Name *</Text>
-                        <TextInput
-                          style={styles.input}
-                          placeholder="Enter external team name"
-                          placeholderTextColor={COLORS.textSecondary}
-                          value={externalTeamName}
-                          onChangeText={setExternalTeamName}
-                          editable={!submitting}
-                        />
-                      </>
-                    )}
 
                     {/* Location Selection */}
                     <Text style={styles.fieldLabel}>Location *</Text>
