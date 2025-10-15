@@ -407,7 +407,7 @@ export const createTeam = async (teamData: { name: string; capacity: number; log
 };
 
 // Update an existing team
-export const updateTeam = async (teamId: string, teamData: { name: string; capacity: number; logo?: string }, token: string): Promise<any> => {
+export const updateTeam = async (teamId: string, teamData: { name: string; capacity: number; coach_id: string; logo?: string }, token: string): Promise<any> => {
   try {
     const firebaseUser = auth.currentUser;
 
