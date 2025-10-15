@@ -174,10 +174,11 @@ const SelectTeamForRoster: React.FC = () => {
         await updateTeam(editingTeam.id!, updateData, user.token)
         Alert.alert("Success", "Team updated successfully")
       } else {
-        // Create new team - coach_id will be inferred from JWT token on backend
+        // Create new team - include coach_id as required by backend
         const createData = {
           name: teamName.trim(),
           capacity,
+          coach_id: user.id, // Required by backend for coach-created teams
         }
         await createTeam(createData, user.token)
         Alert.alert("Success", "Team created successfully")
