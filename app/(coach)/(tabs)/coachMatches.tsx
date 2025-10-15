@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, Modal, TextInput, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, Modal, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MatchCard from "../../../components/events/MatchCard";
@@ -37,9 +37,8 @@ const COLORS = {
 const generateWeekDates = (): dayjs.Dayjs[] => {
   const today = dayjs();
   const startDate = today.subtract(6, "day");
-  const endDate = today.add(6, "day");
   const totalDays = 13; // Always 13 days
-  
+
   return Array.from({ length: totalDays }, (_, i) => startDate.add(i, "day"));
 };
 
@@ -70,6 +69,11 @@ const CoachMatches: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const modalAnim = useRef(new Animated.Value(0)).current;
 
+  // Picker modal states for better UX
+  const [showHomeTeamPicker, setShowHomeTeamPicker] = useState(false);
+  const [showAwayTeamPicker, setShowAwayTeamPicker] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+
   // Center on today function
   const centerOnToday = useCallback(() => {
     const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"))
@@ -94,7 +98,7 @@ const CoachMatches: React.FC = () => {
 
     // Center on today when component mounts
     centerOnToday()
-  }, [centerOnToday]);
+  }, [centerOnToday, fadeAnim]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -154,13 +158,16 @@ const CoachMatches: React.FC = () => {
         useNativeDriver: true,
       }).start();
     }
-  }, [showGameModal]);
+  }, [showGameModal, modalAnim]);
 
   // Modal handlers
   const openCreateGameModal = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingGame(null);
-    setHomeTeamId("");
+
+    // Set default home team to coach's first team (if available)
+    const defaultHomeTeam = teams.length > 0 ? teams[0].id : "";
+    setHomeTeamId(defaultHomeTeam);
     setAwayTeamId("");
     setLocationId("");
     setGameDate(new Date());
@@ -538,16 +545,7 @@ const CoachMatches: React.FC = () => {
                     <View style={styles.pickerContainer}>
                       <TouchableOpacity
                         style={[styles.picker, !homeTeamId && styles.pickerPlaceholder]}
-                        onPress={() => {
-                          Alert.alert(
-                            "Select Home Team",
-                            "",
-                            teams.map((team: any) => ({
-                              text: team.name,
-                              onPress: () => setHomeTeamId(team.id),
-                            })).concat([{ text: "Cancel", style: "cancel" }])
-                          );
-                        }}
+                        onPress={() => setShowHomeTeamPicker(true)}
                       >
                         <Text style={[styles.pickerText, !homeTeamId && styles.pickerPlaceholderText]}>
                           {homeTeamId ? teams.find((t: any) => t.id === homeTeamId)?.name : "Select home team"}
@@ -561,19 +559,7 @@ const CoachMatches: React.FC = () => {
                     <View style={styles.pickerContainer}>
                       <TouchableOpacity
                         style={[styles.picker, !awayTeamId && styles.pickerPlaceholder]}
-                        onPress={() => {
-                          Alert.alert(
-                            "Select Away Team",
-                            "",
-                            teams
-                              .filter((team: any) => team.id !== homeTeamId)
-                              .map((team: any) => ({
-                                text: team.name,
-                                onPress: () => setAwayTeamId(team.id),
-                              }))
-                              .concat([{ text: "Cancel", style: "cancel" }])
-                          );
-                        }}
+                        onPress={() => setShowAwayTeamPicker(true)}
                       >
                         <Text style={[styles.pickerText, !awayTeamId && styles.pickerPlaceholderText]}>
                           {awayTeamId ? teams.find((t: any) => t.id === awayTeamId)?.name : "Select away team"}
@@ -587,16 +573,7 @@ const CoachMatches: React.FC = () => {
                     <View style={styles.pickerContainer}>
                       <TouchableOpacity
                         style={[styles.picker, !locationId && styles.pickerPlaceholder]}
-                        onPress={() => {
-                          Alert.alert(
-                            "Select Location",
-                            "",
-                            locations.map((location: any) => ({
-                              text: `${location.name} - ${location.address}`,
-                              onPress: () => setLocationId(location.id),
-                            })).concat([{ text: "Cancel", style: "cancel" }])
-                          );
-                        }}
+                        onPress={() => setShowLocationPicker(true)}
                       >
                         <Text style={[styles.pickerText, !locationId && styles.pickerPlaceholderText]}>
                           {locationId ? locations.find((l: any) => l.id === locationId)?.name : "Select location"}
@@ -653,6 +630,131 @@ const CoachMatches: React.FC = () => {
           </TouchableOpacity>
         </Modal>
       )}
+
+      {/* Home Team Picker Modal */}
+      <Modal transparent visible={showHomeTeamPicker} animationType="slide" onRequestClose={() => setShowHomeTeamPicker(false)}>
+        <View style={styles.pickerModalOverlay}>
+          <View style={styles.pickerModal}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select Home Team</Text>
+              <TouchableOpacity onPress={() => setShowHomeTeamPicker(false)}>
+                <AntDesign name="close" size={24} color="white" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerList}>
+              {teams.map((team: any) => (
+                <TouchableOpacity
+                  key={team.id}
+                  style={[
+                    styles.pickerItem,
+                    homeTeamId === team.id && styles.pickerItemSelected,
+                  ]}
+                  onPress={() => {
+                    setHomeTeamId(team.id);
+                    setShowHomeTeamPicker(false);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text style={[
+                    styles.pickerItemText,
+                    homeTeamId === team.id && styles.pickerItemTextSelected,
+                  ]}>
+                    {team.name}
+                  </Text>
+                  {homeTeamId === team.id && (
+                    <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Away Team Picker Modal */}
+      <Modal transparent visible={showAwayTeamPicker} animationType="slide" onRequestClose={() => setShowAwayTeamPicker(false)}>
+        <View style={styles.pickerModalOverlay}>
+          <View style={styles.pickerModal}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select Away Team</Text>
+              <TouchableOpacity onPress={() => setShowAwayTeamPicker(false)}>
+                <AntDesign name="close" size={24} color="white" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerList}>
+              {teams
+                .filter((team: any) => team.id !== homeTeamId)
+                .map((team: any) => (
+                  <TouchableOpacity
+                    key={team.id}
+                    style={[
+                      styles.pickerItem,
+                      awayTeamId === team.id && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => {
+                      setAwayTeamId(team.id);
+                      setShowAwayTeamPicker(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <Text style={[
+                      styles.pickerItemText,
+                      awayTeamId === team.id && styles.pickerItemTextSelected,
+                    ]}>
+                      {team.name}
+                    </Text>
+                    {awayTeamId === team.id && (
+                      <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Location Picker Modal */}
+      <Modal transparent visible={showLocationPicker} animationType="slide" onRequestClose={() => setShowLocationPicker(false)}>
+        <View style={styles.pickerModalOverlay}>
+          <View style={styles.pickerModal}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select Location</Text>
+              <TouchableOpacity onPress={() => setShowLocationPicker(false)}>
+                <AntDesign name="close" size={24} color="white" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerList}>
+              {locations.map((location: any) => (
+                <TouchableOpacity
+                  key={location.id}
+                  style={[
+                    styles.pickerItem,
+                    locationId === location.id && styles.pickerItemSelected,
+                  ]}
+                  onPress={() => {
+                    setLocationId(location.id);
+                    setShowLocationPicker(false);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[
+                      styles.pickerItemText,
+                      locationId === location.id && styles.pickerItemTextSelected,
+                    ]}>
+                      {location.name}
+                    </Text>
+                    <Text style={styles.pickerItemSubtext}>{location.address}</Text>
+                  </View>
+                  {locationId === location.id && (
+                    <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Error Toast for non-blocking error display */}
       <ErrorToast message={errorMessage} />
@@ -796,6 +898,63 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  // Picker modal styles
+  pickerModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  pickerModal: {
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "70%",
+    paddingBottom: 20,
+  },
+  pickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#333",
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.text,
+  },
+  pickerList: {
+    paddingHorizontal: 16,
+  },
+  pickerItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222",
+  },
+  pickerItemSelected: {
+    backgroundColor: `${COLORS.primary}15`,
+    borderRadius: 8,
+    borderBottomColor: COLORS.primary,
+  },
+  pickerItemText: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: "500",
+  },
+  pickerItemTextSelected: {
+    color: COLORS.primary,
+    fontWeight: "600",
+  },
+  pickerItemSubtext: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 4,
   },
 });
 
