@@ -51,10 +51,32 @@ const DateTimeSelector: React.FC<DateTimeSelectorProps> = ({
     }
   }
 
+  // Calculate minimum time based on selected date
+  const getMinimumTime = () => {
+    if (mode !== 'time') return undefined
+
+    const today = new Date()
+    const selectedDate = new Date(date)
+
+    // If selected date is today, minimum time is now
+    if (
+      selectedDate.getFullYear() === today.getFullYear() &&
+      selectedDate.getMonth() === today.getMonth() &&
+      selectedDate.getDate() === today.getDate()
+    ) {
+      return today
+    }
+
+    return undefined
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity style={[styles.button, hasError && styles.errorButton]} onPress={() => setShowPicker(true)}>
+      <TouchableOpacity
+        style={[styles.button, hasError && styles.errorButton]}
+        onPress={() => setShowPicker(!showPicker)}
+      >
         <Text style={styles.buttonText}>{mode === "date" ? formatDate(date) : formatTime(date)}</Text>
         <Ionicons
           name={mode === "date" ? "calendar" : "time"}
@@ -66,13 +88,23 @@ const DateTimeSelector: React.FC<DateTimeSelectorProps> = ({
       {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
       {showPicker && (
-        <DateTimePicker
-          value={date}
-          mode={mode}
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={onChange}
-          minimumDate={mode === "date" ? new Date() : undefined}
-        />
+        <View>
+          <DateTimePicker
+            value={date}
+            mode={mode}
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            onChange={onChange}
+            minimumDate={mode === "date" ? new Date() : getMinimumTime()}
+          />
+          {Platform.OS === "ios" && (
+            <TouchableOpacity
+              style={styles.doneButton}
+              onPress={() => setShowPicker(false)}
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
     </View>
   )
@@ -102,6 +134,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  doneButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  doneButtonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 })
 
