@@ -21,7 +21,7 @@ import * as Haptics from "expo-haptics"
 import BackButton from "@/components/buttons/BackButton"
 import { TeamResponse } from "@/app/api/Api"
 import { useSelector, useDispatch } from "react-redux"
-import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError, removeTeam, clearTeamsCache } from "@/store/slices/teamsSlice"
+import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError, removeTeam } from "@/store/slices/teamsSlice"
 import type { RootState } from "@/store"
 import images from "@/constants/images"
 import { createTeam, updateTeam, deleteTeam } from "@/utils/api"
@@ -202,9 +202,6 @@ const SelectTeamForRoster: React.FC = () => {
         }
         await createTeam(createData, user.token)
         Alert.alert("Success", "Team created successfully")
-        
-        // Clear cache to force fresh data fetch
-        dispatch(clearTeamsCache())
       }
 
       // Refresh teams list

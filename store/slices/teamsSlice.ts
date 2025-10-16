@@ -13,18 +13,9 @@ const initialState: TeamsState = {
   lastFetched: null,
 }
 
-// Cache duration in milliseconds (5 minutes)
-const CACHE_DURATION = 5 * 60 * 1000
+// Remove CACHE_DURATION constant since we're removing caching
 
-export const fetchTeams = createAsyncThunk("teams/fetchTeams", async (token: string, { rejectWithValue, getState }) => {
-  const state = getState() as RootState
-  const { lastFetched } = state.teams
-
-  // If data was fetched recently, don't fetch again
-  if (lastFetched && Date.now() - lastFetched < CACHE_DURATION) {
-    return null // Skip fetching, use cached data
-  }
-
+export const fetchTeams = createAsyncThunk("teams/fetchTeams", async (token: string, { rejectWithValue }) => {
   try {
     let retries = 3
     let teamsData = null
@@ -98,9 +89,6 @@ const teamsSlice = createSlice({
   name: "teams",
   initialState,
   reducers: {
-    clearTeamsCache(state) {
-      state.lastFetched = null
-    },
     removeTeam(state, action: { payload: string }) {
       const teamId = action.payload
       // Remove the team from entities
@@ -119,11 +107,6 @@ const teamsSlice = createSlice({
       })
       .addCase(fetchTeams.fulfilled, (state, action) => {
         state.loading = "succeeded"
-
-        // If null is returned, it means we're using cached data
-        if (action.payload === null) {
-          return
-        }
 
         // Normalize teams data
         const teams = action.payload as Team[]
@@ -179,7 +162,7 @@ export const selectTeamById = (state: RootState, teamId: string | undefined) =>
 export const selectTeamsLoading = (state: RootState) => state.teams.loading
 export const selectTeamsError = (state: RootState) => state.teams.error
 
-export const { clearTeamsCache, removeTeam } = teamsSlice.actions
+export const { removeTeam } = teamsSlice.actions
 
 export default teamsSlice.reducer
 
