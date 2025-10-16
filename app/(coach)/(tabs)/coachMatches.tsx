@@ -720,6 +720,7 @@ const CoachMatches: React.FC = () => {
       )}
 
       {/* Home Team Picker Modal */}
+      {showHomeTeamPicker && (
       <Modal transparent visible={showHomeTeamPicker} animationType="slide" onRequestClose={() => setShowHomeTeamPicker(false)}>
         <View style={styles.pickerModalOverlay}>
           <View style={styles.pickerModal}>
@@ -766,8 +767,10 @@ const CoachMatches: React.FC = () => {
           </View>
         </View>
       </Modal>
+      )}
 
       {/* Away Team Picker Modal */}
+      {showAwayTeamPicker && (
       <Modal transparent visible={showAwayTeamPicker} animationType="slide" onRequestClose={() => setShowAwayTeamPicker(false)}>
         <View style={styles.pickerModalOverlay}>
           <View style={styles.pickerModal}>
@@ -875,8 +878,10 @@ const CoachMatches: React.FC = () => {
           </View>
         </View>
       </Modal>
+      )}
 
       {/* Location Picker Modal */}
+      {showLocationPicker && (
       <Modal transparent visible={showLocationPicker} animationType="slide" onRequestClose={() => setShowLocationPicker(false)}>
         <View style={styles.pickerModalOverlay}>
           <View style={styles.pickerModal}>
@@ -926,8 +931,10 @@ const CoachMatches: React.FC = () => {
           </View>
         </View>
       </Modal>
+      )}
 
       {/* External Team Creation Modal */}
+      {showExternalTeamModal && (
       <Modal transparent visible={showExternalTeamModal} animationType="slide" onRequestClose={() => setShowExternalTeamModal(false)}>
         <View style={styles.pickerModalOverlay}>
           <View style={styles.pickerModal}>
@@ -1002,6 +1009,7 @@ const CoachMatches: React.FC = () => {
           </View>
         </View>
       </Modal>
+      )}
 
       {/* Error Toast for non-blocking error display */}
       <ErrorToast message={errorMessage} />
