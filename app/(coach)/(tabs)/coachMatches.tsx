@@ -165,11 +165,6 @@ const CoachMatches: React.FC = () => {
     loadExternalTeams();
   }, []);
 
-  // Debug: Monitor teams changes
-  useEffect(() => {
-    console.log("🏀 Teams updated:", teams, "Loading:", teamsLoading);
-  }, [teams, teamsLoading]);
-
   // Animation for modal
   useEffect(() => {
     if (showGameModal) {
