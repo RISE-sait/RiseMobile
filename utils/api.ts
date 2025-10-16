@@ -1574,7 +1574,7 @@ export const enrollEventWithCredits = async (eventId: string, token: string): Pr
 
     const response = await axios.post(
       `${API_URL}/checkout/events/${eventId}/enhanced`,
-      { payment_option: "credit" },
+      { payment_method: "credits" },
       { headers }
     );
 

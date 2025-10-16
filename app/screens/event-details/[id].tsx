@@ -32,6 +32,7 @@ import { setMembership } from "@/store/slices/membershipSlice"
 import { COLORS } from "@/constants/colors"
 import * as WebBrowser from 'expo-web-browser'
 import { CalendarItem } from "@/types"
+import { ErrorToast } from "@/components/auth/ErrorToast"
 
 const { width } = Dimensions.get("window")
 
@@ -121,6 +122,7 @@ const EventDetails: React.FC = () => {
   const [isCheckingPayment, setIsCheckingPayment] = useState(false)
   const [enrollmentOptions, setEnrollmentOptions] = useState<any>(null)
   const [loadingEnrollmentOptions, setLoadingEnrollmentOptions] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
   const paymentCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -482,6 +484,14 @@ const EventDetails: React.FC = () => {
         customer.id === userData.id || customer.email === userData.email
       ) || false
 
+      console.log("🔍 Event Details Debug:", {
+        eventId: processedEvent.id,
+        title: processedEvent.title,
+        includesPractice: processedEvent.title.toLowerCase().includes('practice'),
+        status: processedEvent.status,
+        isUserEnrolled: isUserEnrolled,
+        willShowRegisterButton: !processedEvent.title.toLowerCase().includes('practice')
+      })
 
       setRegistered(isUserEnrolled)
     } catch (err: any) {
@@ -717,16 +727,20 @@ const EventDetails: React.FC = () => {
     }
   }
 
-  // Enhanced enrollment function based on API specification
+  // Enhanced enrollment function with robust error handling
   const enrollInEvent = async (paymentMethod: 'stripe' | 'credits' = 'stripe') => {
     if (!event || !userData?.token) return
 
     if (event.status === "completed") {
-      Alert.alert("Cannot Register", "This event has already ended.")
+      setErrorMessage("This event has already ended.")
+      setTimeout(() => setErrorMessage(null), 3000)
       return
     }
 
+    // Clear any previous error messages
+    setErrorMessage(null)
     setEnrolling(true)
+
     try {
       // Use credit-specific API function for credit payments
       if (paymentMethod === 'credits') {
@@ -752,7 +766,7 @@ const EventDetails: React.FC = () => {
               'Authorization': `Bearer ${userData.token}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ payment_option: paymentMethod })
+            body: JSON.stringify({ payment_method: paymentMethod })
           }
         )
 
@@ -776,15 +790,69 @@ const EventDetails: React.FC = () => {
           }
           setShowPaymentOptions(false)
         } else {
-          // Handle API errors with server message
-          const errorMessage = data?.error?.message || data?.message || "Registration failed. Please try again."
-          Alert.alert("Registration Failed", errorMessage)
+          // Handle API errors based on status code
+          const errorMsg = data?.error?.message || data?.message || "Registration failed. Please try again."
+
+          if (response.status >= 500) {
+            // Server error - show friendly message
+            setErrorMessage("An unexpected server error occurred. Please try again later.")
+          } else if (response.status === 400) {
+            // Client error - show specific message
+            setErrorMessage(errorMsg)
+          } else {
+            // Other errors
+            setErrorMessage("Registration failed. Please try again.")
+          }
+
+          // Auto-dismiss error after 5 seconds
+          setTimeout(() => setErrorMessage(null), 5000)
         }
       }
     } catch (error: any) {
       console.error("Enrollment error:", error)
-      const errorMessage = error.response?.data?.error?.message || error.message || "Unable to connect to our servers. Please check your internet connection and try again."
-      Alert.alert("Connection Error", errorMessage)
+
+      // Distinguish between different error types
+      if (error.response) {
+        // Server responded with error status
+        const statusCode = error.response.status
+        const errorMsg = error.response?.data?.error?.message || error.response?.data?.message
+
+        if (statusCode >= 500) {
+          // Server error (500, 502, 503, etc.)
+          setErrorMessage("An unexpected server error occurred. Please try again later.")
+        } else if (statusCode === 429) {
+          // Too many requests - rate limiting
+          setErrorMessage("Too many requests. Please wait a moment and try again.")
+        } else if (statusCode === 404) {
+          // Resource not found - show specific backend message
+          setErrorMessage(errorMsg || "This event is not available for enrollment.")
+        } else if (statusCode === 400) {
+          // Bad request - show specific error message from backend
+          // Special handling for common backend error messages
+          if (errorMsg?.toLowerCase().includes('capacity')) {
+            setErrorMessage("This event is not properly configured. Please contact support or try a different event.")
+          } else if (errorMsg?.toLowerCase().includes('credit')) {
+            setErrorMessage(errorMsg) // Show credit-specific errors as-is
+          } else {
+            setErrorMessage(errorMsg || "Invalid enrollment request. Please try again.")
+          }
+        } else if (statusCode === 401 || statusCode === 403) {
+          // Authentication/Authorization error
+          setErrorMessage("Authentication failed. Please log in again.")
+        } else {
+          // Other client errors (4xx)
+          setErrorMessage(errorMsg || "Registration failed. Please try again.")
+        }
+      } else if (error.request) {
+        // Network error - no response received
+        setErrorMessage("Unable to connect to the server. Please check your internet connection and try again.")
+      } else {
+        // Other errors (e.g., configuration errors)
+        setErrorMessage("An unexpected error occurred. Please try again.")
+      }
+
+      // Auto-dismiss error after 5 seconds
+      setTimeout(() => setErrorMessage(null), 5000)
     } finally {
       setEnrolling(false)
     }
@@ -1028,6 +1096,9 @@ const EventDetails: React.FC = () => {
           </View>
         </View>
       )}
+
+      {/* Error Toast */}
+      {errorMessage && <ErrorToast message={errorMessage} />}
     </SafeAreaView>
   )
 }
