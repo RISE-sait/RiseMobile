@@ -180,7 +180,7 @@ const CoachMatches: React.FC = () => {
         useNativeDriver: true,
       }).start();
     }
-  }, [showGameModal, modalAnim]);
+  }, [showGameModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Modal handlers
   const openCreateGameModal = () => {
