@@ -11,7 +11,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
 import EmptyState from "@/components/feedback/EmptyState"
 import { createGame, updateGame, deleteGame, getLocations, getExternalTeams, createExternalTeam } from "@/utils/api"
-import { fetchTeams, selectAllTeams } from "@/store/slices/teamsSlice"
+import { fetchTeams, selectAllTeams, selectTeamsLoading } from "@/store/slices/teamsSlice"
 import { ErrorToast } from "@/components/auth/ErrorToast"
 import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector"
 import * as Haptics from "expo-haptics"
@@ -49,6 +49,7 @@ const CoachMatches: React.FC = () => {
   const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
   const teams = useAppSelector(selectAllTeams)
+  const teamsLoading = useAppSelector(selectTeamsLoading)
   const [externalTeams, setExternalTeams] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [weekDates] = useState(() => generateWeekDates()); // Use function to ensure fresh generation
@@ -141,6 +142,7 @@ const CoachMatches: React.FC = () => {
     const loadLocations = async () => {
       try {
         const locationsData = await getLocations();
+        console.log("📍 Loaded locations:", locationsData);
         setLocations(Array.isArray(locationsData) ? locationsData : []);
       } catch (error) {
         console.error("Failed to load locations:", error);
@@ -151,6 +153,7 @@ const CoachMatches: React.FC = () => {
     const loadExternalTeams = async () => {
       try {
         const externalTeamsData = await getExternalTeams();
+        console.log("👥 Loaded external teams:", externalTeamsData);
         setExternalTeams(Array.isArray(externalTeamsData) ? externalTeamsData : []);
       } catch (error) {
         console.error("Failed to load external teams:", error);
@@ -161,6 +164,11 @@ const CoachMatches: React.FC = () => {
     loadLocations();
     loadExternalTeams();
   }, []);
+
+  // Debug: Monitor teams changes
+  useEffect(() => {
+    console.log("🏀 Teams updated:", teams, "Loading:", teamsLoading);
+  }, [teams, teamsLoading]);
 
   // Animation for modal
   useEffect(() => {
@@ -183,6 +191,11 @@ const CoachMatches: React.FC = () => {
   const openCreateGameModal = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingGame(null);
+
+    console.log("🏀 Opening create game modal");
+    console.log("👥 Available teams:", teams);
+    console.log("📍 Available locations:", locations);
+    console.log("🏟️ External teams:", externalTeams);
 
     // Set default home team to coach's first team (if available)
     const defaultHomeTeam = teams && teams.length > 0 ? teams[0].id : "";
@@ -722,30 +735,38 @@ const CoachMatches: React.FC = () => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.pickerList}>
-              {teams?.map((team: any) => (
-                <TouchableOpacity
-                  key={team.id}
-                  style={[
-                    styles.pickerItem,
-                    homeTeamId === team.id && styles.pickerItemSelected,
-                  ]}
-                  onPress={() => {
-                    setHomeTeamId(team.id);
-                    setShowHomeTeamPicker(false);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                >
-                  <Text style={[
-                    styles.pickerItemText,
-                    homeTeamId === team.id && styles.pickerItemTextSelected,
-                  ]}>
-                    {team.name}
+              {teams && teams.length > 0 ? (
+                teams?.map((team: any) => (
+                  <TouchableOpacity
+                    key={team.id}
+                    style={[
+                      styles.pickerItem,
+                      homeTeamId === team.id && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => {
+                      setHomeTeamId(team.id);
+                      setShowHomeTeamPicker(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <Text style={[
+                      styles.pickerItemText,
+                      homeTeamId === team.id && styles.pickerItemTextSelected,
+                    ]}>
+                      {team.name}
+                    </Text>
+                    {homeTeamId === team.id && (
+                      <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={{ padding: 20, alignItems: "center" }}>
+                  <Text style={{ color: COLORS.textSecondary, textAlign: "center" }}>
+                    {teamsLoading === "pending" ? "Loading teams..." : "No teams available. Please create a team first."}
                   </Text>
-                  {homeTeamId === team.id && (
-                    <Ionicons name="checkmark" size={20} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -843,6 +864,18 @@ const CoachMatches: React.FC = () => {
                   ))}
                 </>
               )}
+
+              {/* Empty state if no teams available */}
+              {(!teams || teams.length <= 1) && externalTeams.length === 0 && (
+                <View style={{ padding: 20, alignItems: "center" }}>
+                  <Text style={{ color: COLORS.textSecondary, textAlign: "center", marginBottom: 10 }}>
+                    No teams available for selection.
+                  </Text>
+                  <Text style={{ color: COLORS.textSecondary, textAlign: "center", fontSize: 12 }}>
+                    Create an external team using the button above or add more internal teams.
+                  </Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -859,33 +892,41 @@ const CoachMatches: React.FC = () => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.pickerList}>
-              {locations.map((location: any) => (
-                <TouchableOpacity
-                  key={location.id}
-                  style={[
-                    styles.pickerItem,
-                    locationId === location.id && styles.pickerItemSelected,
-                  ]}
-                  onPress={() => {
-                    setLocationId(location.id);
-                    setShowLocationPicker(false);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={[
-                      styles.pickerItemText,
-                      locationId === location.id && styles.pickerItemTextSelected,
-                    ]}>
-                      {location.name}
-                    </Text>
-                    <Text style={styles.pickerItemSubtext}>{location.address}</Text>
-                  </View>
-                  {locationId === location.id && (
-                    <Ionicons name="checkmark" size={20} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
+              {locations && locations.length > 0 ? (
+                locations.map((location: any) => (
+                  <TouchableOpacity
+                    key={location.id}
+                    style={[
+                      styles.pickerItem,
+                      locationId === location.id && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => {
+                      setLocationId(location.id);
+                      setShowLocationPicker(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[
+                        styles.pickerItemText,
+                        locationId === location.id && styles.pickerItemTextSelected,
+                      ]}>
+                        {location.name}
+                      </Text>
+                      <Text style={styles.pickerItemSubtext}>{location.address}</Text>
+                    </View>
+                    {locationId === location.id && (
+                      <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={{ padding: 20, alignItems: "center" }}>
+                  <Text style={{ color: COLORS.textSecondary, textAlign: "center" }}>
+                    Loading locations...
+                  </Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
