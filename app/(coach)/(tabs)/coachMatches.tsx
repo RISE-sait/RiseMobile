@@ -107,7 +107,7 @@ const CoachMatches: React.FC = () => {
 
     // Center on today when component mounts
     centerOnToday()
-  }, [centerOnToday, fadeAnim]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchData = async () => {
@@ -735,10 +735,8 @@ const CoachMatches: React.FC = () => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.pickerList}>
-              {(() => {
-                console.log("🏠 Home Team Picker Rendering - teams:", teams, "length:", teams?.length);
-                return teams && teams.length > 0 ? (
-                  teams?.map((team: any) => (
+              {teams && teams.length > 0 ? (
+                teams?.map((team: any) => (
                   <TouchableOpacity
                     key={team.id}
                     style={[
@@ -768,8 +766,7 @@ const CoachMatches: React.FC = () => {
                     {teamsLoading === "pending" ? "Loading teams..." : "No teams available. Please create a team first."}
                   </Text>
                 </View>
-              );
-              })()}
+              )}
             </ScrollView>
           </View>
         </View>
@@ -895,10 +892,8 @@ const CoachMatches: React.FC = () => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.pickerList}>
-              {(() => {
-                console.log("📍 Location Picker Rendering - locations:", locations, "length:", locations?.length);
-                return locations && locations.length > 0 ? (
-                  locations.map((location: any) => (
+              {locations && locations.length > 0 ? (
+                locations.map((location: any) => (
                   <TouchableOpacity
                     key={location.id}
                     style={[
@@ -931,8 +926,7 @@ const CoachMatches: React.FC = () => {
                     Loading locations...
                   </Text>
                 </View>
-              );
-              })()}
+              )}
             </ScrollView>
           </View>
         </View>
