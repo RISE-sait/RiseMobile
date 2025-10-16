@@ -128,8 +128,6 @@ const CoachMatches: React.FC = () => {
         // Clear existing matches to force fresh fetch with new API
         dispatch(clearMatches())
         dispatch(fetchMatches(authToken))
-        // Fetch teams for game creation
-        dispatch(fetchTeams(authToken) as any)
       }
     }
 
@@ -165,9 +163,14 @@ const CoachMatches: React.FC = () => {
   }, []);
 
   // Modal handlers
-  const openCreateGameModal = () => {
+  const openCreateGameModal = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingGame(null);
+
+    // Fetch teams when modal opens
+    if (token) {
+      dispatch(fetchTeams(token) as any);
+    }
 
     console.log("🏀 Opening create game modal");
     console.log("👥 Available teams:", teams, "Type:", typeof teams, "IsArray:", Array.isArray(teams), "Length:", teams?.length);
