@@ -69,7 +69,6 @@ const CoachMatches: React.FC = () => {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const modalAnim = useRef(new Animated.Value(0)).current;
 
   // Picker modal states for better UX
   const [showHomeTeamPicker, setShowHomeTeamPicker] = useState(false);
@@ -165,23 +164,6 @@ const CoachMatches: React.FC = () => {
     loadExternalTeams();
   }, []);
 
-  // Animation for modal
-  useEffect(() => {
-    if (showGameModal) {
-      Animated.timing(modalAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(modalAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [showGameModal]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Modal handlers
   const openCreateGameModal = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -270,14 +252,12 @@ const CoachMatches: React.FC = () => {
   const closeGameModal = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowGameModal(false);
-    setTimeout(() => {
-      setEditingGame(null);
-      setHomeTeamId("");
-      setAwayTeamId("");
-      setLocationId("");
-      setGameDate(new Date());
-      setGameTime(new Date());
-    }, 300);
+    setEditingGame(null);
+    setHomeTeamId("");
+    setAwayTeamId("");
+    setLocationId("");
+    setGameDate(new Date());
+    setGameTime(new Date());
   };
 
   const handleCreateExternalTeam = async () => {
@@ -592,24 +572,9 @@ const CoachMatches: React.FC = () => {
 
       {/* Game Creation/Edit Modal */}
       {showGameModal && (
-        <Modal transparent visible={showGameModal} animationType="none" onRequestClose={closeGameModal}>
+        <Modal transparent visible={showGameModal} animationType="slide" onRequestClose={closeGameModal}>
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeGameModal}>
-            <Animated.View
-              style={[
-                styles.gameModal,
-                {
-                  opacity: modalAnim,
-                  transform: [
-                    {
-                      translateY: modalAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [50, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
+            <View style={styles.gameModal}>
               <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
                 <ScrollView showsVerticalScrollIndicator={false}>
                   <View style={styles.modalHeader}>
@@ -714,7 +679,7 @@ const CoachMatches: React.FC = () => {
                   </View>
                 </ScrollView>
               </TouchableOpacity>
-            </Animated.View>
+            </View>
           </TouchableOpacity>
         </Modal>
       )}
