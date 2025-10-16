@@ -10,10 +10,7 @@ const initialState: TeamsState = {
   ids: [],
   loading: "idle",
   error: null,
-  lastFetched: null,
 }
-
-// Remove CACHE_DURATION constant since we're removing caching
 
 export const fetchTeams = createAsyncThunk("teams/fetchTeams", async (token: string, { rejectWithValue }) => {
   try {
@@ -58,14 +55,7 @@ export const selectTeamsForCoach = (state: RootState, coachId: string) =>
 // Fetch a single team by ID
 export const fetchTeamById = createAsyncThunk(
   "teams/fetchTeamById",
-  async ({ id, token }: { id: string; token: string }, { rejectWithValue, getState }) => {
-    const state = getState() as RootState
-
-    // Check if we already have this team in the store
-    if (state.teams.entities[id]) {
-      return null // Skip fetching, use cached data
-    }
-
+  async ({ id, token }: { id: string; token: string }, { rejectWithValue }) => {
     try {
       const response = await axios.get(`${API_URL}/teams/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -120,18 +110,12 @@ const teamsSlice = createSlice({
 
         state.entities = entities
         state.ids = ids
-        state.lastFetched = Date.now()
       })
       .addCase(fetchTeams.rejected, (state, action) => {
         state.loading = "failed"
         state.error = (action.payload as string) || "Failed to fetch teams"
       })
       .addCase(fetchTeamById.fulfilled, (state, action) => {
-        // If null is returned, it means we're using cached data
-        if (action.payload === null) {
-          return
-        }
-
         const team = action.payload as Team
 
         // Add the team to our entities

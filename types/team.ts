@@ -33,5 +33,4 @@ export interface TeamsState {
   ids: string[]
   loading: "idle" | "pending" | "succeeded" | "failed"
   error: string | null
-  lastFetched: number | null
 }
