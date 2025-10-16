@@ -174,20 +174,32 @@ const SelectTeamForRoster: React.FC = () => {
         await updateTeam(editingTeam.id!, updateData, user.token)
         Alert.alert("Success", "Team updated successfully")
       } else {
+        // Get coach_id from existing team like Python script does
+        let coachId = user.id; // Default to user.id
+        
+        // Try to get coach_id from first available team
+        if (teams && teams.length > 0) {
+          const firstTeam = teams[0];
+          if (firstTeam.coach && firstTeam.coach.id) {
+            coachId = firstTeam.coach.id;
+          }
+        }
+        
         // Debug logging
         console.log("Creating new team with data:", {
           name: teamName.trim(),
           capacity,
-          coach_id: user.id,
+          coach_id: coachId,
           user_role: user.role,
-          user_id: user.id
+          user_id: user.id,
+          teams_count: teams?.length || 0
         });
         
         // Create new team - include coach_id as required by backend
         const createData = {
           name: teamName.trim(),
           capacity,
-          coach_id: user.id, // Required by backend for coach-created teams
+          coach_id: coachId, // Required by backend for coach-created teams
         }
         await createTeam(createData, user.token)
         Alert.alert("Success", "Team created successfully")
