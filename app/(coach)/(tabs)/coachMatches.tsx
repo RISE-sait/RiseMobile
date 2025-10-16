@@ -11,7 +11,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
 import EmptyState from "@/components/feedback/EmptyState"
 import { createGame, updateGame, deleteGame, getLocations, getExternalTeams, createExternalTeam } from "@/utils/api"
-import { fetchTeams } from "@/store/slices/teamsSlice"
+import { fetchTeams, selectAllTeams } from "@/store/slices/teamsSlice"
 import { ErrorToast } from "@/components/auth/ErrorToast"
 import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector"
 import * as Haptics from "expo-haptics"
@@ -48,7 +48,7 @@ const CoachMatches: React.FC = () => {
   const status = useAppSelector((state) => state.games.status)
   const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
-  const teams = useAppSelector((state) => state.teams.items)
+  const teams = useAppSelector(selectAllTeams)
   const [externalTeams, setExternalTeams] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [weekDates] = useState(() => generateWeekDates()); // Use function to ensure fresh generation
@@ -185,7 +185,7 @@ const CoachMatches: React.FC = () => {
     setEditingGame(null);
 
     // Set default home team to coach's first team (if available)
-    const defaultHomeTeam = teams.length > 0 ? teams[0].id : "";
+    const defaultHomeTeam = teams && teams.length > 0 ? teams[0].id : "";
     setHomeTeamId(defaultHomeTeam);
     setAwayTeamId("");
     setLocationId("");
@@ -620,7 +620,7 @@ const CoachMatches: React.FC = () => {
                         onPress={() => setShowHomeTeamPicker(true)}
                       >
                         <Text style={[styles.pickerText, !homeTeamId && styles.pickerPlaceholderText]}>
-                          {homeTeamId ? teams.find((t: any) => t.id === homeTeamId)?.name : "Select home team"}
+                          {homeTeamId ? teams?.find((t: any) => t.id === homeTeamId)?.name : "Select home team"}
                         </Text>
                         <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
                       </TouchableOpacity>
@@ -636,7 +636,7 @@ const CoachMatches: React.FC = () => {
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.pickerText, !awayTeamId && styles.pickerPlaceholderText]}>
                             {awayTeamId
-                              ? (teams.find((t: any) => t.id === awayTeamId)?.name ||
+                              ? (teams?.find((t: any) => t.id === awayTeamId)?.name ||
                                  externalTeams.find((t: any) => t.id === awayTeamId)?.name)
                               : "Select away team"}
                           </Text>
@@ -722,7 +722,7 @@ const CoachMatches: React.FC = () => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.pickerList}>
-              {teams.map((team: any) => (
+              {teams?.map((team: any) => (
                 <TouchableOpacity
                   key={team.id}
                   style={[
@@ -778,7 +778,7 @@ const CoachMatches: React.FC = () => {
               </TouchableOpacity>
 
               {/* Internal Teams */}
-              {teams.filter((team: any) => team.id !== homeTeamId).length > 0 && (
+              {teams?.filter((team: any) => team.id !== homeTeamId).length > 0 && (
                 <>
                   <Text style={styles.sectionHeader}>Internal Teams</Text>
                   {teams
