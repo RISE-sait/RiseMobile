@@ -26,7 +26,6 @@ import type { RootState } from "@/store"
 import images from "@/constants/images"
 import { createTeam, updateTeam, deleteTeam } from "@/utils/api"
 import { ErrorToast } from "@/components/auth/ErrorToast"
-import { removeTeam } from "@/store/slices/teamsSlice"
 
 const { width } = Dimensions.get("window")
 
