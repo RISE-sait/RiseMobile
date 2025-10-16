@@ -193,9 +193,9 @@ const CoachMatches: React.FC = () => {
     setEditingGame(null);
 
     console.log("🏀 Opening create game modal");
-    console.log("👥 Available teams:", teams);
-    console.log("📍 Available locations:", locations);
-    console.log("🏟️ External teams:", externalTeams);
+    console.log("👥 Available teams:", teams, "Type:", typeof teams, "IsArray:", Array.isArray(teams), "Length:", teams?.length);
+    console.log("📍 Available locations:", locations, "Length:", locations?.length);
+    console.log("🏟️ External teams:", externalTeams, "Length:", externalTeams?.length);
 
     // Set default home team to coach's first team (if available)
     const defaultHomeTeam = teams && teams.length > 0 ? teams[0].id : "";
@@ -735,8 +735,10 @@ const CoachMatches: React.FC = () => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.pickerList}>
-              {teams && teams.length > 0 ? (
-                teams?.map((team: any) => (
+              {(() => {
+                console.log("🏠 Home Team Picker Rendering - teams:", teams, "length:", teams?.length);
+                return teams && teams.length > 0 ? (
+                  teams?.map((team: any) => (
                   <TouchableOpacity
                     key={team.id}
                     style={[
@@ -766,7 +768,8 @@ const CoachMatches: React.FC = () => {
                     {teamsLoading === "pending" ? "Loading teams..." : "No teams available. Please create a team first."}
                   </Text>
                 </View>
-              )}
+              );
+              })()}
             </ScrollView>
           </View>
         </View>
@@ -892,8 +895,10 @@ const CoachMatches: React.FC = () => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.pickerList}>
-              {locations && locations.length > 0 ? (
-                locations.map((location: any) => (
+              {(() => {
+                console.log("📍 Location Picker Rendering - locations:", locations, "length:", locations?.length);
+                return locations && locations.length > 0 ? (
+                  locations.map((location: any) => (
                   <TouchableOpacity
                     key={location.id}
                     style={[
@@ -926,7 +931,8 @@ const CoachMatches: React.FC = () => {
                     Loading locations...
                   </Text>
                 </View>
-              )}
+              );
+              })()}
             </ScrollView>
           </View>
         </View>
