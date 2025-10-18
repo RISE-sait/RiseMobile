@@ -23,7 +23,10 @@ export interface Event {
   location: string;
   image: string;
   type: "game" | "match" | "practice" | "course" | "other";
-  program?: { id: string };
+  program?: { 
+    id: string;
+    photo_url?: string;
+  };
 }
 
 
@@ -83,9 +86,12 @@ const EventsScreen: React.FC = () => {
               date: eventDate.format("YYYY-MM-DD"),
               time: event.time || "TBD",
               location: event.location || "TBD",
-              image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+              image: event.program?.photo_url || "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
               type: event.type || "other",
-              program: event.program?.id ? { id: event.program.id } : undefined,
+              program: event.program?.id ? { 
+                id: event.program.id,
+                photo_url: event.program.photo_url
+              } : undefined,
             });
           } else {
             console.warn(`⚠️ Invalid date for event ${event.id}: ${event.date}`);

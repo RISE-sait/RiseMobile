@@ -11,6 +11,7 @@ export interface CalendarItem {
     id: string
     name?: string
     type?: string
+    photo_url?: string
   }
 }
 

@@ -100,6 +100,7 @@ const processEvents = (events: any[]): { items: CalendarItem[]; byDate: Record<s
         id: event.program?.id || "",
         name: event.program?.name,
         type: event.program?.type,
+        photo_url: event.program?.photo_url,
       },
     }
 
