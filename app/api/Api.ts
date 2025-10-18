@@ -178,12 +178,14 @@ export interface EventProgram {
   id?: string;
   name?: string;
   type?: string;
+  photo_url?: string;
 }
 
 export interface EventProgramInfo {
   id?: string;
   name?: string;
   type?: string;
+  photo_url?: string;
 }
 
 export interface EventScheduleResponseDto {
