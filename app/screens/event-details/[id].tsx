@@ -27,11 +27,12 @@ import { FontAwesome5 } from "@expo/vector-icons"
 import EventImageHeader from "@/components/events/EventImageHeader"
 import BackButton from "@/components/buttons/BackButton"
 import EventInfoRow from "@/components/events/EventInfoRow"
-import { API_URL, getMembershipByCustomerId } from "@/utils/api"
+import { API_URL, getMembershipByCustomerId, getEventEnrollmentOptions, enrollEventWithCredits } from "@/utils/api"
 import { setMembership } from "@/store/slices/membershipSlice"
 import { COLORS } from "@/constants/colors"
 import * as WebBrowser from 'expo-web-browser'
 import { CalendarItem } from "@/types"
+import { ErrorToast } from "@/components/auth/ErrorToast"
 
 const { width } = Dimensions.get("window")
 
@@ -83,6 +84,7 @@ interface ApiEventResponse {
     name: string
     type?: string
     description?: string
+    photo_url?: string
   }
   // Enrollment information
   customers?: Array<{
@@ -119,6 +121,9 @@ const EventDetails: React.FC = () => {
   const [credits, setCredits] = useState<number>(0)
   const [showPaymentOptions, setShowPaymentOptions] = useState(false)
   const [isCheckingPayment, setIsCheckingPayment] = useState(false)
+  const [enrollmentOptions, setEnrollmentOptions] = useState<any>(null)
+  const [loadingEnrollmentOptions, setLoadingEnrollmentOptions] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
   const paymentCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -129,13 +134,30 @@ const EventDetails: React.FC = () => {
       const token = userData?.token
       if (!token) return
 
-      const response = await axios.get(`${API_URL}/secure/credits`, {
+      const response = await axios.get<{ credits?: number; customer_id?: string }>(`${API_URL}/secure/credits`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
-      setCredits(response.data.balance || 0)
+      setCredits(response.data.credits || 0)
     } catch (error) {
       console.error("Error fetching credits:", error)
+    }
+  }
+
+  // Function to fetch event enrollment options
+  const fetchEnrollmentOptions = async (eventId: string) => {
+    try {
+      const token = userData?.token
+      if (!token) return
+
+      setLoadingEnrollmentOptions(true)
+      const options = await getEventEnrollmentOptions(eventId, token)
+      setEnrollmentOptions(options)
+    } catch (error) {
+      console.error("Error fetching enrollment options:", error)
+      setEnrollmentOptions(null)
+    } finally {
+      setLoadingEnrollmentOptions(false)
     }
   }
 
@@ -205,6 +227,10 @@ const EventDetails: React.FC = () => {
     fetchEventDetails()
     fetchUserCredits()
     fetchUserMembership()
+    if (id) {
+      const cleanedId = cleanId(id as string)
+      fetchEnrollmentOptions(cleanedId)
+    }
   }, [id])
 
   // Handle app state changes to detect return from Stripe checkout
@@ -233,7 +259,7 @@ const EventDetails: React.FC = () => {
       if (!token) return false
 
       const cleanedId = cleanId(id as string)
-      const response = await axios.get(`${API_URL}/events/${cleanedId}`, {
+      const response = await axios.get<ApiEventResponse>(`${API_URL}/events/${cleanedId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
@@ -400,7 +426,7 @@ const EventDetails: React.FC = () => {
       // Always use public endpoint for event details - it contains full event info
       // The secure endpoint only returns enrolled events without full details
       url = `${API_URL}/events/${cleanedId}`;
-      response = await axios.get(url, {
+      response = await axios.get<ApiEventResponse>(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -444,7 +470,7 @@ const EventDetails: React.FC = () => {
         time: formatTimeRange(startDate, endDate),
         location: eventData.location?.name || "RISE Facility",
         locationAddress: eventData.location?.address || "",
-        image:
+        image: eventData.program?.photo_url ||
           "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
         organizer: organizerName,
         category: eventData.type || "Event",
@@ -459,6 +485,14 @@ const EventDetails: React.FC = () => {
         customer.id === userData.id || customer.email === userData.email
       ) || false
 
+      console.log("🔍 Event Details Debug:", {
+        eventId: processedEvent.id,
+        title: processedEvent.title,
+        includesPractice: processedEvent.title.toLowerCase().includes('practice'),
+        status: processedEvent.status,
+        isUserEnrolled: isUserEnrolled,
+        willShowRegisterButton: !processedEvent.title.toLowerCase().includes('practice')
+      })
 
       setRegistered(isUserEnrolled)
     } catch (err: any) {
@@ -694,60 +728,132 @@ const EventDetails: React.FC = () => {
     }
   }
 
-  // Enhanced enrollment function based on API specification
+  // Enhanced enrollment function with robust error handling
   const enrollInEvent = async (paymentMethod: 'stripe' | 'credits' = 'stripe') => {
     if (!event || !userData?.token) return
 
     if (event.status === "completed") {
-      Alert.alert("Cannot Register", "This event has already ended.")
+      setErrorMessage("This event has already ended.")
+      setTimeout(() => setErrorMessage(null), 3000)
       return
     }
 
+    // Clear any previous error messages
+    setErrorMessage(null)
     setEnrolling(true)
+
     try {
-      const response = await fetch(
-        `${API_URL}/checkout/events/${event.id}/enhanced`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ payment_method: paymentMethod })
-        }
-      )
+      // Use credit-specific API function for credit payments
+      if (paymentMethod === 'credits') {
+        const data = await enrollEventWithCredits(event.id, userData.token)
 
-      const data = await response.json()
-
-      if (response.ok) {
-        if (data.payment_link || data.payment_url) {
-          // Outcome 2: Stripe payment required
-          const paymentUrl = data.payment_link || data.payment_url
-          setIsCheckingPayment(true)
-          await WebBrowser.openBrowserAsync(paymentUrl)
-          // Don't show alert immediately - let app state handling take care of verification
-        } else {
-          // Outcome 1 or 3: Free enrollment or credit payment successful
-          setRegistered(true)
-          Alert.alert(
-            "Registration Successful!",
-            data.message || "You've been successfully enrolled in this event.",
-            [{ text: "OK", onPress: () => fetchEventDetails() }]
-          )
-          // Refresh credits if used
-          if (paymentMethod === 'credits') {
-            fetchUserCredits()
-          }
-        }
+        // Credit payment successful
+        setRegistered(true)
+        Alert.alert(
+          "Registration Successful!",
+          data.message || "You've been successfully enrolled using credits.",
+          [{ text: "OK", onPress: () => fetchEventDetails() }]
+        )
+        // Refresh credit balance after successful enrollment
+        fetchUserCredits()
         setShowPaymentOptions(false)
       } else {
-        // Handle API errors with server message
-        const errorMessage = data?.error?.message || data?.message || "Registration failed. Please try again."
-        Alert.alert("Registration Failed", errorMessage)
+        // Stripe or free enrollment - use enhanced endpoint
+        const response = await fetch(
+          `${API_URL}/checkout/events/${event.id}/enhanced`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${userData.token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ payment_method: paymentMethod })
+          }
+        )
+
+        const data = await response.json()
+
+        if (response.ok) {
+          if (data.payment_link || data.payment_url) {
+            // Outcome 2: Stripe payment required
+            const paymentUrl = data.payment_link || data.payment_url
+            setIsCheckingPayment(true)
+            await WebBrowser.openBrowserAsync(paymentUrl)
+            // Don't show alert immediately - let app state handling take care of verification
+          } else {
+            // Outcome 1: Free enrollment successful
+            setRegistered(true)
+            Alert.alert(
+              "Registration Successful!",
+              data.message || "You've been successfully enrolled in this event.",
+              [{ text: "OK", onPress: () => fetchEventDetails() }]
+            )
+          }
+          setShowPaymentOptions(false)
+        } else {
+          // Handle API errors based on status code
+          const errorMsg = data?.error?.message || data?.message || "Registration failed. Please try again."
+
+          if (response.status >= 500) {
+            // Server error - show friendly message
+            setErrorMessage("An unexpected server error occurred. Please try again later.")
+          } else if (response.status === 400) {
+            // Client error - show specific message
+            setErrorMessage(errorMsg)
+          } else {
+            // Other errors
+            setErrorMessage("Registration failed. Please try again.")
+          }
+
+          // Auto-dismiss error after 5 seconds
+          setTimeout(() => setErrorMessage(null), 5000)
+        }
       }
     } catch (error: any) {
       console.error("Enrollment error:", error)
-      Alert.alert("Connection Error", "Unable to connect to our servers. Please check your internet connection and try again.")
+
+      // Distinguish between different error types
+      if (error.response) {
+        // Server responded with error status
+        const statusCode = error.response.status
+        const errorMsg = error.response?.data?.error?.message || error.response?.data?.message
+
+        if (statusCode >= 500) {
+          // Server error (500, 502, 503, etc.)
+          setErrorMessage("An unexpected server error occurred. Please try again later.")
+        } else if (statusCode === 429) {
+          // Too many requests - rate limiting
+          setErrorMessage("Too many requests. Please wait a moment and try again.")
+        } else if (statusCode === 404) {
+          // Resource not found - show specific backend message
+          setErrorMessage(errorMsg || "This event is not available for enrollment.")
+        } else if (statusCode === 400) {
+          // Bad request - show specific error message from backend
+          // Special handling for common backend error messages
+          if (errorMsg?.toLowerCase().includes('capacity')) {
+            setErrorMessage("This event is not properly configured. Please contact support or try a different event.")
+          } else if (errorMsg?.toLowerCase().includes('credit')) {
+            setErrorMessage(errorMsg) // Show credit-specific errors as-is
+          } else {
+            setErrorMessage(errorMsg || "Invalid enrollment request. Please try again.")
+          }
+        } else if (statusCode === 401 || statusCode === 403) {
+          // Authentication/Authorization error
+          setErrorMessage("Authentication failed. Please log in again.")
+        } else {
+          // Other client errors (4xx)
+          setErrorMessage(errorMsg || "Registration failed. Please try again.")
+        }
+      } else if (error.request) {
+        // Network error - no response received
+        setErrorMessage("Unable to connect to the server. Please check your internet connection and try again.")
+      } else {
+        // Other errors (e.g., configuration errors)
+        setErrorMessage("An unexpected error occurred. Please try again.")
+      }
+
+      // Auto-dismiss error after 5 seconds
+      setTimeout(() => setErrorMessage(null), 5000)
     } finally {
       setEnrolling(false)
     }
@@ -908,6 +1014,28 @@ const EventDetails: React.FC = () => {
             <Text style={styles.modalTitle}>Enroll in Event</Text>
             <Text style={styles.modalSubtitle}>Choose your payment method</Text>
 
+            {/* Display Enrollment Options Info */}
+            {loadingEnrollmentOptions ? (
+              <View style={styles.loadingOptionContainer}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingOptionText}>Loading options...</Text>
+              </View>
+            ) : enrollmentOptions ? (
+              <View style={styles.enrollmentInfoContainer}>
+                {enrollmentOptions.can_enroll_free && (
+                  <Text style={styles.enrollmentInfoText}>✓ Free enrollment available</Text>
+                )}
+                {enrollmentOptions.credit_cost > 0 && (
+                  <Text style={styles.enrollmentInfoText}>
+                    Credit cost: {enrollmentOptions.credit_cost} credits
+                  </Text>
+                )}
+                <Text style={styles.enrollmentInfoText}>
+                  Your balance: {credits} credits
+                </Text>
+              </View>
+            ) : null}
+
             {/* Stripe Payment Option (Default) */}
             <TouchableOpacity
               style={styles.paymentOption}
@@ -917,21 +1045,44 @@ const EventDetails: React.FC = () => {
               <FontAwesome5 name="credit-card" size={20} color={COLORS.primary} />
               <View style={styles.paymentOptionText}>
                 <Text style={styles.paymentOptionTitle}>Enroll</Text>
-                <Text style={styles.paymentOptionSubtitle}>Free for members or pay with card</Text>
+                <Text style={styles.paymentOptionSubtitle}>
+                  {enrollmentOptions?.can_enroll_free
+                    ? "Free enrollment"
+                    : "Free for members or pay with card"}
+                </Text>
               </View>
             </TouchableOpacity>
 
-            {/* Credits Option (Only if user has credits) */}
-            {credits > 0 && (
+            {/* Credits Option - Show if enrollment options indicate credit payment is possible */}
+            {enrollmentOptions && enrollmentOptions.credit_cost > 0 && (
               <TouchableOpacity
-                style={styles.paymentOption}
+                style={[
+                  styles.paymentOption,
+                  !enrollmentOptions.has_sufficient_credits && styles.disabledPaymentOption
+                ]}
                 onPress={() => enrollInEvent('credits')}
-                disabled={enrolling}
+                disabled={enrolling || !enrollmentOptions.has_sufficient_credits}
               >
-                <FontAwesome5 name="star" size={20} color={COLORS.primary} />
+                <FontAwesome5
+                  name="star"
+                  size={20}
+                  color={enrollmentOptions.has_sufficient_credits ? COLORS.primary : COLORS.textSecondary}
+                />
                 <View style={styles.paymentOptionText}>
-                  <Text style={styles.paymentOptionTitle}>Use Credits</Text>
-                  <Text style={styles.paymentOptionSubtitle}>Balance: {credits} credits</Text>
+                  <Text style={[
+                    styles.paymentOptionTitle,
+                    !enrollmentOptions.has_sufficient_credits && styles.disabledPaymentOptionText
+                  ]}>
+                    Use Credits ({enrollmentOptions.credit_cost} credits)
+                  </Text>
+                  <Text style={[
+                    styles.paymentOptionSubtitle,
+                    !enrollmentOptions.has_sufficient_credits && styles.insufficientCreditsText
+                  ]}>
+                    {enrollmentOptions.has_sufficient_credits
+                      ? `Balance: ${credits} credits`
+                      : `Insufficient credits (need ${enrollmentOptions.credit_cost}, have ${credits})`}
+                  </Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -946,6 +1097,9 @@ const EventDetails: React.FC = () => {
           </View>
         </View>
       )}
+
+      {/* Error Toast */}
+      {errorMessage && <ErrorToast message={errorMessage} />}
     </SafeAreaView>
   )
 }
@@ -1198,6 +1352,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 8,
     fontWeight: "500",
+  },
+  loadingOptionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    marginBottom: 16,
+  },
+  loadingOptionText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  enrollmentInfoContainer: {
+    backgroundColor: COLORS.cardLight,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  enrollmentInfoText: {
+    color: COLORS.text,
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  disabledPaymentOption: {
+    opacity: 0.5,
+  },
+  disabledPaymentOptionText: {
+    color: COLORS.textSecondary,
+  },
+  insufficientCreditsText: {
+    color: '#FF5252',
   },
 })
 

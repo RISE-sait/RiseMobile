@@ -119,6 +119,7 @@ export interface EventCreateRequestDto {
   recurrence_end_at: string;
   /** @example "2023-10-05T07:00:00Z" */
   recurrence_start_at: string;
+  required_membership_plan_ids?: string[];
   /** @example "23:00:00+00:00" */
   start_at: string;
   /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */
@@ -148,6 +149,7 @@ export interface EventEventResponseDto {
   id?: string;
   location?: EventLocationInfo;
   program?: EventProgramInfo;
+  required_membership_plan_ids?: string[];
   staff?: EventStaffResponseDto[];
   start_at?: string;
   team?: EventTeamInfo;
@@ -176,12 +178,14 @@ export interface EventProgram {
   id?: string;
   name?: string;
   type?: string;
+  photo_url?: string;
 }
 
 export interface EventProgramInfo {
   id?: string;
   name?: string;
   type?: string;
+  photo_url?: string;
 }
 
 export interface EventScheduleResponseDto {
@@ -259,6 +263,7 @@ export interface EventUpdateRequestDto {
   location_id?: string;
   /** @example "f0e21457-75d4-4de6-b765-5ee13221fd72" */
   program_id?: string;
+  required_membership_plan_ids?: string[];
   /** @example "2023-10-05T07:00:00Z" */
   start_at: string;
   /** @example "0bab3927-50eb-42b3-9d6b-2350dd00a100" */

@@ -47,11 +47,11 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
         title: `${game.home_team_name || 'Team 1'} vs ${game.away_team_name || 'Team 2'}`,
         date,
         time,
-        location: game.location_name || "RISE Basketball Facility", 
+        location: game.location_name || "RISE Basketball Facility",
         description: game.description || `Game scheduled for ${date}`,
         // Games may have score fields
         win_team: game.winner_team,
-        lose_team: game.loser_team,  
+        lose_team: game.loser_team,
         win_score: game.winner_score,
         lose_score: game.loser_score,
         created_at: dateSource,
@@ -69,7 +69,12 @@ export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token:
         away_team_logo_url: game.away_team_logo_url,
         home_score: game.home_score,
         away_score: game.away_score,
-        status: game.status // Use backend status directly - no client-side mapping
+        status: game.status, // Use backend status directly - no client-side mapping
+        // Preserve original IDs for edit functionality
+        home_team_id: game.home_team_id,
+        away_team_id: game.away_team_id,
+        location_id: game.location_id,
+        start_time: game.start_time
       }
     })
 
@@ -152,7 +157,12 @@ export const fetchMatchHistory = createAsyncThunk("games/fetchMatchHistory", asy
         away_team_logo_url: game.away_team_logo_url,
         home_score: game.home_score,
         away_score: game.away_score,
-        status: game.status // Use backend status directly - no client-side mapping
+        status: game.status, // Use backend status directly - no client-side mapping
+        // Preserve original IDs for edit functionality
+        home_team_id: game.home_team_id,
+        away_team_id: game.away_team_id,
+        location_id: game.location_id,
+        start_time: game.start_time
       }
     })
 

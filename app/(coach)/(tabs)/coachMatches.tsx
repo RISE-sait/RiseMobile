@@ -1,53 +1,64 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, StyleSheet, Alert } from "react-native";
 import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import MatchCard from "../../../components/events/MatchCard";
 import { StatusBar } from "expo-status-bar";
-import { FontAwesome6 } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
-import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
-import EmptyState from "@/components/feedback/EmptyState"
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import LoadingIndicator from "../../../components/feedback/LoadingIndicator";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice";
+import EmptyState from "@/components/feedback/EmptyState";
+import { deleteGame } from "@/utils/api";
+import { fetchTeams } from "@/store/slices/teamsSlice";
+import * as Haptics from "expo-haptics";
 
 const { width } = Dimensions.get("window");
+
+// Define color constants
+const COLORS = {
+  primary: "#FFD700",
+  background: "#0C0B0B",
+};
 
 // Fixed function to generate exactly 13 days (6 before + today + 6 after)
 const generateWeekDates = (): dayjs.Dayjs[] => {
   const today = dayjs();
   const startDate = today.subtract(6, "day");
-  const endDate = today.add(6, "day");
   const totalDays = 13; // Always 13 days
-  
+
   return Array.from({ length: totalDays }, (_, i) => startDate.add(i, "day"));
 };
 
 const CoachMatches: React.FC = () => {
-  const dispatch = useAppDispatch()
-  const matches = useAppSelector((state) => state.games.items)
-  const status = useAppSelector((state) => state.games.status)
-  const error = useAppSelector((state) => state.games.error)
-  const token = useAppSelector((state) => state.user.data?.token)
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const matches = useAppSelector((state) => state.games.items);
+  const status = useAppSelector((state) => state.games.status);
+  const error = useAppSelector((state) => state.games.error);
+  const token = useAppSelector((state) => state.user.data?.token);
+
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
-  const [weekDates] = useState(() => generateWeekDates()); // Use function to ensure fresh generation
+  const [weekDates] = useState(() => generateWeekDates());
   const flatListRef = useRef<FlatList>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   // Center on today function
   const centerOnToday = useCallback(() => {
-    const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"))
-    
+    const todayIndex = weekDates.findIndex((date) => date.isSame(dayjs(), "day"));
+
     if (flatListRef.current && todayIndex !== -1) {
       setTimeout(() => {
-        flatListRef.current?.scrollToIndex({ 
-          index: todayIndex, 
+        flatListRef.current?.scrollToIndex({
+          index: todayIndex,
           animated: true,
-          viewPosition: 0.5 // Center the item
-        })
-      }, 300)
+          viewPosition: 0.5, // Center the item
+        });
+      }, 300);
     }
-  }, [weekDates])
+  }, [weekDates]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -57,54 +68,106 @@ const CoachMatches: React.FC = () => {
     }).start();
 
     // Center on today when component mounts
-    centerOnToday()
-  }, [centerOnToday]);
+    centerOnToday();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchData = async () => {
-      let authToken = token
+      let authToken = token;
 
       if (!authToken) {
         try {
-          const userString = await AsyncStorage.getItem("user")
+          const userString = await AsyncStorage.getItem("user");
           if (userString) {
-            const userData = JSON.parse(userString)
-            authToken = userData.token
+            const userData = JSON.parse(userString);
+            authToken = userData.token;
           }
         } catch (err) {
-          console.error("Error getting token from AsyncStorage:", err)
+          console.error("Error getting token from AsyncStorage:", err);
         }
       }
 
       if (authToken) {
         // Clear existing matches to force fresh fetch with new API
-        dispatch(clearMatches())
-        dispatch(fetchMatches(authToken))
+        dispatch(clearMatches());
+        dispatch(fetchMatches(authToken));
+        // Preload teams data for game creation
+        dispatch(fetchTeams(authToken) as any);
       }
-    }
+    };
 
-    fetchData()
-  }, [dispatch, token])
+    fetchData();
+  }, [dispatch, token]);
 
-  // Debug logging
-  
-  // Filter matches by selected date - use match.date instead of created_at
+  // Navigation handlers
+  const openCreateGameModal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push("/(coach)/screens/createMatch");
+  };
+
+  const openEditGameModal = (game: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: "/(coach)/screens/createMatch",
+      params: { gameId: game.id },
+    });
+  };
+
+  const handleDeleteGame = async (game: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    Alert.alert(
+      "Delete Game",
+      `Are you sure you want to delete "${game.name || "this game"}"? This action cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!token) {
+              Alert.alert("Error", "Authentication token not found. Please log in again.");
+              return;
+            }
+
+            try {
+              await deleteGame(game.id, token);
+              // Refresh games list
+              dispatch(clearMatches());
+              dispatch(fetchMatches(token));
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (error: any) {
+              console.error("Error deleting game:", error);
+              const errorMsg =
+                error.response?.data?.error?.message || error.message || "Failed to delete game";
+              Alert.alert("Error", errorMsg);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Filter matches by selected date
   const filteredMatches = matches.filter((match) => {
-    const matchDate = match.date || dayjs().format("YYYY-MM-DD")
-    return matchDate === selectedDate
+    const matchDate = match.date || dayjs().format("YYYY-MM-DD");
+    return matchDate === selectedDate;
   });
 
-  // Render loading state - moved to proper place
+  // Render loading state
   if (status === "loading") {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
         <LoadingIndicator size="large" color="#FCA311" />
         <Text className="text-white-100 mt-4">Loading matches...</Text>
       </SafeAreaView>
-    )
+    );
   }
 
-  // Render error state - moved to proper place  
+  // Render error state
   if (status === "failed" && error) {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2 justify-center items-center">
@@ -114,27 +177,27 @@ const CoachMatches: React.FC = () => {
           message={error}
           actionLabel="Try Again"
           onAction={async () => {
-            let authToken = token
+            let authToken = token;
             if (!authToken) {
-              const userString = await AsyncStorage.getItem("user")
+              const userString = await AsyncStorage.getItem("user");
               if (userString) {
-                authToken = JSON.parse(userString)?.token
+                authToken = JSON.parse(userString)?.token;
               }
             }
 
             if (authToken) {
-              dispatch(clearMatches())
-              dispatch(fetchMatches(authToken))
+              dispatch(clearMatches());
+              dispatch(fetchMatches(authToken));
             }
           }}
         />
       </SafeAreaView>
-    )
+    );
   }
 
   const renderDateItem = ({ item }: { item: dayjs.Dayjs }) => {
     const isSelected = item.format("YYYY-MM-DD") === selectedDate;
-    const isToday = item.isSame(dayjs(), "day")
+    const isToday = item.isSame(dayjs(), "day");
 
     const label = isToday
       ? "Today"
@@ -179,24 +242,30 @@ const CoachMatches: React.FC = () => {
         {/* Header */}
         <View className="px-6 pb-4 border-b border-white-100/10 flex-row justify-between items-center">
           <Text className="text-white-100 text-3xl font-bold">Matches</Text>
-          <TouchableOpacity
-            onPress={async () => {
-              let authToken = token
-              if (!authToken) {
-                const userString = await AsyncStorage.getItem("user")
-                if (userString) {
-                  authToken = JSON.parse(userString)?.token
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <TouchableOpacity style={styles.createButton} onPress={openCreateGameModal}>
+              <Ionicons name="add" size={20} color="#000" />
+              <Text style={styles.createButtonText}>Create</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={async () => {
+                let authToken = token;
+                if (!authToken) {
+                  const userString = await AsyncStorage.getItem("user");
+                  if (userString) {
+                    authToken = JSON.parse(userString)?.token;
+                  }
                 }
-              }
 
-              if (authToken) {
-                dispatch(clearMatches())
-                dispatch(fetchMatches(authToken))
-              }
-            }}
-          >
-            <Text className="text-gold-100 font-semibold">Refresh</Text>
-          </TouchableOpacity>
+                if (authToken) {
+                  dispatch(clearMatches());
+                  dispatch(fetchMatches(authToken));
+                }
+              }}
+            >
+              <Text className="text-gold-100 font-semibold">Refresh</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Horizontal Calendar */}
@@ -213,11 +282,11 @@ const CoachMatches: React.FC = () => {
           onScrollToIndexFailed={(info) => {
             // Fallback: scroll to the nearest valid index
             setTimeout(() => {
-              flatListRef.current?.scrollToIndex({ 
-                index: Math.min(info.index, weekDates.length - 1), 
-                animated: true 
-              })
-            }, 100)
+              flatListRef.current?.scrollToIndex({
+                index: Math.min(info.index, weekDates.length - 1),
+                animated: true,
+              });
+            }, 100);
           }}
         />
 
@@ -225,7 +294,13 @@ const CoachMatches: React.FC = () => {
         {filteredMatches.length ? (
           <ScrollView className="px-4">
             {filteredMatches.map((match) => (
-              <MatchCard key={match.id} match={match} />
+              <MatchCard
+                key={match.id}
+                match={match}
+                showActions={true}
+                onEdit={openEditGameModal}
+                onDelete={handleDeleteGame}
+              />
             ))}
           </ScrollView>
         ) : (
@@ -235,17 +310,17 @@ const CoachMatches: React.FC = () => {
             message="No matches scheduled for this date. Schedule games for your teams or check other dates."
             actionLabel="Refresh"
             onAction={async () => {
-              let authToken = token
+              let authToken = token;
               if (!authToken) {
-                const userString = await AsyncStorage.getItem("user")
+                const userString = await AsyncStorage.getItem("user");
                 if (userString) {
-                  authToken = JSON.parse(userString)?.token
+                  authToken = JSON.parse(userString)?.token;
                 }
               }
 
               if (authToken) {
-                dispatch(clearMatches())
-                dispatch(fetchMatches(authToken))
+                dispatch(clearMatches());
+                dispatch(fetchMatches(authToken));
               }
             }}
           />
@@ -254,5 +329,22 @@ const CoachMatches: React.FC = () => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  createButton: {
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  createButtonText: {
+    color: "#000",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+});
 
 export default CoachMatches;
