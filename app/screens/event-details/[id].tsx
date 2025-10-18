@@ -84,6 +84,7 @@ interface ApiEventResponse {
     name: string
     type?: string
     description?: string
+    photo_url?: string
   }
   // Enrollment information
   customers?: Array<{
@@ -133,11 +134,11 @@ const EventDetails: React.FC = () => {
       const token = userData?.token
       if (!token) return
 
-      const response = await axios.get(`${API_URL}/secure/credits`, {
+      const response = await axios.get<{ credits?: number; customer_id?: string }>(`${API_URL}/secure/credits`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
-      setCredits(response.data.balance || 0)
+      setCredits(response.data.credits || 0)
     } catch (error) {
       console.error("Error fetching credits:", error)
     }
@@ -258,7 +259,7 @@ const EventDetails: React.FC = () => {
       if (!token) return false
 
       const cleanedId = cleanId(id as string)
-      const response = await axios.get(`${API_URL}/events/${cleanedId}`, {
+      const response = await axios.get<ApiEventResponse>(`${API_URL}/events/${cleanedId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
@@ -425,7 +426,7 @@ const EventDetails: React.FC = () => {
       // Always use public endpoint for event details - it contains full event info
       // The secure endpoint only returns enrolled events without full details
       url = `${API_URL}/events/${cleanedId}`;
-      response = await axios.get(url, {
+      response = await axios.get<ApiEventResponse>(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
