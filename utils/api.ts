@@ -71,6 +71,14 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     const jwtToken = authHeader?.replace("Bearer ", "") || "";
 
 
+    // ✅ Map team data from athlete_info if available
+    const athleteInfo = (response.data as any).athlete_info;
+    const teamData = athleteInfo?.team_logo ? {
+      id: athleteInfo.team_id,
+      logo: athleteInfo.team_logo,
+      // Note: Backend does not provide team_name, so name will be undefined
+    } : undefined;
+
     // ✅ Return UUID from backend response as `id`
     return {
       id: (response.data as any).id,
@@ -83,6 +91,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       token: jwtToken, // ✅ Now this is set correctly!
       firebaseId: firebaseUser.uid,
       profileImage: (response.data as any).photo_url || "", // ✅ Include profile image from backend
+      team: teamData, // ✅ Include team data from athlete_info if available
     };
 
   } catch (error: any) {

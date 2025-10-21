@@ -34,6 +34,11 @@ export interface User {
   position?: string
   bio?: string
   teamLogo?: string
+  team?: {
+    id?: string
+    name?: string
+    logo?: string
+  }
   // Backend API properties (snake_case) - for compatibility
   first_name?: string
   last_name?: string
