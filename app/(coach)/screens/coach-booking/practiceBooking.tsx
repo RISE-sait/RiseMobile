@@ -94,6 +94,7 @@ const CoachPracticeBooking = () => {
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({})
 
   const user = useSelector(selectCurrentUser)
+  const isBooking = useSelector((state: RootState) => state.practices.isBooking)
 
   const coachTeams = useSelector((state: RootState) =>
     user?.id ? selectTeamsForCoach(state, user.id) : [],
@@ -211,6 +212,11 @@ const formatTeamForDisplay = (team: Team) => ({
 
   
 const handleConfirmBooking = async () => {
+  // Prevent double booking - check if a booking request is already in progress
+  if (isBooking) {
+    return
+  }
+
   if (!selectedTeam) {
     Alert.alert("Missing Info", "Please select a team.")
     return
@@ -557,7 +563,7 @@ const handleConfirmBooking = async () => {
           `Repeats ${recurringOptions.weekly ? 'weekly' : recurringOptions.biweekly ? 'biweekly' : 'monthly'} for ${recurringOptions.occurrences} occurrences` :
           undefined
         }
-        isSubmitting={isSubmitting}
+        isSubmitting={isBooking || isSubmitting}
       />
     </SafeAreaView>
   )
