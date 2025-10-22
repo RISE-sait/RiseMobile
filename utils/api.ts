@@ -73,9 +73,9 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 
     // ✅ Map team data from athlete_info if available
     const athleteInfo = (response.data as any).athlete_info;
-    const teamData = athleteInfo?.team_logo ? {
+    const teamData = athleteInfo?.team_logo_url ? {
       id: athleteInfo.team_id,
-      logo: athleteInfo.team_logo,
+      logo: athleteInfo.team_logo_url,
       // Note: Backend does not provide team_name, so name will be undefined
     } : undefined;
 
