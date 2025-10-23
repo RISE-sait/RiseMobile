@@ -7,6 +7,7 @@ export interface PracticesState {
   status: "idle" | "loading" | "succeeded" | "failed"
   error: string | null
   lastFetched: string | null
+  isBooking: boolean // Flag to prevent double booking
 }
 
 export interface CreatePracticePayload {

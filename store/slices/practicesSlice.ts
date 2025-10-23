@@ -15,6 +15,7 @@ const initialState: PracticesState = {
   status: "idle",
   error: null,
   lastFetched: null,
+  isBooking: false, // Initialize booking flag
 }
 
 // Helper function to extract title
@@ -288,6 +289,26 @@ const practicesSlice = createSlice({
       .addCase(fetchPractices.rejected, (state, action) => {
         state.status = "failed"
         state.error = action.payload as string
+      })
+      // Handle createPracticeThunk booking state
+      .addCase(createPracticeThunk.pending, (state) => {
+        state.isBooking = true
+      })
+      .addCase(createPracticeThunk.fulfilled, (state) => {
+        state.isBooking = false
+      })
+      .addCase(createPracticeThunk.rejected, (state) => {
+        state.isBooking = false
+      })
+      // Handle createRecurringPracticeThunk booking state
+      .addCase(createRecurringPracticeThunk.pending, (state) => {
+        state.isBooking = true
+      })
+      .addCase(createRecurringPracticeThunk.fulfilled, (state) => {
+        state.isBooking = false
+      })
+      .addCase(createRecurringPracticeThunk.rejected, (state) => {
+        state.isBooking = false
       })
   },
 })
