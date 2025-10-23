@@ -26,6 +26,11 @@ type User = {
   overallRating?: number;
   pointsPerGame?: number;
   assistsPerGame?: number;
+  team?: {
+    id?: string;
+    name?: string;
+    logo?: string;
+  };
 };
 
 const AthleteProfileScreen = () => {
@@ -104,7 +109,7 @@ const AthleteProfileScreen = () => {
           role={user.role}
           profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
           countryCode={user?.countryCode } // ✅ Ensure countryCode is always defined
-          teamLogo={images.teamLogo}
+          teamLogo={user?.team?.logo} // ✅ Display team logo from user data
         />
 
         {/* Player Stats (Temporarily Hidden) */}
