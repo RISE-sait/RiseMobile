@@ -246,11 +246,11 @@ export const registerUser = async (
         waivers: [
           {
             is_waiver_signed: true,
-            waiver_url: `https://storage.googleapis.com/rise-sports/waivers/code.pdf`,
+            waiver_url: `https://storage.googleapis.com/rise-sports/waivers/terms.pdf`,
           },
           {
             is_waiver_signed: true,
-            waiver_url: `https://storage.googleapis.com/rise-sports/waivers/tetris.pdf`, // example second waiver
+            waiver_url: `https://storage.googleapis.com/rise-sports/waivers/waiver.pdf`,
           },
         ],
       };
