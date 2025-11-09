@@ -3,19 +3,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Storage cleanup utility to prevent SQLite FULL errors
 export class StorageCleanup {
 
-  // Clear all old cached data (except user auth)
+  // Clear all old cached data (except user auth and Redux Persist keys)
   static async clearCache() {
     try {
-
       // Get all keys
       const allKeys = await AsyncStorage.getAllKeys();
 
-      // Keys to preserve (user auth data)
+      // ✅ Keys to preserve - updated to match actual Redux Persist structure
       const preserveKeys = [
-        'user',
-        'persist:root', // Redux persist root
-        '@token', // Auth token
-        '@refreshToken', // Refresh token
+        'persist:root',    // Redux Persist root key
+        'persist:user',    // Redux Persist user slice (was incorrectly 'user')
+        'firebase:auth',   // Firebase auth data prefix
       ];
 
       // Find keys to remove (everything else)
@@ -27,12 +25,12 @@ export class StorageCleanup {
         await AsyncStorage.multiRemove(keysToRemove);
       }
 
-
       return { removed: keysToRemove.length, total: allKeys.length };
 
     } catch (error) {
       console.error('❌ Storage cleanup failed:', error);
-      throw error;
+      // ✅ Don't throw - fail gracefully
+      return { removed: 0, total: 0 };
     }
   }
 

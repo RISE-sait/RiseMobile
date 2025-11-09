@@ -39,7 +39,8 @@ export const useAuth = () => {
   const [isAuthLoaded, setIsAuthLoaded] = useState(false)
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
-  const [isLoadingFromStorage, setIsLoadingFromStorage] = useState(false) // 🔹 Prevent concurrent loading
+  const [isLoadingFromStorage, setIsLoadingFromStorage] = useState(false)
+  const [isRehydrated, setIsRehydrated] = useState(false) // ✅ Track Redux Persist rehydration
 
   // Use Redux user state as primary source of truth
   const user = reduxUser
@@ -445,30 +446,22 @@ export const useAuth = () => {
   // 🔹 Force re-login when authentication fails
   const forceReLogin = async (message: string = "Please log in again") => {
     setAuthError(message)
-    
+
     try {
-      // 🔄 Multiple approaches to clear Redux Persist state
+      // ✅ Clear Redux state first
+      dispatch(reduxLogout())
+
+      // ✅ Use Redux Persist API only - avoid manual persist:* key manipulation
       persistor.pause()
       await persistor.purge()
       await persistor.flush()
-      
-      // 🔄 Direct AsyncStorage key removal for Redux Persist
-      const allKeys = await AsyncStorage.getAllKeys()
-      const persistKeys = allKeys.filter(key => key.startsWith('persist:'))
-      for (const key of persistKeys) {
-        await AsyncStorage.removeItem(key)
-      }
-      
-      // Clear Redux state
-      dispatch(reduxLogout())
-      
-      // Clear AsyncStorage items manually (redundant after purge, but kept for safety)
-      await AsyncStorage.removeItem("user")
+
+      // ✅ Only clear legacy keys if they exist (not managed by Redux Persist)
       await AsyncStorage.removeItem("authToken")
     } catch (error) {
       console.error("❌ forceReLogin: Error during clearing:", error)
     }
-    
+
     router.replace("/(auth)/login")
   }
 
@@ -558,41 +551,24 @@ export const useAuth = () => {
       if (auth.currentUser) {
         await signOut(auth)
       }
-      
-      // 🔄 Pause persistor first to prevent rehydration
-      persistor.pause()
-      
-      // 🔄 Clear ALL Redux data FIRST while persistor is paused
+
+      // ✅ Clear ALL Redux data FIRST
       dispatch(reduxLogout())           // Clear user data
       dispatch(clearPractices())        // Clear practices cache
       dispatch(clearMatches())          // Clear match history cache
       dispatch(clearMembership())       // Clear membership cache
-      
-      // 🔄 Now purge the persisted data
+
+      // ✅ Use Redux Persist API only - avoid manual persist:* key manipulation
+      persistor.pause()
       await persistor.purge()
-      
-      // 🔄 Force flush to ensure purge is written
       await persistor.flush()
-      
-      // 🔄 Direct AsyncStorage key removal for ALL persist keys
-      const currentKeys = await AsyncStorage.getAllKeys()
-      const persistKeys = currentKeys.filter(key => key.startsWith('persist:'))
-      for (const key of persistKeys) {
-        await AsyncStorage.removeItem(key)
-      }
-      
-      // 🔄 Clear ALL user-related keys including legacy ones
-      const userRelatedKeys = ['user', 'authToken', 'userToken', 'firebaseToken', 'jwt', 'token']
-      for (const key of userRelatedKeys) {
-        await AsyncStorage.removeItem(key)
-      }
-      
-      // 🔧 Wait a bit to ensure async operations complete
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
+
+      // ✅ Only clear legacy keys if they exist (not managed by Redux Persist)
+      await AsyncStorage.removeItem("authToken")
+
       // Clear auth error state
       setAuthError(null)
-      
+
       // Navigate to login
       router.replace("/(auth)/login")
     } catch (error) {
@@ -600,11 +576,23 @@ export const useAuth = () => {
     }
   }
 
+  // ✅ Monitor Redux Persist rehydration completion
+  useEffect(() => {
+    const unsubscribe = persistor.subscribe(() => {
+      const state = persistor.getState()
+      if (state.bootstrapped) {
+        setIsRehydrated(true)
+      }
+    })
+
+    return unsubscribe
+  }, [])
+
   // 🔹 Firebase auth state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setFirebaseUser(firebaseUser)
-      
+
       // Don't clear user data automatically when Firebase user becomes null
       // This happens during app restart and would cause the logout issue
     })
@@ -612,12 +600,13 @@ export const useAuth = () => {
     return unsubscribe
   }, [isAuthLoaded, user])
 
-  // 🔹 Load user when Firebase user is available or on app start
+  // ✅ Load user only after Redux Persist rehydration completes
   useEffect(() => {
-    if (isLoadingFromStorage) {
+    // Wait for rehydration to complete before loading user
+    if (!isRehydrated || isLoadingFromStorage) {
       return
     }
-    
+
     if (firebaseUser && !isAuthLoaded) {
       setIsLoadingFromStorage(true)
       loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
@@ -627,7 +616,7 @@ export const useAuth = () => {
       setIsLoadingFromStorage(true)
       loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
     }
-  }, [firebaseUser, isAuthLoaded, isLoadingFromStorage])
+  }, [firebaseUser, isAuthLoaded, isLoadingFromStorage, isRehydrated])
 
   // 🔹 Verify email with token
   const verifyEmail = async (token: string) => {
