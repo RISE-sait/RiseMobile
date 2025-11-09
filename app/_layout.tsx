@@ -37,9 +37,39 @@ export default function RootLayout() {
     "ProtestStrike-Regular": require("../assets/fonts/ProtestStrike-Regular.ttf"),
   })
 
-  // Initialize storage cleanup on app start
+  // ✅ Delay storage cleanup until after Redux Persist rehydration completes
   useEffect(() => {
-    initializeStorageCleanup();
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let hasRun = false;
+
+    const unsubscribe = persistor.subscribe(() => {
+      const state = persistor.getState()
+      if (state.bootstrapped && !hasRun) {
+        hasRun = true;
+        // Wait 2 seconds after rehydration before running cleanup
+        timeoutId = setTimeout(() => {
+          initializeStorageCleanup();
+        }, 2000);
+        unsubscribe(); // Only run once
+      }
+    });
+
+    // Check if already bootstrapped when subscription is created
+    const state = persistor.getState();
+    if (state.bootstrapped && !hasRun) {
+      hasRun = true;
+      timeoutId = setTimeout(() => {
+        initializeStorageCleanup();
+      }, 2000);
+      unsubscribe();
+    }
+
+    return () => {
+      unsubscribe();
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   const onLayoutRootView = useCallback(async () => {
