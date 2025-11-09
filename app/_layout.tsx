@@ -39,18 +39,37 @@ export default function RootLayout() {
 
   // ✅ Delay storage cleanup until after Redux Persist rehydration completes
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let hasRun = false;
+
     const unsubscribe = persistor.subscribe(() => {
       const state = persistor.getState()
-      if (state.bootstrapped) {
+      if (state.bootstrapped && !hasRun) {
+        hasRun = true;
         // Wait 2 seconds after rehydration before running cleanup
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           initializeStorageCleanup();
         }, 2000);
         unsubscribe(); // Only run once
       }
     });
 
-    return unsubscribe;
+    // Check if already bootstrapped when subscription is created
+    const state = persistor.getState();
+    if (state.bootstrapped && !hasRun) {
+      hasRun = true;
+      timeoutId = setTimeout(() => {
+        initializeStorageCleanup();
+      }, 2000);
+      unsubscribe();
+    }
+
+    return () => {
+      unsubscribe();
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   const onLayoutRootView = useCallback(async () => {

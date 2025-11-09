@@ -9,14 +9,18 @@ export class StorageCleanup {
       // Get all keys
       const allKeys = await AsyncStorage.getAllKeys();
 
-      // ✅ Keys to preserve - updated to match actual Redux Persist structure
+      // ✅ Keys to preserve - corrected based on actual Redux Persist structure
+      // Redux Persist with key="root" and whitelist=["user"] creates:
+      // - persist:root (contains all whitelisted data including user)
+      // Firebase Auth creates keys like:
+      // - firebase:authUser:{appName}:{apiKey}:{authDomain}
       const preserveKeys = [
-        'persist:root',    // Redux Persist root key
-        'persist:user',    // Redux Persist user slice (was incorrectly 'user')
-        'firebase:auth',   // Firebase auth data prefix
+        'persist:root',        // Redux Persist root (contains user data inside)
+        'firebase:authUser:',  // Firebase auth data (prefix match for all Firebase keys)
       ];
 
       // Find keys to remove (everything else)
+      // Using includes() for prefix matching (safer than exact match for Firebase)
       const keysToRemove = allKeys.filter(key =>
         !preserveKeys.some(preserve => key.includes(preserve))
       );
