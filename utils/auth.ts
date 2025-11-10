@@ -576,16 +576,42 @@ export const useAuth = () => {
     }
   }
 
-  // ✅ Monitor Redux Persist rehydration completion
+  // ✅ Monitor Redux Persist rehydration completion with TIMEOUT PROTECTION
   useEffect(() => {
+    let hasRun = false;
+
     const unsubscribe = persistor.subscribe(() => {
       const state = persistor.getState()
-      if (state.bootstrapped) {
+      if (state.bootstrapped && !hasRun) {
+        hasRun = true;
         setIsRehydrated(true)
+        unsubscribe();
       }
     })
 
-    return unsubscribe
+    // 🔑 CRITICAL: Check initial state immediately (handles case where rehydration already completed)
+    const initialState = persistor.getState();
+    if (initialState.bootstrapped && !hasRun) {
+      hasRun = true;
+      setIsRehydrated(true)
+      unsubscribe();
+    }
+
+    // 🆕 Safety timeout: Force rehydration after 2 seconds if still pending
+    // This handles edge cases where persistor state may be stuck
+    const safetyTimeout = setTimeout(() => {
+      if (!hasRun) {
+        console.warn("⚠️ Redux Persist rehydration safety timeout - forcing completion")
+        hasRun = true;
+        setIsRehydrated(true)
+        unsubscribe();
+      }
+    }, 2000) // 2 seconds is sufficient (normal < 200ms)
+
+    return () => {
+      unsubscribe()
+      clearTimeout(safetyTimeout)
+    }
   }, [])
 
   // 🔹 Firebase auth state listener
@@ -602,21 +628,29 @@ export const useAuth = () => {
 
   // ✅ Load user only after Redux Persist rehydration completes
   useEffect(() => {
+    console.log("📊 Auth state check:", { isRehydrated, isLoadingFromStorage, isAuthLoaded, hasFirebaseUser: !!firebaseUser, hasReduxUser: !!reduxUser })
+
     // Wait for rehydration to complete before loading user
-    if (!isRehydrated || isLoadingFromStorage) {
+    if (!isRehydrated) {
+      console.log("⏳ Waiting for Redux Persist rehydration...")
       return
     }
 
-    if (firebaseUser && !isAuthLoaded) {
-      setIsLoadingFromStorage(true)
-      loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
-    } else if (!firebaseUser && !isAuthLoaded) {
-      // No Firebase user, but still try to load from storage first
-      // This handles the case where Firebase takes time to initialize
-      setIsLoadingFromStorage(true)
-      loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
+    if (isLoadingFromStorage) {
+      console.log("⏳ Already loading from storage...")
+      return
     }
-  }, [firebaseUser, isAuthLoaded, isLoadingFromStorage, isRehydrated])
+
+    // 🚨 CRITICAL: Always load user from storage after rehydration completes
+    if (!isAuthLoaded) {
+      console.log("✅ Rehydration complete, loading user from storage...")
+      setIsLoadingFromStorage(true)
+      loadUserFromStorage().finally(() => {
+        console.log("✅ User loading complete")
+        setIsLoadingFromStorage(false)
+      })
+    }
+  }, [firebaseUser, isAuthLoaded, isLoadingFromStorage, isRehydrated, reduxUser])
 
   // 🔹 Verify email with token
   const verifyEmail = async (token: string) => {
