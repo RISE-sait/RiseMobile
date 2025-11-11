@@ -44,6 +44,7 @@ GEMINI.md
 *.md
 test-auth-flow.sh
 ios/
+android/
 tmpDocs/
 debug_parsing.js
 debug_complete_flow.js
@@ -57,3 +58,9 @@ tmpDocs/*.py
 # JetBrains IDE
 .idea/
 *.iml
+
+# Windows reserved names (should not exist, but ignore if they do)
+nul
+con
+prn
+aux

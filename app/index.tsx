@@ -1,4 +1,3 @@
-import { View, Text, ActivityIndicator } from "react-native"
 import { Redirect } from "expo-router"
 import { useAuth } from "@/utils/auth"
 import { useEffect, useState } from "react"
@@ -12,18 +11,19 @@ export default function Index() {
     console.log("📱 [Index] State:", { hasUser: !!user, isLoading, isAuthLoaded })
   }, [user, isLoading, isAuthLoaded])
 
-  // ✅ Safety timeout: Force redirect after 5 seconds to prevent infinite loading
+  // ✅ Safety timeout: Force redirect after 4 seconds to prevent infinite loading
   useEffect(() => {
-    console.log("⏰ [Index] Setting up safety timeout (5s)")
+    console.log("⏰ [Index] Setting up safety timeout (4s)")
     const timeoutId = setTimeout(() => {
       if (isLoading || !isAuthLoaded) {
         console.warn("⚠️ [Index] Safety timeout reached - forcing redirect")
         setShowFallback(true)
       }
-    }, 5000) // ⚡ 5 second absolute maximum
+    }, 4000) // ⚡ 4 second absolute maximum (2s rehydration + 1.5s auth + 0.5s buffer)
 
     return () => clearTimeout(timeoutId)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Intentionally empty - timeout should only run once on mount
 
   // ✅ Force redirect if timeout reached
   if (showFallback) {

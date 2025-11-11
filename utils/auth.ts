@@ -566,21 +566,50 @@ export const useAuth = () => {
     }
   }
 
-  // ✅ Simplified: Check Redux Persist state once on mount
+  // ✅ Wait for Redux Persist rehydration to complete before initializing auth
   useEffect(() => {
-    console.log("🔄 [Auth] Initial setup - checking Redux Persist state")
+    console.log("🔄 [Auth] Initial setup - waiting for Redux Persist rehydration")
 
-    // Check if Redux Persist has completed rehydration
-    const state = persistor.getState()
-    console.log("📊 [Auth] Redux Persist state:", state)
+    let hasRun = false
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
 
-    // Set initialized to true immediately - we'll rely on safety timeout for edge cases
-    const timeoutId = setTimeout(() => {
-      console.log("✅ [Auth] Marking as initialized")
+    // Subscribe to Redux Persist state changes
+    const unsubscribe = persistor.subscribe(() => {
+      const state = persistor.getState()
+      console.log("📊 [Auth] Redux Persist state changed:", state)
+
+      // Only proceed once rehydration is complete
+      if (state.bootstrapped && !hasRun) {
+        hasRun = true
+        console.log("✅ [Auth] Redux Persist rehydration complete, initializing auth")
+        setHasInitialized(true)
+        unsubscribe() // Unsubscribe after first trigger
+      }
+    })
+
+    // Check if already bootstrapped when subscription is created
+    const currentState = persistor.getState()
+    if (currentState.bootstrapped && !hasRun) {
+      hasRun = true
+      console.log("✅ [Auth] Redux Persist already rehydrated, initializing auth immediately")
       setHasInitialized(true)
-    }, 100) // Very short delay to allow Redux state to settle
+      unsubscribe()
+    }
 
-    return () => clearTimeout(timeoutId)
+    // Safety timeout: Force initialization after 2 seconds even if rehydration hasn't completed
+    timeoutId = setTimeout(() => {
+      if (!hasRun) {
+        console.warn("⚠️ [Auth] Safety timeout reached - forcing initialization")
+        hasRun = true
+        setHasInitialized(true)
+        unsubscribe()
+      }
+    }, 2000) // 2 second safety timeout
+
+    return () => {
+      unsubscribe()
+      if (timeoutId) clearTimeout(timeoutId)
+    }
   }, [])
 
   // 🔹 Firebase auth state listener
@@ -607,13 +636,13 @@ export const useAuth = () => {
 
   // ✅ Safety timeout: Ensure isAuthLoaded is set after maximum time
   useEffect(() => {
-    console.log("⏰ [Auth] Setting up safety timeout (3s)")
+    console.log("⏰ [Auth] Setting up safety timeout (1.5s)")
     const timeoutId = setTimeout(() => {
       if (!isAuthLoaded) {
         console.warn("⚠️ [Auth] Safety timeout reached - forcing isAuthLoaded to true")
         setIsAuthLoaded(true)
       }
-    }, 3000) // ⚡ 3 second timeout - aggressive to prevent stuck states
+    }, 1500) // ⚡ 1.5 second timeout - reduced since we now properly wait for rehydration
 
     return () => clearTimeout(timeoutId)
   }, [isAuthLoaded])
