@@ -39,8 +39,7 @@ export const useAuth = () => {
   const [isAuthLoaded, setIsAuthLoaded] = useState(false)
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
-  const [isLoadingFromStorage, setIsLoadingFromStorage] = useState(false)
-  const [isRehydrated, setIsRehydrated] = useState(false) // ✅ Track Redux Persist rehydration
+  const [hasInitialized, setHasInitialized] = useState(false) // ✅ Simplified: track if initial check is done
 
   // Use Redux user state as primary source of truth
   const user = reduxUser
@@ -53,16 +52,19 @@ export const useAuth = () => {
     scopes: ["profile", "email"],
   })
 
-  // 🔹 Verify token validity with backend
+  // 🔹 Verify token validity with backend (lightweight check)
   const verifyTokenWithBackend = async (token: string, email: string): Promise<boolean> => {
     try {
-      // Try to get upcoming bookings as a way to verify token validity
+      console.log("🔍 [Auth] Verifying token with backend...")
+      // Quick token check with short timeout
       await axios.get(`${API_URL}/bookings/upcoming`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: { "Authorization": `Bearer ${token}` },
+        timeout: 2000 // ⚡ 2 second timeout
       })
+      console.log("✅ [Auth] Token verification successful")
       return true
     } catch (error) {
-      console.warn("⚠️ Token verification failed:", (error as any).response?.status)
+      console.warn("⚠️ [Auth] Token verification failed:", (error as any).response?.status || (error as any).message)
       return false
     }
   }
@@ -100,53 +102,41 @@ export const useAuth = () => {
     }
   }
 
-  // 🔹 Load user from Redux Persist only - no direct AsyncStorage access
+  // ✅ Simplified: Load user from Redux state immediately
   const loadUserFromStorage = async () => {
     try {
-      // 🔹 Use Redux user state as primary source, not AsyncStorage
+      console.log("🔄 [Auth] loadUserFromStorage called", {
+        hasReduxUser: !!reduxUser,
+        hasFirebaseUser: !!firebaseUser
+      })
+
+      // 🔹 Use Redux user state as primary source
       if (reduxUser) {
-        // If Firebase user is available, verify token validity
+        console.log("✅ [Auth] Redux user exists:", { email: reduxUser.email, role: reduxUser.role })
+
+        // ✅ Refresh token in background if Firebase user is available
         if (firebaseUser && reduxUser.token) {
-          const isTokenValid = await verifyTokenWithBackend(reduxUser.token, reduxUser.email)
-          
-          if (!isTokenValid) {
-            const newToken = await refreshAndExchangeToken(firebaseUser)
-            
-            if (newToken) {
-              const updatedUser = { ...reduxUser, token: newToken }
-              dispatch(setReduxUser(updatedUser)) // ✅ Only update Redux, no AsyncStorage
-              setAuthError(null)
-            } else {
-              console.error("❌ Failed to refresh token, user needs to re-login")
-              setAuthError("Authentication expired. Please log in again.")
-              dispatch(reduxLogout()) // ✅ Only clear Redux
-              setIsAuthLoaded(true)
-              return
+          console.log("🔄 [Auth] Starting background token refresh...")
+          // Background token refresh - don't await, don't block startup
+          refreshAndExchangeToken(firebaseUser).then(newToken => {
+            if (newToken && newToken !== reduxUser.token) {
+              dispatch(setReduxUser({ ...reduxUser, token: newToken }))
+              console.log("✅ [Auth] Token refreshed in background")
             }
-          }
+          }).catch(err => {
+            console.warn("⚠️ [Auth] Background token refresh failed:", err)
+          })
         }
 
-        const userToSet = {
-          ...reduxUser,
-          firstName: reduxUser.firstName || (reduxUser.displayName?.split(" ")[0] ?? ""),
-          lastName: reduxUser.lastName || (reduxUser.displayName?.split(" ")[1] ?? ""),
-        }
-        
-        // ✅ User is already in Redux from persist, just ensure it's properly set
-        if (JSON.stringify(reduxUser) !== JSON.stringify(userToSet)) {
-          dispatch(setReduxUser(userToSet))
-        }
-        
-        
         setAuthError(null)
-        setIsAuthLoaded(true)
-      } else {
-        setIsAuthLoaded(true)
       }
-    } catch (error) {
-      console.error("❌ Failed to load user data:", error)
-      setAuthError("Failed to load authentication data")
+
+      console.log("✅ [Auth] Setting isAuthLoaded to true")
       setIsAuthLoaded(true)
+    } catch (error) {
+      console.error("❌ [Auth] Error in loadUserFromStorage:", error)
+      setAuthError("Failed to load authentication data")
+      setIsAuthLoaded(true) // ✅ Always set to true to prevent infinite loading
     }
   }
 
@@ -576,16 +566,21 @@ export const useAuth = () => {
     }
   }
 
-  // ✅ Monitor Redux Persist rehydration completion
+  // ✅ Simplified: Check Redux Persist state once on mount
   useEffect(() => {
-    const unsubscribe = persistor.subscribe(() => {
-      const state = persistor.getState()
-      if (state.bootstrapped) {
-        setIsRehydrated(true)
-      }
-    })
+    console.log("🔄 [Auth] Initial setup - checking Redux Persist state")
 
-    return unsubscribe
+    // Check if Redux Persist has completed rehydration
+    const state = persistor.getState()
+    console.log("📊 [Auth] Redux Persist state:", state)
+
+    // Set initialized to true immediately - we'll rely on safety timeout for edge cases
+    const timeoutId = setTimeout(() => {
+      console.log("✅ [Auth] Marking as initialized")
+      setHasInitialized(true)
+    }, 100) // Very short delay to allow Redux state to settle
+
+    return () => clearTimeout(timeoutId)
   }, [])
 
   // 🔹 Firebase auth state listener
@@ -600,23 +595,28 @@ export const useAuth = () => {
     return unsubscribe
   }, [isAuthLoaded, user])
 
-  // ✅ Load user only after Redux Persist rehydration completes
+  // ✅ Simplified: Load user once after initialization
   useEffect(() => {
-    // Wait for rehydration to complete before loading user
-    if (!isRehydrated || isLoadingFromStorage) {
+    if (!hasInitialized || isAuthLoaded) {
       return
     }
 
-    if (firebaseUser && !isAuthLoaded) {
-      setIsLoadingFromStorage(true)
-      loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
-    } else if (!firebaseUser && !isAuthLoaded) {
-      // No Firebase user, but still try to load from storage first
-      // This handles the case where Firebase takes time to initialize
-      setIsLoadingFromStorage(true)
-      loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
-    }
-  }, [firebaseUser, isAuthLoaded, isLoadingFromStorage, isRehydrated])
+    console.log("🚀 [Auth] Loading user from storage")
+    loadUserFromStorage()
+  }, [hasInitialized, isAuthLoaded])
+
+  // ✅ Safety timeout: Ensure isAuthLoaded is set after maximum time
+  useEffect(() => {
+    console.log("⏰ [Auth] Setting up safety timeout (3s)")
+    const timeoutId = setTimeout(() => {
+      if (!isAuthLoaded) {
+        console.warn("⚠️ [Auth] Safety timeout reached - forcing isAuthLoaded to true")
+        setIsAuthLoaded(true)
+      }
+    }, 3000) // ⚡ 3 second timeout - aggressive to prevent stuck states
+
+    return () => clearTimeout(timeoutId)
+  }, [isAuthLoaded])
 
   // 🔹 Verify email with token
   const verifyEmail = async (token: string) => {
