@@ -55,13 +55,11 @@ export const useAuth = () => {
   // 🔹 Verify token validity with backend (lightweight check)
   const verifyTokenWithBackend = async (token: string, email: string): Promise<boolean> => {
     try {
-      console.log("🔍 [Auth] Verifying token with backend...")
       // Quick token check with short timeout
       await axios.get(`${API_URL}/bookings/upcoming`, {
         headers: { "Authorization": `Bearer ${token}` },
         timeout: 2000 // ⚡ 2 second timeout
       })
-      console.log("✅ [Auth] Token verification successful")
       return true
     } catch (error) {
       console.warn("⚠️ [Auth] Token verification failed:", (error as any).response?.status || (error as any).message)
@@ -112,16 +110,13 @@ export const useAuth = () => {
 
       // 🔹 Use Redux user state as primary source
       if (reduxUser) {
-        console.log("✅ [Auth] Redux user exists:", { email: reduxUser.email, role: reduxUser.role })
 
         // ✅ Refresh token in background if Firebase user is available
         if (firebaseUser && reduxUser.token) {
-          console.log("🔄 [Auth] Starting background token refresh...")
           // Background token refresh - don't await, don't block startup
           refreshAndExchangeToken(firebaseUser).then(newToken => {
             if (newToken && newToken !== reduxUser.token) {
               dispatch(setReduxUser({ ...reduxUser, token: newToken }))
-              console.log("✅ [Auth] Token refreshed in background")
             }
           }).catch(err => {
             console.warn("⚠️ [Auth] Background token refresh failed:", err)
@@ -131,7 +126,6 @@ export const useAuth = () => {
         setAuthError(null)
       }
 
-      console.log("✅ [Auth] Setting isAuthLoaded to true")
       setIsAuthLoaded(true)
     } catch (error) {
       console.error("❌ [Auth] Error in loadUserFromStorage:", error)
@@ -501,10 +495,8 @@ export const useAuth = () => {
         }
       }
 
-      console.error("❌ Unable to obtain valid token")
       return null
     } catch (error) {
-      console.error("❌ getValidToken failed:", error)
       return null
     }
   }
@@ -520,10 +512,8 @@ export const useAuth = () => {
         return await auth.currentUser.getIdToken(true)
       }
 
-      console.error("❌ No Firebase user available")
       return null
     } catch (error) {
-      console.error("❌ getValidFirebaseToken failed:", error)
       return null
     }
   }
@@ -568,7 +558,6 @@ export const useAuth = () => {
 
   // ✅ Wait for Redux Persist rehydration to complete before initializing auth
   useEffect(() => {
-    console.log("🔄 [Auth] Initial setup - waiting for Redux Persist rehydration")
 
     let hasRun = false
     let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -576,12 +565,10 @@ export const useAuth = () => {
     // Subscribe to Redux Persist state changes
     const unsubscribe = persistor.subscribe(() => {
       const state = persistor.getState()
-      console.log("📊 [Auth] Redux Persist state changed:", state)
 
       // Only proceed once rehydration is complete
       if (state.bootstrapped && !hasRun) {
         hasRun = true
-        console.log("✅ [Auth] Redux Persist rehydration complete, initializing auth")
         setHasInitialized(true)
         unsubscribe() // Unsubscribe after first trigger
       }
@@ -591,7 +578,6 @@ export const useAuth = () => {
     const currentState = persistor.getState()
     if (currentState.bootstrapped && !hasRun) {
       hasRun = true
-      console.log("✅ [Auth] Redux Persist already rehydrated, initializing auth immediately")
       setHasInitialized(true)
       unsubscribe()
     }
@@ -599,7 +585,6 @@ export const useAuth = () => {
     // Safety timeout: Force initialization after 2 seconds even if rehydration hasn't completed
     timeoutId = setTimeout(() => {
       if (!hasRun) {
-        console.warn("⚠️ [Auth] Safety timeout reached - forcing initialization")
         hasRun = true
         setHasInitialized(true)
         unsubscribe()
@@ -630,13 +615,11 @@ export const useAuth = () => {
       return
     }
 
-    console.log("🚀 [Auth] Loading user from storage")
     loadUserFromStorage()
   }, [hasInitialized, isAuthLoaded])
 
   // ✅ Safety timeout: Ensure isAuthLoaded is set after maximum time
   useEffect(() => {
-    console.log("⏰ [Auth] Setting up safety timeout (1.5s)")
     const timeoutId = setTimeout(() => {
       if (!isAuthLoaded) {
         console.warn("⚠️ [Auth] Safety timeout reached - forcing isAuthLoaded to true")
