@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAppSelector } from "@/store/hooks"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
+import { useAuth } from "@/utils/auth"
 
 interface ScheduleEvent {
   id: string
@@ -107,12 +108,13 @@ export const useUpcomingEvent = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<number | null>(null)
+  const authFailureRef = useRef(false)
 
   const userData = useAppSelector((state) => state.user.data)
+  const { getValidToken, forceReLogin } = useAuth()
 
   const fetchUpcomingEvent = async () => {
-    if (!userData?.token) {
-      setLoading(false)
+    if (authFailureRef.current) {
       return
     }
 
@@ -120,8 +122,18 @@ export const useUpcomingEvent = () => {
       setLoading(true)
       setError(null)
 
+      const token = await getValidToken()
+      if (!token) {
+        if (!authFailureRef.current) {
+          authFailureRef.current = true
+          setError("Session expired. Please log in again.")
+          await forceReLogin("Session expired. Please log in again.")
+        }
+        return
+      }
+
       const response = await axios.get<ScheduleResponse>(`${API_URL}/secure/schedule`, {
-        headers: { Authorization: `Bearer ${userData.token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
 
       const { events, games, practices } = response.data
@@ -212,7 +224,20 @@ export const useUpcomingEvent = () => {
         setLastFetched(Date.now())
 
     } catch (err: any) {
-      console.error("Error fetching upcoming events:", err.response?.data || err.message)
+      const status = err.response?.status
+      const message = err.response?.data || err.message
+
+      if (status === 401 || status === 403 || message?.error?.message === "Invalid or expired token") {
+        console.warn("⚠️ useUpcomingEvent: token invalid, forcing re-login")
+        if (!authFailureRef.current) {
+          authFailureRef.current = true
+          setError("Session expired. Please log in again.")
+          await forceReLogin("Session expired. Please log in again.")
+        }
+        return
+      }
+
+      console.error("Error fetching upcoming events:", message)
       setError("Failed to load upcoming events")
     } finally {
       setLoading(false)
@@ -221,6 +246,9 @@ export const useUpcomingEvent = () => {
 
   useEffect(() => {
     const shouldFetch = () => {
+      // Stop if we already handled an auth failure
+      if (authFailureRef.current) return false;
+
       // Don't fetch if no token
       if (!userData?.token) return false;
 
@@ -246,6 +274,11 @@ export const useUpcomingEvent = () => {
   const timeUntilRefresh = lastFetched
     ? Math.max(0, CACHE_DURATION - (Date.now() - lastFetched))
     : 0;
+
+  useEffect(() => {
+    // reset auth failure flag whenever token changes (e.g., after relogin)
+    authFailureRef.current = false
+  }, [userData?.token])
 
   return {
     upcomingEvent,
