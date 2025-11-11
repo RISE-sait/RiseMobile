@@ -23,6 +23,8 @@ import { useAppDispatch, useAppSelector } from "../../../store/hooks";
 import { fetchMatchHistory, clearMatches } from "../../../store/slices/gamesSlice";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from 'expo-linear-gradient'
+import images from "@/constants/images";
+import { resolveImageSource } from "@/utils/imageSource";
 
 
 const { width } = Dimensions.get("window");
@@ -371,7 +373,10 @@ const getStatusIndicator = (status: string) => {
               {/* Home Team Section */}
               <View style={styles.teamSection}>
                 <View style={styles.teamLogoContainer}>
-                  <Image source={{ uri: item.homeTeamLogo }} style={styles.teamLogo} />
+                  <Image
+                    source={resolveImageSource(item.homeTeamLogo, images.teamLogo)}
+                    style={styles.teamLogo}
+                  />
                 </View>
                 <Text style={styles.teamName} numberOfLines={2} ellipsizeMode="tail">
                   {item.homeTeam}
@@ -400,7 +405,10 @@ const getStatusIndicator = (status: string) => {
               {/* Away Team Section */}
               <View style={styles.teamSection}>
                 <View style={styles.teamLogoContainer}>
-                  <Image source={{ uri: item.awayTeamLogo }} style={styles.teamLogo} />
+                  <Image
+                    source={resolveImageSource(item.awayTeamLogo, images.teamLogo)}
+                    style={styles.teamLogo}
+                  />
                 </View>
                 <Text style={styles.teamName} numberOfLines={2} ellipsizeMode="tail">
                   {item.awayTeam}

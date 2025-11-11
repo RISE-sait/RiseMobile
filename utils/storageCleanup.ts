@@ -124,13 +124,24 @@ function formatBytes(bytes: number, decimals = 2) {
 // Auto-cleanup on app start
 export const initializeStorageCleanup = async () => {
   try {
+    console.log("🔍 [StorageCleanup] Starting storage health check...");
+
+    // Add delay to ensure app is fully initialized
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     const isHealthy = await StorageCleanup.checkStorageHealth();
+    console.log("📊 [StorageCleanup] Storage health:", isHealthy ? "healthy" : "needs cleanup");
 
     if (!isHealthy) {
-      await StorageCleanup.clearCache();
+      console.log("🧹 [StorageCleanup] Starting cache cleanup...");
+      const result = await StorageCleanup.clearCache();
+      console.log("✅ [StorageCleanup] Cleanup completed:", result);
+    } else {
+      console.log("✅ [StorageCleanup] No cleanup needed");
     }
 
   } catch (error) {
-    console.error('❌ Storage initialization failed:', error);
+    console.error('❌ [StorageCleanup] Storage initialization failed:', error);
+    // Don't throw - this prevents app startup
   }
 };

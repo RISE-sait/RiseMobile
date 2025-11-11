@@ -29,6 +29,7 @@ import { API_URL } from "@/utils/api"
 import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 import { fetchTeams, selectTeamById, selectTeamsLoading } from "@/store/slices/teamsSlice"
 import { selectAllMatches } from "@/store/slices/gamesSlice"
+import { resolveImageSource } from "@/utils/imageSource"
 
 const { width } = Dimensions.get("window")
 
@@ -239,6 +240,14 @@ const MatchDetailsScreen = () => {
   // Get status dynamically from game data
   const status = game?.status || "scheduled"
   const { color, label, bgColor } = statusStyles[status as keyof typeof statusStyles]
+  const headerImageCandidate =
+    game?.hero_image_url ||
+    game?.hero_image ||
+    game?.header_image_url ||
+    game?.image_url ||
+    game?.image ||
+    DEFAULT_HEADER_IMAGE
+  const headerImageSource = resolveImageSource(headerImageCandidate, DEFAULT_HEADER_IMAGE)
 
 
 
@@ -258,7 +267,7 @@ const MatchDetailsScreen = () => {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Match Image Header */}
           <ImageBackground
-            source={{ uri: "https://images.unsplash.com/photo-1504450758481-7338eba7524a" }}
+            source={headerImageSource}
             style={styles.headerImage}
             resizeMode="cover"
           >
@@ -621,3 +630,5 @@ const styles = StyleSheet.create({
 })
 
 export default MatchDetailsScreen
+const DEFAULT_HEADER_IMAGE =
+  "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"

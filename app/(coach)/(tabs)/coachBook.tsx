@@ -27,6 +27,8 @@ import { API_URL } from "@/utils/api"
 import { navigateToDetails } from "@/utils/navigation"
 import dayjs from "dayjs"
 import EmptyBookingsState from "@/components/feedback/EmptyBookingState"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
@@ -271,7 +273,7 @@ const CoachBook = () => {
           }}
         >
           <Image
-            source={{ uri: item.image }}
+            source={resolveImageSource(item.image, images.events)}
             style={{
               width: "100%",
               height: "100%",
@@ -626,4 +628,3 @@ const CoachBook = () => {
 }
 
 export default CoachBook
-

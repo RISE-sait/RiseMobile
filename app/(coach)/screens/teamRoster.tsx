@@ -24,6 +24,8 @@ import { getTeamById } from "@/utils/api"
 import { TeamResponse, ApiInternalDomainsTeamDtoRosterMemberInfo } from "@/app/api/Api"
 import { useSelector } from "react-redux"
 import type { RootState } from "@/store"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
 
 // Define Player interface
 interface Player {
@@ -374,7 +376,11 @@ const TeamRoster: React.FC = () => {
           </View>
 
           {/* Player Image */}
-          <Image source={{ uri: item.image }} style={styles.playerImage} resizeMode="cover" />
+          <Image
+            source={resolveImageSource(item.image, images.headshot)}
+            style={styles.playerImage}
+            resizeMode="cover"
+          />
 
           {/* Player Info */}
           <View style={styles.playerInfo}>
@@ -1215,4 +1221,3 @@ const styles = StyleSheet.create({
 })
 
 export default TeamRoster
-

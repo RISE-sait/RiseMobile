@@ -59,6 +59,8 @@ tmpDocs/*.py
 .idea/
 *.iml
 
+scripts/
+
 # Windows reserved names (should not exist, but ignore if they do)
 nul
 con

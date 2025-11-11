@@ -2,6 +2,8 @@ import type React from "react"
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from "react-native"
 import { FontAwesome5, Ionicons } from "@expo/vector-icons"
 import { COLORS } from "@/constants/colors"
+import images from "@/constants/images"
+import { isValidRemoteImageUri, resolveImageSource } from "@/utils/imageSource"
 
 // Update the Team interface to match exactly with practiceBooking.tsx
 interface Team {
@@ -46,8 +48,8 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
             style={[styles.item, selectedTeam?.id === item.id && styles.selected, hasError && styles.errorBorder]}
             onPress={() => setSelectedTeam(item)}
           >
-            {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.teamImage} />
+            {isValidRemoteImageUri(item.image) ? (
+              <Image source={resolveImageSource(item.image, images.teamLogo)} style={styles.teamImage} />
             ) : (
               <View style={styles.iconContainer}>
                 <FontAwesome5 name={item.icon} size={20} color={COLORS.primary} />
@@ -132,4 +134,3 @@ const styles = StyleSheet.create({
 })
 
 export default TeamSelector
-

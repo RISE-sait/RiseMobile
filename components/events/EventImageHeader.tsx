@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Image, Dimensions, ActivityIndicator, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS } from "@/constants/colors";
+import { resolveImageSource } from "@/utils/imageSource";
 
 const { width } = Dimensions.get("window");
 
@@ -17,7 +18,7 @@ const EventImageHeader: React.FC<EventImageHeaderProps> = ({ image }) => {
   const [hasError, setHasError] = useState(false);
 
   // Use provided image or fallback to default
-  const imageSource = (image && !hasError) ? image : DEFAULT_IMAGE;
+  const imageSource = resolveImageSource(!hasError ? image : null, DEFAULT_IMAGE);
 
   return (
     <View className="relative">
@@ -30,7 +31,7 @@ const EventImageHeader: React.FC<EventImageHeaderProps> = ({ image }) => {
 
       {/* Event image */}
       <Image
-        source={{ uri: imageSource }}
+        source={imageSource}
         className="w-full h-72"
         resizeMode="cover"
         onLoadStart={() => setIsLoading(true)}

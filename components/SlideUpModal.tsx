@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Modal, View, Text, TouchableOpacity, Image, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import images from "@/constants/images";
+import { resolveImageSource } from "@/utils/imageSource";
 
 interface SlideUpModalProps {
   visible: boolean;
@@ -44,7 +46,7 @@ export default function SlideUpModal({ visible, onClose }: SlideUpModalProps) {
             // Show the fetched QR code
             <View className="flex-1 justify-center items-center">
               <Image
-                source={{ uri: qrCode }}
+                source={resolveImageSource(qrCode, images.qrcode)}
                 style={{ width: 200, height: 200 }}
                 resizeMode="contain"
               />

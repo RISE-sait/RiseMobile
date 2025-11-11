@@ -10,7 +10,17 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "swagger": "npx swagger-typescript-api generate -p app/api/docs/swagger.json -o app/api"
+    "swagger": "npx swagger-typescript-api generate -p app/api/docs/swagger.json -o app/api",
+    "android:check": "bash scripts/android-debug.sh check",
+    "android:deploy": "bash scripts/android-debug.sh deploy",
+    "android:logs": "bash scripts/android-debug.sh logs",
+    "android:logs:verbose": "bash scripts/android-debug.sh logs '*:V'",
+    "android:diagnose": "bash scripts/android-debug.sh diagnose",
+    "android:restart": "bash scripts/android-debug.sh restart",
+    "android:clear": "bash scripts/android-debug.sh clear",
+    "android:advanced": "bash scripts/android-debug.sh advanced",
+    "android:debug": "bash scripts/android-debug.sh deploy && bash scripts/android-debug.sh logs",
+    "android:check-sdk": "bash scripts/check-android-sdk.sh"
   },
   "jest": {
     "preset": "jest-expo"
@@ -87,6 +97,7 @@
     "react-native-worklets": "^0.5.1",
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0",
+    "tslib": "^2.6.2",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
