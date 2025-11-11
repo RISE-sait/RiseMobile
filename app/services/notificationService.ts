@@ -1,19 +1,29 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { API_URL } from '@/utils/api';
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    // Add the following two properties to match the required type
-    shouldShowBanner: true, // For Android banner visibility
-    shouldShowList: true,   // For Android notification list visibility
-  }),
-});
+// Check if we're running in Expo Go
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Only configure notification handler if not in Expo Go on Android
+// (Expo Go on Android doesn't support push notifications in SDK 53+)
+if (!isExpoGo || Platform.OS !== 'android') {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (error) {
+    console.warn('Failed to set notification handler:', error);
+  }
+}
 
 export interface NotificationData {
   title: string;
@@ -41,6 +51,12 @@ class NotificationService {
    */
   async initialize(userToken?: string): Promise<string | null> {
     try {
+      // Check if running in Expo Go on Android (not supported in SDK 53+)
+      if (isExpoGo && Platform.OS === 'android') {
+        console.warn('⚠️ Push notifications are not supported in Expo Go on Android. Use a development build instead.');
+        return null;
+      }
+
       // Check if we're on a physical device
       if (!Device.isDevice) {
         console.warn('Push notifications only work on physical devices');

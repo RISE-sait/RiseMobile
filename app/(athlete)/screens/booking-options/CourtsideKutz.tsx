@@ -15,6 +15,8 @@ import { FontAwesome6 } from "@expo/vector-icons"
 import dayjs from "dayjs"
 import * as Haptics from "expo-haptics"
 import { useAppSelector } from "@/store/hooks"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
 
 import CalendarCard from "@/components/calendar/CalendarCard"
 import BackButton from "@/components/buttons/BackButton"
@@ -552,7 +554,7 @@ const BarberBookingScreen = () => {
       onPress={() => handleBarberSelect(item)}
       className={`flex-row p-4 rounded-xl mb-3 ${selectedBarber?.id === item.id ? "bg-gold-100" : "bg-[#222]"}`}
     >
-      <Image source={{ uri: item.image }} className="w-16 h-16 rounded-full" />
+      <Image source={resolveImageSource(item.image, images.headshot)} className="w-16 h-16 rounded-full" />
       <View className="ml-4 flex-1">
         <Text className={`text-lg font-bold ${selectedBarber?.id === item.id ? "text-black" : "text-white-100"}`}>
           {item.name}
@@ -817,7 +819,10 @@ const BarberBookingScreen = () => {
         <View className="bg-[#222] p-4 rounded-xl mt-4">
           <Text className="text-white-100 font-bold mb-2">Your Selection</Text>
           <View className="flex-row items-center">
-            <Image source={{ uri: selectedBarber.image }} className="w-10 h-10 rounded-full" />
+            <Image
+              source={resolveImageSource(selectedBarber.image, images.headshot)}
+              className="w-10 h-10 rounded-full"
+            />
             <Text className="text-white-100 ml-2">{selectedBarber.name}</Text>
           </View>
           {selectedService && (
@@ -1078,4 +1083,3 @@ const renderConfirmationModal = () => (
 };
 
 export default BarberBookingScreen
-

@@ -5,6 +5,8 @@ import { useState } from "react"
 import { View, Text, Image, TouchableOpacity } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import EventDetailsModal from "./EventDetailsModal"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
 
 type UpcomingCardProps = {
   event?: {
@@ -81,16 +83,17 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
   const defaultBgImage =
     "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
 
-  // Ensure bgImage is a string
-  const bgImageUri = typeof event.bgImage === "string" ? event.bgImage : defaultBgImage
+  const bgImageSource = resolveImageSource(event.bgImage, defaultBgImage)
+  const homeLogoSource = event.homeLogo ? resolveImageSource(event.homeLogo, images.teamLogo) : null
+  const awayLogoSource = event.awayLogo ? resolveImageSource(event.awayLogo, images.teamLogo) : null
 
   // Create a safe event object for the modal
   const safeEvent = {
     ...event,
-    bgImage: bgImageUri,
+    bgImage: typeof event.bgImage === "string" ? event.bgImage : defaultBgImage,
     // Handle homeLogo and awayLogo safely
-    homeLogo: event.homeLogo ? (typeof event.homeLogo === "string" ? event.homeLogo : event.homeLogo) : undefined,
-    awayLogo: event.awayLogo ? (typeof event.awayLogo === "string" ? event.awayLogo : event.awayLogo) : undefined,
+    homeLogo: homeLogoSource || undefined,
+    awayLogo: awayLogoSource || undefined,
   }
 
   return (
@@ -100,7 +103,7 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
           <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING EVENT</Text>
           <View className="bg-[#444444] h-36 rounded-xl overflow-hidden mt-3 flex justify-center items-center relative">
             <Image
-              source={{ uri: bgImageUri }}
+              source={bgImageSource}
               className="w-full h-full absolute"
               style={{ resizeMode: "cover", opacity: 0.6 }}
             />
@@ -111,7 +114,7 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
               <View className="flex-row items-center justify-between px-4 w-full">
                 {/* Home Team */}
                 <View className="flex items-center flex-1 max-w-[35%]">
-                  {event.homeLogo && (
+                  {homeLogoSource && (
                     <View style={{
                       width: 56,
                       height: 56,
@@ -126,11 +129,7 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
                       shadowRadius: 4,
                       elevation: 4,
                     }}>
-                      <Image
-                        source={typeof event.homeLogo === "string" ? { uri: event.homeLogo } : event.homeLogo}
-                        style={{ width: 40, height: 40 }}
-                        resizeMode="contain"
-                      />
+                      <Image source={homeLogoSource} style={{ width: 40, height: 40 }} resizeMode="contain" />
                     </View>
                   )}
                   <Text 
@@ -151,7 +150,7 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
 
                 {/* Away Team */}
                 <View className="flex items-center flex-1 max-w-[35%]">
-                  {event.awayLogo && (
+                  {awayLogoSource && (
                     <View style={{
                       width: 56,
                       height: 56,
@@ -166,11 +165,7 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
                       shadowRadius: 4,
                       elevation: 4,
                     }}>
-                      <Image
-                        source={typeof event.awayLogo === "string" ? { uri: event.awayLogo } : event.awayLogo}
-                        style={{ width: 40, height: 40 }}
-                        resizeMode="contain"
-                      />
+                      <Image source={awayLogoSource} style={{ width: 40, height: 40 }} resizeMode="contain" />
                     </View>
                   )}
                   <Text 

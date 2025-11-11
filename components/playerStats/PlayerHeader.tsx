@@ -1,9 +1,11 @@
 import React from "react";
-import { Animated, View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { Animated, View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { COLORS } from "../../constants/colors"; // Import colors from a constants file
 import { SafeAreaView } from "react-native-safe-area-context";
+import images from "@/constants/images";
+import { resolveImageSource } from "@/utils/imageSource";
 
 const PlayerHeader = ({ player, scrollY }) => {
   const router = useRouter();
@@ -44,7 +46,7 @@ const PlayerHeader = ({ player, scrollY }) => {
         <SafeAreaView style={styles.safeArea} />
 
       <Animated.Image
-        source={{ uri: player?.image }}
+        source={resolveImageSource(player?.image, images.headshot)}
         style={[styles.playerImage, { opacity: imageOpacity, transform: [{ translateY: imageTranslateY }] }]}
         resizeMode="cover"
       />

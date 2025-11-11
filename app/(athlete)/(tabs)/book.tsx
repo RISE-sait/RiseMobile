@@ -21,6 +21,8 @@ import { StatusBar } from "expo-status-bar"
 import { useAppSelector } from "@/store/hooks"
 import { getUpcomingBookings } from "@/utils/api"
 import EmptyBookingsState from "@/components/feedback/EmptyBookingState"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
@@ -286,7 +288,7 @@ const AthleteBook = () => {
           }}
         >
           <Image
-            source={{ uri: item.image }}
+            source={resolveImageSource(item.image, images.events)}
             style={{
               width: "100%",
               height: "100%",
@@ -612,4 +614,3 @@ const AthleteBook = () => {
 }
 
 export default AthleteBook
-

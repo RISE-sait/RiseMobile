@@ -14,6 +14,8 @@ import type { Match } from "@/types";
 import type { RootState } from "@/store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import dayjs from "dayjs";
+import images from "@/constants/images";
+import { resolveImageSource } from "@/utils/imageSource";
 
 export interface Event {
   id: string;
@@ -252,7 +254,11 @@ const EventsScreen: React.FC = () => {
         }}
 
       >
-        <Image source={{ uri: item.image }} style={styles.eventImage} resizeMode="cover" />
+        <Image
+          source={resolveImageSource(item.image || item.program?.photo_url, images.event)}
+          style={styles.eventImage}
+          resizeMode="cover"
+        />
         <View style={styles.eventDetails}>
           <View style={styles.eventHeader}>
             <Text style={styles.eventTitle}>{item.title}</Text>

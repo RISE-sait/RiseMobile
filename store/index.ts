@@ -48,6 +48,11 @@ const persistConfig = {
   whitelist: ["user"], // Only persist user data - everything else should be fetched fresh
   // Blacklist large data that changes frequently
   blacklist: ["events", "games", "practices", "courses", "teams", "membership", "schedule", "courts"],
+  // Add debug and timeout settings to prevent property update errors
+  debug: __DEV__,
+  timeout: 10000, // 10 second timeout for rehydration
+  // Add write delay to prevent rapid successive writes that can cause property errors
+  writeDelay: 500,
 }
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)

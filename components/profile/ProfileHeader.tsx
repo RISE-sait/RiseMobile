@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, ImageSourcePropType } from "react-native";
 import Flag from "react-native-country-flag"; // 🏳️ Import country flag component
 
 const ProfileHeader = ({
@@ -13,12 +13,17 @@ const ProfileHeader = ({
   firstName: string;
   lastName: string;
   role: string;
-  profileImage: any;
+  profileImage: ImageSourcePropType;
   countryCode?: string; // ✅ Country code is optional
-  teamLogo?: any; // ✅ Team logo is optional
+  teamLogo?: string | ImageSourcePropType; // ✅ Accept remote URL or bundled asset
 }) => {
 
-  const safeCountryCode = countryCode ? countryCode.toLowerCase() : "us"; 
+  const safeCountryCode = countryCode ? countryCode.toUpperCase() : "US";
+  const resolveImageSource = (
+    source?: string | ImageSourcePropType
+  ): ImageSourcePropType | undefined =>
+    source ? (typeof source === "string" ? { uri: source } : source) : undefined;
+  const resolvedTeamLogo = resolveImageSource(teamLogo);
 
   return (
     <View className="w-full px-4 mt-10">
@@ -28,11 +33,15 @@ const ProfileHeader = ({
         <View className="absolute top-4 left-4 flex flex-row items-center">
           {countryCode && (
             <View className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md">
-              <Flag isoCode={countryCode} size={40} style={{ width: "100%", height: "100%" }} />
+              <Flag isoCode={safeCountryCode} size={40} style={{ width: "100%", height: "100%" }} />
             </View>
           )}
-          {teamLogo && (
-            <Image source={{ uri: teamLogo }} className="w-10 h-10 ml-2 rounded-full border-2 border-white shadow-md" style={{ resizeMode: "contain" }} />
+          {resolvedTeamLogo && (
+            <Image
+              source={resolvedTeamLogo}
+              className="w-10 h-10 ml-2 rounded-full border-2 border-white shadow-md"
+              style={{ resizeMode: "contain" }}
+            />
           )}
         </View>
 
