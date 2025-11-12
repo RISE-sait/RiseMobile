@@ -232,7 +232,7 @@ const MatchesScreen: React.FC = () => {
 
         {/* Match Cards or Empty State */}
         {filteredMatches.length ? (
-          <ScrollView className="px-4">
+          <ScrollView className="px-4" contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}>
             {filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)}
           </ScrollView>
         ) : (

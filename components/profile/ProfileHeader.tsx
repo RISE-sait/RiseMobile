@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Image, ImageSourcePropType } from "react-native";
+import { View, Text, Image, ImageSourcePropType, TouchableOpacity } from "react-native";
 import Flag from "react-native-country-flag"; // 🏳️ Import country flag component
 
 const ProfileHeader = ({
@@ -9,6 +9,7 @@ const ProfileHeader = ({
   profileImage,
   countryCode, // ✅ Now expects a country code
   teamLogo, // ✅ Allows a future team logo
+  onPress, // ✅ Add onPress callback
 }: {
   firstName: string;
   lastName: string;
@@ -16,6 +17,7 @@ const ProfileHeader = ({
   profileImage: ImageSourcePropType;
   countryCode?: string; // ✅ Country code is optional
   teamLogo?: string | ImageSourcePropType; // ✅ Accept remote URL or bundled asset
+  onPress?: () => void; // ✅ Optional onPress handler
 }) => {
 
   const safeCountryCode = countryCode ? countryCode.toUpperCase() : "US";
@@ -27,7 +29,12 @@ const ProfileHeader = ({
 
   return (
     <View className="w-full px-4 mt-10">
-      <View className="bg-gold-100 h-60 rounded-3xl overflow-hidden relative flex px-4 items-center">
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={onPress ? 0.7 : 1}
+        disabled={!onPress}
+      >
+        <View className="bg-gold-100 h-60 rounded-3xl overflow-hidden relative flex px-4 items-center">
         
         {/* Country Flag and Team Logo */}
         <View className="absolute top-4 left-4 flex flex-row items-center">
@@ -72,6 +79,7 @@ const ProfileHeader = ({
           <Text className="text-black-100 font-protest text-base uppercase">{role}</Text>
         </View>
       </View>
+      </TouchableOpacity>
     </View>
   );
 };

@@ -4,7 +4,6 @@ import {
   Text,
   SectionList,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
@@ -14,6 +13,8 @@ import { faCrown, faCheck, faChevronDown, faChevronUp } from "@fortawesome/free-
 import { LinearGradient } from "expo-linear-gradient";
 import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership, refreshBackendJwt } from "@/utils/api";
 import type { RootState } from "@/store";
+import FeedbackDialog from "@/components/feedback/FeedbackDialog";
+import useFeedbackDialog from "@/hooks/useFeedbackDialog";
 
 interface MembershipPlan {
   id: string;
@@ -65,6 +66,9 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
   // Get user data from Redux store (same pattern as other screens)
   const user = useSelector((state: RootState) => state.user.data);
+
+  // Use custom feedback dialog instead of Alert.alert
+  const dialog = useFeedbackDialog();
 
 
   useEffect(() => {
@@ -225,29 +229,112 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     };
   };
 
+  const retryFetchPlans = async (sectionId: string) => {
+    setMembershipSections((prev) =>
+      prev.map((section) =>
+        section.id === sectionId
+          ? { ...section, loading: true, error: null }
+          : section
+      )
+    );
+
+    try {
+      const result = await fetchPlansWithRetry(sectionId);
+      setMembershipSections((prev) =>
+        prev.map((section) => {
+          if (section.id !== sectionId) return section;
+
+          const plans = result.error ? [] : (result.data || []);
+          let sectionData = plans;
+          if (plans.length === 0) {
+            sectionData = [
+              {
+                id: `${sectionId}_placeholder`,
+                name: "",
+                description: "",
+                benefits: "",
+                price: 0,
+              },
+            ];
+          }
+
+          return {
+            ...section,
+            data: sectionData,
+            loading: false,
+            error: result.error
+              ? {
+                  message: result.error.message,
+                  type: result.error.type || "unknown",
+                }
+              : null,
+          };
+        })
+      );
+    } catch (error: any) {
+      setMembershipSections((prev) =>
+        prev.map((section) =>
+          section.id === sectionId
+            ? {
+                ...section,
+                loading: false,
+                error: {
+                  message:
+                    error?.message ||
+                    "Failed to refresh plans. Please try again later.",
+                  type: "retry_failed",
+                },
+              }
+            : section
+        )
+      );
+    }
+  };
+
   const handlePurchase = async (planId: string, planName: string) => {
     setPurchaseLoading(planId);
+
+    // Set a timeout to reset loading state if request takes too long
+    const timeoutId = setTimeout(() => {
+      console.warn("⚠️ Purchase request timeout - resetting loading state");
+      setPurchaseLoading(null);
+      dialog.show(
+        "Request Timeout",
+        "The purchase request is taking longer than expected. Please try again.",
+        [{ text: "OK", onPress: () => {}, style: "primary" }],
+        "clock",
+        "#FFA500"
+      );
+    }, 30000); // 30 second timeout
+
     try {
       // Call API which now returns { data, error }
       const result: any = await purchaseMembershipPlan(planId);
+
+      // Clear timeout if request completes
+      clearTimeout(timeoutId);
 
       if (result?.error) {
         const status: number | undefined = result.error.status;
         const backendMessage: string | undefined = result.error.message;
 
         if (status === 409) {
-          Alert.alert(
+          dialog.show(
             "Already Subscribed",
             backendMessage || "You already have an active membership for this plan.",
-            [{ text: "OK" }]
+            [{ text: "OK", onPress: () => {}, style: "primary" }],
+            "user-check",
+            "#FCA311"
           );
           return;
         }
 
-        Alert.alert(
+        dialog.show(
           "Purchase Failed",
           backendMessage || "Unable to initiate purchase. Please try again later or contact support.",
-          [{ text: "OK" }]
+          [{ text: "OK", onPress: () => {}, style: "primary" }],
+          "circle-xmark",
+          "#EF4444"
         );
         return;
       }
@@ -261,20 +348,29 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           onPurchaseCompleted();
         }
       } else {
-        Alert.alert(
+        dialog.show(
           "Purchase Unavailable",
           "Unable to initiate purchase. Please try again later or contact support.",
-          [{ text: "OK" }]
+          [{ text: "OK", onPress: () => {}, style: "primary" }],
+          "circle-exclamation",
+          "#FFA500"
         );
       }
     } catch (error: any) {
+      // Clear timeout on error
+      clearTimeout(timeoutId);
+
       console.warn("❌ Purchase error:", error);
-      Alert.alert(
+      dialog.show(
         "Purchase Failed",
         (error as Error)?.message || "Unable to initiate purchase. Please try again later or contact support.",
-        [{ text: "OK" }]
+        [{ text: "OK", onPress: () => {}, style: "primary" }],
+        "circle-xmark",
+        "#EF4444"
       );
     } finally {
+      // Ensure loading state is always cleared
+      clearTimeout(timeoutId);
       setPurchaseLoading(null);
     }
   };
@@ -431,65 +527,75 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   }
 
   return (
-    <SectionList
-      style={styles.container}
-      sections={membershipSections}
-      keyExtractor={(item, index) => item.id + index}
-      renderItem={({ item, section }) => {
-        // Only render if this section is expanded
-        if (expandedSectionId !== section.id) {
-          return null;
-        }
+    <>
+      <SectionList
+        style={styles.container}
+        sections={membershipSections}
+        keyExtractor={(item, index) => item.id + index}
+        renderItem={({ item, section }) => {
+          // Only render if this section is expanded
+          if (expandedSectionId !== section.id) {
+            return null;
+          }
 
-        // Handle loading state
-        if (section.loading) {
-          return (
-            <View style={styles.sectionStateContainer}>
-              <ActivityIndicator size="small" color="#FFD700" />
-              <Text style={styles.sectionStateText}>Loading plans...</Text>
-            </View>
-          );
-        }
+          // Handle loading state
+          if (section.loading) {
+            return (
+              <View style={styles.sectionStateContainer}>
+                <ActivityIndicator size="small" color="#FFD700" />
+                <Text style={styles.sectionStateText}>Loading plans...</Text>
+              </View>
+            );
+          }
 
-        // Handle error state
-        if (section.error) {
-          return (
-            <View style={styles.sectionStateContainer}>
-              <Text style={styles.sectionErrorText}>
-                {section.error.type === 'auth'
-                  ? 'Authentication failed. Please log in again.'
-                  : section.error.message}
-              </Text>
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={() => {
-                }}
-              >
-                <Text style={styles.retryButtonText}>Retry</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        }
+          // Handle error state
+          if (section.error) {
+            return (
+              <View style={styles.sectionStateContainer}>
+                <Text style={styles.sectionErrorText}>
+                  {section.error.type === 'auth'
+                    ? 'Authentication failed. Please log in again.'
+                    : section.error.message}
+                </Text>
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={() => retryFetchPlans(section.id)}
+                >
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }
 
-        // Handle empty state (no plans available)
-        if (item.id.endsWith('_placeholder')) {
-          return (
-            <View style={styles.sectionStateContainer}>
-              <Text style={styles.sectionStateText}>
-                No plans available for this membership type
-              </Text>
-            </View>
-          );
-        }
+          // Handle empty state (no plans available)
+          if (item.id.endsWith('_placeholder')) {
+            return (
+              <View style={styles.sectionStateContainer}>
+                <Text style={styles.sectionStateText}>
+                  No plans available for this membership type
+                </Text>
+              </View>
+            );
+          }
 
-        // Render normal plan card
-        return renderPlanCard({ item });
-      }}
-      renderSectionHeader={renderSectionHeader}
-      ListHeaderComponent={renderListHeader}
-      contentContainerStyle={styles.listContainer}
-      showsVerticalScrollIndicator={false}
-    />
+          // Render normal plan card
+          return renderPlanCard({ item });
+        }}
+        renderSectionHeader={renderSectionHeader}
+        ListHeaderComponent={renderListHeader}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+      />
+      <FeedbackDialog
+        visible={dialog.visible}
+        title={dialog.config.title}
+        message={dialog.config.message}
+        icon={dialog.config.icon}
+        iconColor={dialog.config.iconColor}
+        buttons={dialog.config.buttons}
+        onDismiss={dialog.hide}
+      />
+    </>
   );
 };
 
