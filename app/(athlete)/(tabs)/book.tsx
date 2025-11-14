@@ -23,6 +23,7 @@ import { getUpcomingBookings } from "@/utils/api"
 import EmptyBookingsState from "@/components/feedback/EmptyBookingState"
 import images from "@/constants/images"
 import { resolveImageSource } from "@/utils/imageSource"
+import Constants from "expo-constants"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
@@ -41,6 +42,8 @@ const COLORS = {
   danger: "#FF5252",
   info: "#2196F3",
 }
+
+const BOOKING_TIMEZONE = "America/Edmonton"
 
 // Upcoming bookings are now loaded from API - removed unused constant
 
@@ -106,7 +109,7 @@ const AthleteBook = () => {
       setIsLoadingBookings(false)
       return
     }
-    
+
     try {
       setIsLoadingBookings(true)
       setBookingsError(null)
@@ -133,47 +136,46 @@ const AthleteBook = () => {
       }
       
       if (allBookings.length > 0) {
-        const transformedBookings = allBookings.map((booking: any, index: number) => {
-          // Helper function to format datetime string to date and time
-          const parseDateTime = (dateTimeStr: string) => {
-            if (!dateTimeStr) return { date: "TBD", time: "TBD" }
-            
-            try {
-              // Clean the duplicate -0600 format: "2025-09-05 03:30:00 -0600 -0600"
-              let dateStr = dateTimeStr.trim()
-              if (dateStr.includes(' -0600 -0600')) {
-                dateStr = dateStr.replace(' -0600 -0600', ' -0600')
-              }
-              
-              // Parse the datetime string
-              let dateObj = new Date(dateStr)
-              
-              // Fallback to ISO format if parsing fails
-              if (isNaN(dateObj.getTime())) {
-                const isoStr = dateStr.replace(' ', 'T').replace(' -0600', '-06:00')
-                dateObj = new Date(isoStr)
-                if (isNaN(dateObj.getTime())) {
-                  return { date: "TBD", time: "TBD" }
-                }
-              }
-              
-              const date = dateObj.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric' 
-              })
-              
-              const time = dateObj.toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
-                minute: '2-digit',
-                hour12: true 
-              })
-              
-              return { date, time }
-            } catch (error) {
+        const parseDateTime = (dateTimeStr: string) => {
+          if (!dateTimeStr) return { date: "TBD", time: "TBD" }
+
+          try {
+            let normalized = dateTimeStr.trim()
+            if (normalized.includes(' -0600 -0600')) {
+              normalized = normalized.replace(' -0600 -0600', ' -0600')
+            }
+            if (normalized.includes(' ') && !normalized.includes('T')) {
+              normalized = normalized.replace(' ', 'T')
+            }
+
+            const parsedDate = new Date(normalized)
+            if (Number.isNaN(parsedDate.getTime())) {
               return { date: "TBD", time: "TBD" }
             }
+
+            const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+              month: 'short',
+              day: 'numeric',
+              timeZone: BOOKING_TIMEZONE,
+            })
+
+            const timeFormatter = new Intl.DateTimeFormat('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+              timeZone: BOOKING_TIMEZONE,
+            })
+
+            return {
+              date: dateFormatter.format(parsedDate),
+              time: timeFormatter.format(parsedDate),
+            }
+          } catch (error) {
+            return { date: "TBD", time: "TBD" }
           }
-          
+        }
+
+        const transformedBookings = allBookings.map((booking: any, index: number) => {
           const { date, time } = parseDateTime(booking.start_at)
           
           return {

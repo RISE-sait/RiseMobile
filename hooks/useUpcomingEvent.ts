@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import { InteractionManager } from "react-native"
 import { useAppSelector } from "@/store/hooks"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
@@ -109,6 +110,7 @@ export const useUpcomingEvent = () => {
   const [error, setError] = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<number | null>(null)
   const authFailureRef = useRef(false)
+  const fetchHandleRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null)
 
   const userData = useAppSelector((state) => state.user.data)
   const { getValidToken, forceReLogin } = useAuth()
@@ -265,8 +267,18 @@ export const useUpcomingEvent = () => {
       return cacheExpired;
     };
 
-    if (shouldFetch()) {
-      fetchUpcomingEvent();
+    if (!shouldFetch()) {
+      return
+    }
+
+    fetchHandleRef.current?.cancel?.()
+    fetchHandleRef.current = InteractionManager.runAfterInteractions(() => {
+      fetchUpcomingEvent()
+    })
+
+    return () => {
+      fetchHandleRef.current?.cancel?.()
+      fetchHandleRef.current = null
     }
   }, [userData?.token, upcomingEvent, lastFetched, loading])
 
@@ -285,6 +297,6 @@ export const useUpcomingEvent = () => {
     loading,
     error,
     refetch: fetchUpcomingEvent,
-    cacheTimeRemaining: timeUntilRefresh // milliseconds until next auto-refresh
+    cacheTimeRemaining: timeUntilRefresh,
   }
 }

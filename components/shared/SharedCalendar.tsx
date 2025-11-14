@@ -4,7 +4,7 @@
 import type React from "react"
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
-import { View, Animated } from "react-native"
+import { View, Animated, InteractionManager } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import dayjs from "dayjs"
@@ -17,7 +17,8 @@ import { fetchSchedule, clearSchedule } from "@/store/slices/scheduleSlice"
 import PageTitle from "@/components/PageTitle"
 import CalendarCard from "@/components/calendar/CalendarCard"
 import EventListContainer from "@/components/calendar/EventListContainer"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useAuth } from "@/utils/auth"
+import Constants from "expo-constants"
 
 interface SharedCalendarProps {
   userRole: "athlete" | "coach" | "instructor" | "parent"
@@ -46,6 +47,8 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format("YYYY-MM-DD"))
   const fadeAnim = useRef(new Animated.Value(0)).current
   const dispatch = useDispatch()
+  const { getValidToken, forceReLogin } = useAuth()
+  const calendarInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null)
 
   // Get user from Redux store
   const user = useSelector((state: RootState) => state.user.data)
@@ -64,48 +67,33 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   const error = reduxSchedule.error || reduxEvents.error || reduxGames.error
 
 
-const fetchCalendarData = useCallback(async () => {
-  try {
-    let jwt = user?.token
-    
-    // Fallback token logic similar to matches page
-    if (!jwt) {
-      try {
-        const userString = await AsyncStorage.getItem("user")
-        if (userString) {
-          const userData = JSON.parse(userString)
-          jwt = userData.token
-        }
-        
-        // Additional fallback: try direct JWT token
-        if (!jwt) {
-          jwt = await AsyncStorage.getItem("jwtToken")
-        }
-      } catch (err) {
-        console.error("Error getting token from AsyncStorage:", err)
-      }
-    }
-    
-    if (!jwt) {
-      console.error("Missing backend JWT - no token available")
-      return
-    }
-
-
-    // Try to fetch from unified schedule endpoint first
-    try {
-      dispatch(clearSchedule())
-      dispatch(fetchSchedule(jwt) as any)
-    } catch (scheduleErr) {
-      console.warn("Schedule endpoint failed, falling back to individual endpoints:", scheduleErr)
-      // Fallback to individual endpoints
-      dispatch(fetchEvents(jwt) as any)
-      dispatch(fetchMatches(jwt) as any)
-    }
-  } catch (err) {
-    console.error("Error fetching calendar data:", err)
+const fetchCalendarData = useCallback(() => {
+  if (calendarInteractionRef.current) {
+    calendarInteractionRef.current.cancel()
   }
-}, [dispatch, user?.token])
+
+  calendarInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+    try {
+      const jwt = await getValidToken()
+
+      if (!jwt) {
+        await forceReLogin("Session expired. Please log in again.")
+        return
+      }
+
+      try {
+        dispatch(clearSchedule())
+        dispatch(fetchSchedule(jwt) as any)
+      } catch (scheduleErr) {
+        console.warn("Schedule endpoint failed, falling back to individual endpoints:", scheduleErr)
+        dispatch(fetchEvents(jwt) as any)
+        dispatch(fetchMatches(jwt) as any)
+      }
+    } catch (err) {
+      console.error("Error fetching calendar data:", err)
+    }
+  })
+}, [dispatch, forceReLogin, getValidToken])
 
 
 
@@ -123,8 +111,13 @@ const fetchCalendarData = useCallback(async () => {
     }).start()
 
     fetchCalendarData()
+
+    return () => {
+      calendarInteractionRef.current?.cancel()
+      calendarInteractionRef.current = null
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Empty dependency array - only run once
+  }, [])
 
   // Process matches data to organize by date
   const matchesByDate = useMemo(() => {
@@ -172,10 +165,10 @@ const fetchCalendarData = useCallback(async () => {
     return [...events, ...matches]
   }, [reduxSchedule.byDate, reduxEvents.byDate, matchesByDate, selectedDate])
 
-const combinedCalendarEvents = useMemo(() => {
-  // If we have schedule data, use it (unified data source)
-  if (reduxSchedule.items.length > 0) {
-    return reduxSchedule.byDate
+  const combinedCalendarEvents = useMemo(() => {
+    // If we have schedule data, use it (unified data source)
+    if (reduxSchedule.items.length > 0) {
+      return reduxSchedule.byDate
   }
   
   // Fallback to separate events and matches
@@ -195,6 +188,27 @@ const combinedCalendarEvents = useMemo(() => {
 
   return combined
 }, [reduxSchedule.byDate, reduxEvents.byDate, matchesByDate])
+
+  const windowedCalendarEvents = useMemo(() => {
+    const selectedMonth = dayjs(selectedDate).startOf("month")
+    const windowStart = selectedMonth.subtract(1, "month")
+    const windowEnd = selectedMonth.add(1, "month").endOf("month")
+    const filtered: Record<string, any[]> = {}
+
+    Object.entries(combinedCalendarEvents).forEach(([date, items]) => {
+      const dateObj = dayjs(date)
+      if (dateObj.isBefore(windowStart) || dateObj.isAfter(windowEnd)) {
+        return
+      }
+      filtered[date] = items
+    })
+
+    if (!filtered[selectedDate] && combinedCalendarEvents[selectedDate]) {
+      filtered[selectedDate] = combinedCalendarEvents[selectedDate]
+    }
+
+    return filtered
+  }, [combinedCalendarEvents, selectedDate])
 
 
   // Create marked dates for the calendar
@@ -277,7 +291,7 @@ const combinedCalendarEvents = useMemo(() => {
         <View className="px-5 py-4">
           <CalendarCard
             selectedDate={selectedDate}
-            events={combinedCalendarEvents}
+            events={windowedCalendarEvents}
             onDayPress={(day) => setSelectedDate(day.dateString)}
           />
         </View>

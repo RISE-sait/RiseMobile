@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,15 +6,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  InteractionManager,
 } from "react-native";
 import { useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faCrown, faCheck, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership, refreshBackendJwt } from "@/utils/api";
+import { getAllMembershipPlans, purchaseMembershipPlan, getPlansForMembership } from "@/utils/api";
 import type { RootState } from "@/store";
 import FeedbackDialog from "@/components/feedback/FeedbackDialog";
 import useFeedbackDialog from "@/hooks/useFeedbackDialog";
+import { useAuth } from "@/utils/auth";
 
 interface MembershipPlan {
   id: string;
@@ -40,6 +42,7 @@ interface MembershipSection {
     message: string;
     type: string;
   } | null;
+  loaded?: boolean;
 }
 
 interface MembershipPurchaseListProps {
@@ -60,7 +63,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   const [membershipSections, setMembershipSections] = useState<MembershipSection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
+  const [purchaseLoadingId, setPurchaseLoadingId] = useState<string | null>(null);
   // Track which section is expanded, null means all collapsed
   const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
 
@@ -69,6 +72,32 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
   // Use custom feedback dialog instead of Alert.alert
   const dialog = useFeedbackDialog();
+  const { getValidToken } = useAuth();
+  const jwtRef = useRef<string | null>(null);
+  const interactionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
+
+  const ensureAuthToken = useCallback(async (forceRefresh = false) => {
+    if (forceRefresh) {
+      jwtRef.current = null;
+    }
+
+    if (jwtRef.current) {
+      return jwtRef.current;
+    }
+
+    const token = await getValidToken();
+    if (token) {
+      jwtRef.current = token;
+    }
+    return token;
+  }, [getValidToken]);
+
+  useEffect(() => {
+    return () => {
+      dialog.hide();
+      jwtRef.current = null;
+    };
+  }, [dialog]);
 
 
   useEffect(() => {
@@ -77,7 +106,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       setError(null);
 
       try {
-        // Step a: Get all membership types
         const membershipTypesResult = await getAllMembershipPlans();
 
         if (membershipTypesResult.error) {
@@ -95,63 +123,18 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           return;
         }
 
-        // Step b: Initialize sections with loading states
-        const initialSections: MembershipSection[] = membershipTypes.map(type => ({
+        const initialSections: MembershipSection[] = membershipTypes.map((type) => ({
           id: type.id,
           title: type.name,
           description: type.description || "",
           data: [],
-          loading: true,
-          error: null
+          loading: false,
+          error: null,
+          loaded: false,
         }));
 
-        // Update state to show loading sections immediately
         setMembershipSections(initialSections);
-        setLoading(false); // Hide main loading, show section-level loading
-
-        // Step c: Fetch plans for each membership type with retry mechanism
-        const planPromises = membershipTypes.map(type =>
-          fetchPlansWithRetry(type.id)
-        );
-
-        const plansResults = await Promise.all(planPromises);
-
-        // Step d: Update sections with actual data
-        const updatedSections: MembershipSection[] = membershipTypes.map((type, index) => {
-          const plansResult = plansResults[index];
-          const plans = plansResult.error ? [] : (plansResult.data || []);
-
-          // Add a placeholder item for error/empty states when expanded
-          let sectionData = plans;
-          if (plans.length === 0) {
-            // Add a placeholder item for empty/error state rendering
-            sectionData = [{
-              id: `${type.id}_placeholder`,
-              name: '',
-              description: '',
-              benefits: '',
-              price: 0
-            }];
-          }
-
-          return {
-            id: type.id,
-            title: type.name,
-            description: type.description || "",
-            data: sectionData,
-            loading: false,
-            error: plansResult.error ? {
-              message: plansResult.error.message,
-              type: plansResult.error.type || 'unknown'
-            } : null
-          };
-        });
-
-        // Step e: Update state
-        setMembershipSections(updatedSections);
-
       } catch (error) {
-        // Step e: Error handling
         console.error("❌ Unexpected error fetching membership data:", error);
         setError("Failed to load membership information");
       } finally {
@@ -159,30 +142,43 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       }
     };
 
-    // Use Redux store user data (same pattern as other screens)
     if (user && user.token) {
-      fetchMembershipData();
+      interactionRef.current?.cancel()
+      interactionRef.current = InteractionManager.runAfterInteractions(() => {
+        fetchMembershipData()
+      })
     } else {
       console.warn("⚠️ User not authenticated in Redux store.");
       setError("User not authenticated");
       setLoading(false);
     }
+
+    return () => {
+      interactionRef.current?.cancel()
+      interactionRef.current = null
+    }
   }, [user]);
 
-  // Handle accordion section toggle
-  const handleToggleSection = (sectionId: string) => {
-    if (expandedSectionId === sectionId) {
-      setExpandedSectionId(null); // Collapse if already expanded
-    } else {
-      setExpandedSectionId(sectionId); // Expand new section, auto-collapse others
-    }
-  };
+  useEffect(() => {
+    jwtRef.current = null;
+  }, [user?.id]);
 
   // Retry mechanism for fetching plans with auth error handling
   const fetchPlansWithRetry = async (membershipId: string, maxRetries = 2) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const authToken = await ensureAuthToken(attempt > 1)
+      if (!authToken) {
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401,
+            type: 'auth'
+          }
+        }
+      }
 
-      const result = await getPlansForMembership(membershipId);
+      const result = await getPlansForMembership(membershipId, authToken)
 
       // If successful, filter plans by is_visible field and return the result
       if (!result.error) {
@@ -205,13 +201,8 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
       // If it's an auth error and we haven't exhausted retries, try refreshing token
       if (result.error.type === 'auth' && attempt < maxRetries) {
-        try {
-          await refreshBackendJwt();
-          // Continue to next iteration to retry
-        } catch (refreshError) {
-          // Return the original error if token refresh fails
-          return result;
-        }
+        await ensureAuthToken(true)
+        continue
       } else {
         // Non-auth error or exhausted retries, return the error
         return result;
@@ -229,7 +220,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     };
   };
 
-  const retryFetchPlans = async (sectionId: string) => {
+  const loadSectionPlans = async (sectionId: string) => {
     setMembershipSections((prev) =>
       prev.map((section) =>
         section.id === sectionId
@@ -238,16 +229,16 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       )
     );
 
-    try {
-      const result = await fetchPlansWithRetry(sectionId);
-      setMembershipSections((prev) =>
-        prev.map((section) => {
-          if (section.id !== sectionId) return section;
+    const result = await fetchPlansWithRetry(sectionId);
 
-          const plans = result.error ? [] : (result.data || []);
-          let sectionData = plans;
-          if (plans.length === 0) {
-            sectionData = [
+    setMembershipSections((prev) =>
+      prev.map((section) => {
+        if (section.id !== sectionId) return section;
+
+        const plans = result.error ? [] : (result.data || []);
+        const data = plans.length
+          ? plans
+          : [
               {
                 id: `${sectionId}_placeholder`,
                 name: "",
@@ -256,21 +247,39 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
                 price: 0,
               },
             ];
-          }
 
-          return {
-            ...section,
-            data: sectionData,
-            loading: false,
-            error: result.error
-              ? {
-                  message: result.error.message,
-                  type: result.error.type || "unknown",
-                }
-              : null,
-          };
-        })
-      );
+        return {
+          ...section,
+          data,
+          loading: false,
+          loaded: true,
+          error: result.error
+            ? {
+                message: result.error.message,
+                type: result.error.type || "unknown",
+              }
+            : null,
+        };
+      })
+    );
+  };
+
+  const handleToggleSection = (sectionId: string) => {
+    if (expandedSectionId === sectionId) {
+      setExpandedSectionId(null);
+      return;
+    }
+
+    setExpandedSectionId(sectionId);
+    const target = membershipSections.find((section) => section.id === sectionId);
+    if (target && !target.loaded && !target.loading) {
+      loadSectionPlans(sectionId);
+    }
+  };
+
+  const retryFetchPlans = async (sectionId: string) => {
+    try {
+      await loadSectionPlans(sectionId);
     } catch (error: any) {
       setMembershipSections((prev) =>
         prev.map((section) =>
@@ -292,12 +301,12 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   };
 
   const handlePurchase = async (planId: string, planName: string) => {
-    setPurchaseLoading(planId);
+    setPurchaseLoadingId(planId);
 
     // Set a timeout to reset loading state if request takes too long
     const timeoutId = setTimeout(() => {
       console.warn("⚠️ Purchase request timeout - resetting loading state");
-      setPurchaseLoading(null);
+      setPurchaseLoadingId(null);
       dialog.show(
         "Request Timeout",
         "The purchase request is taking longer than expected. Please try again.",
@@ -371,7 +380,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     } finally {
       // Ensure loading state is always cleared
       clearTimeout(timeoutId);
-      setPurchaseLoading(null);
+      setPurchaseLoadingId(null);
     }
   };
 
@@ -432,15 +441,15 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         <TouchableOpacity
           style={[
             styles.purchaseButton,
-            purchaseLoading !== null && styles.purchaseButtonLoading
+            purchaseLoadingId === item.id && styles.purchaseButtonLoading
           ]}
           onPress={() => handlePurchase(item.id, item.name)}
-          disabled={purchaseLoading !== null}
+          disabled={purchaseLoadingId === item.id}
         >
-          {purchaseLoading === item.id ? (
+          {purchaseLoadingId === item.id ? (
             <View style={styles.buttonLoadingContainer}>
               <ActivityIndicator size="small" color="#000000" />
-              <Text style={[styles.purchaseButtonText, { marginLeft: 8 }]}>
+              <Text style={[styles.purchaseButtonText, { marginLeft: 8 }]}> 
                 Processing...
               </Text>
             </View>

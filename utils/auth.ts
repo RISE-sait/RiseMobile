@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { loginUser, registerUser, verifyEmail as apiVerifyEmail, resendVerificationEmail as apiResendVerificationEmail } from "./api" // Import API functions
@@ -17,6 +17,8 @@ import { clearPractices } from "@/store/slices/practicesSlice"
 import { clearMatches } from "@/store/slices/gamesSlice"
 import { clearMembership } from "@/store/slices/membershipSlice"
 import { persistor } from "@/store"
+import { AppState, InteractionManager } from "react-native"
+import Constants from "expo-constants"
 
 type User = {
   id: string
@@ -32,6 +34,23 @@ type User = {
 
 WebBrowser.maybeCompleteAuthSession()
 
+let hasLoadedUserOnce = false
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs = 8000): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  return await Promise.race<T>([
+    promise,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error("Token refresh timed out")), timeoutMs)
+    }) as Promise<T>,
+  ]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+  })
+}
+
 export const useAuth = () => {
   const dispatch = useDispatch()
   const reduxUser = useSelector((state: RootState) => state.user.data)
@@ -40,6 +59,10 @@ export const useAuth = () => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
   const [hasInitialized, setHasInitialized] = useState(false) // ✅ Simplified: track if initial check is done
+  const TOKEN_TTL_MS = 55 * 60 * 1000
+  const refreshInFlight = useRef<Promise<string | null> | null>(null)
+  const firebaseReadyResolvers = useRef<Array<(user: FirebaseUser | null) => void>>([])
+  const lastDeliveredTokenRef = useRef<string | null>(null)
 
   // Use Redux user state as primary source of truth
   const user = reduxUser
@@ -51,21 +74,6 @@ export const useAuth = () => {
     }),
     scopes: ["profile", "email"],
   })
-
-  // 🔹 Verify token validity with backend (lightweight check)
-  const verifyTokenWithBackend = async (token: string, email: string): Promise<boolean> => {
-    try {
-      // Quick token check with short timeout
-      await axios.get(`${API_URL}/bookings/upcoming`, {
-        headers: { "Authorization": `Bearer ${token}` },
-        timeout: 2000 // ⚡ 2 second timeout
-      })
-      return true
-    } catch (error) {
-      console.warn("⚠️ [Auth] Token verification failed:", (error as any).response?.status || (error as any).message)
-      return false
-    }
-  }
 
   // 🔹 Refresh Firebase token and exchange for JWT
   const refreshAndExchangeToken = async (firebaseUser: FirebaseUser): Promise<string | null> => {
@@ -102,6 +110,10 @@ export const useAuth = () => {
 
   // ✅ Simplified: Load user from Redux state immediately
   const loadUserFromStorage = async () => {
+    if (hasLoadedUserOnce) {
+      return
+    }
+    hasLoadedUserOnce = true
     try {
       console.log("🔄 [Auth] loadUserFromStorage called", {
         hasReduxUser: !!reduxUser,
@@ -110,17 +122,9 @@ export const useAuth = () => {
 
       // 🔹 Use Redux user state as primary source
       if (reduxUser) {
-
-        // ✅ Refresh token in background if Firebase user is available
-        if (firebaseUser && reduxUser.token) {
-          // Background token refresh - don't await, don't block startup
-          refreshAndExchangeToken(firebaseUser).then(newToken => {
-            if (newToken && newToken !== reduxUser.token) {
-              dispatch(setReduxUser({ ...reduxUser, token: newToken }))
-            }
-          }).catch(err => {
-            console.warn("⚠️ [Auth] Background token refresh failed:", err)
-          })
+        if (reduxUser.token && !reduxUser.tokenIssuedAt) {
+          const patchedUser = { ...reduxUser, tokenIssuedAt: Date.now() }
+          dispatch(setReduxUser(patchedUser))
         }
 
         setAuthError(null)
@@ -131,6 +135,7 @@ export const useAuth = () => {
       console.error("❌ [Auth] Error in loadUserFromStorage:", error)
       setAuthError("Failed to load authentication data")
       setIsAuthLoaded(true) // ✅ Always set to true to prevent infinite loading
+      hasLoadedUserOnce = true
     }
   }
 
@@ -139,6 +144,12 @@ export const useAuth = () => {
     try {
       if (!userData.countryCode) {
           userData.countryCode = "US" // ✅ Prevent undefined values
+      }
+      if (userData.token && !userData.tokenIssuedAt) {
+        userData.tokenIssuedAt = Date.now()
+      }
+      if (!userData.tokenIssuedAt) {
+        userData.tokenIssuedAt = Date.now()
       }
 
       // ✅ Only save to Redux - Redux Persist will handle AsyncStorage automatically
@@ -447,57 +458,173 @@ export const useAuth = () => {
     }
 
     router.replace("/(auth)/login")
+    hasLoadedUserOnce = false
   }
 
-  // 🔹 Get valid token (centralized token management)
-  const getValidToken = async (): Promise<string | null> => {
-    try {
-      // Try Redux user token first
-      if (user?.token) {
-        const isValid = await verifyTokenWithBackend(user.token, user.email)
-        if (isValid) {
-          return user.token
+  const waitForFirebaseUser = useCallback(async () => {
+    if (firebaseUser || auth.currentUser) {
+      return firebaseUser || auth.currentUser
+    }
+
+    return await new Promise<FirebaseUser | null>((resolve) => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const cleanup = (resolver?: (user: FirebaseUser | null) => void) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        if (resolver) {
+          firebaseReadyResolvers.current = firebaseReadyResolvers.current.filter((r) => r !== resolver)
         }
       }
 
-      // If no valid token from Redux, try Firebase user
-      if (firebaseUser) {
-        const newToken = await refreshAndExchangeToken(firebaseUser)
-        if (newToken) {
-          const updatedUser = { ...user, token: newToken }
+      const resolver = (user: FirebaseUser | null) => {
+        cleanup(resolver)
+        resolve(user)
+      }
+
+      timeoutId = setTimeout(() => {
+        cleanup(resolver)
+        resolve(null)
+      }, 3000)
+
+      firebaseReadyResolvers.current.push(resolver)
+    })
+  }, [firebaseUser])
+
+  const refreshTokenSilently = useCallback(async (): Promise<string | null> => {
+    let sourceUser = firebaseUser || auth.currentUser
+    if (!sourceUser) {
+      sourceUser = await waitForFirebaseUser()
+      if (!sourceUser) {
+        return null
+      }
+    }
+
+    if (refreshInFlight.current) {
+      return refreshInFlight.current
+    }
+
+    const refreshPromise = (async () => {
+      try {
+        const newToken = await withTimeout(refreshAndExchangeToken(sourceUser!), 8000)
+        if (!newToken) return null
+
+        const issuedAt = Date.now()
+
+        if (user) {
+          const updatedUser = { ...user, token: newToken, tokenIssuedAt: issuedAt }
           dispatch(setReduxUser(updatedUser))
           await saveUserToRedux(updatedUser)
-          return newToken
-        }
-      }
-
-      // If still no token, check Firebase auth state
-      if (auth.currentUser) {
-        const newToken = await refreshAndExchangeToken(auth.currentUser)
-        if (newToken) {
-          // If no Redux user but Firebase user exists, create minimal user object
-          if (!user) {
-            const minimalUser = {
-              id: auth.currentUser.uid,
-              email: auth.currentUser.email || '',
-              firstName: '',
-              lastName: '',
-              role: '',
-              countryCode: 'US',
-              token: newToken
-            }
-            dispatch(setReduxUser(minimalUser))
-          } else {
-            const updatedUser = { ...user, token: newToken }
-            dispatch(setReduxUser(updatedUser))
+        } else {
+          const minimalUser = {
+            id: sourceUser.uid,
+            email: sourceUser.email || '',
+            firstName: '',
+            lastName: '',
+            role: '',
+            countryCode: 'US',
+            token: newToken,
+            tokenIssuedAt: issuedAt,
           }
-          return newToken
+          dispatch(setReduxUser(minimalUser))
         }
+
+        return newToken
+      } catch (error) {
+        console.warn("⚠️ [Auth] Silent token refresh failed", error)
+        return null
+      } finally {
+        refreshInFlight.current = null
+      }
+    })()
+
+    refreshInFlight.current = refreshPromise
+    return refreshPromise
+  }, [dispatch, firebaseUser, saveUserToRedux, user, waitForFirebaseUser])
+
+  useEffect(() => {
+    const isStandalone = Constants.appOwnership === "standalone"
+
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") {
+        refreshInFlight.current = null
+        return
       }
 
-      return null
+      // Skip token refresh in Expo Go to prevent blocking
+      if (!isStandalone) {
+        if (__DEV__) {
+          console.log("[Auth] Skipping background token refresh in non-standalone environment")
+        }
+        return
+      }
+
+      const issuedAt = user?.tokenIssuedAt ?? 0
+      const age = Date.now() - issuedAt
+      if (user?.token && age > TOKEN_TTL_MS) {
+        backgroundRefresh()
+      }
+    })
+
+    return () => subscription.remove()
+  }, [backgroundRefresh, refreshTokenSilently, user?.token, user?.tokenIssuedAt])
+
+  useEffect(() => {
+    if (user?.token) {
+      lastDeliveredTokenRef.current = user.token
+    }
+  }, [user?.token])
+
+  const backgroundRefresh = useCallback(() => {
+    if (!refreshInFlight.current) {
+      InteractionManager.runAfterInteractions(() => {
+        refreshTokenSilently().catch(() => null)
+      })
+    }
+  }, [refreshTokenSilently])
+
+  // 🔹 Get valid token (centralized token management)
+  const getValidToken = async (forceRefresh = false): Promise<string | null> => {
+    try {
+      const isStandalone = Constants.appOwnership === "standalone"
+
+      if (!forceRefresh && user?.token) {
+        const issuedAt = user.tokenIssuedAt ?? 0
+        const age = Date.now() - issuedAt
+
+        // In Expo Go, be more lenient with token expiration to avoid blocking /auth calls
+        // Only trigger background refresh if token is VERY old (>24 hours) or in standalone
+        const expirationThreshold = isStandalone ? TOKEN_TTL_MS : 24 * 60 * 60 * 1000 // 24 hours for Expo Go
+
+        if (age >= expirationThreshold) {
+          if (__DEV__) {
+            console.log(`[Auth] Token age: ${Math.floor(age / 1000 / 60)}min, threshold: ${Math.floor(expirationThreshold / 1000 / 60)}min, standalone: ${isStandalone}`)
+          }
+          backgroundRefresh()
+        }
+        lastDeliveredTokenRef.current = user.token
+        return user.token
+      }
+
+      // In Expo Go, if we have a lastDeliveredToken, use it instead of forcing refresh
+      // This avoids the blocking /auth call
+      if (!isStandalone && lastDeliveredTokenRef.current) {
+        if (__DEV__) {
+          console.log("[Auth] Using cached token in non-standalone environment to avoid blocking /auth")
+        }
+        return lastDeliveredTokenRef.current
+      }
+
+      const refreshed = await refreshTokenSilently()
+      if (refreshed) {
+        lastDeliveredTokenRef.current = refreshed
+        return refreshed
+      }
+
+      return lastDeliveredTokenRef.current
     } catch (error) {
-      return null
+      return lastDeliveredTokenRef.current
     }
   }
 
@@ -551,6 +678,7 @@ export const useAuth = () => {
 
       // Navigate to login
       router.replace("/(auth)/login")
+      hasLoadedUserOnce = false
     } catch (error) {
       console.error("❌ Failed to log out:", error)
     }
@@ -599,8 +727,13 @@ export const useAuth = () => {
 
   // 🔹 Firebase auth state listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setFirebaseUser(firebaseUser)
+    const unsubscribe = onAuthStateChanged(auth, (nextFirebaseUser) => {
+      setFirebaseUser(nextFirebaseUser)
+
+      if (firebaseReadyResolvers.current.length > 0) {
+        firebaseReadyResolvers.current.forEach((resolver) => resolver(nextFirebaseUser))
+        firebaseReadyResolvers.current = []
+      }
 
       // Don't clear user data automatically when Firebase user becomes null
       // This happens during app restart and would cause the logout issue
@@ -672,4 +805,3 @@ export const useAuth = () => {
     resendVerificationEmail,
   }
 }
-

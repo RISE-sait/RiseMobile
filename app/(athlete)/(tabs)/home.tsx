@@ -39,8 +39,24 @@ export default function AthleteHome() {
   const { upcomingEvent, loading: eventLoading, error: eventError } = useUpcomingEvent()
 
   useEffect(() => {
+    if (__DEV__) {
+      console.log(`[Home] mounted at ${new Date().toISOString()}`)
+    }
+    return () => {
+      if (__DEV__) {
+        console.log(`[Home] unmounted at ${new Date().toISOString()}`)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     const loadUser = async () => {
       try {
+        if (__DEV__) {
+          console.log('[Home] loadUser invoked', {
+            hasReduxUser: !!reduxUser,
+          })
+        }
         // If we have user in Redux, use that
         if (reduxUser) {
           setUser(reduxUser)
@@ -102,6 +118,13 @@ export default function AthleteHome() {
     )
   }
 
+  const handleNavigate = (route: string) => {
+    if (__DEV__) {
+      console.log(`[Home] navigate to ${route} at ${new Date().toISOString()}`)
+    }
+    router.push(route as any)
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
@@ -135,7 +158,7 @@ export default function AthleteHome() {
         <UpcomingCard event={upcomingEvent} />
 
         {/* Navigation Buttons Section */}
-        <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />
+        <GoToCards options={navigationOptions} handleNavigate={handleNavigate} />
       </ScrollView>
     </SafeAreaView>
   )

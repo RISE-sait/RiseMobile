@@ -11,6 +11,7 @@ import MembershipPurchaseList from "@/components/membership/MembershipPurchaseLi
 import CreditsOverview from "@/components/credits/CreditsOverview";
 import { setMembership, clearMembership } from "@/store/slices/membershipSlice";
 import type { RootState } from "@/store";
+import Constants from "expo-constants";
 
 const MembershipScreen: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
