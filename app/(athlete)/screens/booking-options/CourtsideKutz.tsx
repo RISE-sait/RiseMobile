@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { FontAwesome6 } from "@expo/vector-icons"
 import dayjs from "dayjs"
 import utc from "dayjs/plugin/utc"
@@ -155,6 +155,7 @@ const services: Service[] = [
 ]
 
 const BarberBookingScreen = () => {
+  const insets = useSafeAreaInsets()
   // State variables
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedDate, setSelectedDate] = useState(dayjs().add(1, 'day').format("YYYY-MM-DD"))
