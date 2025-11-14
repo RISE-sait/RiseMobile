@@ -236,5 +236,7 @@ export const selectAllMatches = (state: RootState) => state.games.items
 export const selectMatchesByDate = (state: RootState, date: string) => state.games.byDate[date] || []
 export const selectMatchesStatus = (state: RootState) => state.games.status
 export const selectMatchesError = (state: RootState) => state.games.error
+export const selectMatchById = (state: RootState, matchId: string) =>
+  state.games.items.find((match) => match.id === matchId) || null
 
 // Note: fetchMatches and fetchMatchHistory are already exported above in the async thunk definitions
