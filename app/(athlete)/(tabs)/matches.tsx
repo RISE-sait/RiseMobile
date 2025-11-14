@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native"
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, InteractionManager } from "react-native"
 import dayjs from "dayjs"
 import { SafeAreaView } from "react-native-safe-area-context"
 import MatchCard from "../../../components/events/MatchCard"
@@ -13,7 +13,8 @@ import { useAppDispatch, useAppSelector } from "../../../store/hooks"
 import { fetchMatches, clearMatches } from "../../../store/slices/gamesSlice"
 import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
 import EmptyState from "../../../components/feedback/EmptyState"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useAuth } from "@/utils/auth"
+import Constants from "expo-constants"
 
 const { width } = Dimensions.get("window")
 
@@ -33,11 +34,13 @@ const MatchesScreen: React.FC = () => {
   const status = useAppSelector((state) => state.games.status)
   const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
+  const { getValidToken, forceReLogin } = useAuth()
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))
   const [weekDates] = useState(() => generateWeekDates()) // Use function to ensure fresh generation
   const flatListRef = useRef<FlatList>(null)
   const fadeAnim = useRef(new Animated.Value(0)).current
+  const fetchInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null)
 
   // Center on today function
   const centerOnToday = useCallback(() => {
@@ -56,43 +59,38 @@ const MatchesScreen: React.FC = () => {
 
   // Reusable token getter with fallback logic
   const getAuthToken = useCallback(async (): Promise<string | null> => {
-    let authToken: string | null = token || null
-
-    if (!authToken) {
-      try {
-        // Try to get token from user object first
-        const userString = await AsyncStorage.getItem("user")
-        if (userString) {
-          const userData = JSON.parse(userString)
-          authToken = userData.token || null
-        }
-
-        // Fallback: try to get JWT token directly
-        if (!authToken) {
-          authToken = await AsyncStorage.getItem("jwtToken")
-        }
-      } catch (err) {
-        console.error("Error getting token from AsyncStorage:", err)
-        return null
+    try {
+      const authToken = await getValidToken()
+      if (!authToken) {
+        await forceReLogin("Session expired. Please log in again.")
       }
+      return authToken
+    } catch (err) {
+      console.error("Error obtaining auth token:", err)
+      return null
     }
-
-    return authToken
-  }, [token])
+  }, [forceReLogin, getValidToken])
 
   useEffect(() => {
-    // Fetch matches when component mounts
-    const fetchData = async () => {
+    if (fetchInteractionRef.current) {
+      fetchInteractionRef.current.cancel()
+    }
+
+    fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
       const authToken = await getAuthToken()
 
       if (authToken) {
         dispatch(clearMatches())
         dispatch(fetchMatches(authToken))
       }
-    }
+    })
 
-    fetchData()
-  }, [dispatch, token, getAuthToken])
+    return () => {
+      fetchInteractionRef.current?.cancel()
+      fetchInteractionRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -192,16 +190,15 @@ const MatchesScreen: React.FC = () => {
           <Text className="text-white-100 text-3xl font-bold">Matches</Text>
           <TouchableOpacity
             onPress={() => {
-              const fetchData = async () => {
+              fetchInteractionRef.current?.cancel()
+              fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
                 const authToken = await getAuthToken()
 
                 if (authToken) {
                   dispatch(clearMatches())
                   dispatch(fetchMatches(authToken))
                 }
-              }
-
-              fetchData()
+              })
             }}
           >
             <Text className="text-gold-100 font-semibold">Refresh</Text>
@@ -232,7 +229,7 @@ const MatchesScreen: React.FC = () => {
 
         {/* Match Cards or Empty State */}
         {filteredMatches.length ? (
-          <ScrollView className="px-4">
+          <ScrollView className="px-4" contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}>
             {filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)}
           </ScrollView>
         ) : (

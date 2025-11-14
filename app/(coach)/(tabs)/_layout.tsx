@@ -1,6 +1,7 @@
 import { View, Text, Image } from "react-native";
 import React from "react";
 import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import icons from "@/constants/icons";
 
 const TabIcon = ({
@@ -32,8 +33,10 @@ const TabIcon = ({
 );
 
 const CoachTabsLayout = () => {
+  const insets = useSafeAreaInsets();
+
   return (
-  
+
     <Tabs
       screenOptions={{
         tabBarShowLabel: false,
@@ -43,6 +46,8 @@ const CoachTabsLayout = () => {
           borderTopColor: "transparent",
           borderTopWidth: 1,
           minHeight: 70,
+          paddingBottom: insets.bottom,
+          height: 70 + insets.bottom,
         },
       }}
     >

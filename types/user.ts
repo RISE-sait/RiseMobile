@@ -28,6 +28,7 @@ export interface User {
   profileImage?: string
   countryCode: string
   token: string
+  tokenIssuedAt?: number
   isAuthenticated?: boolean
   membership_info?: MembershipInfo
   phoneNumber?: string

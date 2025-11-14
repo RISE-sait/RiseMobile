@@ -7,7 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import UpcomingCard from "@/components/events/UpcomingCard";
-import GoToCards from "../../../components/GoToCards";
+import GoToCards, { type NavigationOption } from "../../../components/GoToCards";
 import { useAppSelector } from "@/store/hooks";
 import { useUpcomingEvent } from "@/hooks/useUpcomingEvent";
 
@@ -73,10 +73,28 @@ export default function CoachHomeScreen() {
 
 
 
-  const navigationOptions = [
-    { label: "Team Roster", route: "/screens/selectTeamForRoster", image: images.teamRoster },
-    { label: "Training Schedule", route: "/coachCalendar", image: images.schedules },
-    { label: "Match History", route: "/screens/matchHistory", image: images.matchHistory },
+  const navigationOptions: NavigationOption[] = [
+    {
+      label: "Team Roster",
+      route: "/screens/selectTeamForRoster",
+      icon: "users",
+      description: "Manage players & assignments",
+      colors: ["#134E5E", "#71B280"] as [string, string],
+    },
+    {
+      label: "Training Schedule",
+      route: "/coachCalendar",
+      icon: "calendar-check",
+      description: "Plan upcoming practices",
+      colors: ["#42275A", "#734B6D"] as [string, string],
+    },
+    {
+      label: "Match History",
+      route: "/screens/matchHistory",
+      icon: "trophy",
+      description: "Review results & stats",
+      colors: ["#E65C00", "#F9D423"] as [string, string],
+    },
   ];
 
   if (isLoading) {

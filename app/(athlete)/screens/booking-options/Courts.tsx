@@ -526,7 +526,7 @@ const CourtsScreen: React.FC = () => {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

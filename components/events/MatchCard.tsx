@@ -1,14 +1,14 @@
 "use client"
 
 import type React from "react"
-import { TouchableOpacity, View, Text, Image, Platform } from "react-native"
+import { TouchableOpacity, View, Text, Platform } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { FontAwesome6 } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useEffect } from "react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchTeams, selectTeamById, selectTeamsLoading } from "@/store/slices/teamsSlice"
-import { resolveImageSource } from "@/utils/imageSource"
+import ManagedImage from "@/components/ui/ManagedImage"
 
 interface MatchProps {
   match: {
@@ -72,12 +72,6 @@ const MatchCard: React.FC<MatchProps> = ({ match, onEdit, onDelete, showActions 
   const homeTeamName = match.home_team_name || (homeTeam ? homeTeam.name : match.win_team) || "Home Team"
   const awayTeamName = match.away_team_name || (awayTeam ? awayTeam.name : match.lose_team) || "Away Team"
 
-  // Use real team logos from API, fallback to placeholder if not available
-  const placeholderHomeLogo = { uri: "https://via.placeholder.com/40x40?text=H" }
-  const placeholderAwayLogo = { uri: "https://via.placeholder.com/40x40?text=A" }
-  const homeLogo = resolveImageSource(match.home_team_logo_url, placeholderHomeLogo)
-  const awayLogo = resolveImageSource(match.away_team_logo_url, placeholderAwayLogo)
-
   const handlePress = () => {
     // Navigate to match details - calls GET /games/{id}
     router.push(`/screens/match-details/${match.id}`)
@@ -138,7 +132,7 @@ const MatchCard: React.FC<MatchProps> = ({ match, onEdit, onDelete, showActions 
         <View className="flex-row items-center justify-between">
           {/* Home Team */}
           <View className="items-center flex-1">
-            <Image source={homeLogo} className="w-12 h-12 mb-2" resizeMode="contain" />
+            <ManagedImage source={match.home_team_logo_url || undefined} style={{ width: 48, height: 48, marginBottom: 8 }} resizeMode="contain" />
             <Text className="text-white-100 font-semibold text-center text-sm">{homeTeamName}</Text>
           </View>
 
@@ -151,7 +145,7 @@ const MatchCard: React.FC<MatchProps> = ({ match, onEdit, onDelete, showActions 
 
           {/* Away Team */}
           <View className="items-center flex-1">
-            <Image source={awayLogo} className="w-12 h-12 mb-2" resizeMode="contain" />
+            <ManagedImage source={match.away_team_logo_url || undefined} style={{ width: 48, height: 48, marginBottom: 8 }} resizeMode="contain" />
             <Text className="text-white-100 font-semibold text-center text-sm">{awayTeamName}</Text>
           </View>
         </View>

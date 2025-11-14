@@ -28,7 +28,7 @@ import axios from "axios"
 import { API_URL } from "@/utils/api"
 import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 import { fetchTeams, selectTeamById, selectTeamsLoading } from "@/store/slices/teamsSlice"
-import { selectAllMatches } from "@/store/slices/gamesSlice"
+import { selectAllMatches, selectMatchById } from "@/store/slices/gamesSlice"
 import { resolveImageSource } from "@/utils/imageSource"
 
 const { width } = Dimensions.get("window")
@@ -64,14 +64,9 @@ const MatchDetailsScreen = () => {
   const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
   const token = userData?.token
-  
-  // Get all matches from Redux store to find the specific match
-  const allMatches = useAppSelector(selectAllMatches)
 
   // Extract the ID from params and ensure it's a clean string
   const rawId = id
-
-  // Clean the ID - ensure it's a string and remove any query parameters
   const programId =
     typeof rawId === "string"
       ? rawId.split("?")[0]
@@ -79,10 +74,29 @@ const MatchDetailsScreen = () => {
         ? rawId[0].split("?")[0]
         : String(rawId).split("?")[0]
 
+  // Get cached match from Redux store
+  const cachedMatch = useAppSelector((state) => selectMatchById(state, programId))
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!cachedMatch) // Only show loading if no cache
   const [error, setError] = useState<string | null>(null)
-  const [game, setGame] = useState<GameData | null>(null)
+  const [game, setGame] = useState<GameData | null>(
+    cachedMatch
+      ? {
+          id: cachedMatch.id,
+          name: cachedMatch.name || cachedMatch.title,
+          description: cachedMatch.description,
+          win_team: cachedMatch.home_team_name || cachedMatch.win_team,
+          lose_team: cachedMatch.away_team_name || cachedMatch.lose_team,
+          win_score: cachedMatch.home_score || cachedMatch.win_score,
+          lose_score: cachedMatch.away_score || cachedMatch.lose_score,
+          created_at: cachedMatch.start_time || cachedMatch.created_at,
+          updated_at: cachedMatch.updated_at,
+          status: cachedMatch.status || "scheduled",
+          home_team_logo_url: cachedMatch.home_team_logo_url,
+          away_team_logo_url: cachedMatch.away_team_logo_url,
+        }
+      : null
+  )
 
   // Get teams data from Redux store
   const teamsLoading = useAppSelector(selectTeamsLoading)
@@ -95,46 +109,47 @@ const MatchDetailsScreen = () => {
   const [awayTeamName, setAwayTeamName] = useState<string>("Away Team")
 
   useEffect(() => {
-  // Start animations
-  Animated.parallel([
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }),
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 600,
-      useNativeDriver: true,
-    }),
-  ]).start();
+    // Start animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start()
 
     // Fetch teams data if not already loaded
-      if (token && (teamsLoading === "idle" || teamsLoading === "failed")) {
-    dispatch(fetchTeams(token));
-  }
-
+    if (token && (teamsLoading === "idle" || teamsLoading === "failed")) {
+      dispatch(fetchTeams(token))
+    }
 
     // Fetch game data directly from API using /games endpoint
     const fetchGameData = async () => {
-      setLoading(true)
+      // Only show loading if we don't have cached data
+      if (!cachedMatch) {
+        setLoading(true)
+      }
       setError(null)
 
       if (token && programId) {
         try {
-          
           // Call the correct API endpoint for games
           const response = await axios.get(`${API_URL}/games/${programId}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
-          
-          
+
           // Transform API response from games endpoint to match existing GameData interface
           const gameData = response.data
           const transformedGame: GameData = {
             id: gameData.id,
-            name: `${gameData.home_team_name || 'Home'} vs ${gameData.away_team_name || 'Away'}`,
-            description: gameData.description || `Match between ${gameData.home_team_name} and ${gameData.away_team_name}`,
+            name: `${gameData.home_team_name || "Home"} vs ${gameData.away_team_name || "Away"}`,
+            description:
+              gameData.description || `Match between ${gameData.home_team_name} and ${gameData.away_team_name}`,
             win_team: gameData.home_team_name || "Home Team",
             lose_team: gameData.away_team_name || "Away Team",
             win_score: gameData.home_score || 0,
@@ -143,13 +158,16 @@ const MatchDetailsScreen = () => {
             updated_at: gameData.updated_at,
             status: gameData.status || "scheduled", // Extract actual status from API
             home_team_logo_url: gameData.home_team_logo_url,
-            away_team_logo_url: gameData.away_team_logo_url
+            away_team_logo_url: gameData.away_team_logo_url,
           }
-          
+
           setGame(transformedGame)
         } catch (error) {
           console.error("Error fetching game data:", error)
-          setError("Failed to load game data. Please try again.")
+          // Only show error if we don't have cached data to fall back on
+          if (!cachedMatch) {
+            setError("Failed to load game data. Please try again.")
+          }
         } finally {
           setLoading(false)
         }
@@ -161,7 +179,7 @@ const MatchDetailsScreen = () => {
     }
 
     fetchGameData()
-  }, [programId, token, dispatch]);
+  }, [programId, token, dispatch, cachedMatch])
 
   // Get team selectors at the component level
   const homeTeamId = game?.win_team

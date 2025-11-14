@@ -7,7 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useAppSelector } from "@/store/hooks"
 
 import images from "@/constants/images"
-import GoToCards from "../../../components/GoToCards"
+import GoToCards, { type NavigationOption } from "../../../components/GoToCards"
 import UpcomingCard from "@/components/events/UpcomingCard"
 import ProfileHeader from "@/components/profile/ProfileHeader"
 import QRCodeModal from "@/components/QRCodeModal"
@@ -39,8 +39,24 @@ export default function AthleteHome() {
   const { upcomingEvent, loading: eventLoading, error: eventError } = useUpcomingEvent()
 
   useEffect(() => {
+    if (__DEV__) {
+      console.log(`[Home] mounted at ${new Date().toISOString()}`)
+    }
+    return () => {
+      if (__DEV__) {
+        console.log(`[Home] unmounted at ${new Date().toISOString()}`)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     const loadUser = async () => {
       try {
+        if (__DEV__) {
+          console.log('[Home] loadUser invoked', {
+            hasReduxUser: !!reduxUser,
+          })
+        }
         // If we have user in Redux, use that
         if (reduxUser) {
           setUser(reduxUser)
@@ -69,10 +85,28 @@ export default function AthleteHome() {
   }, [reduxUser])
 
 
-  const navigationOptions = [
-    { label: "Schedule", route: "/calendar", image: images.schedules },
-    { label: "Events", route: "/screens/events", image: images.event },
-    { label: "Membership", route: "/screens/membership", image: images.memberships },
+  const navigationOptions: NavigationOption[] = [
+    {
+      label: "Schedule",
+      route: "/calendar",
+      icon: "calendar-days",
+      description: "View upcoming practices & games",
+      colors: ["#FCA311", "#C36A04"] as [string, string],
+    },
+    {
+      label: "Events",
+      route: "/screens/events",
+      icon: "ticket",
+      description: "See what's happening at RISE",
+      colors: ["#8E2DE2", "#4A00E0"] as [string, string],
+    },
+    {
+      label: "Membership",
+      route: "/screens/membership",
+      icon: "crown",
+      description: "Manage your plan & perks",
+      colors: ["#0F2027", "#2C5364"] as [string, string],
+    },
   ]
 
   if (isLoading) {
@@ -82,6 +116,13 @@ export default function AthleteHome() {
         <Text className="text-white text-center mt-4">Loading user data...</Text>
       </SafeAreaView>
     )
+  }
+
+  const handleNavigate = (route: string) => {
+    if (__DEV__) {
+      console.log(`[Home] navigate to ${route} at ${new Date().toISOString()}`)
+    }
+    router.push(route as any)
   }
 
   return (
@@ -106,6 +147,7 @@ export default function AthleteHome() {
               profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
               countryCode={user?.countryCode} // Ensure countryCode is always defined
               teamLogo={images.teamLogo}
+              onPress={() => router.push("/profile")}
             />
           ) : (
             <Text className="text-white text-center">User data not available</Text>
@@ -116,7 +158,7 @@ export default function AthleteHome() {
         <UpcomingCard event={upcomingEvent} />
 
         {/* Navigation Buttons Section */}
-        <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />
+        <GoToCards options={navigationOptions} handleNavigate={handleNavigate} />
       </ScrollView>
     </SafeAreaView>
   )

@@ -16,6 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import dayjs from "dayjs";
 import images from "@/constants/images";
 import { resolveImageSource } from "@/utils/imageSource";
+import Constants from "expo-constants";
 
 export interface Event {
   id: string;

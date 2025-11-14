@@ -9,7 +9,10 @@ import { Provider } from "react-redux"
 import { PersistGate } from "redux-persist/integration/react"
 import { store, persistor } from "@/store"
 import { initializeStorageCleanup } from "@/utils/storageCleanup"
+import { InteractionManager } from "react-native"
 import NotificationManager from "@/app/components/NotificationManager"
+import JsHeartbeat from "@/components/dev/JsHeartbeat"
+import TouchLogger from "@/components/dev/TouchLogger"
 import ErrorBoundary from "@/components/error/ErrorBoundary"
 import * as SplashScreen from "expo-splash-screen"
 
@@ -48,7 +51,9 @@ export default function RootLayout() {
         hasRun = true;
         // Wait 2 seconds after rehydration before running cleanup
         timeoutId = setTimeout(() => {
-          initializeStorageCleanup();
+          InteractionManager.runAfterInteractions(() => {
+            initializeStorageCleanup();
+          })
         }, 2000);
         unsubscribe(); // Only run once
       }
@@ -59,7 +64,9 @@ export default function RootLayout() {
     if (state.bootstrapped && !hasRun) {
       hasRun = true;
       timeoutId = setTimeout(() => {
-        initializeStorageCleanup();
+        InteractionManager.runAfterInteractions(() => {
+          initializeStorageCleanup();
+        })
       }, 2000);
       unsubscribe();
     }
@@ -90,6 +97,8 @@ export default function RootLayout() {
           <StatusBar style="auto" />
           <ErrorBoundary>
             <NotificationManager />
+            {__DEV__ && <JsHeartbeat />}
+            {__DEV__ && <TouchLogger />}
           </ErrorBoundary>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -105,4 +114,3 @@ export default function RootLayout() {
     </Provider>
   )
 }
-

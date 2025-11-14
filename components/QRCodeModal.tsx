@@ -1,23 +1,42 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { View, Modal, Text, Image, Animated, TouchableOpacity } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome6 } from "@expo/vector-icons";
-import QRCodeButton from "./buttons/QRCodeButton"; // ✅ Import the component
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import QRCodeButton from "./buttons/QRCodeButton";
 import { useSelector } from "react-redux";
-import { RootState } from "@/store"; // update this path if different
+import { RootState } from "@/store";
 
 
 const QRCodeModal = () => {
-  const [isModalVisible, setModalVisible] = useState(false);
-  const slideAnim = useRef(new Animated.Value(350)).current; // Slightly larger modal
   const userId = useSelector((state: RootState) => state.user.data?.id);
-  if (!userId) return null;
+
+  // Early return if no user logged in
+  if (!userId) {
+    return null;
+  }
+
+  const [isModalVisible, setModalVisible] = useState(false);
+  const slideAnim = useRef(new Animated.Value(350)).current;
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    return () => {
+      if (isModalVisible) {
+        setModalVisible(false);
+      }
+    };
+  }, [isModalVisible]);
 
   const qrData = `https://api-461776259687.us-west2.run.app/customers/checkin/${userId}`;
 
 
 
   const toggleModal = () => {
+    if (__DEV__) {
+      console.log(`[QRCodeModal] toggle -> ${!isModalVisible}`);
+    }
+
     if (!isModalVisible) {
       setModalVisible(true);
       Animated.timing(slideAnim, {
@@ -45,7 +64,7 @@ const QRCodeModal = () => {
       <Modal transparent visible={isModalVisible} animationType="fade">
         <View className="flex-1 bg-black-100/70 justify-end">
           <Animated.View
-            style={{ transform: [{ translateY: slideAnim }] }}
+            style={{ transform: [{ translateY: slideAnim }], paddingBottom: insets.bottom + 16 }}
             className="bg-[#1A1A1A] rounded-t-3xl p-6"
           >
             {/* 🔹 QR Code Header */}

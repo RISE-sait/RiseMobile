@@ -257,10 +257,8 @@ export default function EditProfileScreen() {
 
 
       // ✅ Update Redux store with new user data
+      // Redux Persist will automatically sync to AsyncStorage
       dispatch(updateProfile({ ...updatedUser, profileImage: updatedUser.profileImage || undefined }))
-      
-      // Update AsyncStorage with new data for offline access
-      await AsyncStorage.setItem("user", JSON.stringify(updatedUser))
 
       // Show success message
       Alert.alert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }])

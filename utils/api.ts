@@ -89,6 +89,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       countryCode: (response.data as any).country_code || "US",
       phoneNumber: (response.data as any).phone || (response.data as any).phone_number || "", // ✅ Include phone number from backend
       token: jwtToken, // ✅ Now this is set correctly!
+      tokenIssuedAt: Date.now(),
       firebaseId: firebaseUser.uid,
       profileImage: (response.data as any).photo_url || "", // ✅ Include profile image from backend
       team: teamData, // ✅ Include team data from athlete_info if available
@@ -1020,14 +1021,24 @@ export const getMembershipPlans = async () => {
 
 
 // Get specific pricing plans for a membership type (requires authentication)
-export const getPlansForMembership = async (membershipId: string) => {
+export const getPlansForMembership = async (membershipId: string, jwtOverride?: string) => {
   try {
     // Get stored JWT token for backend authentication
     // The project uses "Firebase for identity, JWT for business authorization"
-    let jwtToken = await AsyncStorage.getItem("authToken");
+    let jwtToken = jwtOverride || (await AsyncStorage.getItem("authToken"));
 
     // If no JWT token, we need to get one from /auth endpoint using Firebase token
     if (!jwtToken) {
+      if (jwtOverride) {
+        return {
+          data: null,
+          error: {
+            message: "Missing authentication token",
+            status: 401,
+            type: 'auth'
+          }
+        }
+      }
       try {
         jwtToken = await refreshBackendJwt();
       } catch (refreshError) {
@@ -1053,6 +1064,27 @@ export const getPlansForMembership = async (membershipId: string) => {
       headers,
     });
 
+    const handleErrorResponse = async (resp: Response) => {
+      const errorText = await resp.text();
+      const baseError = {
+        message: `Failed to fetch plans for membership ${membershipId}: ${resp.status} ${errorText}`,
+        status: resp.status,
+        type: resp.status === 401 || resp.status === 403 ? 'auth' : 'api'
+      } as const
+
+      // Don't log 503 errors (known issue with incomplete membership configurations)
+      if (resp.status !== 503) {
+        console.error(`❌ Request failed for membership ${membershipId}:`, {
+          url: requestUrl,
+          status: resp.status,
+          statusText: resp.statusText,
+          errorBody: errorText
+        });
+      }
+
+      return baseError
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
 
@@ -1067,11 +1099,10 @@ export const getPlansForMembership = async (membershipId: string) => {
       }
 
       // If 401/403, try refreshing the JWT token once
-      if (response.status === 401 || response.status === 403) {
+      if ((response.status === 401 || response.status === 403) && !jwtOverride) {
         try {
           jwtToken = await refreshBackendJwt();
 
-          // Retry the request with new token
           const retryResponse = await fetch(`${API_URL}/memberships/${membershipId}/plans`, {
             headers: {
               "Authorization": `Bearer ${jwtToken}`,
@@ -1079,20 +1110,8 @@ export const getPlansForMembership = async (membershipId: string) => {
           });
 
           if (!retryResponse.ok) {
-            const retryErrorText = await retryResponse.text();
-            console.error(`❌ Retry request also failed for membership ${membershipId}:`, {
-              status: retryResponse.status,
-              statusText: retryResponse.statusText,
-              errorBody: retryErrorText
-            });
-            return {
-              data: null,
-              error: {
-                message: `Failed to fetch plans for membership ${membershipId}: ${retryResponse.status} ${retryErrorText}`,
-                status: retryResponse.status,
-                type: retryResponse.status === 401 || retryResponse.status === 403 ? 'auth' : 'api'
-              }
-            };
+            const retryError = await handleErrorResponse(retryResponse)
+            return { data: null, error: retryError }
           }
 
           const retryData = await retryResponse.json();
@@ -1112,11 +1131,7 @@ export const getPlansForMembership = async (membershipId: string) => {
 
       return {
         data: null,
-        error: {
-          message: `Failed to fetch plans for membership ${membershipId}: ${response.status} ${errorText}`,
-          status: response.status,
-          type: response.status === 401 || response.status === 403 ? 'auth' : 'api'
-        }
+        error: await handleErrorResponse(response)
       };
     }
 

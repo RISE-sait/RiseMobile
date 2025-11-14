@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, StyleSheet, Alert } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, StyleSheet, Alert, InteractionManager } from "react-native";
 import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import MatchCard from "../../../components/events/MatchCard";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import LoadingIndicator from "../../../components/feedback/LoadingIndicator";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice";
@@ -14,6 +13,7 @@ import EmptyState from "@/components/feedback/EmptyState";
 import { deleteGame } from "@/utils/api";
 import { fetchTeams } from "@/store/slices/teamsSlice";
 import * as Haptics from "expo-haptics";
+import { useAuth } from "@/utils/auth";
 
 const { width } = Dimensions.get("window");
 
@@ -39,11 +39,13 @@ const CoachMatches: React.FC = () => {
   const status = useAppSelector((state) => state.games.status);
   const error = useAppSelector((state) => state.games.error);
   const token = useAppSelector((state) => state.user.data?.token);
+  const { getValidToken, forceReLogin } = useAuth();
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [weekDates] = useState(() => generateWeekDates());
   const flatListRef = useRef<FlatList>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const fetchInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
 
   // Center on today function
   const centerOnToday = useCallback(() => {
@@ -60,6 +62,19 @@ const CoachMatches: React.FC = () => {
     }
   }, [weekDates]);
 
+  const getAuthToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const authToken = await getValidToken();
+      if (!authToken) {
+        await forceReLogin("Session expired. Please log in again.");
+      }
+      return authToken;
+    } catch (err) {
+      console.error("Error obtaining auth token:", err);
+      return null;
+    }
+  }, [forceReLogin, getValidToken]);
+
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -72,32 +87,24 @@ const CoachMatches: React.FC = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const fetchData = async () => {
-      let authToken = token;
+    if (fetchInteractionRef.current) {
+      fetchInteractionRef.current.cancel();
+    }
 
-      if (!authToken) {
-        try {
-          const userString = await AsyncStorage.getItem("user");
-          if (userString) {
-            const userData = JSON.parse(userString);
-            authToken = userData.token;
-          }
-        } catch (err) {
-          console.error("Error getting token from AsyncStorage:", err);
-        }
-      }
+    fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+      const authToken = await getAuthToken();
+      if (!authToken) return;
 
-      if (authToken) {
-        // Clear existing matches to force fresh fetch with new API
-        dispatch(clearMatches());
-        dispatch(fetchMatches(authToken));
-        // Preload teams data for game creation
-        dispatch(fetchTeams(authToken) as any);
-      }
+      dispatch(clearMatches());
+      dispatch(fetchMatches(authToken));
+      dispatch(fetchTeams(authToken) as any);
+    });
+
+    return () => {
+      fetchInteractionRef.current?.cancel();
+      fetchInteractionRef.current = null;
     };
-
-    fetchData();
-  }, [dispatch, token]);
+  }, [dispatch, getAuthToken]);
 
   // Navigation handlers
   const openCreateGameModal = () => {
@@ -128,16 +135,13 @@ const CoachMatches: React.FC = () => {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            if (!token) {
-              Alert.alert("Error", "Authentication token not found. Please log in again.");
-              return;
-            }
-
             try {
-              await deleteGame(game.id, token);
-              // Refresh games list
+              const authToken = await getAuthToken();
+              if (!authToken) return;
+
+              await deleteGame(game.id, authToken);
               dispatch(clearMatches());
-              dispatch(fetchMatches(token));
+              dispatch(fetchMatches(authToken));
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (error: any) {
               console.error("Error deleting game:", error);
@@ -177,18 +181,11 @@ const CoachMatches: React.FC = () => {
           message={error}
           actionLabel="Try Again"
           onAction={async () => {
-            let authToken = token;
-            if (!authToken) {
-              const userString = await AsyncStorage.getItem("user");
-              if (userString) {
-                authToken = JSON.parse(userString)?.token;
-              }
-            }
+            const authToken = await getAuthToken();
+            if (!authToken) return;
 
-            if (authToken) {
-              dispatch(clearMatches());
-              dispatch(fetchMatches(authToken));
-            }
+            dispatch(clearMatches());
+            dispatch(fetchMatches(authToken));
           }}
         />
       </SafeAreaView>
@@ -249,21 +246,28 @@ const CoachMatches: React.FC = () => {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={async () => {
-                let authToken = token;
-                if (!authToken) {
-                  const userString = await AsyncStorage.getItem("user");
-                  if (userString) {
-                    authToken = JSON.parse(userString)?.token;
-                  }
-                }
+                const authToken = await getAuthToken();
+                if (!authToken) return;
 
-                if (authToken) {
-                  dispatch(clearMatches());
-                  dispatch(fetchMatches(authToken));
-                }
+                dispatch(clearMatches());
+                dispatch(fetchMatches(authToken));
               }}
             >
-              <Text className="text-gold-100 font-semibold">Refresh</Text>
+              <Text
+                className="text-gold-100 font-semibold"
+                onPress={() => {
+                  fetchInteractionRef.current?.cancel();
+                  fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+                    const authToken = await getAuthToken();
+                    if (!authToken) return;
+
+                    dispatch(clearMatches());
+                    dispatch(fetchMatches(authToken));
+                  });
+                }}
+              >
+                Refresh
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -310,18 +314,11 @@ const CoachMatches: React.FC = () => {
             message="No matches scheduled for this date. Schedule games for your teams or check other dates."
             actionLabel="Refresh"
             onAction={async () => {
-              let authToken = token;
-              if (!authToken) {
-                const userString = await AsyncStorage.getItem("user");
-                if (userString) {
-                  authToken = JSON.parse(userString)?.token;
-                }
-              }
+              const authToken = await getAuthToken();
+              if (!authToken) return;
 
-              if (authToken) {
-                dispatch(clearMatches());
-                dispatch(fetchMatches(authToken));
-              }
+              dispatch(clearMatches());
+              dispatch(fetchMatches(authToken));
             }}
           />
         )}

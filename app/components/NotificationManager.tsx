@@ -1,10 +1,19 @@
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import Constants from 'expo-constants';
 import type { RootState } from '@/store';
 import NotificationService from '@/app/services/notificationService';
 
 const NotificationManager = () => {
   const user = useSelector((state: RootState) => state.user.data);
+  const isStandalone = Constants.appOwnership === 'standalone';
+
+  if (!isStandalone) {
+    if (__DEV__) {
+      console.log('[NotificationManager] Skipping setup in non-standalone environment')
+    }
+    return null;
+  }
 
   useEffect(() => {
     const initializeNotifications = async () => {

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   TextInput,
   ScrollView,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FontAwesome6, Ionicons, MaterialIcons, AntDesign } from "@expo/vector-icons";
@@ -21,10 +22,10 @@ import dayjs from "dayjs";
 import BackButton from "@/components/buttons/BackButton";
 import { useAppDispatch, useAppSelector } from "../../../store/hooks";
 import { fetchMatchHistory, clearMatches } from "../../../store/slices/gamesSlice";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from 'expo-linear-gradient'
 import images from "@/constants/images";
 import { resolveImageSource } from "@/utils/imageSource";
+import { useAuth } from "@/utils/auth";
 
 
 const { width } = Dimensions.get("window");
@@ -58,6 +59,8 @@ const MatchHistory: React.FC = () => {
   const status = useAppSelector((state) => state.games.status);
   const gamesError = useAppSelector((state) => state.games.error);
   const token = useAppSelector((state) => state.user.data?.token);
+  const { getValidToken, forceReLogin } = useAuth();
+  const fetchInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
   
   // Animation refs - separate animations for different purposes
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
@@ -248,30 +251,29 @@ const MatchHistory: React.FC = () => {
       useNativeDriver: true,
     }).start();
     
-    // Fetch matches with current filter when component mounts
-    loadMatchHistory(activeTab === 'completed' ? 'past' : activeTab);
+    fetchInteractionRef.current = InteractionManager.runAfterInteractions(() => {
+      loadMatchHistory(activeTab === 'completed' ? 'past' : activeTab);
+    })
+
+    return () => {
+      fetchInteractionRef.current?.cancel();
+      fetchInteractionRef.current = null;
+    }
   }, []);
 
   // Fetch matches with backend filtering - real-time API calls
   const loadMatchHistory = async (filter?: string) => {
-    let authToken = token;
-
-    if (!authToken) {
-      try {
-        const userString = await AsyncStorage.getItem("user");
-        if (userString) {
-          const userData = JSON.parse(userString);
-          authToken = userData.token;
-        }
-      } catch (err) {
-        console.error("Error getting token from AsyncStorage:", err);
+    try {
+      const authToken = await getValidToken();
+      if (!authToken) {
+        await forceReLogin("Session expired. Please log in again.");
+        return;
       }
-    }
 
-    if (authToken) {
       dispatch(clearMatches());
       dispatch(fetchMatchHistory({ token: authToken, filter }));
-    } else {
+    } catch (err) {
+      console.error("Error loading match history:", err);
     }
   };
 
