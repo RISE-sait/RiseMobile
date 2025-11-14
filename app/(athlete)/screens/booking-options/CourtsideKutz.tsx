@@ -13,6 +13,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { FontAwesome6 } from "@expo/vector-icons"
 import dayjs from "dayjs"
+import utc from "dayjs/plugin/utc"
+import timezone from "dayjs/plugin/timezone"
 import * as Haptics from "expo-haptics"
 import { useAppSelector } from "@/store/hooks"
 import images from "@/constants/images"
@@ -22,6 +24,11 @@ import CalendarCard from "@/components/calendar/CalendarCard"
 import BackButton from "@/components/buttons/BackButton"
 import { getHaircutAndBarberServices, createHaircutBooking, getBarberAvailability } from "@/utils/api"
 import { useAuth } from "@/utils/auth"
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+const BOOKING_TIMEZONE = "America/Edmonton"
 
 // Define types for our data
 interface Barber {
@@ -449,32 +456,74 @@ const BarberBookingScreen = () => {
     setIsBooking(true)
 
     try {
-      // Helper function to convert 12-hour format to 24-hour format
-      const convertTo24Hour = (time12h: string) => {
-        const [time, modifier] = time12h.split(' ')
-        let [hours, minutes] = time.split(':')
-        if (hours === '12') {
-          hours = '00'
+      const parseTimeToMinutes = (raw: string): number | null => {
+        if (!raw) return null
+        const normalized = raw.trim().toUpperCase().replace(/\s+/g, " ")
+
+        const match12 = normalized.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/)
+        if (match12) {
+          let hour = parseInt(match12[1], 10)
+          const minute = parseInt(match12[2], 10)
+          const period = match12[3]
+          if (Number.isNaN(hour) || Number.isNaN(minute)) return null
+          if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return null
+          if (period === "AM" && hour === 12) {
+            hour = 0
+          } else if (period === "PM" && hour !== 12) {
+            hour += 12
+          }
+          return hour * 60 + minute
         }
-        if (modifier === 'PM') {
-          hours = (parseInt(hours, 10) + 12).toString()
+
+        const match24 = normalized.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+        if (match24) {
+          const hour = parseInt(match24[1], 10)
+          const minute = parseInt(match24[2], 10)
+          if (Number.isNaN(hour) || Number.isNaN(minute)) return null
+          if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null
+          return hour * 60 + minute
         }
-        return `${hours.padStart(2, '0')}:${minutes}`
+
+        return null
       }
 
-      // Prepare booking details for API (match Swagger specification)
-      // Send local time with correct timezone offset for Calgary (MDT = UTC-6)
-      const localDateTime = `${selectedDate}T${convertTo24Hour(selectedTime)}:00`
-      const startDateTime = `${localDateTime}-06:00` // RFC3339 format with MDT timezone
-      const duration = selectedService.duration || 30 // Default 30 minutes
-      const endTime = new Date(new Date(`${localDateTime}-06:00`).getTime() + duration * 60000)
-      const endDateTime = `${selectedDate}T${endTime.toTimeString().slice(0,8)}-06:00`
-      
+      const buildDateTimeInZone = (dateValue: string, minutesFromMidnight: number) => {
+        if (minutesFromMidnight == null) return null
+        let base = dayjs.tz(dateValue, "YYYY-MM-DD", BOOKING_TIMEZONE, true)
+        if (!base.isValid()) {
+          base = dayjs.tz(dateValue, BOOKING_TIMEZONE)
+        }
+        if (!base.isValid()) {
+          return null
+        }
+        return base.startOf("day").add(minutesFromMidnight, "minute")
+      }
+
+      const startMinutes = parseTimeToMinutes(selectedTime)
+      if (startMinutes === null) {
+        throw new Error("Invalid start time")
+      }
+
+      const start = buildDateTimeInZone(selectedDate, startMinutes)
+      if (!start) {
+        throw new Error("Invalid start date")
+      }
+
+      const serviceDuration = typeof selectedService.duration === "number"
+        ? selectedService.duration
+        : Number(selectedService.duration) || 30
+
+      if (serviceDuration <= 0) {
+        throw new Error("Invalid service duration")
+      }
+
+      const end = start.add(serviceDuration, "minute")
+
       const bookingDetails = {
         barber_id: selectedBarber.id,
         service_name: selectedService.name,
-        begin_time: startDateTime,
-        end_time: endDateTime
+        begin_time: start.format(),
+        end_time: end.format()
       }
 
 
@@ -1056,8 +1105,11 @@ const renderConfirmationModal = () => (
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Navigation Buttons */}
-      <View className="flex-row justify-between items-center px-5 py-4 absolute bottom-0 left-0 right-0 bg-[#0C0B0B] border-t border-[#222]">
+      {/* Navigation Buttons - with Safe Area bottom padding */}
+      <View
+        className="flex-row justify-between items-center px-5 absolute bottom-0 left-0 right-0 bg-[#0C0B0B] border-t border-[#222]"
+        style={{ paddingTop: 16, paddingBottom: Math.max(insets.bottom, 16) }}
+      >
         <TouchableOpacity onPress={handleBackStep} className="px-5 py-3 rounded-xl bg-[#222]">
           <Text className="text-white-100 font-medium">{currentStep === 1 ? "Cancel" : "Back"}</Text>
         </TouchableOpacity>
