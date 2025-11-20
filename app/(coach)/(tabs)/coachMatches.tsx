@@ -14,6 +14,7 @@ import { deleteGame } from "@/utils/api";
 import { fetchTeams } from "@/store/slices/teamsSlice";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/utils/auth";
+import useScreenFocusLogger from "@/hooks/useScreenFocusLogger";
 
 const { width } = Dimensions.get("window");
 
@@ -34,6 +35,7 @@ const generateWeekDates = (): dayjs.Dayjs[] => {
 
 const CoachMatches: React.FC = () => {
   const router = useRouter();
+  useScreenFocusLogger("CoachMatches");
   const dispatch = useAppDispatch();
   const matches = useAppSelector((state) => state.games.items);
   const status = useAppSelector((state) => state.games.status);
@@ -86,15 +88,31 @@ const CoachMatches: React.FC = () => {
     centerOnToday();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const hasFetchedRef = useRef(false);
+
   useEffect(() => {
+    if (hasFetchedRef.current) {
+      return;
+    }
+    hasFetchedRef.current = true;
+
     if (fetchInteractionRef.current) {
       fetchInteractionRef.current.cancel();
     }
 
     fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+      if (__DEV__) {
+        console.log("[CoachMatches] starting fetch cycle");
+      }
       const authToken = await getAuthToken();
+      if (__DEV__) {
+        console.log(`[CoachMatches] token ready=${Boolean(authToken)}`);
+      }
       if (!authToken) return;
 
+      if (__DEV__) {
+        console.log("[CoachMatches] dispatching fetchMatches + fetchTeams");
+      }
       dispatch(clearMatches());
       dispatch(fetchMatches(authToken));
       dispatch(fetchTeams(authToken) as any);
@@ -105,6 +123,12 @@ const CoachMatches: React.FC = () => {
       fetchInteractionRef.current = null;
     };
   }, [dispatch, getAuthToken]);
+
+  useEffect(() => {
+    if (__DEV__) {
+      console.log(`[CoachMatches] status=${status} error=${error ?? "none"}`);
+    }
+  }, [status, error]);
 
   // Navigation handlers
   const openCreateGameModal = () => {

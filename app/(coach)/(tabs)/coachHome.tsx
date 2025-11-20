@@ -10,6 +10,7 @@ import UpcomingCard from "@/components/events/UpcomingCard";
 import GoToCards, { type NavigationOption } from "../../../components/GoToCards";
 import { useAppSelector } from "@/store/hooks";
 import { useUpcomingEvent } from "@/hooks/useUpcomingEvent";
+import useScreenFocusLogger from "@/hooks/useScreenFocusLogger";
 
 
 
@@ -31,6 +32,7 @@ type User = {
 
 export default function CoachHomeScreen() {
   const router = useRouter();
+  useScreenFocusLogger("CoachHome");
   const reduxUser = useAppSelector((state) => state.user.data);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,21 +78,21 @@ export default function CoachHomeScreen() {
   const navigationOptions: NavigationOption[] = [
     {
       label: "Team Roster",
-      route: "/screens/selectTeamForRoster",
+      route: "/(coach)/screens/selectTeamForRoster",
       icon: "users",
       description: "Manage players & assignments",
       colors: ["#134E5E", "#71B280"] as [string, string],
     },
     {
       label: "Training Schedule",
-      route: "/coachCalendar",
+      route: "/(coach)/(tabs)/coachCalendar",
       icon: "calendar-check",
       description: "Plan upcoming practices",
       colors: ["#42275A", "#734B6D"] as [string, string],
     },
     {
       label: "Match History",
-      route: "/screens/matchHistory",
+      route: "/(coach)/screens/matchHistory",
       icon: "trophy",
       description: "Review results & stats",
       colors: ["#E65C00", "#F9D423"] as [string, string],

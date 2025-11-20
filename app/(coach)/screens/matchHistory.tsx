@@ -61,7 +61,8 @@ const MatchHistory: React.FC = () => {
   const token = useAppSelector((state) => state.user.data?.token);
   const { getValidToken, forceReLogin } = useAuth();
   const fetchInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
-  
+  const isMountedRef = useRef(true); // Track component mount state
+
   // Animation refs - separate animations for different purposes
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
   const modalFadeAnim = useRef(new Animated.Value(0)).current;
@@ -195,10 +196,15 @@ const MatchHistory: React.FC = () => {
   
   // Handle pull to refresh
   const handleRefresh = async () => {
+    if (!isMountedRef.current) return; // Don't refresh if component is unmounting
+
     setRefreshing(true);
     const backendFilter = activeTab === 'completed' ? 'past' : activeTab;
     await loadMatchHistory(backendFilter);
-    setRefreshing(false);
+
+    if (isMountedRef.current) {
+      setRefreshing(false);
+    }
   };
   
   // Simplified filter functions for backend filtering
@@ -230,32 +236,44 @@ const MatchHistory: React.FC = () => {
   };
 
 
-  // Header animation
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [80, 60],
-    extrapolate: 'clamp',
-  });
-
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [1, 0.9],
-    extrapolate: 'clamp',
-  });
+  // Header animation - only use opacity (Native Driver compatible)
+  // Removed height animation as Native Driver doesn't support layout properties
+  const headerOpacity = useMemo(
+    () =>
+      scrollY.interpolate({
+        inputRange: [0, 60],
+        outputRange: [1, 0.95],
+        extrapolate: 'clamp',
+      }),
+    [scrollY]
+  );
 
   // Animate content on mount and fetch data
   useEffect(() => {
-    Animated.timing(contentFadeAnim, {
+    const fadeAnimation = Animated.timing(contentFadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
-    }).start();
-    
+    });
+    fadeAnimation.start();
+
     fetchInteractionRef.current = InteractionManager.runAfterInteractions(() => {
       loadMatchHistory(activeTab === 'completed' ? 'past' : activeTab);
     })
 
     return () => {
+      // Mark component as unmounted
+      isMountedRef.current = false;
+
+      // Force close filter modal before unmount
+      setShowFilters(false);
+
+      // Stop all animations to prevent updates during unmount
+      fadeAnimation.stop();
+      contentFadeAnim.stopAnimation();
+      modalFadeAnim.stopAnimation();
+      scrollY.stopAnimation();
+
       fetchInteractionRef.current?.cancel();
       fetchInteractionRef.current = null;
     }
@@ -263,15 +281,21 @@ const MatchHistory: React.FC = () => {
 
   // Fetch matches with backend filtering - real-time API calls
   const loadMatchHistory = async (filter?: string) => {
+    if (!isMountedRef.current) return; // Don't fetch if component is unmounting
+
     try {
       const authToken = await getValidToken();
       if (!authToken) {
-        await forceReLogin("Session expired. Please log in again.");
+        if (isMountedRef.current) {
+          await forceReLogin("Session expired. Please log in again.");
+        }
         return;
       }
 
-      dispatch(clearMatches());
-      dispatch(fetchMatchHistory({ token: authToken, filter }));
+      // Don't clear matches - let fetchMatchHistory update state directly to avoid full re-render
+      if (isMountedRef.current) {
+        dispatch(fetchMatchHistory({ token: authToken, filter }));
+      }
     } catch (err) {
       console.error("Error loading match history:", err);
     }
@@ -279,19 +303,28 @@ const MatchHistory: React.FC = () => {
 
   // Animate modal when showFilters changes
   useEffect(() => {
+    let modalAnimation: Animated.CompositeAnimation | null = null;
+
     if (showFilters) {
-      Animated.timing(modalFadeAnim, {
+      modalAnimation = Animated.timing(modalFadeAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
-      }).start();
+      });
+      modalAnimation.start();
     } else {
-      Animated.timing(modalFadeAnim, {
+      modalAnimation = Animated.timing(modalFadeAnim, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
-      }).start();
+      });
+      modalAnimation.start();
     }
+
+    return () => {
+      // Stop modal animation to prevent updates during state changes
+      modalAnimation?.stop();
+    };
   }, [showFilters]);
 
   const handleMatchPress = (id: string) => {
@@ -481,9 +514,10 @@ const getStatusIndicator = (status: string) => {
     if (!showFilters) {
       return null;
     }
-    
+
     return (
       <Animated.View
+        pointerEvents={showFilters ? "auto" : "none"}
         style={[
           styles.filterModal,
           {
@@ -605,11 +639,10 @@ const getStatusIndicator = (status: string) => {
       <StatusBar translucent style="light" />
       
 
-      <Animated.View 
+      <Animated.View
         style={[
-          styles.header, 
-          { 
-            height: headerHeight,
+          styles.header,
+          {
             opacity: headerOpacity,
           }
         ]}
@@ -691,11 +724,25 @@ const getStatusIndicator = (status: string) => {
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
+            {
+              useNativeDriver: true, // Use native driver to avoid JS thread blocking
+              listener: (event: any) => {
+                // Only update if component is still mounted
+                if (fetchInteractionRef.current !== null) {
+                  // Additional scroll handling can go here if needed
+                }
+              }
+            }
           )}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           ListEmptyComponent={renderEmptyList}
+          // Performance optimizations to prevent freeze
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
+          removeClippedSubviews={true}
+          updateCellsBatchingPeriod={50}
         />
       </Animated.View>
 
