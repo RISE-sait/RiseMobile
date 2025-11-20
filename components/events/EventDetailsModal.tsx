@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect, useRef } from "react"
-import { View, Text, Modal, TouchableOpacity, ImageBackground, Image, Animated, ScrollView } from "react-native"
+import { View, Text, Modal, TouchableOpacity, ImageBackground, Image, Animated, ScrollView, Pressable } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { FontAwesome6 } from "@expo/vector-icons"
 import dayjs from "dayjs"
@@ -42,8 +42,10 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
   const slideAnim = useRef(new Animated.Value(100)).current
 
   useEffect(() => {
+    let animations: Animated.CompositeAnimation | null = null
+
     if (isVisible) {
-      Animated.parallel([
+      animations = Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 400,
@@ -54,12 +56,22 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
           duration: 500,
           useNativeDriver: true,
         }),
-      ]).start()
+      ])
+      animations.start()
     } else {
       fadeAnim.setValue(0)
       slideAnim.setValue(100)
     }
-  }, [isVisible])
+
+    // ✅ Cleanup animations on unmount to prevent event loop blocking
+    return () => {
+      if (animations) {
+        animations.stop()
+      }
+      fadeAnim.stopAnimation()
+      slideAnim.stopAnimation()
+    }
+  }, [isVisible, fadeAnim, slideAnim])
 
   if (!event) return null
 
@@ -87,20 +99,21 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
   }
 
   return (
-    <Modal visible={isVisible} transparent animationType="fade">
+    <Modal visible={isVisible} transparent animationType="fade" onRequestClose={onClose} onDismiss={onClose}>
       <TouchableOpacity
         className="flex-1 bg-black-100/60 justify-center"
         activeOpacity={1}
         onPress={onClose}
       >
         <View className="mx-4 my-4">
-          <Animated.View
-            style={{
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            }}
-            className="rounded-2xl overflow-hidden bg-[#1A1A1A] shadow-2xl"
-          >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Animated.View
+              style={{
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }}
+              className="rounded-2xl overflow-hidden bg-[#1A1A1A] shadow-2xl"
+            >
               {/* Background Image with Gradient - Much Smaller */}
               <ImageBackground
                 source={{
@@ -263,7 +276,8 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
                   <Text className="text-white-100 text-center font-semibold">Close</Text>
                 </TouchableOpacity>
               </View>
-          </Animated.View>
+            </Animated.View>
+          </Pressable>
         </View>
       </TouchableOpacity>
     </Modal>
@@ -271,4 +285,3 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
 }
 
 export default EventDetailsModal
-

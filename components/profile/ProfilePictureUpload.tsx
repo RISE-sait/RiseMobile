@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { View, TouchableOpacity, Alert, Text, Image, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, TouchableOpacity, Text, Image, StyleSheet, ActivityIndicator } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome'
 import { faCamera, faImage } from '@fortawesome/free-solid-svg-icons'
 import { useSelector, useDispatch } from 'react-redux'
 import type { RootState } from '@/store'
 import { updateProfile } from '@/store/slices/userSlice'
+import { showAlert } from '@/utils/customAlert'
 
 interface ProfilePictureUploadProps {
   currentImageUri?: string
@@ -30,12 +31,13 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
   const requestPermissions = async () => {
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync()
     const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    
+
     if (cameraStatus !== 'granted' || mediaLibraryStatus !== 'granted') {
-      Alert.alert(
+      showAlert(
         'Permissions Required',
         'Camera and photo library permissions are required to upload profile pictures.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
+        { type: 'warning' }
       )
       return false
     }
@@ -43,7 +45,7 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
   }
 
   const showImagePickerOptions = () => {
-    Alert.alert(
+    showAlert(
       'Select Profile Picture',
       'Choose how you want to add a profile picture',
       [
@@ -64,7 +66,8 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
           style: 'cancel',
           onPress: () => {}
         },
-      ]
+      ],
+      { type: 'info' }
     )
   }
 

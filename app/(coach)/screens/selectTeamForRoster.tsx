@@ -115,7 +115,7 @@ const SelectTeamForRoster: React.FC = () => {
   const handleTeamPress = (team: TeamResponse) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     // Navigate to team roster screen with selected team ID
-    router.push(`/screens/teamRoster?teamId=${team.id}&teamName=${encodeURIComponent(team.name || "")}`)
+    router.push(`/(coach)/screens/teamRoster?teamId=${team.id}&teamName=${encodeURIComponent(team.name || "")}`)
   }
 
   const openCreateTeamModal = () => {
@@ -510,6 +510,12 @@ const SelectTeamForRoster: React.FC = () => {
           ListEmptyComponent={renderEmptyList}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          // Performance optimizations to prevent freeze
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          initialNumToRender={8}
+          removeClippedSubviews={true}
+          updateCellsBatchingPeriod={50}
         />
       </Animated.View>
 

@@ -536,6 +536,12 @@ const TeamRoster: React.FC = () => {
           ListEmptyComponent={renderEmptyList}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          // Performance optimizations to prevent freeze
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
+          removeClippedSubviews={true}
+          updateCellsBatchingPeriod={50}
         />
       </Animated.View>
 

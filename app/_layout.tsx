@@ -14,6 +14,7 @@ import NotificationManager from "@/app/components/NotificationManager"
 import JsHeartbeat from "@/components/dev/JsHeartbeat"
 import TouchLogger from "@/components/dev/TouchLogger"
 import ErrorBoundary from "@/components/error/ErrorBoundary"
+import AlertProvider from "@/components/feedback/AlertProvider"
 import * as SplashScreen from "expo-splash-screen"
 
 // Keep the splash screen visible while we fetch resources
@@ -94,21 +95,41 @@ export default function RootLayout() {
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <StatusBar style="auto" />
-          <ErrorBoundary>
-            <NotificationManager />
-            {__DEV__ && <JsHeartbeat />}
-            {__DEV__ && <TouchLogger />}
-          </ErrorBoundary>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)/signup" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)/forgot-password" options={{ headerShown: false }} />
-            <Stack.Screen name="(athlete)" options={{ headerShown: false }} />
-            <Stack.Screen name="(coach)" options={{ headerShown: false }} />
-            <Stack.Screen name="screens" options={{ headerShown: false }} />
-          </Stack>
+          <AlertProvider>
+            <StatusBar style="auto" />
+            <ErrorBoundary>
+              <NotificationManager />
+              {__DEV__ && <JsHeartbeat />}
+              {__DEV__ && <TouchLogger />}
+            </ErrorBoundary>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)/signup" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)/forgot-password" options={{ headerShown: false }} />
+              <Stack.Screen name="(athlete)" options={{ headerShown: false }} />
+              <Stack.Screen name="(coach)" options={{ headerShown: false }} />
+              {/* Removed empty "screens" route - handled by _layout files in role-specific screens folders */}
+
+              {/* ✅ Modal Routes - Presented as transparent overlays */}
+              <Stack.Screen
+                name="modals/qr-code"
+                options={{
+                  presentation: "transparentModal",
+                  animation: "fade",
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="modals/event-details"
+                options={{
+                  presentation: "transparentModal",
+                  animation: "fade",
+                  headerShown: false,
+                }}
+              />
+            </Stack>
+          </AlertProvider>
         </GestureHandlerRootView>
       </PersistGate>
     </Provider>

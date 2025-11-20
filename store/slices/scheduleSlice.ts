@@ -169,6 +169,9 @@ const scheduleSlice = createSlice({
       state.status = "idle"
       state.error = null
     },
+    clearScheduleError: (state) => {
+      state.error = null
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -189,7 +192,7 @@ const scheduleSlice = createSlice({
   },
 })
 
-export const { clearSchedule } = scheduleSlice.actions
+export const { clearSchedule, clearScheduleError } = scheduleSlice.actions
 export default scheduleSlice.reducer
 
 // Selectors

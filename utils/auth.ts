@@ -34,8 +34,6 @@ type User = {
 
 WebBrowser.maybeCompleteAuthSession()
 
-let hasLoadedUserOnce = false
-
 const withTimeout = async <T>(promise: Promise<T>, timeoutMs = 8000): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null
   return await Promise.race<T>([
@@ -59,6 +57,7 @@ export const useAuth = () => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
   const [hasInitialized, setHasInitialized] = useState(false) // ✅ Simplified: track if initial check is done
+  const hasLoadedOnce = useRef(false) // ✅ Track if loadUserFromStorage has been called
   const TOKEN_TTL_MS = 55 * 60 * 1000
   const refreshInFlight = useRef<Promise<string | null> | null>(null)
   const firebaseReadyResolvers = useRef<Array<(user: FirebaseUser | null) => void>>([])
@@ -109,17 +108,14 @@ export const useAuth = () => {
   }
 
   // ✅ Simplified: Load user from Redux state immediately
-  const loadUserFromStorage = async () => {
-    if (hasLoadedUserOnce) {
+  const loadUserFromStorage = useCallback(async () => {
+    // Prevent multiple calls - only run once per hook instance
+    if (hasLoadedOnce.current) {
       return
     }
-    hasLoadedUserOnce = true
-    try {
-      console.log("🔄 [Auth] loadUserFromStorage called", {
-        hasReduxUser: !!reduxUser,
-        hasFirebaseUser: !!firebaseUser
-      })
+    hasLoadedOnce.current = true
 
+    try {
       // 🔹 Use Redux user state as primary source
       if (reduxUser) {
         if (reduxUser.token && !reduxUser.tokenIssuedAt) {
@@ -135,9 +131,8 @@ export const useAuth = () => {
       console.error("❌ [Auth] Error in loadUserFromStorage:", error)
       setAuthError("Failed to load authentication data")
       setIsAuthLoaded(true) // ✅ Always set to true to prevent infinite loading
-      hasLoadedUserOnce = true
     }
-  }
+  }, []) // Empty deps - only create once, rely on closure for reduxUser/dispatch
 
   // 🔹 Save user data to Redux only - Redux Persist handles AsyncStorage
   const saveUserToRedux = async (userData: User) => {
@@ -458,7 +453,6 @@ export const useAuth = () => {
     }
 
     router.replace("/(auth)/login")
-    hasLoadedUserOnce = false
   }
 
   const waitForFirebaseUser = useCallback(async () => {
@@ -554,9 +548,6 @@ export const useAuth = () => {
 
       // Skip token refresh in Expo Go to prevent blocking
       if (!isStandalone) {
-        if (__DEV__) {
-          console.log("[Auth] Skipping background token refresh in non-standalone environment")
-        }
         return
       }
 
@@ -598,9 +589,6 @@ export const useAuth = () => {
         const expirationThreshold = isStandalone ? TOKEN_TTL_MS : 24 * 60 * 60 * 1000 // 24 hours for Expo Go
 
         if (age >= expirationThreshold) {
-          if (__DEV__) {
-            console.log(`[Auth] Token age: ${Math.floor(age / 1000 / 60)}min, threshold: ${Math.floor(expirationThreshold / 1000 / 60)}min, standalone: ${isStandalone}`)
-          }
           backgroundRefresh()
         }
         lastDeliveredTokenRef.current = user.token
@@ -610,9 +598,6 @@ export const useAuth = () => {
       // In Expo Go, if we have a lastDeliveredToken, use it instead of forcing refresh
       // This avoids the blocking /auth call
       if (!isStandalone && lastDeliveredTokenRef.current) {
-        if (__DEV__) {
-          console.log("[Auth] Using cached token in non-standalone environment to avoid blocking /auth")
-        }
         return lastDeliveredTokenRef.current
       }
 
@@ -676,9 +661,10 @@ export const useAuth = () => {
       // Clear auth error state
       setAuthError(null)
 
-      // Navigate to login
-      router.replace("/(auth)/login")
-      hasLoadedUserOnce = false
+      // Navigate to login after a brief delay to ensure Root Layout is ready
+      setTimeout(() => {
+        router.replace("/(auth)/login")
+      }, 100)
     } catch (error) {
       console.error("❌ Failed to log out:", error)
     }
@@ -749,7 +735,7 @@ export const useAuth = () => {
     }
 
     loadUserFromStorage()
-  }, [hasInitialized, isAuthLoaded])
+  }, [hasInitialized, isAuthLoaded, loadUserFromStorage])
 
   // ✅ Safety timeout: Ensure isAuthLoaded is set after maximum time
   useEffect(() => {

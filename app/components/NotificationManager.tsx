@@ -8,14 +8,15 @@ const NotificationManager = () => {
   const user = useSelector((state: RootState) => state.user.data);
   const isStandalone = Constants.appOwnership === 'standalone';
 
-  if (!isStandalone) {
-    if (__DEV__) {
-      console.log('[NotificationManager] Skipping setup in non-standalone environment')
-    }
-    return null;
-  }
-
+  // ✅ Always call hooks before any conditional returns (React hooks rules)
   useEffect(() => {
+    if (!isStandalone) {
+      if (__DEV__) {
+        console.log('[NotificationManager] Skipping setup in non-standalone environment')
+      }
+      return;
+    }
+
     const initializeNotifications = async () => {
       try {
         const notificationService = NotificationService.getInstance();
@@ -35,15 +36,17 @@ const NotificationManager = () => {
     };
 
     initializeNotifications();
-  }, [user?.token]); // Re-initialize when user token changes
+  }, [user?.token, isStandalone]); // Re-initialize when user token changes
 
   // Clean up push token on logout
   useEffect(() => {
+    if (!isStandalone) return;
+
     if (!user?.token) {
       const notificationService = NotificationService.getInstance();
       notificationService.clearPushToken();
     }
-  }, [user?.token]);
+  }, [user?.token, isStandalone]);
 
   return null; // This component doesn't render anything
 };

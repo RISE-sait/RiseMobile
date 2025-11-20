@@ -213,15 +213,15 @@ const MatchesScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.format("YYYY-MM-DD")}
           renderItem={renderDateItem}
-          contentContainerStyle={{ paddingHorizontal: width / 2 - 35, marginVertical: 15 }}
+          contentContainerStyle={{ paddingHorizontal: 16, marginVertical: 15 }}
           getItemLayout={(_, index) => ({ length: 72, offset: 72 * index, index })}
           initialScrollIndex={6} // Start at index 6 (today, since we have 6 days before)
           onScrollToIndexFailed={(info) => {
             // Fallback: scroll to the nearest valid index
             setTimeout(() => {
-              flatListRef.current?.scrollToIndex({ 
-                index: Math.min(info.index, weekDates.length - 1), 
-                animated: true 
+              flatListRef.current?.scrollToIndex({
+                index: Math.min(info.index, weekDates.length - 1),
+                animated: true
               })
             }, 100)
           }}
@@ -229,15 +229,17 @@ const MatchesScreen: React.FC = () => {
 
         {/* Match Cards or Empty State */}
         {filteredMatches.length ? (
-          <ScrollView className="px-4" contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}>
+          <ScrollView className="px-4" contentContainerStyle={{ paddingBottom: 100, paddingTop: 8 }}>
             {filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)}
           </ScrollView>
         ) : (
-          <EmptyState
-            icon="calendar-days"
-            title="No Matches Found"
-            message="You don't have any matches scheduled for this date. Check other dates or contact your coach for upcoming games."
-          />
+          <View className="flex-1 justify-center items-center px-6">
+            <EmptyState
+              icon="calendar-days"
+              title="No Matches Found"
+              message="You don't have any matches scheduled for this date. Check other dates or contact your coach for upcoming games."
+            />
+          </View>
         )}
       </View>
     </SafeAreaView>

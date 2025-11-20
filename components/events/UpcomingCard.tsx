@@ -1,10 +1,9 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
 import { View, Text, Image, TouchableOpacity } from "react-native"
+import { useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
-import EventDetailsModal from "./EventDetailsModal"
 import images from "@/constants/images"
 import { resolveImageSource } from "@/utils/imageSource"
 
@@ -53,7 +52,7 @@ const formatTeamName = (teamName: string) => {
 }
 
 const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
-  const [modalVisible, setModalVisible] = useState(false)
+  const router = useRouter()
 
   // If no event, show fallback UI
   if (!event) {
@@ -96,9 +95,17 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
     awayLogo: awayLogoSource || undefined,
   }
 
+  const handlePress = () => {
+    // ✅ Navigate to route-based modal instead of using local state
+    router.push({
+      pathname: "/modals/event-details",
+      params: { event: JSON.stringify(safeEvent) },
+    });
+  };
+
   return (
     <>
-      <TouchableOpacity onPress={() => setModalVisible(true)} activeOpacity={0.8}>
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
         <View className="w-full px-10 mt-10">
           <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING EVENT</Text>
           <View className="bg-[#444444] h-36 rounded-xl overflow-hidden mt-3 flex justify-center items-center relative">
@@ -196,9 +203,6 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
           </View>
         </View>
       </TouchableOpacity>
-
-      {/* 🔹 Modal Inside the Card */}
-      <EventDetailsModal isVisible={modalVisible} onClose={() => setModalVisible(false)} event={safeEvent} />
     </>
   )
 }

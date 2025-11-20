@@ -7,11 +7,8 @@ export const selectUserData = (state: RootState) => state.user.data
 export const selectUserStatus = (state: RootState) => state.user.status
 export const selectUserError = (state: RootState) => state.user.error
 
-// Memoized selectors (computed values)
-export const selectCurrentUser = createSelector(
-  [selectUserData],
-  (userData) => userData
-)
+// Alias for selectUserData (no memoization needed for direct access)
+export const selectCurrentUser = selectUserData
 
 export const selectUserRole = createSelector(
   [selectUserData],

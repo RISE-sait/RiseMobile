@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   ActivityIndicator,
   StyleSheet,
   Animated,
@@ -13,6 +12,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from "react-native"
+import { showAlert } from "@/utils/customAlert"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
@@ -182,12 +182,12 @@ export default function EditProfileScreen() {
         setProfileImage(parsedUser.profileImage || null)
 
       } else {
-        Alert.alert("Error", "Unable to load user data. Please try logging in again.")
+        showAlert("Error", "Unable to load user data. Please try logging in again.", undefined, { type: 'error' })
         router.back()
       }
     } catch (error) {
       console.error("❌ Error loading user data:", error)
-      Alert.alert("Error", "Failed to load user data")
+      showAlert("Error", "Failed to load user data", undefined, { type: 'error' })
     } finally {
       setIsLoading(false)
     }
@@ -196,7 +196,7 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      Alert.alert("Missing Information", "Please fill in all required fields")
+      showAlert("Missing Information", "Please fill in all required fields", undefined, { type: 'warning' })
       return
     }
 
@@ -204,7 +204,7 @@ export default function EditProfileScreen() {
       setIsSaving(true)
 
       if (!user?.id || !user?.token) {
-        Alert.alert("Error", "User authentication information is missing")
+        showAlert("Error", "User authentication information is missing", undefined, { type: 'error' })
         return
       }
 
@@ -261,7 +261,7 @@ export default function EditProfileScreen() {
       dispatch(updateProfile({ ...updatedUser, profileImage: updatedUser.profileImage || undefined }))
 
       // Show success message
-      Alert.alert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }])
+      showAlert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }], { type: 'success' })
     } catch (error: any) {
       console.error("❌ Error updating user profile:", error.response?.data || error.message)
       
@@ -274,7 +274,7 @@ export default function EditProfileScreen() {
         errorMessage = error.response.data.message
       }
       
-      Alert.alert("Error", errorMessage)
+      showAlert("Error", errorMessage, undefined, { type: 'error' })
     } finally {
       setIsSaving(false)
     }
@@ -310,10 +310,11 @@ export default function EditProfileScreen() {
     const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     
     if (cameraStatus !== 'granted' || mediaLibraryStatus !== 'granted') {
-      Alert.alert(
+      showAlert(
         'Permissions Required',
         'Camera and photo library permissions are required to upload profile pictures.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
+        { type: 'warning' }
       )
       return false
     }
@@ -321,7 +322,7 @@ export default function EditProfileScreen() {
   }
 
   const showImagePickerOptions = () => {
-    Alert.alert(
+    showAlert(
       'Select Profile Picture',
       'Choose how you want to add a profile picture',
       [
@@ -342,7 +343,8 @@ export default function EditProfileScreen() {
           style: 'cancel',
           onPress: () => {}
         },
-      ]
+      ],
+      { type: 'info' }
     )
   }
 
@@ -350,7 +352,7 @@ export default function EditProfileScreen() {
   const handleImageUpload = async (imageUri: string) => {
 
     if (!user?.token) {
-      Alert.alert('Error', 'Authentication required')
+      showAlert('Error', 'Authentication required', undefined, { type: 'error' })
       return
     }
 
@@ -421,11 +423,11 @@ export default function EditProfileScreen() {
       // Update local state to display new avatar
       setProfileImage(uploadResult.url)
 
-      Alert.alert('Success', 'Profile picture updated successfully!')
+      showAlert('Success', 'Profile picture updated successfully!', undefined, { type: 'success' })
     } catch (error) {
       console.error('❌ Image upload/update error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload and update profile picture'
-      Alert.alert('Error', errorMessage)
+      showAlert('Error', errorMessage, undefined, { type: 'error' })
     }
   }
 
@@ -450,7 +452,7 @@ export default function EditProfileScreen() {
       }
     } catch (error) {
       console.error('Camera error:', error)
-      Alert.alert('Error', 'Failed to open camera')
+      showAlert('Error', 'Failed to open camera', undefined, { type: 'error' })
     }
   }
 
@@ -475,7 +477,7 @@ export default function EditProfileScreen() {
       }
     } catch (error) {
       console.error('Photo library error:', error)
-      Alert.alert('Error', 'Failed to open photo library')
+      showAlert('Error', 'Failed to open photo library', undefined, { type: 'error' })
     }
   }
 
