@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Alert, Modal, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, Modal, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
 import { useSelector, useDispatch } from "react-redux";
 import BackButton from "@/components/buttons/BackButton";
-import { getUserMemberships } from "@/utils/api";
+import { getUserMemberships, type APIErrorType } from "@/utils/api";
+import { router } from "expo-router";
 import MembershipDetails from "@/components/membership/MembershipDetails";
 import MembershipPurchaseList from "@/components/membership/MembershipPurchaseList";
 import CreditsOverview from "@/components/credits/CreditsOverview";
 import { setMembership, clearMembership } from "@/store/slices/membershipSlice";
 import type { RootState } from "@/store";
 import Constants from "expo-constants";
+import { showAlert } from "@/utils/customAlert";
 
 const MembershipScreen: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
@@ -19,6 +21,8 @@ const MembershipScreen: React.FC = () => {
   const [showWebView, setShowWebView] = useState<boolean>(false);
   const [paymentUrl, setPaymentUrl] = useState<string>("");
   const [activeTab, setActiveTab] = useState('memberships');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [errorType, setErrorType] = useState<APIErrorType>('unknown');
 
   // Get cached membership data and JWT token from Redux store
   const dispatch = useDispatch();
@@ -37,9 +41,21 @@ const MembershipScreen: React.FC = () => {
 
       if (result.error) {
         console.error("❌ Error loading membership info:", result.error);
+
+        // Store error details for display
+        setErrorMessage(result.error.userMessage || result.error.message);
+        setErrorType(result.error.type);
+
         // Only set error if we don't have cached data to show
         if (!cachedMembership) {
           setStatus('error');
+
+          // For auth errors, automatically redirect to login after a short delay
+          if (result.error.type === 'auth') {
+            setTimeout(() => {
+              router.replace('/(auth)/login');
+            }, 2000);
+          }
         }
       } else {
         const memberships = result.data || [];
@@ -58,6 +74,8 @@ const MembershipScreen: React.FC = () => {
       console.error("An unexpected error occurred in loadMembershipData:", e);
       // Only set error if we don't have cached data to show
       if (!cachedMembership) {
+        setErrorMessage("An unexpected error occurred. Please try again.");
+        setErrorType('unknown');
         setStatus('error');
       }
     }
@@ -87,9 +105,11 @@ const MembershipScreen: React.FC = () => {
           // Here we choose to enter success state, but UI will show "no membership"
           setUserMemberships([]);
           setStatus('success');
-          Alert.alert(
+          showAlert(
             "Purchase Processing",
-            "Your new membership is being processed and will appear shortly. Please check back in a few moments."
+            "Your new membership is being processed and will appear shortly. Please check back in a few moments.",
+            [{ text: "OK" }],
+            { type: "info" }
           );
         }
       }
@@ -134,7 +154,7 @@ const MembershipScreen: React.FC = () => {
       setShowWebView(false);
 
       // Show success message and refresh membership data
-      Alert.alert(
+      showAlert(
         "Payment Successful",
         "Your membership purchase was completed successfully!",
         [
@@ -145,7 +165,8 @@ const MembershipScreen: React.FC = () => {
               refreshMembershipData();
             }
           }
-        ]
+        ],
+        { type: "success" }
       );
     }
 
@@ -155,10 +176,11 @@ const MembershipScreen: React.FC = () => {
       setShowWebView(false);
 
       // Show failure message
-      Alert.alert(
+      showAlert(
         "Payment Cancelled",
         "Your payment was cancelled or failed. Please try again.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
+        { type: "error" }
       );
     }
   };
@@ -278,14 +300,23 @@ const MembershipScreen: React.FC = () => {
                 Failed to load membership details
               </Text>
               <Text className="text-[#999999] text-sm text-center mb-6">
-                Please check your internet connection and try again.
+                {errorMessage || "Please check your internet connection and try again."}
               </Text>
-              <TouchableOpacity
-                onPress={loadMembershipData}
-                className="bg-[#FFD700] px-6 py-3 rounded-lg"
-              >
-                <Text className="text-black font-semibold">Retry</Text>
-              </TouchableOpacity>
+              {errorType === 'auth' ? (
+                <TouchableOpacity
+                  onPress={() => router.replace('/(auth)/login')}
+                  className="bg-[#FFD700] px-6 py-3 rounded-lg"
+                >
+                  <Text className="text-black font-semibold">Log In</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => loadMembershipData(true)}
+                  className="bg-[#FFD700] px-6 py-3 rounded-lg"
+                >
+                  <Text className="text-black font-semibold">Retry</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             // Credits tab content - using actual credits component

@@ -1109,7 +1109,7 @@ const renderConfirmationModal = () => (
       {/* Navigation Buttons - with Safe Area bottom padding */}
       <View
         className="flex-row justify-between items-center px-5 absolute bottom-0 left-0 right-0 bg-[#0C0B0B] border-t border-[#222]"
-        style={{ paddingTop: 16, paddingBottom: Math.max(insets.bottom, 16) }}
+        style={{ paddingTop: 16, paddingBottom: Math.max(insets.bottom + 8, 20) }}
       >
         <TouchableOpacity onPress={handleBackStep} className="px-5 py-3 rounded-xl bg-[#222]">
           <Text className="text-white-100 font-medium">{currentStep === 1 ? "Cancel" : "Back"}</Text>

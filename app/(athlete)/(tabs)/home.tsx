@@ -10,7 +10,7 @@ import images from "@/constants/images"
 import GoToCards, { type NavigationOption } from "../../../components/GoToCards"
 import UpcomingCard from "@/components/events/UpcomingCard"
 import ProfileHeader from "@/components/profile/ProfileHeader"
-import QRCodeModal from "@/components/QRCodeModal"
+import QRCodeButton from "@/components/buttons/QRCodeButton"
 import { useUpcomingEvent } from "@/hooks/useUpcomingEvent"
 
 // Define User Type
@@ -135,7 +135,9 @@ export default function AthleteHome() {
         nestedScrollEnabled={true}
       >
         {/* QR Code Button */}
-        <QRCodeModal />
+        <View className="absolute top-8 left-10 z-50">
+          <QRCodeButton onPress={() => router.push("/modals/qr-code")} />
+        </View>
 
         {/* Header Section - Only render when user exists */}
         <View className="w-full px-5 mt-20">
