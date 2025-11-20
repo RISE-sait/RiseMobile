@@ -6,6 +6,33 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const API_URL = "https://api-461776259687.us-west2.run.app";
 
+// 🔹 Error Type System for API Responses
+export type APIErrorType =
+  | 'network'              // Network connection issues (fetch failed, etc.)
+  | 'auth'                 // Authentication issues (401 - token expired)
+  | 'permission'           // Authorization issues (403 - insufficient permissions)
+  | 'not_found'            // Resource not found (404)
+  | 'server'               // Server errors (500, 502)
+  | 'service_unavailable'  // Service unavailable (503 - maintenance)
+  | 'validation'           // Request validation errors (400)
+  | 'conflict'             // Resource conflict (409 - duplicate, out of stock)
+  | 'timeout'              // Request timeout (408 - payment timeout)
+  | 'rate_limit'           // Too many requests (429)
+  | 'payload_too_large'    // File too large (413 - >10MB)
+  | 'gone'                 // Resource permanently gone (410 - account expired)
+  | 'unknown';             // Other errors
+
+export interface APIError {
+  message: string;           // Technical error message for logging
+  status: number;            // HTTP status code
+  type: APIErrorType;        // Error type for handling
+  userMessage?: string;      // User-friendly message for display
+}
+
+export interface APIResponse<T> {
+  data: T | null;
+  error: APIError | null;
+}
 
 type User = {
   id: string;
@@ -97,12 +124,65 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 
   } catch (error: any) {
     console.error("Error logging in:", error);
+    if (__DEV__) {
+      console.log("🔍 Error response data:", error.response?.data);
+      console.log("🔍 Error response status:", error.response?.status);
+    }
 
-    // ✅ Handle unverified email error (403 Forbidden)
+    // ✅ Handle 403 Forbidden errors with detailed error messages
     if (error.response?.status === 403) {
-      const customError: any = new Error("EMAIL_NOT_VERIFIED");
-      customError.code = "EMAIL_NOT_VERIFIED";
-      customError.email = email;
+      // Extract error message from various possible formats
+      const errorData = error.response?.data;
+
+      // Handle nested error formats: {error: {message: "..."}} or {message: "..."}
+      let errorMessage = "";
+      if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      } else if (errorData?.error?.message) {
+        errorMessage = errorData.error.message;
+      } else if (errorData?.message) {
+        errorMessage = errorData.message;
+      } else if (errorData?.error && typeof errorData.error === 'string') {
+        errorMessage = errorData.error;
+      } else if (errorData?.msg) {
+        errorMessage = errorData.msg;
+      }
+
+      if (__DEV__) {
+        console.log("🔍 Extracted error message:", errorMessage);
+      }
+
+      // Safe toLowerCase check
+      const errorMessageLower = typeof errorMessage === 'string' ? errorMessage.toLowerCase() : "";
+
+      // Check for specific account status errors
+      if (errorMessageLower.includes("suspended") || errorMessageLower.includes("suspend")) {
+        const customError: any = new Error("ACCOUNT_SUSPENDED");
+        customError.code = "ACCOUNT_SUSPENDED";
+        customError.message = "Your account has been suspended. Please contact support for assistance.";
+        throw customError;
+      }
+
+      if (errorMessageLower.includes("banned") || errorMessageLower.includes("ban")) {
+        const customError: any = new Error("ACCOUNT_BANNED");
+        customError.code = "ACCOUNT_BANNED";
+        customError.message = "Your account has been banned. Please contact support for assistance.";
+        throw customError;
+      }
+
+      if (errorMessageLower.includes("verify") || errorMessageLower.includes("verification")) {
+        const customError: any = new Error("EMAIL_NOT_VERIFIED");
+        customError.code = "EMAIL_NOT_VERIFIED";
+        customError.email = email;
+        throw customError;
+      }
+
+      // Generic 403 error with fallback message
+      const customError: any = new Error("PERMISSION_DENIED");
+      customError.code = "PERMISSION_DENIED";
+      customError.message = typeof errorMessage === 'string' && errorMessage
+        ? errorMessage
+        : "Access denied. Please check your account status.";
       throw customError;
     }
 
@@ -830,7 +910,7 @@ export const getAllMembershipPlans = async () => {
 };
 
 // Get current user's membership details (requires authentication)
-export const getUserMemberships = async () => {
+export const getUserMemberships = async (): Promise<APIResponse<any>> => {
   try {
     // Get stored JWT token for backend authentication
     // The project uses "Firebase for identity, JWT for business authorization"
@@ -847,7 +927,8 @@ export const getUserMemberships = async () => {
           error: {
             message: "Unable to authenticate with backend",
             status: 401,
-            type: 'auth'
+            type: 'auth',
+            userMessage: "Session expired. Please log in again."
           }
         };
       }
@@ -878,11 +959,43 @@ export const getUserMemberships = async () => {
 
           if (!retryResponse.ok) {
             const retryErrorText = await retryResponse.text();
+
+            // Classify retry error (aligned with backend)
+            const retryErrorType: APIErrorType =
+              retryResponse.status === 401 ? 'auth' :
+              retryResponse.status === 403 ? 'permission' :
+              retryResponse.status === 404 ? 'not_found' :
+              retryResponse.status === 408 ? 'timeout' :
+              retryResponse.status === 409 ? 'conflict' :
+              retryResponse.status === 410 ? 'gone' :
+              retryResponse.status === 413 ? 'payload_too_large' :
+              retryResponse.status === 429 ? 'rate_limit' :
+              retryResponse.status === 503 ? 'service_unavailable' :
+              retryResponse.status >= 500 ? 'server' :
+              retryResponse.status === 400 ? 'validation' :
+              'unknown';
+
+            const retryUserMessage =
+              retryResponse.status === 401 ? "Session expired. Please log in again." :
+              retryResponse.status === 403 ? "You don't have permission to view membership information." :
+              retryResponse.status === 404 ? "Membership information not found." :
+              retryResponse.status === 408 ? "Request timeout. Please try again." :
+              retryResponse.status === 409 ? "This action conflicts with existing data. Please refresh and try again." :
+              retryResponse.status === 410 ? "This resource is no longer available. Please contact support." :
+              retryResponse.status === 413 ? "File size too large. Maximum 10MB allowed." :
+              retryResponse.status === 429 ? "Too many requests. Please wait a moment and try again." :
+              retryResponse.status === 503 ? "Service is temporarily unavailable. Please try again later." :
+              retryResponse.status >= 500 ? "Server error. Please try again later." :
+              retryResponse.status === 400 ? "Invalid request. Please contact support." :
+              "Unable to load membership information. Please try again.";
+
             return {
               data: null,
               error: {
                 message: `Failed to fetch user memberships after token refresh: ${retryResponse.status} ${retryErrorText}`,
-                status: retryResponse.status
+                status: retryResponse.status,
+                type: retryErrorType,
+                userMessage: retryUserMessage
               }
             };
           }
@@ -895,17 +1008,50 @@ export const getUserMemberships = async () => {
             data: null,
             error: {
               message: `Authentication failed: ${response.status} ${errorText}`,
-              status: response.status
+              status: response.status,
+              type: 'auth',
+              userMessage: "Session expired. Please log in again."
             }
           };
         }
       }
 
+      // Classify error based on status code (aligned with backend)
+      const errorType: APIErrorType =
+        response.status === 401 ? 'auth' :
+        response.status === 403 ? 'permission' :
+        response.status === 404 ? 'not_found' :
+        response.status === 408 ? 'timeout' :
+        response.status === 409 ? 'conflict' :
+        response.status === 410 ? 'gone' :
+        response.status === 413 ? 'payload_too_large' :
+        response.status === 429 ? 'rate_limit' :
+        response.status === 503 ? 'service_unavailable' :
+        response.status >= 500 ? 'server' :
+        response.status === 400 ? 'validation' :
+        'unknown';
+
+      const userMessage =
+        response.status === 401 ? "Session expired. Please log in again." :
+        response.status === 403 ? "You don't have permission to view membership information." :
+        response.status === 404 ? "Membership information not found." :
+        response.status === 408 ? "Request timeout. Please try again." :
+        response.status === 409 ? "This action conflicts with existing data. Please refresh and try again." :
+        response.status === 410 ? "This resource is no longer available. Please contact support." :
+        response.status === 413 ? "File size too large. Maximum 10MB allowed." :
+        response.status === 429 ? "Too many requests. Please wait a moment and try again." :
+        response.status === 503 ? "Service is temporarily unavailable. Please try again later." :
+        response.status >= 500 ? "Server error. Please try again later." :
+        response.status === 400 ? "Invalid request. Please contact support." :
+        "Unable to load membership information. Please try again.";
+
       return {
         data: null,
         error: {
           message: `Failed to fetch user memberships: ${response.status} ${errorText}`,
-          status: response.status
+          status: response.status,
+          type: errorType,
+          userMessage: userMessage
         }
       };
     }
@@ -914,11 +1060,23 @@ export const getUserMemberships = async () => {
     return { data, error: null };
   } catch (error) {
     console.error("❌ Failed to fetch user memberships:", error);
+
+    // Check if it's a network error
+    const isNetworkError =
+      error instanceof TypeError &&
+      (error.message.includes('Network request failed') ||
+       error.message.includes('Failed to fetch') ||
+       error.message.includes('timeout'));
+
     return {
       data: null,
       error: {
         message: (error as Error).message || "Failed to fetch user memberships",
-        status: 500
+        status: 500,
+        type: isNetworkError ? 'network' : 'unknown',
+        userMessage: isNetworkError
+          ? "Please check your internet connection and try again."
+          : "An unexpected error occurred. Please try again."
       }
     };
   }

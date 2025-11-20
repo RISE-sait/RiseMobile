@@ -140,7 +140,7 @@ const handleLogin = async (email: string, password: string, saveForBiometric?: b
   } catch (error: any) {
     console.error("Failed to login:", error)
 
-    // Check if email is not verified
+    // Handle different error codes with specific messages
     if (error.code === "EMAIL_NOT_VERIFIED") {
       Alert.alert(
         "Email Not Verified",
@@ -156,6 +156,18 @@ const handleLogin = async (email: string, password: string, saveForBiometric?: b
           },
         ]
       )
+    } else if (error.code === "ACCOUNT_SUSPENDED") {
+      setErrors({
+        general: error.message || "Your account has been suspended. Please contact support for assistance."
+      })
+    } else if (error.code === "ACCOUNT_BANNED") {
+      setErrors({
+        general: error.message || "Your account has been banned. Please contact support for assistance."
+      })
+    } else if (error.code === "PERMISSION_DENIED") {
+      setErrors({
+        general: error.message || "Access denied. Please check your account status or contact support."
+      })
     } else {
       setErrors({ general: "Invalid email or password. Please try again." })
     }
