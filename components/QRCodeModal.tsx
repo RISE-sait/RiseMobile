@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
-import { View, Modal, Text, Image, Animated, TouchableOpacity } from "react-native";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { View, Modal, Text, Image, Animated, TouchableOpacity, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 import QRCodeButton from "./buttons/QRCodeButton";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
@@ -10,23 +11,30 @@ import { RootState } from "@/store";
 
 const QRCodeModal = () => {
   const userId = useSelector((state: RootState) => state.user.data?.id);
-
-  // Early return if no user logged in
-  if (!userId) {
-    return null;
-  }
-
   const [isModalVisible, setModalVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(350)).current;
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     return () => {
-      if (isModalVisible) {
-        setModalVisible(false);
-      }
+      slideAnim.stopAnimation();
     };
-  }, [isModalVisible]);
+  }, [slideAnim]);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // Close modal whenever Home tab blurs so it never intercepts the next tab press
+        slideAnim.stopAnimation();
+        setModalVisible(false);
+      };
+    }, [slideAnim])
+  );
+
+  // Early return if no user logged in (AFTER all hooks)
+  if (!userId) {
+    return null;
+  }
 
   const qrData = `https://api-461776259687.us-west2.run.app/customers/checkin/${userId}`;
 
@@ -61,12 +69,17 @@ const QRCodeModal = () => {
       </View>
 
       {/* 🔹 Slide-Up Modal */}
-      <Modal transparent visible={isModalVisible} animationType="fade">
-        <View className="flex-1 bg-black-100/70 justify-end">
-          <Animated.View
-            style={{ transform: [{ translateY: slideAnim }], paddingBottom: insets.bottom + 16 }}
-            className="bg-[#1A1A1A] rounded-t-3xl p-6"
-          >
+      <Modal transparent visible={isModalVisible} animationType="fade" onRequestClose={toggleModal}>
+        <TouchableOpacity
+          className="flex-1 bg-black-100/70 justify-end"
+          activeOpacity={1}
+          onPress={toggleModal}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Animated.View
+              style={{ transform: [{ translateY: slideAnim }], paddingBottom: insets.bottom + 16 }}
+              className="bg-[#1A1A1A] rounded-t-3xl p-6"
+            >
             {/* 🔹 QR Code Header */}
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-white-100 text-xl font-bold">Your QR Code</Text>
@@ -89,8 +102,9 @@ const QRCodeModal = () => {
 
               </LinearGradient>
             </View>
-          </Animated.View>
-        </View>
+            </Animated.View>
+          </Pressable>
+        </TouchableOpacity>
       </Modal>
     </>
   );

@@ -1,5 +1,6 @@
 import type React from "react"
 import { View, Text, FlatList } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { FontAwesome6 } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import EventListItem from "./EventListItem"
@@ -107,6 +108,8 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
   emptyMessage = "There are no events scheduled for this day.",
   children,
 }) => {
+  const insets = useSafeAreaInsets()
+
   return (
     <View style={{ flex: 1, minHeight: 300 }}>
       <LinearGradient
@@ -186,6 +189,11 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               minHeight: data.length === 0 ? 200 : undefined,
             }}
             ListEmptyComponent={<EmptyState icon="calendar-xmark" title="No Events" message={emptyMessage} />}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            initialNumToRender={10}
+            removeClippedSubviews={true}
+            updateCellsBatchingPeriod={50}
           />
         )}
 
@@ -195,7 +203,7 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
             flexDirection: "row",
             justifyContent: "center",
             alignItems: "center",
-            paddingBottom: 16,
+            paddingBottom: Math.max(insets.bottom, 16),
             paddingTop: 8,
             paddingHorizontal: 20,
             borderTopWidth: 1,

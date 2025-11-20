@@ -8,7 +8,10 @@ const TouchLogger = () => {
       pointerEvents="box-none"
       style={StyleSheet.absoluteFill}
       onTouchStartCapture={(event) => {
-        console.log(`[TouchCapture] start at ${new Date().toISOString()}`)
+        const { pageX, pageY, target } = event.nativeEvent
+        console.log(
+          `[TouchCapture] start at ${new Date().toISOString()} (x=${pageX?.toFixed?.(1) ?? "?"}, y=${pageY?.toFixed?.(1) ?? "?"}, target=${target ?? "unknown"})`,
+        )
       }}
     />
   )

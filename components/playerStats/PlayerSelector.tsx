@@ -19,7 +19,9 @@ const PlayerSelector = ({ players, selectedPlayer }) => {
             style={[styles.item, p.id === selectedPlayer?.id && styles.itemActive]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.replace(`/screens/playerStats?id=${p.id}`);
+              // TODO: Implement player stats page at /screens/playerStats/[id].tsx
+              // router.replace(`/screens/playerStats?id=${p.id}`);
+              console.warn("Player stats page not yet implemented");
             }}
           >
             <Image source={resolveImageSource(p.image, images.headshot)} style={styles.image} resizeMode="cover" />

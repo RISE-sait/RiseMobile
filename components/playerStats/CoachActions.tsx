@@ -17,7 +17,10 @@ const CoachActions = ({ playerId }) => {
       <View style={styles.coachActionsRow}>
         <TouchableOpacity
           style={styles.coachActionButton}
-          onPress={() => router.push(`/screens/comingSoon`)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push("/screens/comingSoon");
+          }}
         >
           <View style={styles.coachActionIcon}>
             <FontAwesome5 name="clipboard" size={20} color={COLORS.primary} />
@@ -27,7 +30,10 @@ const CoachActions = ({ playerId }) => {
 
         <TouchableOpacity
           style={styles.coachActionButton}
-          onPress={() => router.push(`/screens/comingSoon`)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push("/screens/comingSoon");
+          }}
         >
           <View style={styles.coachActionIcon}>
             <FontAwesome5 name="dumbbell" size={20} color={COLORS.primary} />
@@ -37,7 +43,10 @@ const CoachActions = ({ playerId }) => {
 
         <TouchableOpacity
           style={styles.coachActionButton}
-          onPress={() => router.push(`/screens/comingSoon`)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push("/screens/comingSoon");
+          }}
         >
           <View style={styles.coachActionIcon}>
             <Feather name="message-circle" size={20} color={COLORS.primary} />

@@ -13,7 +13,7 @@ import type { RootState } from "@/store"
 import { fetchEvents } from "@/store/slices/eventsSlice"
 import { fetchMatches } from "@/store/slices/gamesSlice"
 import type { Match } from "@/store/slices/gamesSlice"
-import { fetchSchedule, clearSchedule } from "@/store/slices/scheduleSlice"
+import { fetchSchedule, clearSchedule, clearScheduleError } from "@/store/slices/scheduleSlice"
 import PageTitle from "@/components/PageTitle"
 import CalendarCard from "@/components/calendar/CalendarCard"
 import EventListContainer from "@/components/calendar/EventListContainer"
@@ -49,6 +49,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   const dispatch = useDispatch()
   const { getValidToken, forceReLogin } = useAuth()
   const calendarInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null)
+  const isMountedRef = useRef(true) // Track component mount state
 
   // Get user from Redux store
   const user = useSelector((state: RootState) => state.user.data)
@@ -64,55 +65,96 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   // Determine loading state - prioritize schedule data
   const isLoading = reduxSchedule.status === "loading" || reduxEvents.status === "loading" || reduxGames.status === "loading"
 
-  const error = reduxSchedule.error || reduxEvents.error || reduxGames.error
+  // Only show error if ALL data sources failed (schedule + fallback)
+  // If schedule failed but events/matches succeeded, don't show error
+  const hasScheduleData = reduxSchedule.items.length > 0
+  const hasFallbackData = reduxEvents.items.length > 0 || reduxGames.items.length > 0
+  const allDataSourcesFailed =
+    reduxSchedule.status === "failed" &&
+    reduxEvents.status === "failed" &&
+    reduxGames.status === "failed"
+
+  const error = allDataSourcesFailed
+    ? (reduxSchedule.error || reduxEvents.error || reduxGames.error)
+    : null
 
 
-const fetchCalendarData = useCallback(() => {
-  if (calendarInteractionRef.current) {
-    calendarInteractionRef.current.cancel()
-  }
+// Fetch calendar data - stable reference without dependencies
+  const fetchCalendarData = useCallback(async () => {
+    // Only proceed if component is still mounted
+    if (!isMountedRef.current) {
+      return
+    }
 
-  calendarInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
-    try {
-      const jwt = await getValidToken()
+    if (calendarInteractionRef.current) {
+      calendarInteractionRef.current.cancel()
+    }
 
-      if (!jwt) {
-        await forceReLogin("Session expired. Please log in again.")
+    calendarInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+      // Check mount state again after interaction completes
+      if (!isMountedRef.current) {
         return
       }
 
       try {
-        dispatch(clearSchedule())
-        dispatch(fetchSchedule(jwt) as any)
-      } catch (scheduleErr) {
-        console.warn("Schedule endpoint failed, falling back to individual endpoints:", scheduleErr)
-        dispatch(fetchEvents(jwt) as any)
-        dispatch(fetchMatches(jwt) as any)
+        const jwt = await getValidToken()
+
+        if (!jwt) {
+          await forceReLogin("Session expired. Please log in again.")
+          return
+        }
+
+        // Try unified schedule endpoint first
+        try {
+          await dispatch(fetchSchedule(jwt) as any).unwrap()
+        } catch (scheduleErr) {
+          // Only continue with fallback if still mounted
+          if (!isMountedRef.current) {
+            return
+          }
+          // Fallback to separate endpoints when schedule fails
+          // Clear schedule error to prevent UI lockup
+          dispatch(clearScheduleError())
+          dispatch(fetchEvents(jwt) as any)
+          dispatch(fetchMatches(jwt) as any)
+        }
+      } catch (err) {
+        if (isMountedRef.current) {
+          console.error("❌ Error fetching calendar data:", err)
+        }
       }
-    } catch (err) {
-      console.error("Error fetching calendar data:", err)
-    }
-  })
-}, [dispatch, forceReLogin, getValidToken])
+    })
+  }, []) // Empty deps - rely on dispatch/getValidToken/forceReLogin closure
 
-
-
-  // Memoize the refresh handler
+  // Memoize the refresh handler - stable reference
   const handleRefresh = useCallback(() => {
     fetchCalendarData()
-  }, [fetchCalendarData])
+  }, []) // Empty deps - fetchCalendarData is stable
 
   // Animation and initial data fetch - only run once
   useEffect(() => {
-    Animated.timing(fadeAnim, {
+    // Mark component as mounted
+    isMountedRef.current = true
+
+    // Start fade-in animation
+    const fadeAnimation = Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
-    }).start()
+    })
+    fadeAnimation.start()
 
     fetchCalendarData()
 
     return () => {
+      // Mark component as unmounted
+      isMountedRef.current = false
+
+      // Stop animation to prevent updates during unmount
+      fadeAnimation.stop()
+      fadeAnim.stopAnimation()
+
+      // Cancel any pending interactions
       calendarInteractionRef.current?.cancel()
       calendarInteractionRef.current = null
     }
@@ -255,10 +297,6 @@ const fetchCalendarData = useCallback(() => {
       })
     }
 
-    // Log for debugging
-    if (Object.keys(marked).length > 0) {
-    }
-
     return marked
   }, [reduxSchedule.byDate, reduxEvents.byDate, matchesByDate])
 
@@ -282,7 +320,7 @@ const fetchCalendarData = useCallback(() => {
   }, [userRole, formattedDate])
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">
+    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2" edges={['top', 'left', 'right']}>
       <StatusBar translucent style="light" />
 
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
