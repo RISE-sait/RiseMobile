@@ -1804,3 +1804,302 @@ export const deleteUserAccount = async (userToken: string) => {
     };
   }
 };
+
+// 🔹 **Subsidy API Functions**
+
+// Get user subsidy information
+export const getUserSubsidies = async (): Promise<APIResponse<any>> => {
+  try {
+    let jwtToken = await AsyncStorage.getItem("authToken");
+
+    if (!jwtToken) {
+      try {
+        jwtToken = await refreshBackendJwt();
+      } catch (refreshError) {
+        console.error("❌ Failed to refresh JWT token:", refreshError);
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401,
+            type: 'auth',
+            userMessage: "Session expired. Please log in again."
+          }
+        };
+      }
+    }
+
+    const response = await fetch(`${API_URL}/subsidies/me`, {
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        try {
+          jwtToken = await refreshBackendJwt();
+          const retryResponse = await fetch(`${API_URL}/subsidies/me`, {
+            headers: {
+              "Authorization": `Bearer ${jwtToken}`,
+            },
+          });
+
+          if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            const retryErrorType: APIErrorType = retryResponse.status === 401 ? 'auth' : 'unknown';
+            const retryUserMessage = retryResponse.status === 401
+              ? "Session expired. Please log in again."
+              : "Unable to load subsidy information. Please try again.";
+
+            return {
+              data: null,
+              error: {
+                message: `Failed to fetch subsidies after token refresh: ${retryResponse.status} ${retryErrorText}`,
+                status: retryResponse.status,
+                type: retryErrorType,
+                userMessage: retryUserMessage
+              }
+            };
+          }
+
+          const retryData = await retryResponse.json();
+          return { data: retryData, error: null };
+        } catch (refreshError) {
+          return {
+            data: null,
+            error: {
+              message: "Token refresh failed",
+              status: 401,
+              type: 'auth',
+              userMessage: "Session expired. Please log in again."
+            }
+          };
+        }
+      }
+
+      const errorText = await response.text();
+      return {
+        data: null,
+        error: {
+          message: `Failed to fetch subsidies: ${response.status} ${errorText}`,
+          status: response.status,
+          type: 'unknown',
+          userMessage: "Unable to load subsidy information. Please try again."
+        }
+      };
+    }
+
+    const data = await response.json();
+    return { data, error: null };
+  } catch (error) {
+    console.error("❌ Failed to fetch subsidies:", error);
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || "Failed to fetch subsidies",
+        status: 500,
+        type: 'network',
+        userMessage: "Network error. Please check your connection and try again."
+      }
+    };
+  }
+};
+
+// Get user subsidy balance
+export const getUserSubsidyBalance = async (): Promise<APIResponse<any>> => {
+  try {
+    let jwtToken = await AsyncStorage.getItem("authToken");
+
+    if (!jwtToken) {
+      try {
+        jwtToken = await refreshBackendJwt();
+      } catch (refreshError) {
+        console.error("❌ Failed to refresh JWT token:", refreshError);
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401,
+            type: 'auth',
+            userMessage: "Session expired. Please log in again."
+          }
+        };
+      }
+    }
+
+    const response = await fetch(`${API_URL}/subsidies/me/balance`, {
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        try {
+          jwtToken = await refreshBackendJwt();
+          const retryResponse = await fetch(`${API_URL}/subsidies/me/balance`, {
+            headers: {
+              "Authorization": `Bearer ${jwtToken}`,
+            },
+          });
+
+          if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            const retryErrorType: APIErrorType = retryResponse.status === 401 ? 'auth' : 'unknown';
+            const retryUserMessage = retryResponse.status === 401
+              ? "Session expired. Please log in again."
+              : "Unable to load subsidy balance. Please try again.";
+
+            return {
+              data: null,
+              error: {
+                message: `Failed to fetch subsidy balance after token refresh: ${retryResponse.status} ${retryErrorText}`,
+                status: retryResponse.status,
+                type: retryErrorType,
+                userMessage: retryUserMessage
+              }
+            };
+          }
+
+          const retryData = await retryResponse.json();
+          return { data: retryData, error: null };
+        } catch (refreshError) {
+          return {
+            data: null,
+            error: {
+              message: "Token refresh failed",
+              status: 401,
+              type: 'auth',
+              userMessage: "Session expired. Please log in again."
+            }
+          };
+        }
+      }
+
+      const errorText = await response.text();
+      return {
+        data: null,
+        error: {
+          message: `Failed to fetch subsidy balance: ${response.status} ${errorText}`,
+          status: response.status,
+          type: 'unknown',
+          userMessage: "Unable to load subsidy balance. Please try again."
+        }
+      };
+    }
+
+    const data = await response.json();
+    return { data, error: null };
+  } catch (error) {
+    console.error("❌ Failed to fetch subsidy balance:", error);
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || "Failed to fetch subsidy balance",
+        status: 500,
+        type: 'network',
+        userMessage: "Network error. Please check your connection and try again."
+      }
+    };
+  }
+};
+
+// Get user subsidy usage history
+export const getUserSubsidyUsage = async (): Promise<APIResponse<any>> => {
+  try {
+    let jwtToken = await AsyncStorage.getItem("authToken");
+
+    if (!jwtToken) {
+      try {
+        jwtToken = await refreshBackendJwt();
+      } catch (refreshError) {
+        console.error("❌ Failed to refresh JWT token:", refreshError);
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401,
+            type: 'auth',
+            userMessage: "Session expired. Please log in again."
+          }
+        };
+      }
+    }
+
+    const response = await fetch(`${API_URL}/subsidies/me/usage`, {
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        try {
+          jwtToken = await refreshBackendJwt();
+          const retryResponse = await fetch(`${API_URL}/subsidies/me/usage`, {
+            headers: {
+              "Authorization": `Bearer ${jwtToken}`,
+            },
+          });
+
+          if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            const retryErrorType: APIErrorType = retryResponse.status === 401 ? 'auth' : 'unknown';
+            const retryUserMessage = retryResponse.status === 401
+              ? "Session expired. Please log in again."
+              : "Unable to load subsidy usage history. Please try again.";
+
+            return {
+              data: null,
+              error: {
+                message: `Failed to fetch subsidy usage after token refresh: ${retryResponse.status} ${retryErrorText}`,
+                status: retryResponse.status,
+                type: retryErrorType,
+                userMessage: retryUserMessage
+              }
+            };
+          }
+
+          const retryData = await retryResponse.json();
+          return { data: retryData, error: null };
+        } catch (refreshError) {
+          return {
+            data: null,
+            error: {
+              message: "Token refresh failed",
+              status: 401,
+              type: 'auth',
+              userMessage: "Session expired. Please log in again."
+            }
+          };
+        }
+      }
+
+      const errorText = await response.text();
+      return {
+        data: null,
+        error: {
+          message: `Failed to fetch subsidy usage: ${response.status} ${errorText}`,
+          status: response.status,
+          type: 'unknown',
+          userMessage: "Unable to load subsidy usage history. Please try again."
+        }
+      };
+    }
+
+    const data = await response.json();
+    return { data, error: null };
+  } catch (error) {
+    console.error("❌ Failed to fetch subsidy usage:", error);
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || "Failed to fetch subsidy usage",
+        status: 500,
+        type: 'network',
+        userMessage: "Network error. Please check your connection and try again."
+      }
+    };
+  }
+};
