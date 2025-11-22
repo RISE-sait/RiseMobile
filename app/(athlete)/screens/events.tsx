@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { usePathname, useRouter, useSegments, useNavigation } from "expo-router";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchEvents } from "@/store/slices/eventsSlice";
@@ -40,10 +40,6 @@ const EventsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const router = useRouter();
-  const pathname = usePathname();
-  const segments = useSegments();
-  const navigation = useNavigation();
-
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.user.data);
   const reduxEvents = useSelector((state: RootState) => state.events);
@@ -232,44 +228,18 @@ const EventsScreen: React.FC = () => {
         style={styles.eventCard}
         activeOpacity={0.9}
         onPress={() => {
-          // 🔍 Step 1: Log navigation state BEFORE navigation using useNavigation()
-          const navState = navigation.getState();
-          console.log("[Events] 🎯 BEFORE navigation:", {
-            id: item.id,
-            type: item.type,
-            pathname,
-            segments: segments.join("/") || "(root)",
-            canGoBack: router.canGoBack?.() ?? null,
-            navState: navState ? {
-              type: navState.type,
-              index: navState.index,
-              routes: navState.routes?.map((r: any) => ({
-                name: r.name,
-                key: r.key,
-                params: r.params,
-              })),
-              routeCount: navState.routes?.length,
-            } : "unavailable",
-          });
-          console.log("[Events] 🎯 Full navState:", JSON.stringify(navState, null, 2));
-
+          // Navigate to appropriate detail page based on event type
           if (item.type === "match" || item.type === "game") {
-            // Navigate to match details - calls GET /games/{id}
-            console.log("[Events] 🚀 Navigating to MATCH details:", item.id);
             router.push({
               pathname: "/screens/match-details/[id]",
               params: { id: item.id },
             });
           } else if (item.type === "practice") {
-            // Navigate to practice details - calls GET /practices/{id}
-            console.log("[Events] 🚀 Navigating to PRACTICE details:", item.id);
             router.push({
               pathname: "/screens/practice-details/[id]",
               params: { id: item.id },
             });
           } else {
-            // Navigate to event details - calls GET /events/{id}
-            console.log("[Events] 🚀 Navigating to EVENT details:", item.id);
             router.push({
               pathname: "/screens/event-details/[id]",
               params: {
@@ -278,25 +248,6 @@ const EventsScreen: React.FC = () => {
               },
             });
           }
-
-          // 🔍 Step 1: Log navigation state AFTER navigation (with small delay)
-          setTimeout(() => {
-            const afterState = navigation.getState();
-            console.log("[Events] ✅ AFTER navigation:", {
-              pathname: pathname,
-              canGoBack: router.canGoBack?.() ?? null,
-              navState: afterState ? {
-                type: afterState.type,
-                index: afterState.index,
-                routes: afterState.routes?.map((r: any) => ({
-                  name: r.name,
-                  key: r.key,
-                })),
-                routeCount: afterState.routes?.length,
-              } : "unavailable",
-            });
-            console.log("[Events] ✅ Full navState after:", JSON.stringify(afterState, null, 2));
-          }, 100);
         }}
 
       >
@@ -375,26 +326,10 @@ const EventsScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
-            // 🔍 Step 2: Log events page back button - NOW USING BACK INSTEAD OF REPLACE
-            const navState = navigation.getState();
             const canGoBack = router.canGoBack?.() ?? false;
-            console.log("[Events] 🔙 Back button pressed", {
-              currentPathname: pathname,
-              canGoBack,
-              navState: navState ? {
-                type: navState.type,
-                index: navState.index,
-                routeCount: navState.routes?.length,
-              } : "unavailable",
-            });
-            console.log("[Events] 🔙 Full navState:", JSON.stringify(navState, null, 2));
-
-            // Use router.back() if possible, otherwise replace
             if (canGoBack) {
-              console.log("[Events] 🔙 Using router.back()");
               router.back();
             } else {
-              console.log("[Events] 🔙 Cannot go back, using router.replace()");
               router.replace("/(athlete)/(tabs)/home");
             }
           }}
