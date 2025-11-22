@@ -1001,7 +1001,6 @@ const EventDetails: React.FC = () => {
   }
 
   if (loading) {
-    console.log(`🎨 [Event ${id}] RENDERING: Loading state`)
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar translucent style="light" />
@@ -1012,7 +1011,6 @@ const EventDetails: React.FC = () => {
   }
 
   if (error || !event) {
-    console.log(`🎨 [Event ${id}] RENDERING: Error/No Event state`, { error, hasEvent: !!event })
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar translucent style="light" />
@@ -1033,13 +1031,6 @@ const EventDetails: React.FC = () => {
       </SafeAreaView>
     )
   }
-
-  console.log(`🎨 [Event ${id}] RENDERING: Main UI`, {
-    eventTitle: event.title,
-    eventStatus: event.status,
-    loading,
-    hasError: !!error
-  })
 
   const statusColor = getStatusColor(event.status)
   const isPastEvent = event.status === "completed"
