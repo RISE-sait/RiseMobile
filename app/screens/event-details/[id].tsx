@@ -1001,6 +1001,7 @@ const EventDetails: React.FC = () => {
   }
 
   if (loading) {
+    console.log(`🎨 [Event ${id}] RENDERING: Loading state`)
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar translucent style="light" />
@@ -1011,19 +1012,20 @@ const EventDetails: React.FC = () => {
   }
 
   if (error || !event) {
+    console.log(`🎨 [Event ${id}] RENDERING: Error/No Event state`, { error, hasEvent: !!event })
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar translucent style="light" />
         <Text style={styles.errorText}>
-          {error?.includes("Event not found") 
+          {error?.includes("Event not found")
             ? "This item doesn't have detailed information available.\nTry booking through the main service pages."
             : error || "Unable to load details"}
         </Text>
         <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.retryButton, { backgroundColor: COLORS.primary, marginTop: 10 }]} 
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: COLORS.primary, marginTop: 10 }]}
           onPress={() => router.back()}
         >
           <Text style={[styles.retryButtonText, { color: COLORS.background }]}>Go Back</Text>
@@ -1031,6 +1033,13 @@ const EventDetails: React.FC = () => {
       </SafeAreaView>
     )
   }
+
+  console.log(`🎨 [Event ${id}] RENDERING: Main UI`, {
+    eventTitle: event.title,
+    eventStatus: event.status,
+    loading,
+    hasError: !!error
+  })
 
   const statusColor = getStatusColor(event.status)
   const isPastEvent = event.status === "completed"
