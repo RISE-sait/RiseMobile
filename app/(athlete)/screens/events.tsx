@@ -228,18 +228,18 @@ const EventsScreen: React.FC = () => {
         style={styles.eventCard}
         activeOpacity={0.9}
         onPress={() => {
-          // Navigate to appropriate detail page based on event type
+          // Navigate to appropriate detail page based on data source
+          // Note: item.type is just a label from the event data, not the entity type
+          // Only items from reduxGames (matches) should go to match-details
+          // All items from reduxEvents should go to event-details
           if (item.type === "match" || item.type === "game") {
             router.push({
               pathname: "/screens/match-details/[id]",
               params: { id: item.id },
             });
-          } else if (item.type === "practice") {
-            router.push({
-              pathname: "/screens/practice-details/[id]",
-              params: { id: item.id },
-            });
           } else {
+            // All other items (including type="practice") are events
+            // They should navigate to event-details, not practice-details
             router.push({
               pathname: "/screens/event-details/[id]",
               params: {
