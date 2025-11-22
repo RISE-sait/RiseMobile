@@ -13,7 +13,6 @@ import CreditsOverview from "@/components/credits/CreditsOverview";
 import SubsidyOverview from "@/components/subsidy/SubsidyOverview";
 import { setMembership, clearMembership } from "@/store/slices/membershipSlice";
 import type { RootState } from "@/store";
-import Constants from "expo-constants";
 import { showAlert } from "@/utils/customAlert";
 
 const MembershipScreen: React.FC = () => {
@@ -400,6 +399,12 @@ const MembershipScreen: React.FC = () => {
         >
           <Text style={{ color: activeTab === 'credits' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Credits</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FFD700' : 'transparent' }}
+          onPress={() => setActiveTab('subsidy')}
+        >
+          <Text style={{ color: activeTab === 'subsidy' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
+        </TouchableOpacity>
       </View>
       {/* Content based on active tab */}
       <View className="flex-1">
@@ -438,7 +443,7 @@ const MembershipScreen: React.FC = () => {
               }
             />
           )
-        ) : (
+        ) : activeTab === 'credits' ? (
           // Credits tab content - using actual credits component
           <View className="flex-1">
             {userToken ? (
@@ -447,6 +452,19 @@ const MembershipScreen: React.FC = () => {
               <View className="flex-1 justify-center items-center px-5">
                 <Text className="text-[#999999] text-sm text-center">
                   Please log in to view your credits
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          // Subsidy tab content
+          <View className="flex-1">
+            {userToken ? (
+              <SubsidyOverview userToken={userToken} />
+            ) : (
+              <View className="flex-1 justify-center items-center px-5">
+                <Text className="text-[#999999] text-sm text-center">
+                  Please log in to view your subsidy
                 </Text>
               </View>
             )}
