@@ -98,7 +98,7 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
   const handlePress = () => {
     // ✅ Navigate to route-based modal instead of using local state
     router.push({
-      pathname: "/modals/event-details",
+      pathname: "/modals/event-quick-view",
       params: { event: JSON.stringify(safeEvent) },
     });
   };

@@ -121,7 +121,7 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
-                name="modals/event-details"
+                name="modals/event-quick-view"
                 options={{
                   presentation: "transparentModal",
                   animation: "fade",
