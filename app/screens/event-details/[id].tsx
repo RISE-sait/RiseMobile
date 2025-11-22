@@ -17,7 +17,7 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useLocalSearchParams, usePathname, useRouter, useSegments } from "expo-router"
 import dayjs from "dayjs"
 import axios from "axios"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
@@ -101,6 +101,8 @@ interface ApiEventResponse {
 const EventDetails: React.FC = () => {
   const { id, type, source } = useLocalSearchParams()
   const router = useRouter()
+  const pathname = usePathname()
+  const segments = useSegments()
   const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
   const membershipData = useAppSelector((state) => state.membership.data)
@@ -129,6 +131,29 @@ const EventDetails: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
   const paymentCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    // 🔍 Step 3: Log detailed router state when component mounts
+    const routerState = router.getState?.();
+    console.log(`[Event ${id}] 📍 Component MOUNTED - navigation snapshot`, {
+      pathname,
+      segments: segments.join("/") || "(root)",
+      canGoBack: router.canGoBack?.() ?? null,
+      routerState: routerState ? {
+        index: routerState.index,
+        routes: routerState.routes?.map((r: any) => ({
+          name: r.name,
+          key: r.key,
+          params: r.params,
+        })),
+        routeCount: routerState.routes?.length,
+        currentRoute: routerState.routes?.[routerState.index],
+        hasEventDetailsInStack: routerState.routes?.some((r: any) =>
+          r.name?.includes('event-details') || r.key?.includes('event-details')
+        ),
+      } : "unavailable",
+    })
+  }, [id, pathname, segments, router])
 
   // Function to fetch user credits
   const fetchUserCredits = async (force = false) => {

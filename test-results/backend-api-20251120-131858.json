@@ -1,0 +1,673 @@
+{
+  "test_date": "2025-11-20T13:20:32.255446",
+  "summary": {
+    "total_endpoints": 8,
+    "good": 6,
+    "warning": 0,
+    "critical": 2
+  },
+  "results": [
+    {
+      "role": "athlete",
+      "email": "Appleathlete@test.com",
+      "firebase_auth": {
+        "avg": 224.53509966532388,
+        "min": 164.2470359802246,
+        "max": 496.3986873626709,
+        "median": 198.82798194885254,
+        "p95": 347.24974632263184,
+        "p99": 496.3986873626709,
+        "success_count": 30,
+        "error_count": 0,
+        "timeout_count": 0,
+        "status_codes": {
+          "200": 30
+        },
+        "success_rate": 100.0
+      },
+      "backend_auth": {
+        "avg": 281.9112141927083,
+        "min": 188.4160041809082,
+        "max": 881.7002773284912,
+        "median": 225.86441040039062,
+        "p95": 524.9168872833252,
+        "p99": 881.7002773284912,
+        "success_count": 30,
+        "error_count": 0,
+        "timeout_count": 0,
+        "status_codes": {
+          "200": 30
+        },
+        "success_rate": 100.0
+      },
+      "endpoints": {
+        "/secure/customers/memberships": {
+          "name": "Membership API",
+          "category": "membership",
+          "statistics": {
+            "avg": 168.1828737258911,
+            "min": 119.01497840881348,
+            "max": 377.13003158569336,
+            "median": 128.18443775177002,
+            "p95": 358.3111763000488,
+            "p99": 377.13003158569336,
+            "success_count": 30,
+            "error_count": 0,
+            "timeout_count": 0,
+            "status_codes": {
+              "200": 30
+            },
+            "success_rate": 100.0
+          },
+          "health": "good",
+          "errors": []
+        },
+        "/customers": {
+          "name": "Customer Profile",
+          "category": "profile",
+          "statistics": {
+            "avg": 182.55123297373453,
+            "min": 126.4200210571289,
+            "max": 475.22711753845215,
+            "median": 142.61651039123535,
+            "p95": 471.53425216674805,
+            "p99": 475.22711753845215,
+            "success_count": 30,
+            "error_count": 0,
+            "timeout_count": 0,
+            "status_codes": {
+              "200": 30
+            },
+            "success_rate": 100.0
+          },
+          "health": "good",
+          "errors": []
+        },
+        "/events": {
+          "name": "Events List",
+          "category": "events",
+          "statistics": {
+            "avg": 0,
+            "min": 0,
+            "max": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "success_count": 0,
+            "error_count": 30,
+            "timeout_count": 0,
+            "status_codes": {
+              "400": 30
+            },
+            "success_rate": 0.0
+          },
+          "health": "critical",
+          "errors": [
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 116.68705940246582,
+              "timestamp": "2025-11-20T13:18:59.856385"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 115.57292938232422,
+              "timestamp": "2025-11-20T13:19:01.256226"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 117.63620376586914,
+              "timestamp": "2025-11-20T13:19:02.658937"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 199.23996925354004,
+              "timestamp": "2025-11-20T13:19:04.227498"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 133.53514671325684,
+              "timestamp": "2025-11-20T13:19:06.086260"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 519.0191268920898,
+              "timestamp": "2025-11-20T13:19:09.155171"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 533.1897735595703,
+              "timestamp": "2025-11-20T13:19:12.292739"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 142.12393760681152,
+              "timestamp": "2025-11-20T13:19:14.388682"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 339.1411304473877,
+              "timestamp": "2025-11-20T13:19:16.300572"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 195.39785385131836,
+              "timestamp": "2025-11-20T13:19:17.976926"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 195.6920623779297,
+              "timestamp": "2025-11-20T13:19:19.549470"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 117.16818809509277,
+              "timestamp": "2025-11-20T13:19:21.314930"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 166.1090850830078,
+              "timestamp": "2025-11-20T13:19:23.022302"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 137.3448371887207,
+              "timestamp": "2025-11-20T13:19:24.872414"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 330.26790618896484,
+              "timestamp": "2025-11-20T13:19:26.762407"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 146.18301391601562,
+              "timestamp": "2025-11-20T13:19:28.554973"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 123.4140396118164,
+              "timestamp": "2025-11-20T13:19:30.561260"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 113.29889297485352,
+              "timestamp": "2025-11-20T13:19:32.052548"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 118.39890480041504,
+              "timestamp": "2025-11-20T13:19:33.630041"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 118.27731132507324,
+              "timestamp": "2025-11-20T13:19:35.436194"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 254.10890579223633,
+              "timestamp": "2025-11-20T13:19:37.179900"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 119.63510513305664,
+              "timestamp": "2025-11-20T13:19:38.612031"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 123.2900619506836,
+              "timestamp": "2025-11-20T13:19:40.186641"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 109.13491249084473,
+              "timestamp": "2025-11-20T13:19:41.796045"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 113.9669418334961,
+              "timestamp": "2025-11-20T13:19:43.313565"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 119.0488338470459,
+              "timestamp": "2025-11-20T13:19:44.768052"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 118.30687522888184,
+              "timestamp": "2025-11-20T13:19:46.155037"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 119.39692497253418,
+              "timestamp": "2025-11-20T13:19:47.607448"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 127.84695625305176,
+              "timestamp": "2025-11-20T13:19:49.081168"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 117.44999885559082,
+              "timestamp": "2025-11-20T13:19:50.512947"
+            }
+          ]
+        },
+        "/games": {
+          "name": "Games List",
+          "category": "games",
+          "statistics": {
+            "avg": 200.21759668986002,
+            "min": 128.1299591064453,
+            "max": 480.6039333343506,
+            "median": 166.05401039123535,
+            "p95": 442.1660900115967,
+            "p99": 480.6039333343506,
+            "success_count": 30,
+            "error_count": 0,
+            "timeout_count": 0,
+            "status_codes": {
+              "200": 30
+            },
+            "success_rate": 100.0
+          },
+          "health": "good",
+          "errors": []
+        }
+      }
+    },
+    {
+      "role": "coach",
+      "email": "brandon@challengeindustries.ca",
+      "firebase_auth": {
+        "avg": 171.65183226267496,
+        "min": 148.57888221740723,
+        "max": 225.3897190093994,
+        "median": 168.55204105377197,
+        "p95": 211.0610008239746,
+        "p99": 225.3897190093994,
+        "success_count": 30,
+        "error_count": 0,
+        "timeout_count": 0,
+        "status_codes": {
+          "200": 30
+        },
+        "success_rate": 100.0
+      },
+      "backend_auth": {
+        "avg": 212.90942827860513,
+        "min": 189.9583339691162,
+        "max": 289.69788551330566,
+        "median": 211.39287948608398,
+        "p95": 224.78890419006348,
+        "p99": 289.69788551330566,
+        "success_count": 30,
+        "error_count": 0,
+        "timeout_count": 0,
+        "status_codes": {
+          "200": 30
+        },
+        "success_rate": 100.0
+      },
+      "endpoints": {
+        "/secure/teams": {
+          "name": "Teams API",
+          "category": "teams",
+          "statistics": {
+            "avg": 125.13519128163655,
+            "min": 118.12996864318848,
+            "max": 145.01094818115234,
+            "median": 123.90553951263428,
+            "p95": 139.8780345916748,
+            "p99": 145.01094818115234,
+            "success_count": 30,
+            "error_count": 0,
+            "timeout_count": 0,
+            "status_codes": {
+              "200": 30
+            },
+            "success_rate": 100.0
+          },
+          "health": "good",
+          "errors": []
+        },
+        "/customers": {
+          "name": "Customer Profile",
+          "category": "profile",
+          "statistics": {
+            "avg": 132.21973578135172,
+            "min": 127.13503837585449,
+            "max": 165.60006141662598,
+            "median": 130.54847717285156,
+            "p95": 143.04065704345703,
+            "p99": 165.60006141662598,
+            "success_count": 30,
+            "error_count": 0,
+            "timeout_count": 0,
+            "status_codes": {
+              "200": 30
+            },
+            "success_rate": 100.0
+          },
+          "health": "good",
+          "errors": []
+        },
+        "/games": {
+          "name": "Games List",
+          "category": "games",
+          "statistics": {
+            "avg": 133.28216075897217,
+            "min": 125.20408630371094,
+            "max": 203.0508518218994,
+            "median": 128.851056098938,
+            "p95": 179.77094650268555,
+            "p99": 203.0508518218994,
+            "success_count": 30,
+            "error_count": 0,
+            "timeout_count": 0,
+            "status_codes": {
+              "200": 30
+            },
+            "success_rate": 100.0
+          },
+          "health": "good",
+          "errors": []
+        },
+        "/events": {
+          "name": "Events List",
+          "category": "events",
+          "statistics": {
+            "avg": 0,
+            "min": 0,
+            "max": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "success_count": 0,
+            "error_count": 30,
+            "timeout_count": 0,
+            "status_codes": {
+              "400": 30
+            },
+            "success_rate": 0.0
+          },
+          "health": "critical",
+          "errors": [
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 118.70718002319336,
+              "timestamp": "2025-11-20T13:19:51.533896"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 118.80779266357422,
+              "timestamp": "2025-11-20T13:19:52.994612"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 116.21713638305664,
+              "timestamp": "2025-11-20T13:19:54.399006"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 120.7427978515625,
+              "timestamp": "2025-11-20T13:19:55.817579"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 117.56014823913574,
+              "timestamp": "2025-11-20T13:19:57.212716"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 115.06414413452148,
+              "timestamp": "2025-11-20T13:19:58.590883"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 134.07397270202637,
+              "timestamp": "2025-11-20T13:20:00.007606"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 196.55776023864746,
+              "timestamp": "2025-11-20T13:20:01.476381"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 116.48821830749512,
+              "timestamp": "2025-11-20T13:20:02.877123"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 118.05295944213867,
+              "timestamp": "2025-11-20T13:20:04.284185"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 115.45491218566895,
+              "timestamp": "2025-11-20T13:20:05.664913"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 115.39888381958008,
+              "timestamp": "2025-11-20T13:20:07.068187"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 115.42892456054688,
+              "timestamp": "2025-11-20T13:20:08.467392"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 109.0090274810791,
+              "timestamp": "2025-11-20T13:20:09.828024"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 114.99500274658203,
+              "timestamp": "2025-11-20T13:20:11.202743"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 116.12105369567871,
+              "timestamp": "2025-11-20T13:20:12.577541"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 120.4688549041748,
+              "timestamp": "2025-11-20T13:20:14.009444"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 115.8900260925293,
+              "timestamp": "2025-11-20T13:20:15.368045"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 115.42820930480957,
+              "timestamp": "2025-11-20T13:20:16.762432"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 133.5580348968506,
+              "timestamp": "2025-11-20T13:20:18.268327"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 114.48502540588379,
+              "timestamp": "2025-11-20T13:20:19.639995"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 116.64319038391113,
+              "timestamp": "2025-11-20T13:20:21.034165"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 129.01830673217773,
+              "timestamp": "2025-11-20T13:20:22.434126"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 113.00015449523926,
+              "timestamp": "2025-11-20T13:20:23.835731"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 118.38412284851074,
+              "timestamp": "2025-11-20T13:20:25.218772"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 114.84503746032715,
+              "timestamp": "2025-11-20T13:20:26.619816"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 129.6708583831787,
+              "timestamp": "2025-11-20T13:20:27.996146"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 113.58213424682617,
+              "timestamp": "2025-11-20T13:20:29.439592"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 117.87295341491699,
+              "timestamp": "2025-11-20T13:20:30.821148"
+            },
+            {
+              "type": "api_failed",
+              "message": "HTTP 400",
+              "status_code": 400,
+              "response_time": 116.27888679504395,
+              "timestamp": "2025-11-20T13:20:32.254749"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
