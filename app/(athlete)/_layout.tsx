@@ -13,7 +13,12 @@ export default function AthleteLayout() {
       <Stack.Screen name="screens/booking-options/Courts" options={{ presentation: "modal" }} />
       <Stack.Screen name="screens/booking-options/CourtsideKutz" options={{ presentation: "modal" }} />
 
-      {/* ✅ Shared screens in app/screens/ are handled by app/screens/_layout.tsx */}
+      {/* ✅ Shared event/match/practice detail screens */}
+      <Stack.Screen name="screens/event-details/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/match-details/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/practice-details/[id]" options={{ headerShown: false }} />
+
+      {/* ✅ Other shared screens in app/screens/ are handled by app/screens/_layout.tsx */}
       {/* Removed: store/*, profile-screen/*, and other shared screens - accessed via /screens/ routes */}
     </Stack>
   );
