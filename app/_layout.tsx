@@ -17,6 +17,21 @@ import ErrorBoundary from "@/components/error/ErrorBoundary"
 import AlertProvider from "@/components/feedback/AlertProvider"
 import * as SplashScreen from "expo-splash-screen"
 
+// ✅ Hermes Promise Rejection Tracker - Prevent RedBox for unhandled promise rejections
+// Converts unhandled rejections to console warnings instead of fatal red screens
+// Only applies in Hermes engine, gracefully ignored in other JS engines
+if ((global as any).HermesInternal?.enablePromiseRejectionTracker) {
+  (global as any).HermesInternal.enablePromiseRejectionTracker({
+    allRejections: true,
+    onUnhandled: (id: number, reason: any) => {
+      console.warn('⚠️ Unhandled Promise Rejection:', id, reason);
+    },
+    onHandled: () => {
+      // Promise rejection was handled after being reported as unhandled
+    },
+  });
+}
+
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
