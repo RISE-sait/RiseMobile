@@ -109,7 +109,9 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)/forgot-password" options={{ headerShown: false }} />
               <Stack.Screen name="(athlete)" options={{ headerShown: false }} />
               <Stack.Screen name="(coach)" options={{ headerShown: false }} />
-              {/* Removed empty "screens" route - handled by _layout files in role-specific screens folders */}
+
+              {/* ✅ Shared screens stack - contains event/match/practice details and other shared screens */}
+              <Stack.Screen name="screens" options={{ headerShown: false }} />
 
               {/* ✅ Modal Routes - Presented as transparent overlays */}
               <Stack.Screen

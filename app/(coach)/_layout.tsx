@@ -15,13 +15,9 @@ export default function CoachLayout() {
       <Stack.Screen name="screens/coach-booking/practiceBooking" options={{ presentation: "modal" }} />
       <Stack.Screen name="screens/profile-options/contactUs" options={{ presentation: "modal" }} />
 
-      {/* ✅ Shared event/match/practice detail screens */}
-      <Stack.Screen name="screens/event-details/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="screens/match-details/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="screens/practice-details/[id]" options={{ headerShown: false }} />
-
-      {/* ✅ Other shared screens in app/screens/ are handled by app/screens/_layout.tsx */}
-      {/* Removed: edit-profile, notificationSettings, helpCenter, legal/* - accessed via /screens/ routes */}
+      {/* ✅ Shared screens like event/match/practice details are accessed via /screens/ routes */}
+      {/* These are registered in app/_layout.tsx as a "screens" Stack.Screen */}
+      {/* and handled by app/screens/_layout.tsx for auto-discovery */}
     </Stack>
   );
 }
