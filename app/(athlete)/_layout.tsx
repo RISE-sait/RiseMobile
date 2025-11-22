@@ -13,9 +13,10 @@ export default function AthleteLayout() {
       <Stack.Screen name="screens/booking-options/Courts" options={{ presentation: "modal" }} />
       <Stack.Screen name="screens/booking-options/CourtsideKutz" options={{ presentation: "modal" }} />
 
-      {/* ✅ Shared screens like event/match/practice details are accessed via /screens/ routes */}
-      {/* These are registered in app/_layout.tsx as a "screens" Stack.Screen */}
-      {/* and handled by app/screens/_layout.tsx for auto-discovery */}
+      {/* ✅ Detail pages - now part of athlete stack for proper navigation */}
+      <Stack.Screen name="screens/event-details/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/match-details/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/practice-details/[id]" options={{ headerShown: false }} />
     </Stack>
   );
 }
