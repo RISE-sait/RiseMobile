@@ -135,7 +135,7 @@ const PracticeDetails: React.FC = () => {
 
       setPractice(transformedPractice)
     } catch (err: any) {
-      console.error("❌ Error fetching practice details:", err.response?.data || err.message)
+      console.warn("⚠️ Error fetching practice details:", err.response?.data || err.message)
       setError("Failed to load practice details. Please try again.")
     } finally {
       setLoading(false)
@@ -195,7 +195,7 @@ const PracticeDetails: React.FC = () => {
         title: practice.title,
       })
     } catch (error) {
-      console.error("Error sharing practice:", error)
+      console.warn("Error sharing practice:", error)
     }
   }
 

@@ -163,7 +163,7 @@ const MatchDetailsScreen = () => {
 
           setGame(transformedGame)
         } catch (error) {
-          console.error("Error fetching game data:", error)
+          console.warn("Error fetching game data:", error)
           // Only show error if we don't have cached data to fall back on
           if (!cachedMatch) {
             setError("Failed to load game data. Please try again.")
@@ -203,12 +203,12 @@ const MatchDetailsScreen = () => {
         title: game.name || `${homeTeamName} vs ${awayTeamName}`,
       })
     } catch (error) {
-      console.error("Error sharing match:", error)
+      console.warn("Error sharing match:", error)
     }
   }
 
   const openInstagramProfile = () => {
-    Linking.openURL(INSTAGRAM_PROFILE_URL).catch((err) => console.error("Error opening Instagram profile:", err))
+    Linking.openURL(INSTAGRAM_PROFILE_URL).catch((err) => console.warn("Error opening Instagram profile:", err))
   }
 
   const handleRetry = () => {

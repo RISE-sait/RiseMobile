@@ -163,7 +163,7 @@ const EventDetails: React.FC = () => {
       console.log(`⏱️ [Event ${id}] fetchUserCredits: Completed - ${totalDuration}ms total`)
     } catch (error) {
       const totalDuration = Date.now() - startTime
-      console.error(`❌ [Event ${id}] fetchUserCredits: Error after ${totalDuration}ms`, error)
+      console.warn(`❌ [Event ${id}] fetchUserCredits: Error after ${totalDuration}ms`, error)
     }
   }
 
@@ -197,7 +197,7 @@ const EventDetails: React.FC = () => {
       console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: Completed - ${totalDuration}ms total`)
     } catch (error) {
       const totalDuration = Date.now() - startTime
-      console.error(`❌ [Event ${id}] fetchEnrollmentOptions: Error after ${totalDuration}ms`, error)
+      console.warn(`❌ [Event ${id}] fetchEnrollmentOptions: Error after ${totalDuration}ms`, error)
       setEnrollmentOptions(null)
     } finally {
       setLoadingEnrollmentOptions(false)
@@ -237,7 +237,7 @@ const EventDetails: React.FC = () => {
       console.log(`⏱️ [Event ${id}] fetchUserMembership: Completed - ${totalDuration}ms total`)
     } catch (error) {
       const totalDuration = Date.now() - startTime
-      console.error(`❌ [Event ${id}] fetchUserMembership: Error after ${totalDuration}ms`, error)
+      console.warn(`❌ [Event ${id}] fetchUserMembership: Error after ${totalDuration}ms`, error)
     }
   }
 
@@ -345,7 +345,7 @@ const EventDetails: React.FC = () => {
 
       return isUserEnrolled
     } catch (error) {
-      console.error("Error checking enrollment status:", error)
+      console.warn("Error checking enrollment status:", error)
       return false
     }
   }
@@ -376,7 +376,7 @@ const EventDetails: React.FC = () => {
           return
         }
       } catch (error) {
-        console.error("Error checking enrollment status:", error)
+        console.warn("Error checking enrollment status:", error)
       }
 
       // Stop after max attempts
@@ -605,7 +605,7 @@ const EventDetails: React.FC = () => {
       console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed successfully - ${totalDuration}ms total`)
     } catch (err: any) {
       const errorDuration = Date.now() - startTime
-      console.error(`❌ [Event ${id}] fetchEventDetails: Error after ${errorDuration}ms`, err.response?.data || err.message)
+      console.warn(`❌ [Event ${id}] fetchEventDetails: Error after ${errorDuration}ms`, err.response?.data || err.message)
       setError("Failed to load event details. Please try again.")
 
       // Use mock data as fallback
@@ -833,7 +833,7 @@ const EventDetails: React.FC = () => {
         title: event.title,
       })
     } catch (error) {
-      console.error("Error sharing event:", error)
+      console.warn("Error sharing event:", error)
     }
   }
 
@@ -919,7 +919,7 @@ const EventDetails: React.FC = () => {
         }
       }
     } catch (error: any) {
-      console.error("Enrollment error:", error)
+      console.warn("Enrollment error:", error)
 
       // Distinguish between different error types
       if (error.response) {
