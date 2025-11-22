@@ -15,7 +15,7 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter, usePathname, useSegments } from "expo-router"
 import dayjs from "dayjs"
 import { FontAwesome6 } from "@expo/vector-icons"
 import BackButton from "@/components/buttons/BackButton"
@@ -108,7 +108,16 @@ const MatchDetailsScreen = () => {
   const [homeTeamName, setHomeTeamName] = useState<string>("Home Team")
   const [awayTeamName, setAwayTeamName] = useState<string>("Away Team")
 
+  const pathname = usePathname()
+  const segments = useSegments()
+
   useEffect(() => {
+    console.log(`[Match ${programId}] navigation snapshot`, {
+      pathname,
+      segments: segments.join("/") || "(root)",
+      canGoBack: router.canGoBack?.() ?? null,
+    })
+
     // Start animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
