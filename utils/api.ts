@@ -1320,8 +1320,8 @@ export const purchaseMembershipPlan = async (planId: string) => {
       try {
         jwtToken = await refreshBackendJwt();
       } catch (refreshError) {
-        console.error("❌ Failed to refresh JWT token:", refreshError);
-        throw new Error("Unable to authenticate with backend");
+        console.warn("⚠️ Failed to refresh JWT token:", refreshError);
+        return { data: null, error: { status: 401, message: "Unable to authenticate with backend" } } as any;
       }
     }
 
@@ -1372,16 +1372,15 @@ export const purchaseMembershipPlan = async (planId: string) => {
               return { data: null, error: { status: 409, message: retryMessage } } as any;
             }
 
-            const err: any = new Error(retryMessage);
-            err.status = retryResponse.status;
-            throw err;
+            // Return structured error instead of throwing
+            return { data: null, error: { status: retryResponse.status, message: retryMessage } } as any;
           }
 
           const retryData = await retryResponse.json();
           return { data: retryData, error: null } as any;
         } catch (refreshError) {
-          console.error("❌ Failed to refresh token on retry:", refreshError);
-          throw new Error(`Authentication failed: ${response.status} ${errorText}`);
+          console.warn("⚠️ Failed to refresh token on retry:", refreshError);
+          return { data: null, error: { status: response.status, message: `Authentication failed: ${errorMessage}` } } as any;
         }
       }
 
@@ -1390,15 +1389,14 @@ export const purchaseMembershipPlan = async (planId: string) => {
         return { data: null, error: { status: 409, message: errorMessage } } as any;
       }
 
-      const err: any = new Error(errorMessage);
-      err.status = response.status;
-      throw err;
+      // Return structured error instead of throwing
+      return { data: null, error: { status: response.status, message: errorMessage } } as any;
     }
 
     const okData = await response.json();
     return { data: okData, error: null } as any;
   } catch (error) {
-    console.error("❌ Failed to purchase membership plan:", error);
+    console.warn("⚠️ Failed to purchase membership plan:", error);
     const anyErr: any = error;
     if (anyErr?.status === 409) {
       return { data: null, error: { status: 409, message: (error as Error).message } } as any;
@@ -1418,7 +1416,7 @@ export const purchaseCreditPackage = async (packageId: string) => {
       try {
         jwtToken = await refreshBackendJwt();
       } catch (refreshError) {
-        console.error("❌ Failed to refresh JWT token:", refreshError);
+        console.warn("⚠️ Failed to refresh JWT token:", refreshError);
         return {
           data: null,
           error: {
@@ -1480,7 +1478,7 @@ export const purchaseCreditPackage = async (packageId: string) => {
           const retryData = await retryResponse.json();
           return { data: retryData, error: null };
         } catch (refreshError) {
-          console.error("❌ Failed to refresh token on retry:", refreshError);
+          console.warn("⚠️ Failed to refresh token on retry:", refreshError);
           return {
             data: null,
             error: {
@@ -1503,7 +1501,7 @@ export const purchaseCreditPackage = async (packageId: string) => {
     const data = await response.json();
     return { data, error: null };
   } catch (error) {
-    console.error("❌ Failed to purchase credit package:", error);
+    console.warn("⚠️ Failed to purchase credit package:", error);
     return {
       data: null,
       error: {

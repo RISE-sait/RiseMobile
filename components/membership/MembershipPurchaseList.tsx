@@ -109,7 +109,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         const membershipTypesResult = await getAllMembershipPlans();
 
         if (membershipTypesResult.error) {
-          console.error("❌ Error fetching membership types:", membershipTypesResult.error);
+          console.warn("⚠️ Error fetching membership types:", membershipTypesResult.error);
           setError("Failed to load membership types");
           setLoading(false);
           return;
@@ -135,7 +135,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
         setMembershipSections(initialSections);
       } catch (error) {
-        console.error("❌ Unexpected error fetching membership data:", error);
+        console.warn("⚠️ Unexpected error fetching membership data:", error);
         setError("Failed to load membership information");
       } finally {
         setLoading(false);
