@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { usePathname, useRouter, useSegments } from "expo-router";
+import { usePathname, useRouter, useSegments, useNavigation } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchEvents } from "@/store/slices/eventsSlice";
@@ -42,6 +42,7 @@ const EventsScreen: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const segments = useSegments();
+  const navigation = useNavigation();
 
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.user.data);
@@ -231,24 +232,26 @@ const EventsScreen: React.FC = () => {
         style={styles.eventCard}
         activeOpacity={0.9}
         onPress={() => {
-          // 🔍 Step 1: Log navigation state BEFORE navigation
-          const routerState = router.getState?.();
+          // 🔍 Step 1: Log navigation state BEFORE navigation using useNavigation()
+          const navState = navigation.getState();
           console.log("[Events] 🎯 BEFORE navigation:", {
             id: item.id,
             type: item.type,
             pathname,
             segments: segments.join("/") || "(root)",
             canGoBack: router.canGoBack?.() ?? null,
-            routerState: routerState ? {
-              index: routerState.index,
-              routes: routerState.routes?.map((r: any) => ({
+            navState: navState ? {
+              type: navState.type,
+              index: navState.index,
+              routes: navState.routes?.map((r: any) => ({
                 name: r.name,
                 key: r.key,
                 params: r.params,
               })),
-              routeCount: routerState.routes?.length,
+              routeCount: navState.routes?.length,
             } : "unavailable",
           });
+          console.log("[Events] 🎯 Full navState:", JSON.stringify(navState, null, 2));
 
           if (item.type === "match" || item.type === "game") {
             // Navigate to match details - calls GET /games/{id}
@@ -278,11 +281,12 @@ const EventsScreen: React.FC = () => {
 
           // 🔍 Step 1: Log navigation state AFTER navigation (with small delay)
           setTimeout(() => {
-            const afterState = router.getState?.();
+            const afterState = navigation.getState();
             console.log("[Events] ✅ AFTER navigation:", {
-              pathname: router.pathname || "unknown",
+              pathname: pathname,
               canGoBack: router.canGoBack?.() ?? null,
-              routerState: afterState ? {
+              navState: afterState ? {
+                type: afterState.type,
                 index: afterState.index,
                 routes: afterState.routes?.map((r: any) => ({
                   name: r.name,
@@ -291,6 +295,7 @@ const EventsScreen: React.FC = () => {
                 routeCount: afterState.routes?.length,
               } : "unavailable",
             });
+            console.log("[Events] ✅ Full navState after:", JSON.stringify(afterState, null, 2));
           }, 100);
         }}
 
@@ -370,17 +375,28 @@ const EventsScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
-            // 🔍 Step 4: Log events page back button
-            const routerState = router.getState?.();
-            console.log("[Events] 🔙 Back button pressed (uses replace, not back!)", {
+            // 🔍 Step 2: Log events page back button - NOW USING BACK INSTEAD OF REPLACE
+            const navState = navigation.getState();
+            const canGoBack = router.canGoBack?.() ?? false;
+            console.log("[Events] 🔙 Back button pressed", {
               currentPathname: pathname,
-              canGoBack: router.canGoBack?.() ?? null,
-              routerState: routerState ? {
-                index: routerState.index,
-                routeCount: routerState.routes?.length,
+              canGoBack,
+              navState: navState ? {
+                type: navState.type,
+                index: navState.index,
+                routeCount: navState.routes?.length,
               } : "unavailable",
             });
-            router.replace("/(athlete)/(tabs)/home");
+            console.log("[Events] 🔙 Full navState:", JSON.stringify(navState, null, 2));
+
+            // Use router.back() if possible, otherwise replace
+            if (canGoBack) {
+              console.log("[Events] 🔙 Using router.back()");
+              router.back();
+            } else {
+              console.log("[Events] 🔙 Cannot go back, using router.replace()");
+              router.replace("/(athlete)/(tabs)/home");
+            }
           }}
         >
           <Ionicons name="chevron-back" size={24} color="#F0F0F0" />

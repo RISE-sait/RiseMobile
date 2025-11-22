@@ -17,7 +17,7 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
-import { useLocalSearchParams, usePathname, useRouter, useSegments } from "expo-router"
+import { useLocalSearchParams, usePathname, useRouter, useSegments, useNavigation } from "expo-router"
 import dayjs from "dayjs"
 import axios from "axios"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
@@ -103,6 +103,7 @@ const EventDetails: React.FC = () => {
   const router = useRouter()
   const pathname = usePathname()
   const segments = useSegments()
+  const navigation = useNavigation()
   const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
   const membershipData = useAppSelector((state) => state.membership.data)
@@ -133,27 +134,29 @@ const EventDetails: React.FC = () => {
   const paymentCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // 🔍 Step 3: Log detailed router state when component mounts
-    const routerState = router.getState?.();
+    // 🔍 Step 3: Log detailed router state when component mounts using useNavigation()
+    const navState = navigation.getState();
     console.log(`[Event ${id}] 📍 Component MOUNTED - navigation snapshot`, {
       pathname,
       segments: segments.join("/") || "(root)",
       canGoBack: router.canGoBack?.() ?? null,
-      routerState: routerState ? {
-        index: routerState.index,
-        routes: routerState.routes?.map((r: any) => ({
+      navState: navState ? {
+        type: navState.type,
+        index: navState.index,
+        routes: navState.routes?.map((r: any) => ({
           name: r.name,
           key: r.key,
           params: r.params,
         })),
-        routeCount: routerState.routes?.length,
-        currentRoute: routerState.routes?.[routerState.index],
-        hasEventDetailsInStack: routerState.routes?.some((r: any) =>
+        routeCount: navState.routes?.length,
+        currentRoute: navState.routes?.[navState.index],
+        hasEventDetailsInStack: navState.routes?.some((r: any) =>
           r.name?.includes('event-details') || r.key?.includes('event-details')
         ),
       } : "unavailable",
     })
-  }, [id, pathname, segments, router])
+    console.log(`[Event ${id}] 📍 Full navState:`, JSON.stringify(navState, null, 2));
+  }, [id, pathname, segments, router, navigation])
 
   // Function to fetch user credits
   const fetchUserCredits = async (force = false) => {
