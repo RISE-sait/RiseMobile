@@ -15,10 +15,9 @@ export default function CoachLayout() {
       <Stack.Screen name="screens/coach-booking/practiceBooking" options={{ presentation: "modal" }} />
       <Stack.Screen name="screens/profile-options/contactUs" options={{ presentation: "modal" }} />
 
-      {/* ✅ Detail pages - now part of coach stack for proper navigation */}
-      <Stack.Screen name="screens/event-details/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="screens/match-details/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="screens/practice-details/[id]" options={{ headerShown: false }} />
+      {/* ⚠️ Detail pages are NOT registered here - they use the shared screens stack from root layout */}
+      {/* Navigation to /screens/event-details/[id] will use app/screens/event-details/[id].tsx */}
+      {/* This prevents route duplication and ensures single source of truth */}
     </Stack>
   );
 }

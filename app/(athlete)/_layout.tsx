@@ -15,10 +15,9 @@ export default function AthleteLayout() {
       <Stack.Screen name="screens/booking-options/Courts" options={{ headerShown: false }} />
       <Stack.Screen name="screens/booking-options/CourtsideKutz" options={{ headerShown: false }} />
 
-      {/* ✅ Detail pages - now part of athlete stack for proper navigation */}
-      <Stack.Screen name="screens/event-details/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="screens/match-details/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="screens/practice-details/[id]" options={{ headerShown: false }} />
+      {/* ⚠️ Detail pages are NOT registered here - they use the shared screens stack from root layout */}
+      {/* Navigation to /screens/event-details/[id] will use app/screens/event-details/[id].tsx */}
+      {/* This prevents route duplication and ensures single source of truth */}
     </Stack>
   );
 }
