@@ -203,7 +203,7 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
 
       if (result?.error) {
         const errorMessage = result.error.message || 'Unable to initiate purchase. Please try again.'
-        console.error('Purchase error:', errorMessage)
+        if (__DEV__) console.warn('Purchase error:', errorMessage)
         alert(`Purchase Failed\n${errorMessage}`)
         return
       }
@@ -217,7 +217,7 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
         alert('Purchase Unavailable\nUnable to initiate purchase. Please try again later.')
       }
     } catch (error) {
-      console.error('Purchase error:', error)
+      if (__DEV__) console.warn('Purchase error (fallback):', error)
       alert(`Purchase Failed\n${(error as Error)?.message || 'Unable to initiate purchase.'}`)
     } finally {
       setPurchaseLoading(null)
