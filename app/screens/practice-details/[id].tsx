@@ -81,7 +81,7 @@ const PracticeDetails: React.FC = () => {
   const segments = useSegments()
 
   useEffect(() => {
-    console.log(`[Practice ${id}] navigation snapshot`, {
+    if (__DEV__) console.log(`[Practice ${id}] navigation snapshot`, {
       pathname,
       segments: segments.join("/") || "(root)",
       canGoBack: router.canGoBack?.() ?? null,
@@ -144,7 +144,7 @@ const PracticeDetails: React.FC = () => {
 
       setPractice(transformedPractice)
     } catch (err: any) {
-      console.error("❌ Error fetching practice details:", err.response?.data || err.message)
+      if (__DEV__) console.warn("❌ Error fetching practice details:", err.response?.data || err.message)
       setError("Failed to load practice details. Please try again.")
     } finally {
       setLoading(false)
@@ -204,7 +204,7 @@ const PracticeDetails: React.FC = () => {
         title: practice.title,
       })
     } catch (error) {
-      console.error("Error sharing practice:", error)
+      if (__DEV__) console.warn("Error sharing practice:", error)
     }
   }
 

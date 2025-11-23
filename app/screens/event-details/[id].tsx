@@ -136,7 +136,7 @@ const EventDetails: React.FC = () => {
   useEffect(() => {
     // 🔍 Step 3: Log detailed router state when component mounts using useNavigation()
     const navState = navigation.getState();
-    console.log(`[Event ${id}] 📍 Component MOUNTED - navigation snapshot`, {
+    if (__DEV__) console.log(`[Event ${id}] 📍 Component MOUNTED - navigation snapshot`, {
       pathname,
       segments: segments.join("/") || "(root)",
       canGoBack: router.canGoBack?.() ?? null,
@@ -155,23 +155,23 @@ const EventDetails: React.FC = () => {
         ),
       } : "unavailable",
     })
-    console.log(`[Event ${id}] 📍 Full navState:`, JSON.stringify(navState, null, 2));
+    if (__DEV__) console.log(`[Event ${id}] 📍 Full navState:`, JSON.stringify(navState, null, 2));
   }, [id, pathname, segments, router, navigation])
 
   // Function to fetch user credits
   const fetchUserCredits = async (force = false) => {
     const startTime = Date.now()
-    console.log(`⏱️ [Event ${id}] Starting fetchUserCredits...`)
+    if (__DEV__) console.log(`⏱️ [Event ${id}] Starting fetchUserCredits...`)
 
     if (creditsLoaded && !force) {
-      console.log(`⏱️ [Event ${id}] fetchUserCredits: Skipped (already loaded) - ${Date.now() - startTime}ms`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserCredits: Skipped (already loaded) - ${Date.now() - startTime}ms`)
       return
     }
 
     try {
       const token = userData?.token
       if (!token) {
-        console.log(`⏱️ [Event ${id}] fetchUserCredits: No token - ${Date.now() - startTime}ms`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserCredits: No token - ${Date.now() - startTime}ms`)
         return
       }
 
@@ -180,33 +180,33 @@ const EventDetails: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       })
       const apiDuration = Date.now() - apiStartTime
-      console.log(`⏱️ [Event ${id}] fetchUserCredits: API call completed - ${apiDuration}ms`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserCredits: API call completed - ${apiDuration}ms`)
 
       setCredits(response.data.credits || 0)
       setCreditsLoaded(true)
 
       const totalDuration = Date.now() - startTime
-      console.log(`⏱️ [Event ${id}] fetchUserCredits: Completed - ${totalDuration}ms total`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserCredits: Completed - ${totalDuration}ms total`)
     } catch (error) {
       const totalDuration = Date.now() - startTime
-      console.error(`❌ [Event ${id}] fetchUserCredits: Error after ${totalDuration}ms`, error)
+      if (__DEV__) console.warn(`❌ [Event ${id}] fetchUserCredits: Error after ${totalDuration}ms`, error)
     }
   }
 
   // Function to fetch event enrollment options
   const fetchEnrollmentOptions = async (eventId: string) => {
     const startTime = Date.now()
-    console.log(`⏱️ [Event ${id}] Starting fetchEnrollmentOptions for event ${eventId}...`)
+    if (__DEV__) console.log(`⏱️ [Event ${id}] Starting fetchEnrollmentOptions for event ${eventId}...`)
 
     try {
       const token = userData?.token
       if (!token) {
-        console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: No token - ${Date.now() - startTime}ms`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: No token - ${Date.now() - startTime}ms`)
         return
       }
 
       if (loadingEnrollmentOptions) {
-        console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: Already loading, skipping - ${Date.now() - startTime}ms`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: Already loading, skipping - ${Date.now() - startTime}ms`)
         return
       }
 
@@ -215,15 +215,15 @@ const EventDetails: React.FC = () => {
       const apiStartTime = Date.now()
       const options = await getEventEnrollmentOptions(eventId, token)
       const apiDuration = Date.now() - apiStartTime
-      console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: API call completed - ${apiDuration}ms`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: API call completed - ${apiDuration}ms`)
 
       setEnrollmentOptions(options)
 
       const totalDuration = Date.now() - startTime
-      console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: Completed - ${totalDuration}ms total`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: Completed - ${totalDuration}ms total`)
     } catch (error) {
       const totalDuration = Date.now() - startTime
-      console.error(`❌ [Event ${id}] fetchEnrollmentOptions: Error after ${totalDuration}ms`, error)
+      if (__DEV__) console.warn(`❌ [Event ${id}] fetchEnrollmentOptions: Error after ${totalDuration}ms`, error)
       setEnrollmentOptions(null)
     } finally {
       setLoadingEnrollmentOptions(false)
@@ -233,37 +233,37 @@ const EventDetails: React.FC = () => {
   // Function to fetch user membership
   const fetchUserMembership = async () => {
     const startTime = Date.now()
-    console.log(`⏱️ [Event ${id}] Starting fetchUserMembership...`)
+    if (__DEV__) console.log(`⏱️ [Event ${id}] Starting fetchUserMembership...`)
 
     if (membershipLoaded) {
-      console.log(`⏱️ [Event ${id}] fetchUserMembership: Skipped (already loaded) - ${Date.now() - startTime}ms`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserMembership: Skipped (already loaded) - ${Date.now() - startTime}ms`)
       return
     }
 
     try {
       if (!userData?.id) {
-        console.log(`⏱️ [Event ${id}] fetchUserMembership: No user ID - ${Date.now() - startTime}ms`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserMembership: No user ID - ${Date.now() - startTime}ms`)
         return
       }
 
       const apiStartTime = Date.now()
       const memberships = await getMembershipByCustomerId(userData.id)
       const apiDuration = Date.now() - apiStartTime
-      console.log(`⏱️ [Event ${id}] fetchUserMembership: API call completed - ${apiDuration}ms`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserMembership: API call completed - ${apiDuration}ms`)
 
       if (memberships?.length > 0) {
         dispatch(setMembership(memberships[0]))
         setMembershipLoaded(true)
-        console.log(`⏱️ [Event ${id}] fetchUserMembership: Found ${memberships.length} membership(s)`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserMembership: Found ${memberships.length} membership(s)`)
       } else {
-        console.log(`⏱️ [Event ${id}] fetchUserMembership: No memberships found`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserMembership: No memberships found`)
       }
 
       const totalDuration = Date.now() - startTime
-      console.log(`⏱️ [Event ${id}] fetchUserMembership: Completed - ${totalDuration}ms total`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchUserMembership: Completed - ${totalDuration}ms total`)
     } catch (error) {
       const totalDuration = Date.now() - startTime
-      console.error(`❌ [Event ${id}] fetchUserMembership: Error after ${totalDuration}ms`, error)
+      if (__DEV__) console.warn(`❌ [Event ${id}] fetchUserMembership: Error after ${totalDuration}ms`, error)
     }
   }
 
@@ -303,7 +303,7 @@ const EventDetails: React.FC = () => {
 
   useEffect(() => {
     const pageLoadStart = Date.now()
-    console.log(`⏱️ [Event ${id}] ========== PAGE LOAD STARTED ==========`)
+    if (__DEV__) console.log(`⏱️ [Event ${id}] ========== PAGE LOAD STARTED ==========`)
 
     // Start animations
     Animated.parallel([
@@ -324,7 +324,7 @@ const EventDetails: React.FC = () => {
     // when user clicks the register button (see handleRegister function)
     fetchEventDetails().then(() => {
       const totalPageLoadTime = Date.now() - pageLoadStart
-      console.log(`⏱️ [Event ${id}] ========== EVENT DETAILS LOADED - ${totalPageLoadTime}ms total ==========`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] ========== EVENT DETAILS LOADED - ${totalPageLoadTime}ms total ==========`)
     })
   }, [id])
 
@@ -371,7 +371,7 @@ const EventDetails: React.FC = () => {
 
       return isUserEnrolled
     } catch (error) {
-      console.error("Error checking enrollment status:", error)
+      if (__DEV__) console.warn("Error checking enrollment status:", error)
       return false
     }
   }
@@ -402,7 +402,7 @@ const EventDetails: React.FC = () => {
           return
         }
       } catch (error) {
-        console.error("Error checking enrollment status:", error)
+        if (__DEV__) console.warn("Error checking enrollment status:", error)
       }
 
       // Stop after max attempts
@@ -432,7 +432,7 @@ const EventDetails: React.FC = () => {
 
   const fetchEventDetails = async () => {
     const startTime = Date.now()
-    console.log(`⏱️ [Event ${id}] Starting fetchEventDetails...`)
+    if (__DEV__) console.log(`⏱️ [Event ${id}] Starting fetchEventDetails...`)
 
     setLoading(true)
     setError(null)
@@ -440,7 +440,7 @@ const EventDetails: React.FC = () => {
     try {
       // Check if event is already cached
       if (cachedEvent) {
-        console.log(`⏱️ [Event ${id}] fetchEventDetails: Using cached event data`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Using cached event data`)
 
         // Safely read text fields
         const ce = cachedEvent as any;
@@ -481,7 +481,7 @@ const EventDetails: React.FC = () => {
         setLoading(false);
 
         const totalDuration = Date.now() - startTime
-        console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed (cached) - ${totalDuration}ms total`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed (cached) - ${totalDuration}ms total`)
         return;
       }
 
@@ -489,7 +489,7 @@ const EventDetails: React.FC = () => {
       // Use the userData from component level
       if (!userData) {
         const errorDuration = Date.now() - startTime
-        console.log(`⏱️ [Event ${id}] fetchEventDetails: No user data - ${errorDuration}ms`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: No user data - ${errorDuration}ms`)
         setError("Authentication error. Please log in again.")
         setLoading(false)
         return
@@ -499,7 +499,7 @@ const EventDetails: React.FC = () => {
 
       if (!token) {
         const errorDuration = Date.now() - startTime
-        console.log(`⏱️ [Event ${id}] fetchEventDetails: No token - ${errorDuration}ms`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: No token - ${errorDuration}ms`)
         setError("Authentication token not found. Please log in again.")
         setLoading(false)
         return
@@ -507,13 +507,13 @@ const EventDetails: React.FC = () => {
 
       // Clean the ID to remove any suffix
       const cleanedId = cleanId(id as string)
-      console.log(`⏱️ [Event ${id}] fetchEventDetails: Cleaned ID = ${cleanedId}, type = ${type}`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Cleaned ID = ${cleanedId}, type = ${type}`)
 
       // Skip Redux for events and use direct API call with public endpoint
 
       // Fallback to direct API call for programs or if Redux fails
       if (type === "practice") {
-        console.log(`⏱️ [Event ${id}] fetchEventDetails: Practice type - checking Redux store`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Practice type - checking Redux store`)
 
         // For practices, try to get data from Redux store first
 
@@ -523,14 +523,14 @@ const EventDetails: React.FC = () => {
           setEvent(practiceFromStore)
           setLoading(false)
           const totalDuration = Date.now() - startTime
-          console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed (practice from store) - ${totalDuration}ms total`)
+          if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed (practice from store) - ${totalDuration}ms total`)
           return
         }
 
-        console.log(`⏱️ [Event ${id}] fetchEventDetails: Practice not in store, using mock data`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Practice not in store, using mock data`)
         fallbackToMockData()
         const totalDuration = Date.now() - startTime
-        console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed (mock data) - ${totalDuration}ms total`)
+        if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed (mock data) - ${totalDuration}ms total`)
         return
       }
 
@@ -541,15 +541,15 @@ const EventDetails: React.FC = () => {
       // Always use public endpoint for event details - it contains full event info
       // The secure endpoint only returns enrolled events without full details
       url = `${API_URL}/events/${cleanedId}`;
-      console.log(`⏱️ [Event ${id}] fetchEventDetails: Starting API call to ${url}`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Starting API call to ${url}`)
 
       const apiStartTime = Date.now()
       response = await axios.get<ApiEventResponse>(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const apiDuration = Date.now() - apiStartTime
-      console.log(`⏱️ [Event ${id}] fetchEventDetails: API call completed - ${apiDuration}ms`)
-      console.log(`⏱️ [Event ${id}] fetchEventDetails: Response size = ${JSON.stringify(response.data).length} bytes`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: API call completed - ${apiDuration}ms`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Response size = ${JSON.stringify(response.data).length} bytes`)
 
 
       // Process the data from the API response
@@ -586,7 +586,7 @@ const EventDetails: React.FC = () => {
       const imageUrl = eventData.program?.photo_url ||
         "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
 
-      console.log(`🖼️ [Event ${id}] Image URL:`, {
+      if (__DEV__) console.log(`🖼️ [Event ${id}] Image URL:`, {
         hasPhotoUrl: !!eventData.program?.photo_url,
         photoUrl: eventData.program?.photo_url || 'none',
         usingFallback: !eventData.program?.photo_url,
@@ -616,7 +616,7 @@ const EventDetails: React.FC = () => {
         customer.id === userData.id || customer.email === userData.email
       ) || false
 
-      console.log("🔍 Event Details Debug:", {
+      if (__DEV__) console.log("🔍 Event Details Debug:", {
         eventId: processedEvent.id,
         title: processedEvent.title,
         includesPractice: processedEvent.title.toLowerCase().includes('practice'),
@@ -628,10 +628,10 @@ const EventDetails: React.FC = () => {
       setRegistered(isUserEnrolled)
 
       const totalDuration = Date.now() - startTime
-      console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed successfully - ${totalDuration}ms total`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed successfully - ${totalDuration}ms total`)
     } catch (err: any) {
       const errorDuration = Date.now() - startTime
-      console.error(`❌ [Event ${id}] fetchEventDetails: Error after ${errorDuration}ms`, err.response?.data || err.message)
+      if (__DEV__) console.warn(`❌ [Event ${id}] fetchEventDetails: Error after ${errorDuration}ms`, err.response?.data || err.message)
       setError("Failed to load event details. Please try again.")
 
       // Use mock data as fallback
@@ -859,7 +859,7 @@ const EventDetails: React.FC = () => {
         title: event.title,
       })
     } catch (error) {
-      console.error("Error sharing event:", error)
+      if (__DEV__) console.warn("Error sharing event:", error)
     }
   }
 
@@ -945,7 +945,7 @@ const EventDetails: React.FC = () => {
         }
       }
     } catch (error: any) {
-      console.error("Enrollment error:", error)
+      if (__DEV__) console.warn("Enrollment error:", error)
 
       // Distinguish between different error types
       if (error.response) {
