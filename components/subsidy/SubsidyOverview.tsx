@@ -13,14 +13,39 @@ import {
   setSubsidyUsage,
   setLoading,
   setError,
+  clearSubsidy,
 } from '@/store/slices/subsidySlice'
 
 interface SubsidyOverviewProps {
   userToken: string
 }
 
+const formatCurrency = (value: number | string) => {
+  const numericValue = typeof value === 'number' ? value : parseFloat(value)
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0
+  try {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD',
+      minimumFractionDigits: 2,
+    }).format(safeValue)
+  } catch {
+    return `$${safeValue.toFixed(2)}`
+  }
+}
+
+const formatUsageDescription = (desc?: string) => {
+  const base = desc?.trim()
+  if (!base) return 'Subsidy transaction'
+
+  // Hide long session IDs tacked onto descriptions, keep the readable prefix
+  const stripped = base.replace(/- Session\s+[A-Za-z0-9_]+$/i, '').trim()
+  return stripped || base
+}
+
 export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) => {
   const dispatch = useDispatch()
+  const previousTokenRef = React.useRef<string | null>(null)
 
   // Get subsidy data from Redux store
   const { subsidies, balance, usage } = useSelector(
@@ -119,15 +144,58 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
       )
 
       // Handle different response formats
-      let usageData: SubsidyUsage[] = []
+      let rawUsage: any[] = []
       if (Array.isArray(response.data)) {
-        usageData = response.data
+        rawUsage = response.data
       } else if (response.data?.data && Array.isArray(response.data.data)) {
         // Backend returns { data: [...], pagination: {...} }
-        usageData = response.data.data
+        rawUsage = response.data.data
       } else if (response.data?.usage && Array.isArray(response.data.usage)) {
-        usageData = response.data.usage
+        rawUsage = response.data.usage
       }
+
+      const normalizeUsage = (item: any): SubsidyUsage => {
+        const rawAmount =
+          item.amount ??
+          item.original_amount ??
+          item.subsidy_applied ??
+          item.customer_paid ??
+          item.amount_cents ??
+          item.amount_in_cents ??
+          item.price ??
+          0
+        const amountNumber =
+          typeof rawAmount === 'number' ? rawAmount : parseFloat(rawAmount)
+        const safeAmount = Number.isFinite(amountNumber) ? amountNumber : 0
+
+        const usageDateRaw =
+          item.usage_date ||
+          item.date ||
+          item.created_at ||
+          item.updated_at ||
+          item.timestamp ||
+          ''
+        const parsedDate = usageDateRaw ? new Date(usageDateRaw) : null
+        const safeDate =
+          parsedDate && !isNaN(parsedDate.getTime())
+            ? parsedDate.toISOString()
+            : ''
+
+        return {
+          id: item.id || item.transaction_id || `${item.description || 'usage'}-${safeDate || Date.now()}`,
+          subsidy_id: item.subsidy_id || item.subsidy || '',
+          amount: safeAmount,
+          usage_date: safeDate,
+          description: item.description || item.reason || item.label || 'Subsidy transaction',
+          event_id: item.event_id || item.event || undefined,
+          transaction_type:
+            item.transaction_type ||
+            item.type ||
+            (safeAmount >= 0 ? 'credit' : 'debit'),
+        }
+      }
+
+      const usageData: SubsidyUsage[] = rawUsage.map(normalizeUsage)
 
       dispatch(setSubsidyUsage(usageData))
     } catch (error) {
@@ -138,6 +206,13 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
   }
 
   useEffect(() => {
+    // If user switches accounts, clear prior subsidy data to avoid leakage
+    if (previousTokenRef.current && previousTokenRef.current !== userToken) {
+      dispatch(clearSubsidy())
+      setShowUsageHistory(false)
+    }
+    previousTokenRef.current = userToken
+
     fetchSubsidyData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userToken])
@@ -152,6 +227,16 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
   const renderUsageItem = ({ item }: { item: SubsidyUsage }) => {
     const isPositive = item.transaction_type === 'credit' || item.transaction_type === 'refund'
     const iconName = isPositive ? 'plus-circle' : 'minus-circle'
+    const amountNumber =
+      typeof item.amount === 'number' ? item.amount : Number(item.amount)
+    const displayAmount = formatCurrency(
+      Number.isFinite(amountNumber) ? Math.abs(amountNumber) : 0
+    )
+    const parsedDate = item.usage_date ? new Date(item.usage_date) : null
+    const displayDate =
+      parsedDate && !isNaN(parsedDate.getTime())
+        ? parsedDate.toLocaleDateString()
+        : 'Date unavailable'
 
     return (
       <View style={styles.usageItem}>
@@ -161,16 +246,16 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
           color={isPositive ? '#4ade80' : '#ef4444'}
         />
         <View style={styles.usageDetails}>
-          <Text style={styles.usageDescription}>{item.description || 'Subsidy transaction'}</Text>
+          <Text style={styles.usageDescription}>{formatUsageDescription(item.description)}</Text>
           <Text style={styles.usageDate}>
-            {new Date(item.usage_date).toLocaleDateString()}
+            {displayDate}
           </Text>
         </View>
         <Text style={[
           styles.usageAmount,
           { color: isPositive ? '#4ade80' : '#ef4444' }
         ]}>
-          {isPositive ? '+' : '-'}¥{Math.abs(item.amount)}
+          {isPositive ? '+' : '-'}{displayAmount}
         </Text>
       </View>
     )
@@ -194,15 +279,15 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
       {/* Balance Card */}
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Available Subsidy</Text>
-        <Text style={styles.balanceAmount}>¥{balanceToShow.available_balance}</Text>
+        <Text style={styles.balanceAmount}>{formatCurrency(balanceToShow.available_balance)}</Text>
         <View style={styles.balanceDetails}>
           <View style={styles.balanceDetailItem}>
             <Text style={styles.balanceDetailLabel}>Total</Text>
-            <Text style={styles.balanceDetailValue}>¥{balanceToShow.total_balance}</Text>
+            <Text style={styles.balanceDetailValue}>{formatCurrency(balanceToShow.total_balance)}</Text>
           </View>
           <View style={styles.balanceDetailItem}>
             <Text style={styles.balanceDetailLabel}>Used</Text>
-            <Text style={styles.balanceDetailValue}>¥{balanceToShow.used_balance}</Text>
+            <Text style={styles.balanceDetailValue}>{formatCurrency(balanceToShow.used_balance)}</Text>
           </View>
         </View>
       </View>
@@ -226,7 +311,7 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
               <View style={styles.subsidyHeader}>
                 <Text style={styles.subsidyStatus}>{subsidy.status}</Text>
               </View>
-              <Text style={styles.subsidyAmount}>¥{subsidy.amount}</Text>
+              <Text style={styles.subsidyAmount}>{formatCurrency(subsidy.amount)}</Text>
               {subsidy.description && (
                 <Text style={styles.subsidyDescription}>{subsidy.description}</Text>
               )}

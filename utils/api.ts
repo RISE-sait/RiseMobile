@@ -1310,15 +1310,19 @@ export const getPlansForMembership = async (membershipId: string, jwtOverride?: 
 
 // Initiate membership plan purchase (requires authentication)
 export const purchaseMembershipPlan = async (planId: string) => {
+  console.log("🔵 purchaseMembershipPlan called with planId:", planId);
   try {
     // Get stored JWT token for backend authentication
     // The project uses "Firebase for identity, JWT for business authorization"
     let jwtToken = await AsyncStorage.getItem("authToken");
+    console.log("🔵 JWT token retrieved:", jwtToken ? "✅ exists" : "❌ missing");
 
     // If no JWT token, we need to get one from /auth endpoint using Firebase token
     if (!jwtToken) {
+      console.log("🔵 No JWT token found, attempting to refresh...");
       try {
         jwtToken = await refreshBackendJwt();
+        console.log("🔵 JWT token refreshed successfully");
       } catch (refreshError) {
         console.warn("⚠️ Failed to refresh JWT token:", refreshError);
         return { data: null, error: { status: 401, message: "Unable to authenticate with backend" } } as any;
@@ -1327,9 +1331,12 @@ export const purchaseMembershipPlan = async (planId: string) => {
 
     // Use test mode flag to determine effective plan id
     const effectivePlanId = USE_MEMBERSHIP_TEST_MODE ? MEMBERSHIP_TEST_PLAN_ID : planId;
+    console.log("🔵 Test mode:", USE_MEMBERSHIP_TEST_MODE, "| Effective plan ID:", effectivePlanId);
 
+    const url = `${API_URL}/checkout/membership_plans/${effectivePlanId}`;
+    console.log("🔵 Making POST request to:", url);
 
-    const response = await fetch(`${API_URL}/checkout/membership_plans/${effectivePlanId}`, {
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${jwtToken}`,
@@ -1337,9 +1344,12 @@ export const purchaseMembershipPlan = async (planId: string) => {
       },
     });
 
+    console.log("🔵 Response status:", response.status, response.statusText);
+
     if (!response.ok) {
       // Try to read structured error from backend
       let errorText = await response.text();
+      console.log("🔵 Error response body:", errorText);
       let errorMessage = "Failed to initiate membership purchase";
       try {
         const parsed = JSON.parse(errorText || "{}");
@@ -1394,9 +1404,10 @@ export const purchaseMembershipPlan = async (planId: string) => {
     }
 
     const okData = await response.json();
+    console.log("✅ Purchase successful! Response data:", okData);
     return { data: okData, error: null } as any;
   } catch (error) {
-    console.warn("⚠️ Failed to purchase membership plan:", error);
+    console.error("❌ Failed to purchase membership plan - Exception caught:", error);
     const anyErr: any = error;
     if (anyErr?.status === 409) {
       return { data: null, error: { status: 409, message: (error as Error).message } } as any;

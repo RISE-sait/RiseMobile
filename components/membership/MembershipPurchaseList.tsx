@@ -72,6 +72,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
   // Use custom feedback dialog instead of Alert.alert
   const dialog = useFeedbackDialog();
+  const hideDialog = dialog.hide;
   const { getValidToken } = useAuth();
   const jwtRef = useRef<string | null>(null);
   const interactionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
@@ -94,10 +95,10 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 
   useEffect(() => {
     return () => {
-      dialog.hide();
+      hideDialog();
       jwtRef.current = null;
     };
-  }, [dialog]);
+  }, [hideDialog]);
 
 
   useEffect(() => {
@@ -265,15 +266,25 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   };
 
   const handleToggleSection = (sectionId: string) => {
+    console.log("🟡 Section toggle - ID:", sectionId, "| Current expanded:", expandedSectionId);
     if (expandedSectionId === sectionId) {
+      console.log("🟡 Collapsing section");
       setExpandedSectionId(null);
       return;
     }
 
+    console.log("🟡 Expanding section");
     setExpandedSectionId(sectionId);
     const target = membershipSections.find((section) => section.id === sectionId);
     if (target && !target.loaded && !target.loading) {
+      console.log("🟡 Loading section plans for:", sectionId);
       loadSectionPlans(sectionId);
+    } else {
+      console.log("🟡 Section already loaded or loading:", {
+        loaded: target?.loaded,
+        loading: target?.loading,
+        plansCount: target?.data?.length
+      });
     }
   };
 
@@ -301,6 +312,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   };
 
   const handlePurchase = async (planId: string, planName: string) => {
+    console.log("🔷 handlePurchase called - Plan:", planName, "| ID:", planId);
     setPurchaseLoadingId(planId);
 
     // Set a timeout to reset loading state if request takes too long
@@ -317,17 +329,40 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     }, 30000); // 30 second timeout
 
     try {
+      console.log("🔷 Calling purchaseMembershipPlan API...");
       // Call API which now returns { data, error }
       const result: any = await purchaseMembershipPlan(planId);
+      console.log("🔷 API call completed. Result:", result);
 
       // Clear timeout if request completes
       clearTimeout(timeoutId);
 
       if (result?.error) {
+        console.log("🔷 Error detected - Status:", result.error.status, "| Message:", result.error.message);
         const status: number | undefined = result.error.status;
-        const backendMessage: string | undefined = result.error.message;
+        let backendMessage: string | undefined = result.error.message;
+
+        // Parse Stripe error if present in the message
+        if (backendMessage && backendMessage.includes("Subscription setup failed:")) {
+          try {
+            const stripeErrorMatch = backendMessage.match(/Subscription setup failed: ({.*})/);
+            if (stripeErrorMatch) {
+              const stripeError = JSON.parse(stripeErrorMatch[1]);
+              // Extract user-friendly message from Stripe error
+              if (stripeError.code === "resource_missing" && stripeError.param === "customer") {
+                backendMessage = "Your account is not set up for payments yet. Please contact support to set up your payment account.";
+              } else if (stripeError.message) {
+                backendMessage = stripeError.message;
+              }
+            }
+          } catch (parseError) {
+            console.warn("⚠️ Failed to parse Stripe error:", parseError);
+            // Keep original message if parsing fails
+          }
+        }
 
         if (status === 409) {
+          console.log("🔷 Showing 'Already Subscribed' dialog");
           dialog.show(
             "Already Subscribed",
             backendMessage || "You already have an active membership for this plan.",
@@ -338,6 +373,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           return;
         }
 
+        console.log("🔷 Showing 'Purchase Failed' dialog with message:", backendMessage);
         dialog.show(
           "Purchase Failed",
           backendMessage || "Unable to initiate purchase. Please try again later or contact support.",
@@ -352,10 +388,11 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       const data = result?.data;
       if (data && data.payment_url && onOpenPaymentWebView) {
         onOpenPaymentWebView(data.payment_url);
-        // Call the completion callback to trigger refresh when payment is initiated
+        // Defer refresh until the WebView flow reports completion
         if (onPurchaseCompleted) {
-          onPurchaseCompleted();
+          console.log("ℹ️ Purchase initiated via WebView; deferring onPurchaseCompleted until flow finishes.");
         }
+        return;
       } else {
         dialog.show(
           "Purchase Unavailable",
@@ -404,14 +441,16 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     );
   };
 
-  const renderPlanCard = ({ item }: { item: MembershipPlan }) => (
-    <View style={styles.accordionPlanCard}>
-      <LinearGradient
-        colors={["#1A1A1A", "#2A2A2A"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.accordionCardGradient}
-      >
+  const renderPlanCard = ({ item }: { item: MembershipPlan }) => {
+    console.log("🟣 Rendering plan card for:", item.name, "| ID:", item.id);
+    return (
+      <View style={styles.accordionPlanCard}>
+        <LinearGradient
+          colors={["#1A1A1A", "#2A2A2A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.accordionCardGradient}
+        >
         {/* Plan Header */}
         <View style={styles.planHeader}>
           <View style={styles.planTitleContainer}>
@@ -443,7 +482,10 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
             styles.purchaseButton,
             purchaseLoadingId === item.id && styles.purchaseButtonLoading
           ]}
-          onPress={() => handlePurchase(item.id, item.name)}
+          onPress={() => {
+            console.log("🟢 Purchase button pressed for:", item.name, "| ID:", item.id);
+            handlePurchase(item.id, item.name);
+          }}
           disabled={purchaseLoadingId === item.id}
         >
           {purchaseLoadingId === item.id ? (
@@ -463,7 +505,8 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         </TouchableOpacity>
       </LinearGradient>
     </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
