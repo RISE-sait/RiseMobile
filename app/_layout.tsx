@@ -114,8 +114,9 @@ export default function RootLayout() {
             <StatusBar style="auto" />
             <ErrorBoundary>
               <NotificationManager />
-              {__DEV__ && <JsHeartbeat />}
-              {__DEV__ && <TouchLogger />}
+              {/* Disabled dev components to reduce console noise */}
+              {/* {__DEV__ && <JsHeartbeat />} */}
+              {/* {__DEV__ && <TouchLogger />} */}
             </ErrorBoundary>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" options={{ headerShown: false }} />
