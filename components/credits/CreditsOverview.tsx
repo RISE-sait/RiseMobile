@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, Modal } from 'react-native'
 import { FontAwesome5 } from '@expo/vector-icons'
 import { WebView } from 'react-native-webview'
@@ -48,8 +48,17 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null)
   const [showWebView, setShowWebView] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState('')
+  const lastFetchedRef = useRef<number>(0)
 
-  const fetchCreditsData = async () => {
+  const fetchCreditsData = async (forceRefresh = false) => {
+    // Throttle: don't refetch within 60s if data exists, unless force refresh
+    const now = Date.now()
+    const hasData = credits !== null
+    if (!forceRefresh && hasData && now - lastFetchedRef.current < 60000) {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
 
@@ -61,9 +70,10 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
       }
 
       try {
-        // Fetch credits balance
+        // Fetch credits balance with 8s timeout
         const creditsResponse = await axios.get<{ credits?: number; customer_id?: string }>(`${API_URL}/secure/credits`, {
-          headers: { Authorization: `Bearer ${userToken}` }
+          headers: { Authorization: `Bearer ${userToken}` },
+          timeout: 8000
         })
 
         // Handle different response formats and null/undefined values
@@ -74,14 +84,15 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
       }
 
       try {
-        // Fetch weekly usage
+        // Fetch weekly usage with 8s timeout
         const weeklyResponse = await axios.get<{
           current_week_usage?: number;
           weekly_limit?: number;
           customer_id?: string;
           remaining_credits?: number;
         }>(`${API_URL}/secure/credits/weekly-usage`, {
-          headers: { Authorization: `Bearer ${userToken}` }
+          headers: { Authorization: `Bearer ${userToken}` },
+          timeout: 8000
         })
 
         // Handle different response formats and null/undefined values
@@ -95,8 +106,11 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
       }
 
       setCredits(creditsData)
+
+      // Update last fetched timestamp
+      lastFetchedRef.current = Date.now()
     } catch (error) {
-      console.error('Error fetching credits:', error)
+      if (__DEV__) console.error('Error fetching credits:', error)
       // Set default values even if there's an error
       setCredits({
         credits: 0,
@@ -116,7 +130,8 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
         offset?: number;
         transactions?: CreditTransaction[];
       }>(`${API_URL}/secure/credits/transactions`, {
-        headers: { Authorization: `Bearer ${userToken}` }
+        headers: { Authorization: `Bearer ${userToken}` },
+        timeout: 8000
       })
       // Handle different response formats and ensure it's always an array
       const transactionsData = response.data
@@ -140,13 +155,13 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
       const result = await getCreditPackages()
 
       if (result.error) {
-        console.error('Error fetching credit packages:', result.error)
+        if (__DEV__) console.error('Error fetching credit packages:', result.error)
         setCreditPackages([])
       } else {
         setCreditPackages(result.data || [])
       }
     } catch (error) {
-      console.error('Error fetching credit packages:', error)
+      if (__DEV__) console.error('Error fetching credit packages:', error)
       setCreditPackages([])
     } finally {
       setPackagesLoading(false)
@@ -154,12 +169,22 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
   }
 
   useEffect(() => {
+    // When userToken changes, clear all state and reset throttle to avoid showing previous user's data
+    setCredits(null)
+    setTransactions([])
+    setCreditPackages([])
+    lastFetchedRef.current = 0
+
     fetchCreditsData()
     fetchCreditPackages()
   }, [userToken])
 
   const handleShowTransactions = () => {
     if (!showTransactions) {
+      // When user explicitly opens transaction history, force refresh to get latest data
+      // This bypasses the 60s throttle to ensure recent transactions are visible
+      lastFetchedRef.current = 0
+      fetchCreditsData(true)
       fetchTransactions()
     }
     setShowTransactions(!showTransactions)
@@ -231,8 +256,9 @@ export const CreditsOverview: React.FC<CreditsOverviewProps> = ({ userToken }) =
     if (url.includes('success') || url.includes('complete')) {
       setShowWebView(false)
       alert('Payment Successful\nYour credit package purchase was completed successfully!')
-      // Refresh credits data
-      fetchCreditsData()
+      // Force refresh credits data after purchase to bypass throttle
+      lastFetchedRef.current = 0
+      fetchCreditsData(true)
     }
 
     // Check for payment failure patterns

@@ -46,6 +46,7 @@ const formatUsageDescription = (desc?: string) => {
 export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) => {
   const dispatch = useDispatch()
   const previousTokenRef = React.useRef<string | null>(null)
+  const lastFetchedRef = React.useRef<number>(0)
 
   // Get subsidy data from Redux store
   const { subsidies, balance, usage } = useSelector(
@@ -55,7 +56,15 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
   const [loading, setLocalLoading] = useState(true)
   const [showUsageHistory, setShowUsageHistory] = useState(false)
 
-  const fetchSubsidyData = async () => {
+  const fetchSubsidyData = async (forceRefresh = false) => {
+    // Throttle: don't refetch within 60s if data exists, unless force refresh
+    const now = Date.now()
+    const hasData = balance !== null || subsidies !== null
+    if (!forceRefresh && hasData && now - lastFetchedRef.current < 60000) {
+      setLocalLoading(false)
+      return
+    }
+
     try {
       setLocalLoading(true)
       dispatch(setLoading())
@@ -68,11 +77,14 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
         used_balance: 0,
       }
 
-      // Fetch subsidies info
+      // Fetch subsidies info with 8s timeout
       try {
         const subsidiesResponse = await axios.get<SubsidyInfo[] | { data?: SubsidyInfo[]; subsidies?: SubsidyInfo[] }>(
           `${API_URL}/subsidies/me`,
-          { headers: { Authorization: `Bearer ${userToken}` } }
+          {
+            headers: { Authorization: `Bearer ${userToken}` },
+            timeout: 8000
+          }
         )
 
         // Handle different response formats
@@ -99,36 +111,47 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
         }))
       } catch (subsidiesError) {
         // Silently handle subsidy list errors, keep default empty array
-        console.log('No subsidies found or error fetching subsidies:', subsidiesError)
+        if (__DEV__) console.log('No subsidies found or error fetching subsidies:', subsidiesError)
       }
 
-      // Fetch subsidy balance
+      // Fetch subsidy balance with 8s timeout
       try {
-        const balanceResponse = await axios.get<SubsidyBalance | { has_active_subsidy?: boolean; provider_name?: string; remaining_balance?: number }>(
+        const balanceResponse = await axios.get<SubsidyBalance | { has_active_subsidy?: boolean; provider_name?: string; remaining_balance?: number; total_balance?: number; approved_amount?: number; amount?: number }>(
           `${API_URL}/subsidies/me/balance`,
-          { headers: { Authorization: `Bearer ${userToken}` } }
+          {
+            headers: { Authorization: `Bearer ${userToken}` },
+            timeout: 8000
+          }
         )
 
         // Handle response with proper null checks
         if (balanceResponse.data) {
-          // Backend returns { has_active_subsidy, provider_name, remaining_balance }
           const data = balanceResponse.data as any
+          // Fix balance mapping: total_balance should come from total_balance/approved_amount/amount
+          // available_balance from available_balance/remaining_balance
+          const totalBalance = data.total_balance ?? data.approved_amount ?? data.amount ?? 0
+          const availableBalance = data.available_balance ?? data.remaining_balance ?? 0
+
           balanceData = {
-            total_balance: data.remaining_balance ?? data.total_balance ?? 0,
-            available_balance: data.remaining_balance ?? data.available_balance ?? 0,
-            used_balance: data.used_balance ?? 0,
+            total_balance: totalBalance,
+            available_balance: availableBalance,
+            // Calculate used_balance if not provided: total - available
+            used_balance: data.used_balance ?? (totalBalance > 0 && availableBalance >= 0 ? totalBalance - availableBalance : 0),
           }
         }
       } catch (balanceError) {
         // Silently handle balance errors, keep default zero values
-        console.log('No balance found or error fetching balance:', balanceError)
+        if (__DEV__) console.log('No balance found or error fetching balance:', balanceError)
       }
 
       // Update Redux store
       dispatch(setSubsidies(subsidiesData))
       dispatch(setSubsidyBalance(balanceData))
+
+      // Update last fetched timestamp
+      lastFetchedRef.current = Date.now()
     } catch (error) {
-      console.error('Error fetching subsidy data:', error)
+      if (__DEV__) console.error('Error fetching subsidy data:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unable to load subsidy information'
       dispatch(setError(errorMessage))
     } finally {
@@ -140,7 +163,10 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
     try {
       const response = await axios.get<SubsidyUsage[] | { data?: SubsidyUsage[]; usage?: SubsidyUsage[] }>(
         `${API_URL}/subsidies/me/usage`,
-        { headers: { Authorization: `Bearer ${userToken}` } }
+        {
+          headers: { Authorization: `Bearer ${userToken}` },
+          timeout: 8000
+        }
       )
 
       // Handle different response formats
@@ -181,6 +207,18 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
             ? parsedDate.toISOString()
             : ''
 
+        // Determine transaction type:
+        // - If backend provides explicit type, use it
+        // - Otherwise, positive amounts are typically subsidy usage (debit/charge)
+        // - Negative amounts or explicit 'refund'/'credit' are credits back
+        let txType = item.transaction_type || item.type
+        if (!txType) {
+          // Default positive amounts to 'debit' (usage) unless it's explicitly a refund
+          const isRefund = item.description?.toLowerCase().includes('refund') ||
+                          item.reason?.toLowerCase().includes('refund')
+          txType = isRefund ? 'credit' : (safeAmount >= 0 ? 'debit' : 'credit')
+        }
+
         return {
           id: item.id || item.transaction_id || `${item.description || 'usage'}-${safeDate || Date.now()}`,
           subsidy_id: item.subsidy_id || item.subsidy || '',
@@ -188,19 +226,53 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
           usage_date: safeDate,
           description: item.description || item.reason || item.label || 'Subsidy transaction',
           event_id: item.event_id || item.event || undefined,
-          transaction_type:
-            item.transaction_type ||
-            item.type ||
-            (safeAmount >= 0 ? 'credit' : 'debit'),
+          transaction_type: txType,
         }
       }
 
       const usageData: SubsidyUsage[] = rawUsage.map(normalizeUsage)
 
       dispatch(setSubsidyUsage(usageData))
+
+      // Calculate total used from usage history
+      // Sum all debit/charge transactions (subsidy usage)
+      // Exclude credit/refund transactions
+      if (usageData.length > 0) {
+        const usedFromHistory = usageData.reduce((total, item) => {
+          // Include debit, charge, spent, or any usage type
+          // Exclude credit, refund, or adjustment types
+          const isUsage = item.transaction_type === 'debit' ||
+                         item.transaction_type === 'charge' ||
+                         item.transaction_type === 'spent' ||
+                         (item.transaction_type !== 'credit' &&
+                          item.transaction_type !== 'refund' &&
+                          item.transaction_type !== 'adjustment' &&
+                          item.amount > 0)
+
+          if (isUsage) {
+            return total + Math.abs(item.amount)
+          }
+          return total
+        }, 0)
+
+        // Update balance with calculated used_balance
+        // Even if balance API failed, create a fallback balance with usage-based used_balance
+        if (usedFromHistory > 0) {
+          const currentBalance = balance || {
+            total_balance: 0,
+            available_balance: 0,
+            used_balance: 0
+          }
+
+          dispatch(setSubsidyBalance({
+            ...currentBalance,
+            used_balance: usedFromHistory
+          }))
+        }
+      }
     } catch (error) {
       // Handle API errors gracefully by showing empty usage list
-      console.log('No usage history found:', error)
+      if (__DEV__) console.log('No usage history found:', error)
       dispatch(setSubsidyUsage([]))
     }
   }
@@ -218,7 +290,11 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
   }, [userToken])
 
   const handleShowUsageHistory = () => {
-    if (!showUsageHistory && !usage) {
+    if (!showUsageHistory) {
+      // When user explicitly opens usage history, force refresh to get latest data
+      // This bypasses the 60s throttle to ensure recent transactions are visible
+      lastFetchedRef.current = 0
+      fetchSubsidyData(true)
       fetchUsageHistory()
     }
     setShowUsageHistory(!showUsageHistory)
