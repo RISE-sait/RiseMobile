@@ -24,6 +24,7 @@ interface MembershipPlan {
   description: string;
   benefits: string;
   price?: number | string;
+  joining_fee_price?: string;
 }
 
 interface MembershipType {
@@ -442,7 +443,15 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   };
 
   const renderPlanCard = ({ item }: { item: MembershipPlan }) => {
-    console.log("🟣 Rendering plan card for:", item.name, "| ID:", item.id);
+    const joiningFeeRaw = item.joining_fee_price?.toString().trim() ?? "";
+    const joiningFeeClean = joiningFeeRaw.replace(/[^0-9.]/g, "");
+    const joiningFeeValue = joiningFeeClean ? Number(joiningFeeClean) : NaN;
+    const shouldShowJoiningFee =
+      !!joiningFeeRaw &&
+      Number.isFinite(joiningFeeValue) &&
+      joiningFeeValue > 0;
+
+    console.log("🟣 Rendering plan card for:", item.name, "| ID:", item.id, "| Joining Fee:", joiningFeeRaw);
     return (
       <View style={styles.accordionPlanCard}>
         <LinearGradient
@@ -467,6 +476,16 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
             {item.price && <Text style={styles.priceNote}>bi-weekly</Text>}
           </View>
         </View>
+
+        {/* Joining Fee display - show only if joining_fee_price exists and > 0 */}
+        {shouldShowJoiningFee && (
+          <View style={styles.joiningFeeContainer}>
+            <Text style={styles.joiningFeeLabel}>Joining Fee:</Text>
+            <Text style={styles.joiningFeeAmount}>
+              {joiningFeeRaw.replace(/\$\$/g, '$')}
+            </Text>
+          </View>
+        )}
 
         {/* Plan Description */}
         {item.description && (
@@ -755,6 +774,27 @@ const styles = StyleSheet.create({
     color: "#999999",
     fontSize: 12,
     fontStyle: "italic",
+  },
+  joiningFeeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(255, 215, 0, 0.1)",
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#FFD700",
+  },
+  joiningFeeLabel: {
+    color: "#CCCCCC",
+    fontSize: 13,
+    marginRight: 8,
+  },
+  joiningFeeAmount: {
+    color: "#FFD700",
+    fontSize: 15,
+    fontWeight: "600",
   },
   planDescription: {
     color: "#CCCCCC",
