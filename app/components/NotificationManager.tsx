@@ -36,11 +36,20 @@ const NotificationManager = () => {
 
         // Initialize notifications if user is logged in
         if (user?.token) {
-          await notificationService.initialize(user.token);
+          const token = await notificationService.initialize(user.token);
           hasInitialized.current = true;
+          if (__DEV__) {
+            if (token) {
+              console.log('[NotificationManager] Initialization successful');
+            } else {
+              console.warn('[NotificationManager] Initialization completed but no token obtained');
+            }
+          }
         }
-      } catch {
-        // Notification initialization failed silently
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('[NotificationManager] Initialization error:', error);
+        }
       }
     };
 
@@ -69,11 +78,16 @@ const NotificationManager = () => {
             if (!notificationService.getPushToken()) {
               await notificationService.initialize(user.token);
             } else {
-              await notificationService.ensureRegistered();
+              const registered = await notificationService.ensureRegistered();
+              if (__DEV__) {
+                console.log('[NotificationManager] Foreground registration check:', registered ? 'success' : 'failed');
+              }
             }
           }
-        } catch {
-          // Failed to ensure registration, will try again next foreground
+        } catch (error) {
+          if (__DEV__) {
+            console.warn('[NotificationManager] Foreground registration error:', error);
+          }
         }
       }
 
