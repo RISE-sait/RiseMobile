@@ -68,11 +68,9 @@ const AthleteProfileScreen = () => {
           lastName: parsedUser.lastName || parsedUser.last_name || "",
           countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
         });
-      } else {
-
       }
     } catch (error) {
-      console.error("❌ Error loading user:", error);
+      // Error loading user silently handled
     }
   };
 
@@ -107,8 +105,8 @@ const AthleteProfileScreen = () => {
           firstName={user.firstName}
           lastName={user.lastName}
           role={user.role}
-          profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
-          countryCode={user?.countryCode } // ✅ Ensure countryCode is always defined
+          profileImage={user.profileImage ? { uri: user.profileImage } : undefined}
+          countryCode={user?.countryCode} // ✅ Ensure countryCode is always defined
           teamLogo={user?.team?.logo} // ✅ Display team logo from user data
         />
 

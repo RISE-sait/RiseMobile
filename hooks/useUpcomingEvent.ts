@@ -230,7 +230,6 @@ export const useUpcomingEvent = () => {
       const message = err.response?.data || err.message
 
       if (status === 401 || status === 403 || message?.error?.message === "Invalid or expired token") {
-        console.warn("⚠️ useUpcomingEvent: token invalid, forcing re-login")
         if (!authFailureRef.current) {
           authFailureRef.current = true
           setError("Session expired. Please log in again.")
@@ -239,7 +238,6 @@ export const useUpcomingEvent = () => {
         return
       }
 
-      console.error("Error fetching upcoming events:", message)
       setError("Failed to load upcoming events")
     } finally {
       setLoading(false)

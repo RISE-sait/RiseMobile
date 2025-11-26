@@ -109,39 +109,24 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
           status: item.status ?? 'unknown',
           description: item.reason ?? item.description ?? '',
         }))
+
+        // Calculate balance from subsidies data
+        // Sum up approved_amount, total_amount_used, and remaining_balance from all active subsidies
+        const activeSubsidies = rawData.filter((item: any) => item.status === 'active' || item.status === 'approved')
+        if (activeSubsidies.length > 0) {
+          const totalApproved = activeSubsidies.reduce((sum: number, item: any) => sum + (item.approved_amount ?? 0), 0)
+          const totalUsed = activeSubsidies.reduce((sum: number, item: any) => sum + (item.total_amount_used ?? 0), 0)
+          const totalRemaining = activeSubsidies.reduce((sum: number, item: any) => sum + (item.remaining_balance ?? 0), 0)
+
+          balanceData = {
+            total_balance: totalApproved,
+            available_balance: totalRemaining,
+            used_balance: totalUsed,
+          }
+        }
       } catch (subsidiesError) {
         // Silently handle subsidy list errors, keep default empty array
         if (__DEV__) console.log('No subsidies found or error fetching subsidies:', subsidiesError)
-      }
-
-      // Fetch subsidy balance with 8s timeout
-      try {
-        const balanceResponse = await axios.get<SubsidyBalance | { has_active_subsidy?: boolean; provider_name?: string; remaining_balance?: number; total_balance?: number; approved_amount?: number; amount?: number }>(
-          `${API_URL}/subsidies/me/balance`,
-          {
-            headers: { Authorization: `Bearer ${userToken}` },
-            timeout: 8000
-          }
-        )
-
-        // Handle response with proper null checks
-        if (balanceResponse.data) {
-          const data = balanceResponse.data as any
-          // Fix balance mapping: total_balance should come from total_balance/approved_amount/amount
-          // available_balance from available_balance/remaining_balance
-          const totalBalance = data.total_balance ?? data.approved_amount ?? data.amount ?? 0
-          const availableBalance = data.available_balance ?? data.remaining_balance ?? 0
-
-          balanceData = {
-            total_balance: totalBalance,
-            available_balance: availableBalance,
-            // Calculate used_balance if not provided: total - available
-            used_balance: data.used_balance ?? (totalBalance > 0 && availableBalance >= 0 ? totalBalance - availableBalance : 0),
-          }
-        }
-      } catch (balanceError) {
-        // Silently handle balance errors, keep default zero values
-        if (__DEV__) console.log('No balance found or error fetching balance:', balanceError)
       }
 
       // Update Redux store
@@ -391,11 +376,13 @@ export const SubsidyOverview: React.FC<SubsidyOverviewProps> = ({ userToken }) =
               {subsidy.description && (
                 <Text style={styles.subsidyDescription}>{subsidy.description}</Text>
               )}
-              <View style={styles.subsidyDates}>
-                <Text style={styles.subsidyDate}>
-                  Valid: {new Date(subsidy.start_date).toLocaleDateString()} - {new Date(subsidy.end_date).toLocaleDateString()}
-                </Text>
-              </View>
+              {subsidy.start_date && (
+                <View style={styles.subsidyDates}>
+                  <Text style={styles.subsidyDate}>
+                    Valid from: {new Date(subsidy.start_date).toLocaleDateString()}{subsidy.end_date ? ` - ${new Date(subsidy.end_date).toLocaleDateString()}` : ' (No expiry)'}
+                  </Text>
+                </View>
+              )}
             </View>
           ))}
         </View>

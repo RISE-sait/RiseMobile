@@ -72,7 +72,6 @@ const CoachMatches: React.FC = () => {
       }
       return authToken;
     } catch (err) {
-      console.error("Error obtaining auth token:", err);
       return null;
     }
   }, [forceReLogin, getValidToken]);
@@ -168,7 +167,6 @@ const CoachMatches: React.FC = () => {
               dispatch(fetchMatches(authToken));
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (error: any) {
-              console.error("Error deleting game:", error);
               const errorMsg =
                 error.response?.data?.error?.message || error.message || "Failed to delete game";
               Alert.alert("Error", errorMsg);

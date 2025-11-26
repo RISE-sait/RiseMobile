@@ -21,7 +21,7 @@ if (!isExpoGo || Platform.OS !== 'android') {
       }),
     });
   } catch (error) {
-    console.warn('Failed to set notification handler:', error);
+    // Failed to set notification handler
   }
 }
 
@@ -53,13 +53,11 @@ class NotificationService {
     try {
       // Check if running in Expo Go on Android (not supported in SDK 53+)
       if (isExpoGo && Platform.OS === 'android') {
-        console.warn('⚠️ Push notifications are not supported in Expo Go on Android. Use a development build instead.');
         return null;
       }
 
       // Check if we're on a physical device
       if (!Device.isDevice) {
-        console.warn('Push notifications only work on physical devices');
         return null;
       }
 
@@ -74,7 +72,6 @@ class NotificationService {
       }
 
       if (finalStatus !== 'granted') {
-        console.warn('Push notification permission not granted');
         return null;
       }
 
@@ -95,7 +92,6 @@ class NotificationService {
 
       return this.expoPushToken;
     } catch (error) {
-      console.error('Error initializing push notifications:', error);
       return null;
     }
   }
@@ -106,7 +102,6 @@ class NotificationService {
   async registerDevice(userToken: string): Promise<boolean> {
     try {
       if (!this.expoPushToken) {
-        console.warn('No Expo push token available');
         return false;
       }
 
@@ -124,14 +119,8 @@ class NotificationService {
         }),
       });
 
-      if (response.ok) {
-        return true;
-      } else {
-        console.error('Failed to register device:', response.status);
-        return false;
-      }
+      return response.ok;
     } catch (error) {
-      console.error('Error registering device:', error);
       return false;
     }
   }
@@ -153,14 +142,8 @@ class NotificationService {
         body: JSON.stringify(notificationData),
       });
 
-      if (response.ok) {
-        return true;
-      } else {
-        console.error('Failed to send notification:', response.status);
-        return false;
-      }
+      return response.ok;
     } catch (error) {
-      console.error('Error sending notification:', error);
       return false;
     }
   }

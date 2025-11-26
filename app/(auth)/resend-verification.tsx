@@ -69,8 +69,6 @@ const ResendVerificationScreen = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       }
     } catch (error: any) {
-      console.error("❌ Resend verification error:", error)
-
       // Handle specific error messages from backend
       const backendMessage = error.response?.data?.error?.message || error.response?.data?.message
       if (backendMessage) {

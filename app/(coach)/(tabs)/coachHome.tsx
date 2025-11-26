@@ -58,7 +58,7 @@ export default function CoachHomeScreen() {
           }
         }
       } catch (error) {
-        console.error("❌ Error loading user data:", error);
+        // Error loading user data silently handled
       } finally {
         setIsLoading(false);
       }

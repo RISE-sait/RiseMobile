@@ -140,7 +140,7 @@ export default function AthleteHome() {
         </View>
 
         {/* Header Section - Only render when user exists */}
-        <View className="w-full px-5 mt-20">
+        <View className="w-full px-5 mt-24">
           {user ? (
             user.profileImage ? (
               <ProfileHeader

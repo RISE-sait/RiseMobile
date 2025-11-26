@@ -11,6 +11,8 @@ import {
   Dimensions,
   Platform,
   KeyboardAvoidingView,
+  Modal,
+  Pressable,
 } from "react-native"
 import { showAlert } from "@/utils/customAlert"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -27,6 +29,8 @@ import {
   faUser,
   faBasketball,
   faChalkboardTeacher,
+  faImage,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { Input } from "@/components/ui/input"
@@ -116,6 +120,7 @@ export default function EditProfileScreen() {
   const [email, setEmail] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [profileImage, setProfileImage] = useState<string | null>(null)
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false)
 
 
   useEffect(() => {
@@ -186,7 +191,6 @@ export default function EditProfileScreen() {
         router.back()
       }
     } catch (error) {
-      console.error("❌ Error loading user data:", error)
       showAlert("Error", "Failed to load user data", undefined, { type: 'error' })
     } finally {
       setIsLoading(false)
@@ -263,8 +267,6 @@ export default function EditProfileScreen() {
       // Show success message
       showAlert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }], { type: 'success' })
     } catch (error: any) {
-      console.error("❌ Error updating user profile:", error.response?.data || error.message)
-      
       let errorMessage = "Failed to save profile changes"
       if (error.response?.status === 401) {
         errorMessage = "Authentication failed. Please log in again."
@@ -291,18 +293,7 @@ export default function EditProfileScreen() {
     }
   }
 
-  const getProfileImage = (role: string) => {
-    if (profileImage) return { uri: profileImage }
-
-    switch (role) {
-      case "athlete":
-        return images.headshot
-      case "coach":
-        return images.coachHeadshot
-      default:
-        return images.headshot
-    }
-  }
+  const hasProfileImage = !!profileImage
 
   // Image selection functionality
   const requestPermissions = async () => {
@@ -322,30 +313,7 @@ export default function EditProfileScreen() {
   }
 
   const showImagePickerOptions = () => {
-    showAlert(
-      'Select Profile Picture',
-      'Choose how you want to add a profile picture',
-      [
-        {
-          text: 'Camera',
-          onPress: () => {
-            openCamera()
-          },
-        },
-        {
-          text: 'Photo Library',
-          onPress: () => {
-            openImageLibrary()
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => {}
-        },
-      ],
-      { type: 'info' }
-    )
+    setShowImagePickerModal(true)
   }
 
   // Handle two-step image upload process
@@ -425,7 +393,6 @@ export default function EditProfileScreen() {
 
       showAlert('Success', 'Profile picture updated successfully!', undefined, { type: 'success' })
     } catch (error) {
-      console.error('❌ Image upload/update error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload and update profile picture'
       showAlert('Error', errorMessage, undefined, { type: 'error' })
     }
@@ -448,10 +415,8 @@ export default function EditProfileScreen() {
 
       if (!result.canceled && result.assets[0]) {
         await handleImageUpload(result.assets[0].uri)
-      } else {
       }
     } catch (error) {
-      console.error('Camera error:', error)
       showAlert('Error', 'Failed to open camera', undefined, { type: 'error' })
     }
   }
@@ -473,10 +438,8 @@ export default function EditProfileScreen() {
 
       if (!result.canceled && result.assets[0]) {
         await handleImageUpload(result.assets[0].uri)
-      } else {
       }
     } catch (error) {
-      console.error('Photo library error:', error)
       showAlert('Error', 'Failed to open photo library', undefined, { type: 'error' })
     }
   }
@@ -503,6 +466,7 @@ export default function EditProfileScreen() {
   }
 
   return (
+    <>
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
@@ -529,22 +493,28 @@ export default function EditProfileScreen() {
               <LinearGradient colors={[COLORS.background, COLORS.cardDark]} style={styles.bannerGradient} />
 
               {/* Profile Image */}
-              <View style={styles.profileImageContainer}>
-                <Image
-                  source={getProfileImage(user?.role || "")}
-                  style={[styles.profileImage, { borderColor: getAccentColor(user?.role || "") }]}
-                  resizeMode="cover"
-                />
-                <TouchableOpacity
+              <TouchableOpacity
+                style={styles.profileImageContainer}
+                onPress={showImagePickerOptions}
+                activeOpacity={0.7}
+              >
+                {hasProfileImage ? (
+                  <Image
+                    source={{ uri: profileImage! }}
+                    style={[styles.profileImage, { borderColor: getAccentColor(user?.role || "") }]}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.profileImagePlaceholder, { borderColor: getAccentColor(user?.role || "") }]}>
+                    <FontAwesomeIcon icon={faUser} color={COLORS.textSecondary} size={40} />
+                  </View>
+                )}
+                <View
                   style={[styles.cameraButton, { backgroundColor: getAccentColor(user?.role || "") }]}
-                  onPress={() => {
-                    showImagePickerOptions()
-                  }}
-                  activeOpacity={0.7}
                 >
                   <FontAwesomeIcon icon={faCamera} color="#000000" size={16} />
-                </TouchableOpacity>
-              </View>
+                </View>
+              </TouchableOpacity>
 
               <View style={styles.nameContainer}>
                 <Text style={styles.nameText}>
@@ -676,7 +646,73 @@ export default function EditProfileScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
     </SafeAreaView>
+
+    {/* Image Picker Modal */}
+    <Modal
+      visible={showImagePickerModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowImagePickerModal(false)}
+      statusBarTranslucent
+    >
+      <View style={styles.modalOverlay}>
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setShowImagePickerModal(false)}
+        />
+        <View style={styles.modalContent}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Update Profile Picture</Text>
+
+          <View style={styles.modalOptions}>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setShowImagePickerModal(false)
+                setTimeout(() => openCamera(), 300)
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.modalOptionIcon, { backgroundColor: `${getAccentColor(user?.role || "")}20` }]}>
+                <FontAwesomeIcon icon={faCamera} color={getAccentColor(user?.role || "")} size={24} />
+              </View>
+              <View style={styles.modalOptionTextContainer}>
+                <Text style={styles.modalOptionText}>Take Photo</Text>
+                <Text style={styles.modalOptionSubtext}>Use your camera</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setShowImagePickerModal(false)
+                setTimeout(() => openImageLibrary(), 300)
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.modalOptionIcon, { backgroundColor: `${getAccentColor(user?.role || "")}20` }]}>
+                <FontAwesomeIcon icon={faImage} color={getAccentColor(user?.role || "")} size={24} />
+              </View>
+              <View style={styles.modalOptionTextContainer}>
+                <Text style={styles.modalOptionText}>Choose from Library</Text>
+                <Text style={styles.modalOptionSubtext}>Select an existing photo</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.modalCancelButton}
+            onPress={() => setShowImagePickerModal(false)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.modalCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+    </>
   )
 }
 
@@ -747,6 +783,15 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
+  },
+  profileImagePlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    backgroundColor: COLORS.cardDark,
+    alignItems: "center",
+    justifyContent: "center",
   },
   cameraButton: {
     position: "absolute",
@@ -860,6 +905,81 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cancelButtonText: {
+    color: COLORS.textSecondary,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: Platform.OS === "ios" ? 40 : 24,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  modalOptions: {
+    gap: 12,
+  },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 16,
+    padding: 16,
+  },
+  modalOptionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  modalOptionTextContainer: {
+    flex: 1,
+  },
+  modalOptionText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalOptionSubtext: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  modalCancelButton: {
+    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.cardDark,
+    alignItems: "center",
+  },
+  modalCancelText: {
     color: COLORS.textSecondary,
     fontSize: 16,
     fontWeight: "600",

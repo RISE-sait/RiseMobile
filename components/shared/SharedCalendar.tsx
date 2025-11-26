@@ -326,7 +326,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <PageTitle title={title} subtitle={subtitle} onButtonPress={subtitle ? handleRefresh : undefined} />
 
-        <View className="px-5 py-4">
+        <View className="px-5 py-2">
           <CalendarCard
             selectedDate={selectedDate}
             events={windowedCalendarEvents}

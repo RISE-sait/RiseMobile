@@ -234,7 +234,6 @@ const TeamRoster: React.FC = () => {
       setAllPlayers(playersData)
 
     } catch (error) {
-      console.error("Error fetching team data:", error)
       setApiError((error as Error).message)
       // Clear data on error - no fallback to mock data
       setAllPlayers([])

@@ -77,7 +77,7 @@ const NotificationSettingsScreen: React.FC = () => {
         setSettings(prev => ({ ...prev, biometricLogin: isEnabled }));
       }
     } catch (error) {
-      console.error("Error checking biometric availability:", error);
+      // Error checking biometric availability
     }
   };
 
@@ -86,7 +86,7 @@ const NotificationSettingsScreen: React.FC = () => {
       const { status } = await Notifications.getPermissionsAsync();
       setPermissionStatus(status);
     } catch (error) {
-      console.error("Error checking notification permissions:", error);
+      // Error checking notification permissions
     }
   };
 
@@ -99,7 +99,6 @@ const NotificationSettingsScreen: React.FC = () => {
         setSettings({ ...DEFAULT_SETTINGS, ...parsed });
       }
     } catch (error) {
-      console.error("Error loading notification settings:", error);
       setSettings(DEFAULT_SETTINGS);
     } finally {
       setLoading(false);
@@ -113,7 +112,6 @@ const NotificationSettingsScreen: React.FC = () => {
       await AsyncStorage.setItem('notificationSettings', JSON.stringify(newSettings));
       setSettings(newSettings);
     } catch (error) {
-      console.error("Error saving notification settings:", error);
       Alert.alert("Error", "Failed to save settings. Please try again.");
     } finally {
       setSaving(false);
