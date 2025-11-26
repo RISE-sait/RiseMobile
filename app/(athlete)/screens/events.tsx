@@ -40,7 +40,6 @@ const EventsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const router = useRouter();
-
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.user.data);
   const reduxEvents = useSelector((state: RootState) => state.events);
@@ -229,26 +228,23 @@ const EventsScreen: React.FC = () => {
         style={styles.eventCard}
         activeOpacity={0.9}
         onPress={() => {
+          // Navigate to appropriate detail page based on data source
+          // Note: item.type is just a label from the event data, not the entity type
+          // Only items from reduxGames (matches) should go to match-details
+          // All items from reduxEvents should go to event-details
           if (item.type === "match" || item.type === "game") {
-            // Navigate to match details - calls GET /games/{id}
             router.push({
               pathname: "/screens/match-details/[id]",
               params: { id: item.id },
             });
-          } else if (item.type === "practice") {
-            // Navigate to practice details - calls GET /practices/{id}
-            router.push({
-              pathname: "/screens/practice-details/[id]",
-              params: { id: item.id },
-            });
           } else {
-            // Navigate to event details - calls GET /events/{id}
-            // Use actual event ID and mark as homepage source for public endpoint
+            // All other items (including type="practice") are events
+            // They should navigate to event-details, not practice-details
             router.push({
               pathname: "/screens/event-details/[id]",
               params: {
-                id: item.id, // Always use actual event ID
-                source: "homepage", // Mark as homepage for public endpoint
+                id: item.id,
+                source: "homepage",
               },
             });
           }
@@ -327,7 +323,17 @@ const EventsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(athlete)/(tabs)/home")}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            const canGoBack = router.canGoBack?.() ?? false;
+            if (canGoBack) {
+              router.back();
+            } else {
+              router.replace("/(athlete)/(tabs)/home");
+            }
+          }}
+        >
           <Ionicons name="chevron-back" size={24} color="#F0F0F0" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Events</Text>

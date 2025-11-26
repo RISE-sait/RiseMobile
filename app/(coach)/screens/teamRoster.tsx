@@ -21,11 +21,21 @@ import { useRouter, useLocalSearchParams } from "expo-router"
 import * as Haptics from "expo-haptics"
 import BackButton from "@/components/buttons/BackButton"
 import { getTeamById } from "@/utils/api"
-import { TeamResponse, ApiInternalDomainsTeamDtoRosterMemberInfo } from "@/app/api/Api"
+import type { Team } from "@/types/team"
 import { useSelector } from "react-redux"
 import type { RootState } from "@/store"
 import images from "@/constants/images"
 import { resolveImageSource } from "@/utils/imageSource"
+
+// Define RosterMember interface for API response
+interface RosterMember {
+  id?: string
+  name?: string
+  points?: number
+  rebounds?: number
+  assists?: number
+  steals?: number
+}
 
 // Define Player interface
 interface Player {
@@ -98,7 +108,7 @@ const POSITION_NAMES = {
 }
 
 // Helper function to map API roster data to Player interface
-const mapRosterMemberToPlayer = (member: ApiInternalDomainsTeamDtoRosterMemberInfo, index: number): Player => ({
+const mapRosterMemberToPlayer = (member: RosterMember, index: number): Player => ({
   id: member.id || `player-${index}`,
   firstName: member.name?.split(' ')[0] || "Unknown",
   lastName: member.name?.split(' ').slice(1).join(' ') || "Player",
@@ -137,7 +147,7 @@ const TeamRoster: React.FC = () => {
   // State
   const [allPlayers, setAllPlayers] = useState<Player[]>([])
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([])
-  const [teamData, setTeamData] = useState<TeamResponse | null>(null)
+  const [teamData, setTeamData] = useState<Team | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<"name">("name")
@@ -224,7 +234,6 @@ const TeamRoster: React.FC = () => {
       setAllPlayers(playersData)
 
     } catch (error) {
-      console.error("Error fetching team data:", error)
       setApiError((error as Error).message)
       // Clear data on error - no fallback to mock data
       setAllPlayers([])

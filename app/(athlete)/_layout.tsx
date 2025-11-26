@@ -6,15 +6,18 @@ export default function AthleteLayout() {
       {/* ✅ Main Tabs */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
-      {/* ✅ Athlete-specific modal screens - flattened structure to prevent route group nesting */}
+      {/* ✅ Athlete-specific screens - flattened structure to prevent route group nesting */}
       {/* Only declare screens that exist in app/(athlete)/screens/ directory */}
-      <Stack.Screen name="screens/events" options={{ presentation: "modal" }} />
-      <Stack.Screen name="screens/membership" options={{ presentation: "modal" }} />
-      <Stack.Screen name="screens/booking-options/Courts" options={{ presentation: "modal" }} />
-      <Stack.Screen name="screens/booking-options/CourtsideKutz" options={{ presentation: "modal" }} />
+      {/* IMPORTANT: Removed presentation: "modal" to allow detail pages to properly display */}
+      {/* Modal presentation was causing Events page to stay on top even when navigating to details */}
+      <Stack.Screen name="screens/events" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/membership/index" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/booking-options/Courts" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/booking-options/CourtsideKutz" options={{ headerShown: false }} />
 
-      {/* ✅ Shared screens in app/screens/ are handled by app/screens/_layout.tsx */}
-      {/* Removed: store/*, profile-screen/*, and other shared screens - accessed via /screens/ routes */}
+      {/* ⚠️ Detail pages are NOT registered here - they use the shared screens stack from root layout */}
+      {/* Navigation to /screens/event-details/[id] will use app/screens/event-details/[id].tsx */}
+      {/* This prevents route duplication and ensures single source of truth */}
     </Stack>
   );
 }

@@ -66,3 +66,9 @@ nul
 con
 prn
 aux
+
+# Test results
+test-results/
+
+# Generated API client (should be regenerated from swagger, not committed)
+app/api/Api.ts

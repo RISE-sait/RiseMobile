@@ -66,7 +66,6 @@ const ForgotPasswordScreen = () => {
         lottieRef.current.play()
       }
     } catch (err) {
-      console.error("Password reset error:", err)
       setError("Failed to send reset email. Please try again.")
       if (Platform.OS === "ios") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)

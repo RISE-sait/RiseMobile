@@ -10,9 +10,9 @@ import { router } from "expo-router";
 import MembershipDetails from "@/components/membership/MembershipDetails";
 import MembershipPurchaseList from "@/components/membership/MembershipPurchaseList";
 import CreditsOverview from "@/components/credits/CreditsOverview";
+import SubsidyOverview from "@/components/subsidy/SubsidyOverview";
 import { setMembership, clearMembership } from "@/store/slices/membershipSlice";
 import type { RootState } from "@/store";
-import Constants from "expo-constants";
 import { showAlert } from "@/utils/customAlert";
 
 const MembershipScreen: React.FC = () => {
@@ -138,6 +138,12 @@ const MembershipScreen: React.FC = () => {
     await loadMembershipDataWithRetry();
   };
 
+  const currentMembership = userMemberships[0];
+  const isExpiredMembership =
+    !!currentMembership?.status &&
+    typeof currentMembership.status === 'string' &&
+    currentMembership.status.toLowerCase() === 'expired';
+
   // Function to open payment WebView
   const handleOpenPaymentWebView = (url: string) => {
     setPaymentUrl(url);
@@ -215,6 +221,12 @@ const MembershipScreen: React.FC = () => {
           >
             <Text style={{ color: activeTab === 'credits' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Credits</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FFD700' : 'transparent' }}
+            onPress={() => setActiveTab('subsidy')}
+          >
+            <Text style={{ color: activeTab === 'subsidy' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
+          </TouchableOpacity>
         </View>
         {/* Content based on active tab */}
         <View className="flex-1">
@@ -248,7 +260,7 @@ const MembershipScreen: React.FC = () => {
                 </View>
               }
             />
-          ) : (
+          ) : activeTab === 'credits' ? (
             // Credits tab content - using actual credits component
             <View className="flex-1">
               {userToken ? (
@@ -257,6 +269,19 @@ const MembershipScreen: React.FC = () => {
                 <View className="flex-1 justify-center items-center px-5">
                   <Text className="text-[#999999] text-sm text-center">
                     Please log in to view your credits
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            // Subsidy tab content
+            <View className="flex-1">
+              {userToken ? (
+                <SubsidyOverview userToken={userToken} />
+              ) : (
+                <View className="flex-1 justify-center items-center px-5">
+                  <Text className="text-[#999999] text-sm text-center">
+                    Please log in to view your subsidy
                   </Text>
                 </View>
               )}
@@ -291,6 +316,12 @@ const MembershipScreen: React.FC = () => {
           >
             <Text style={{ color: activeTab === 'credits' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Credits</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FFD700' : 'transparent' }}
+            onPress={() => setActiveTab('subsidy')}
+          >
+            <Text style={{ color: activeTab === 'subsidy' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
+          </TouchableOpacity>
         </View>
         {/* Content based on active tab */}
         <View className="flex-1">
@@ -318,7 +349,7 @@ const MembershipScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
             </View>
-          ) : (
+          ) : activeTab === 'credits' ? (
             // Credits tab content - using actual credits component
             <View className="flex-1">
               {userToken ? (
@@ -327,6 +358,19 @@ const MembershipScreen: React.FC = () => {
                 <View className="flex-1 justify-center items-center px-5">
                   <Text className="text-[#999999] text-sm text-center">
                     Please log in to view your credits
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            // Subsidy tab content
+            <View className="flex-1">
+              {userToken ? (
+                <SubsidyOverview userToken={userToken} />
+              ) : (
+                <View className="flex-1 justify-center items-center px-5">
+                  <Text className="text-[#999999] text-sm text-center">
+                    Please log in to view your subsidy
                   </Text>
                 </View>
               )}
@@ -361,11 +405,17 @@ const MembershipScreen: React.FC = () => {
         >
           <Text style={{ color: activeTab === 'credits' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Credits</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FFD700' : 'transparent' }}
+          onPress={() => setActiveTab('subsidy')}
+        >
+          <Text style={{ color: activeTab === 'subsidy' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
+        </TouchableOpacity>
       </View>
       {/* Content based on active tab */}
       <View className="flex-1">
         {activeTab === 'memberships' ? (
-          userMemberships.length > 0 ? (
+          userMemberships.length > 0 && !isExpiredMembership ? (
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
               <View className="px-4 py-3">
                 <View className="mb-6">
@@ -387,6 +437,14 @@ const MembershipScreen: React.FC = () => {
               hasExistingMembership={false}
               headerComponent={
                 <View className="px-4 py-3">
+                  {isExpiredMembership && (
+                    <View className="mb-4 rounded-lg border border-[#b91c1c] bg-[#2f1a1a] p-3">
+                      <Text className="text-red-300 text-sm font-semibold">Your previous membership has expired.</Text>
+                      <Text className="text-[#e5e7eb] text-xs mt-1">
+                        Select a new plan below to continue your access.
+                      </Text>
+                    </View>
+                  )}
                   <View className="mb-3">
                     <View className="pb-2 mb-3 border-b border-[#222222]">
                       <Text className="text-white-100 text-base font-semibold">Available Membership Plans</Text>
@@ -399,7 +457,7 @@ const MembershipScreen: React.FC = () => {
               }
             />
           )
-        ) : (
+        ) : activeTab === 'credits' ? (
           // Credits tab content - using actual credits component
           <View className="flex-1">
             {userToken ? (
@@ -408,6 +466,19 @@ const MembershipScreen: React.FC = () => {
               <View className="flex-1 justify-center items-center px-5">
                 <Text className="text-[#999999] text-sm text-center">
                   Please log in to view your credits
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          // Subsidy tab content
+          <View className="flex-1">
+            {userToken ? (
+              <SubsidyOverview userToken={userToken} />
+            ) : (
+              <View className="flex-1 justify-center items-center px-5">
+                <Text className="text-[#999999] text-sm text-center">
+                  Please log in to view your subsidy
                 </Text>
               </View>
             )}

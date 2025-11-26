@@ -138,8 +138,6 @@ const handleLogin = async (email: string, password: string, saveForBiometric?: b
     }
 
   } catch (error: any) {
-    console.error("Failed to login:", error)
-
     // Handle different error codes with specific messages
     if (error.code === "EMAIL_NOT_VERIFIED") {
       Alert.alert(
@@ -234,7 +232,7 @@ const checkAndOfferBiometricSetup = async (email: string, password: string) => {
       ]
     )
   } catch (error) {
-    console.error('Error checking biometric setup:', error)
+    // Biometric setup check failed silently
   }
 }
 

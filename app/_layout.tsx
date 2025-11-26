@@ -17,6 +17,21 @@ import ErrorBoundary from "@/components/error/ErrorBoundary"
 import AlertProvider from "@/components/feedback/AlertProvider"
 import * as SplashScreen from "expo-splash-screen"
 
+// Hermes Promise Rejection Tracker - Prevent RedBox for unhandled promise rejections
+// Converts unhandled rejections to warnings instead of fatal red screens
+// Only applies in Hermes engine, gracefully ignored in other JS engines
+if ((global as any).HermesInternal?.enablePromiseRejectionTracker) {
+  (global as any).HermesInternal.enablePromiseRejectionTracker({
+    allRejections: true,
+    onUnhandled: () => {
+      // Silently handle unhandled promise rejections
+    },
+    onHandled: () => {
+      // Promise rejection was handled after being reported as unhandled
+    },
+  });
+}
+
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
@@ -83,7 +98,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded) {
       // Hide splash screen after fonts are loaded
-      SplashScreen.hideAsync().catch(console.warn);
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded]);
 
@@ -99,8 +114,9 @@ export default function RootLayout() {
             <StatusBar style="auto" />
             <ErrorBoundary>
               <NotificationManager />
-              {__DEV__ && <JsHeartbeat />}
-              {__DEV__ && <TouchLogger />}
+              {/* Disabled dev components to reduce console noise */}
+              {/* {__DEV__ && <JsHeartbeat />} */}
+              {/* {__DEV__ && <TouchLogger />} */}
             </ErrorBoundary>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -109,7 +125,9 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)/forgot-password" options={{ headerShown: false }} />
               <Stack.Screen name="(athlete)" options={{ headerShown: false }} />
               <Stack.Screen name="(coach)" options={{ headerShown: false }} />
-              {/* Removed empty "screens" route - handled by _layout files in role-specific screens folders */}
+
+              {/* ✅ Shared screens stack - contains event/match/practice details and other shared screens */}
+              <Stack.Screen name="screens" options={{ headerShown: false }} />
 
               {/* ✅ Modal Routes - Presented as transparent overlays */}
               <Stack.Screen
@@ -121,7 +139,7 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
-                name="modals/event-details"
+                name="modals/event-quick-view"
                 options={{
                   presentation: "transparentModal",
                   animation: "fade",

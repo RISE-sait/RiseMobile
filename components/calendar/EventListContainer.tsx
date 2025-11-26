@@ -111,7 +111,7 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
   const insets = useSafeAreaInsets()
 
   return (
-    <View style={{ flex: 1, minHeight: 300 }}>
+    <View style={{ flex: 1 }}>
       <LinearGradient
         colors={["#1A1A1A", "#121212"]}
         style={{ flex: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" }}

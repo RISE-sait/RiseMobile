@@ -9,6 +9,7 @@ export type NavigationOption = {
   icon: React.ComponentProps<typeof FontAwesome6>["name"];
   description?: string;
   colors?: [string, string];
+  iconColor?: string;
 };
 
 type NavigationButtonsProps = {
@@ -37,7 +38,9 @@ const ICON_CONTAINER_STYLE = {
   width: 56,
   height: 56,
   borderRadius: 18,
-  backgroundColor: "rgba(255,255,255,0.08)",
+  backgroundColor: "rgba(255,255,255,0.14)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.18)",
   alignItems: "center" as const,
   justifyContent: "center" as const,
 }
@@ -68,7 +71,11 @@ const GoToCardsComponent: React.FC<NavigationButtonsProps> = ({
             >
               <LinearGradient colors={option.gradient} style={CARD_CONTAINER_STYLE}>
                 <View style={ICON_CONTAINER_STYLE}>
-                  <FontAwesome6 name={option.icon} size={26} color="#FCA311" />
+                  <FontAwesome6
+                    name={option.icon}
+                    size={26}
+                    color={option.iconColor || "#F8FAFC"}
+                  />
                 </View>
                 <View>
                   <Text className="text-white-100 font-Oswald-Bold text-2xl">

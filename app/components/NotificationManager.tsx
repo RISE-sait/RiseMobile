@@ -23,15 +23,10 @@ const NotificationManager = () => {
 
         // Initialize notifications if user is logged in
         if (user?.token) {
-          const pushToken = await notificationService.initialize(user.token);
-
-          if (pushToken) {
-          } else {
-            console.warn('⚠️ Push notifications initialization failed');
-          }
+          await notificationService.initialize(user.token);
         }
       } catch (error) {
-        console.error('❌ Error initializing notifications:', error);
+        // Notification initialization failed silently
       }
     };
 

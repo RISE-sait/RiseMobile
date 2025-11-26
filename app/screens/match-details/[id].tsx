@@ -15,7 +15,7 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter, usePathname, useSegments } from "expo-router"
 import dayjs from "dayjs"
 import { FontAwesome6 } from "@expo/vector-icons"
 import BackButton from "@/components/buttons/BackButton"
@@ -108,7 +108,16 @@ const MatchDetailsScreen = () => {
   const [homeTeamName, setHomeTeamName] = useState<string>("Home Team")
   const [awayTeamName, setAwayTeamName] = useState<string>("Away Team")
 
+  const pathname = usePathname()
+  const segments = useSegments()
+
   useEffect(() => {
+    if (__DEV__) console.log(`[Match ${programId}] navigation snapshot`, {
+      pathname,
+      segments: segments.join("/") || "(root)",
+      canGoBack: router.canGoBack?.() ?? null,
+    })
+
     // Start animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -163,7 +172,7 @@ const MatchDetailsScreen = () => {
 
           setGame(transformedGame)
         } catch (error) {
-          console.error("Error fetching game data:", error)
+          if (__DEV__) console.warn("Error fetching game data:", error)
           // Only show error if we don't have cached data to fall back on
           if (!cachedMatch) {
             setError("Failed to load game data. Please try again.")
@@ -203,12 +212,12 @@ const MatchDetailsScreen = () => {
         title: game.name || `${homeTeamName} vs ${awayTeamName}`,
       })
     } catch (error) {
-      console.error("Error sharing match:", error)
+      if (__DEV__) console.warn("Error sharing match:", error)
     }
   }
 
   const openInstagramProfile = () => {
-    Linking.openURL(INSTAGRAM_PROFILE_URL).catch((err) => console.error("Error opening Instagram profile:", err))
+    Linking.openURL(INSTAGRAM_PROFILE_URL).catch((err) => console.warn("Error opening Instagram profile:", err))
   }
 
   const handleRetry = () => {

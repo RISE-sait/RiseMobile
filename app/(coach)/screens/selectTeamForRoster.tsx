@@ -19,7 +19,7 @@ import { FontAwesome6, Ionicons, MaterialIcons, AntDesign } from "@expo/vector-i
 import { useRouter } from "expo-router"
 import * as Haptics from "expo-haptics"
 import BackButton from "@/components/buttons/BackButton"
-import { TeamResponse } from "@/app/api/Api"
+import type { Team } from "@/types/team"
 import { useSelector, useDispatch } from "react-redux"
 import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError, removeTeam } from "@/store/slices/teamsSlice"
 import type { RootState } from "@/store"
@@ -59,7 +59,7 @@ const SelectTeamForRoster: React.FC = () => {
 
   // Team management state
   const [showTeamModal, setShowTeamModal] = useState(false)
-  const [editingTeam, setEditingTeam] = useState<TeamResponse | null>(null)
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [teamName, setTeamName] = useState("")
   const [teamCapacity, setTeamCapacity] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -112,7 +112,7 @@ const SelectTeamForRoster: React.FC = () => {
     setRefreshing(false)
   }
 
-  const handleTeamPress = (team: TeamResponse) => {
+  const handleTeamPress = (team: Team) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     // Navigate to team roster screen with selected team ID
     router.push(`/(coach)/screens/teamRoster?teamId=${team.id}&teamName=${encodeURIComponent(team.name || "")}`)
@@ -126,7 +126,7 @@ const SelectTeamForRoster: React.FC = () => {
     setShowTeamModal(true)
   }
 
-  const openEditTeamModal = (team: TeamResponse) => {
+  const openEditTeamModal = (team: Team) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setEditingTeam(team)
     setTeamName(team.name || "")
@@ -221,7 +221,7 @@ const SelectTeamForRoster: React.FC = () => {
     }
   }
 
-  const handleDeleteTeam = async (team: TeamResponse) => {
+  const handleDeleteTeam = async (team: Team) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
 
     Alert.alert(
@@ -283,7 +283,7 @@ const SelectTeamForRoster: React.FC = () => {
     </View>
   )
 
-  const renderTeamItem = ({ item }: { item: TeamResponse }) => (
+  const renderTeamItem = ({ item }: { item: Team }) => (
     <Animated.View
       style={[
         styles.teamCardContainer,

@@ -90,7 +90,7 @@ const AthleteBook = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredOptions, setFilteredOptions] = useState(bookingOptions)
   const scrollX = useRef(new Animated.Value(0)).current
-  
+
   // Real upcoming bookings state
   const [realUpcomingBookings, setRealUpcomingBookings] = useState<any[]>([])
   const [isLoadingBookings, setIsLoadingBookings] = useState(true)
@@ -99,7 +99,10 @@ const AthleteBook = () => {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(50)).current
-  
+
+  // Guard to prevent double-fetch on mount + focus
+  const hasLoadedRef = useRef(false)
+
   // Get user from Redux store
   const user = useAppSelector((state) => state.user.data)
 
@@ -205,15 +208,22 @@ const AthleteBook = () => {
     }
   }, [user?.token, user?.id])
 
-  // Fetch bookings on component mount and user changes
+  // Fetch bookings on component mount only (not on every focus)
   useEffect(() => {
-    fetchUpcomingBookings()
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true
+      fetchUpcomingBookings()
+    }
   }, [fetchUpcomingBookings])
-  
+
   // Refresh bookings when tab gains focus (user returns from booking flow)
+  // Skip the first focus event since useEffect already handles mount
   useFocusEffect(
     useCallback(() => {
-      fetchUpcomingBookings()
+      if (hasLoadedRef.current) {
+        // Only refetch if we've already loaded once (i.e., this is a return visit)
+        fetchUpcomingBookings()
+      }
     }, [fetchUpcomingBookings])
   )
 

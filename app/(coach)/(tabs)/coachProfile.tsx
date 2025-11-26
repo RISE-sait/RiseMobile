@@ -63,7 +63,7 @@ const CoachProfileScreen = () => {
 
         }
       } catch (error) {
-        console.error("❌ Error loading user:", error);
+        // Error loading user silently handled
       }
     };
 

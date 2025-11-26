@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { FeedbackDialogButton } from "@/components/feedback/FeedbackDialog";
 
 interface DialogConfig {
@@ -57,13 +57,16 @@ export const useFeedbackDialog = () => {
     setVisible(false);
   }, []);
 
-  return {
-    visible,
-    config,
-    show, // Legacy API
-    showDialog, // New recommended API
-    hide,
-  };
+  return useMemo(
+    () => ({
+      visible,
+      config,
+      show, // Legacy API
+      showDialog, // New recommended API
+      hide,
+    }),
+    [visible, config, show, showDialog, hide]
+  );
 };
 
 export default useFeedbackDialog;

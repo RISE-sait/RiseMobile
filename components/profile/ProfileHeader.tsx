@@ -14,7 +14,7 @@ const ProfileHeader = ({
   firstName: string;
   lastName: string;
   role: string;
-  profileImage: ImageSourcePropType;
+  profileImage?: ImageSourcePropType; // ✅ Profile image is optional
   countryCode?: string; // ✅ Country code is optional
   teamLogo?: string | ImageSourcePropType; // ✅ Accept remote URL or bundled asset
   onPress?: () => void; // ✅ Optional onPress handler
@@ -61,12 +61,14 @@ const ProfileHeader = ({
           {firstName.charAt(0).toUpperCase()}{lastName.charAt(0).toUpperCase()}
         </Text>
 
-        {/* Profile Image */}
-        <Image
-          source={profileImage}
-          className="absolute w-52 h-52 right-4 bottom-0"
-          style={{ resizeMode: "cover", borderRadius: 10, zIndex: 2 }}
-        />
+        {/* Profile Image - only show if valid image provided */}
+        {profileImage && (
+          <Image
+            source={profileImage}
+            className="absolute w-52 h-52 right-4 bottom-0"
+            style={{ resizeMode: "cover", borderRadius: 10, zIndex: 2 }}
+          />
+        )}
 
         {/* Name and Role */}
         <View className="absolute bottom-4 left-4">

@@ -16,7 +16,7 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter, usePathname, useSegments } from "expo-router"
 import dayjs from "dayjs"
 import axios from "axios"
 import { useAppSelector } from "@/store/hooks"
@@ -77,7 +77,16 @@ const PracticeDetails: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
 
+  const pathname = usePathname()
+  const segments = useSegments()
+
   useEffect(() => {
+    if (__DEV__) console.log(`[Practice ${id}] navigation snapshot`, {
+      pathname,
+      segments: segments.join("/") || "(root)",
+      canGoBack: router.canGoBack?.() ?? null,
+    })
+
     // Start animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -135,7 +144,7 @@ const PracticeDetails: React.FC = () => {
 
       setPractice(transformedPractice)
     } catch (err: any) {
-      console.error("❌ Error fetching practice details:", err.response?.data || err.message)
+      if (__DEV__) console.warn("❌ Error fetching practice details:", err.response?.data || err.message)
       setError("Failed to load practice details. Please try again.")
     } finally {
       setLoading(false)
@@ -195,7 +204,7 @@ const PracticeDetails: React.FC = () => {
         title: practice.title,
       })
     } catch (error) {
-      console.error("Error sharing practice:", error)
+      if (__DEV__) console.warn("Error sharing practice:", error)
     }
   }
 

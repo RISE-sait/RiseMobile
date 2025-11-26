@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Text, View, ScrollView, ActivityIndicator } from "react-native"
+import { Text, View, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
@@ -140,17 +140,33 @@ export default function AthleteHome() {
         </View>
 
         {/* Header Section - Only render when user exists */}
-        <View className="w-full px-5 mt-20">
+        <View className="w-full px-5 mt-24">
           {user ? (
-            <ProfileHeader
-              firstName={user.firstName}
-              lastName={user.lastName}
-              role={user.role}
-              profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
-              countryCode={user?.countryCode} // Ensure countryCode is always defined
-              teamLogo={images.teamLogo}
-              onPress={() => router.push("/profile")}
-            />
+            user.profileImage ? (
+              <ProfileHeader
+                firstName={user.firstName}
+                lastName={user.lastName}
+                role={user.role}
+                profileImage={{ uri: user.profileImage }}
+                countryCode={user?.countryCode} // Ensure countryCode is always defined
+                teamLogo={images.teamLogo}
+                onPress={() => router.push("/profile")}
+              />
+            ) : (
+              <View className="bg-[#111111] border border-[#222222] rounded-2xl p-4">
+                <Text className="text-white-100 font-Oswald-Bold text-lg">Add your profile photo</Text>
+                <Text className="text-[#cccccc] text-sm mt-2">
+                  Upload a picture to personalize your account and make check-ins faster.
+                </Text>
+                <TouchableOpacity
+                  className="mt-3 px-4 py-2 rounded-lg bg-[#FFD700]"
+                  onPress={() => router.push("/screens/edit-profile")}
+                  activeOpacity={0.85}
+                >
+                  <Text className="text-black font-semibold text-sm">Upload photo</Text>
+                </TouchableOpacity>
+              </View>
+            )
           ) : (
             <Text className="text-white text-center">User data not available</Text>
           )}
