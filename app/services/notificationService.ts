@@ -2,7 +2,19 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/utils/api';
+
+// Storage keys for persistence
+const STORAGE_KEYS = {
+  REGISTRATION_STATUS: 'notification_registration_status',
+  LAST_REGISTERED_TOKEN: 'notification_last_registered_token',
+  RETRY_COUNT: 'notification_retry_count',
+};
+
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 2000; // 2 seconds
 
 // Check if we're running in Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -36,8 +48,68 @@ export interface NotificationData {
 class NotificationService {
   private static instance: NotificationService;
   private expoPushToken: string | null = null;
+  private isRegistered: boolean = false;
+  private tokenGetter: (() => Promise<string | null>) | null = null;
 
-  private constructor() {}
+  private constructor() {
+    // Load registration status from storage on init
+    this.loadRegistrationStatus();
+  }
+
+  /**
+   * Load registration status from AsyncStorage
+   */
+  private async loadRegistrationStatus(): Promise<void> {
+    try {
+      const status = await AsyncStorage.getItem(STORAGE_KEYS.REGISTRATION_STATUS);
+      this.isRegistered = status === 'true';
+    } catch {
+      this.isRegistered = false;
+    }
+  }
+
+  /**
+   * Save registration status to AsyncStorage
+   */
+  private async saveRegistrationStatus(registered: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.REGISTRATION_STATUS, registered ? 'true' : 'false');
+      this.isRegistered = registered;
+    } catch {
+      // Storage failed, continue anyway
+    }
+  }
+
+  /**
+   * Set a token getter function for fresh tokens
+   */
+  setTokenGetter(getter: () => Promise<string | null>): void {
+    this.tokenGetter = getter;
+  }
+
+  /**
+   * Get a fresh auth token using the token getter
+   */
+  private async getFreshToken(): Promise<string | null> {
+    if (this.tokenGetter) {
+      return await this.tokenGetter();
+    }
+    return null;
+  }
+
+  /**
+   * Check if device is already registered
+   */
+  isDeviceRegistered(): boolean {
+    return this.isRegistered;
+  }
+
+  /**
+   * Sleep helper for retry delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
   public static getInstance(): NotificationService {
     if (!NotificationService.instance) {
@@ -97,32 +169,107 @@ class NotificationService {
   }
 
   /**
-   * Register device with backend
+   * Register device with backend (with retry logic)
    */
-  async registerDevice(userToken: string): Promise<boolean> {
+  async registerDevice(userToken?: string): Promise<boolean> {
     try {
       if (!this.expoPushToken) {
         return false;
       }
 
+      // Try to get a fresh token if available, otherwise use passed token
+      let tokenToUse = userToken;
+      if (this.tokenGetter) {
+        const freshToken = await this.getFreshToken();
+        if (freshToken) {
+          tokenToUse = freshToken;
+        }
+      }
+
+      if (!tokenToUse) {
+        return false;
+      }
+
       const deviceType = Platform.OS === 'ios' ? 'ios' : 'android';
 
-      const response = await fetch(`${API_URL}/secure/notifications/register`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${userToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          device_type: deviceType,
-          expo_push_token: this.expoPushToken,
-        }),
-      });
+      // Retry with exponential backoff
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          // Get fresh token on retry attempts (in case original expired)
+          if (attempt > 0 && this.tokenGetter) {
+            const refreshedToken = await this.getFreshToken();
+            if (refreshedToken) {
+              tokenToUse = refreshedToken;
+            }
+          }
 
-      return response.ok;
-    } catch (error) {
+          const response = await fetch(`${API_URL}/secure/notifications/register`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${tokenToUse}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              device_type: deviceType,
+              expo_push_token: this.expoPushToken,
+            }),
+          });
+
+          if (response.ok) {
+            // Success - save registration status
+            await this.saveRegistrationStatus(true);
+            await AsyncStorage.setItem(STORAGE_KEYS.LAST_REGISTERED_TOKEN, this.expoPushToken);
+            return true;
+          }
+
+          // If 401 Unauthorized, try to get fresh token on next attempt
+          if (response.status === 401 && attempt < MAX_RETRIES - 1) {
+            const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+            await this.sleep(delay);
+            continue;
+          }
+
+          // Other error, retry with backoff
+          if (attempt < MAX_RETRIES - 1) {
+            const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+            await this.sleep(delay);
+          }
+        } catch {
+          // Network error, retry with backoff
+          if (attempt < MAX_RETRIES - 1) {
+            const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+            await this.sleep(delay);
+          }
+        }
+      }
+
+      // All retries failed
+      return false;
+    } catch {
       return false;
     }
+  }
+
+  /**
+   * Ensure device is registered - call this on app foreground
+   * Returns true if already registered or successfully registered
+   */
+  async ensureRegistered(): Promise<boolean> {
+    // If already registered, just return true
+    if (this.isRegistered && this.expoPushToken) {
+      // Verify the stored token matches current token
+      const storedToken = await AsyncStorage.getItem(STORAGE_KEYS.LAST_REGISTERED_TOKEN);
+      if (storedToken === this.expoPushToken) {
+        return true;
+      }
+    }
+
+    // Not registered or token changed, try to register
+    if (this.expoPushToken) {
+      return await this.registerDevice();
+    }
+
+    return false;
   }
 
   /**
@@ -189,10 +336,21 @@ class NotificationService {
   }
 
   /**
-   * Clear stored push token (useful for logout)
+   * Clear stored push token and registration status (useful for logout)
    */
-  clearPushToken(): void {
+  async clearPushToken(): Promise<void> {
     this.expoPushToken = null;
+    this.isRegistered = false;
+    this.tokenGetter = null;
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.REGISTRATION_STATUS,
+        STORAGE_KEYS.LAST_REGISTERED_TOKEN,
+        STORAGE_KEYS.RETRY_COUNT,
+      ]);
+    } catch {
+      // Storage clear failed, continue anyway
+    }
   }
 }
 

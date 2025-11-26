@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,10 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Linking,
+  Platform,
+  AppState,
+  AppStateStatus,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -67,6 +71,18 @@ const NotificationSettingsScreen: React.FC = () => {
     checkBiometricAvailability();
   }, []);
 
+  // Re-check permissions when app comes back to foreground (user may have changed in settings)
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        checkPermissions();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, []);
+
   const checkBiometricAvailability = async () => {
     try {
       const capability = await checkBiometricCapability();
@@ -85,7 +101,21 @@ const NotificationSettingsScreen: React.FC = () => {
     try {
       const { status } = await Notifications.getPermissionsAsync();
       setPermissionStatus(status);
-    } catch (error) {
+
+      // Sync the pushNotifications setting with actual system permission
+      // If system permission is denied, the setting should reflect that
+      if (status !== 'granted') {
+        setSettings(prev => {
+          if (prev.pushNotifications) {
+            // Update AsyncStorage too
+            const newSettings = { ...prev, pushNotifications: false };
+            AsyncStorage.setItem('notificationSettings', JSON.stringify(newSettings));
+            return newSettings;
+          }
+          return prev;
+        });
+      }
+    } catch {
       // Error checking notification permissions
     }
   };
@@ -122,6 +152,35 @@ const NotificationSettingsScreen: React.FC = () => {
     if (key === 'biometricLogin') {
       await handleBiometricToggle(value as boolean);
       return;
+    }
+
+    // Handle push notifications toggle specially
+    if (key === 'pushNotifications') {
+      if (value === true) {
+        // User wants to enable notifications
+        if (permissionStatus !== 'granted') {
+          // Need to request permission first
+          await requestPermissions();
+          return;
+        }
+        // Permission already granted, just save the setting
+      } else {
+        // User wants to disable notifications - must go to system settings
+        Alert.alert(
+          "Disable Notifications",
+          "To disable notifications, you need to turn them off in your device settings.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Open Settings",
+              onPress: () => {
+                openSystemSettings();
+              }
+            }
+          ]
+        );
+        return;
+      }
     }
 
     const newSettings = { ...settings, [key]: value };
@@ -209,22 +268,34 @@ const NotificationSettingsScreen: React.FC = () => {
     }
   };
 
+  const openSystemSettings = useCallback(() => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('app-settings:');
+    } else {
+      Linking.openSettings();
+    }
+  }, []);
+
   const requestPermissions = async () => {
     try {
       const { status } = await Notifications.requestPermissionsAsync();
       setPermissionStatus(status);
 
       if (status === 'granted') {
-        handleSettingChange('pushNotifications', true);
+        const newSettings = { ...settings, pushNotifications: true };
+        await saveSettings(newSettings);
         Alert.alert("Success", "Notification permissions granted!");
       } else {
         Alert.alert(
           "Permission Denied",
-          "Please enable notifications in your device settings to receive updates."
+          "Please enable notifications in your device settings to receive updates.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: openSystemSettings }
+          ]
         );
       }
     } catch (error) {
-      console.error("Error requesting permissions:", error);
       Alert.alert("Error", "Failed to request notification permissions.");
     }
   };
