@@ -32,7 +32,7 @@ if (!isExpoGo || Platform.OS !== 'android') {
         shouldShowList: true,
       }),
     });
-  } catch (error) {
+  } catch {
     // Failed to set notification handler
   }
 }
@@ -144,15 +144,22 @@ class NotificationService {
       }
 
       if (finalStatus !== 'granted') {
+        if (__DEV__) {
+          console.warn('[NotificationService] Permission denied by user');
+        }
         return null;
       }
 
       // Get the Expo push token
       const expoPushTokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: process.env.EXPO_PUBLIC_PROJECT_ID || undefined
+        projectId: process.env.EXPO_PUBLIC_PROJECT_ID || Constants.expoConfig?.extra?.eas?.projectId
       });
 
       this.expoPushToken = expoPushTokenData.data;
+
+      if (__DEV__) {
+        console.log('[NotificationService] Successfully obtained Expo Push Token:', this.expoPushToken);
+      }
 
       // Register the device with your backend if user token is provided
       if (userToken && this.expoPushToken) {
@@ -164,6 +171,9 @@ class NotificationService {
 
       return this.expoPushToken;
     } catch (error) {
+      if (__DEV__) {
+        console.warn('[NotificationService] Failed to get push token:', error);
+      }
       return null;
     }
   }
@@ -219,6 +229,9 @@ class NotificationService {
             // Success - save registration status
             await this.saveRegistrationStatus(true);
             await AsyncStorage.setItem(STORAGE_KEYS.LAST_REGISTERED_TOKEN, this.expoPushToken);
+            if (__DEV__) {
+              console.log('[NotificationService] Device registered successfully with backend');
+            }
             return true;
           }
 
@@ -244,8 +257,14 @@ class NotificationService {
       }
 
       // All retries failed
+      if (__DEV__) {
+        console.warn('[NotificationService] Failed to register device after', MAX_RETRIES, 'attempts');
+      }
       return false;
-    } catch {
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[NotificationService] Registration error:', error);
+      }
       return false;
     }
   }
@@ -290,7 +309,7 @@ class NotificationService {
       });
 
       return response.ok;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
