@@ -259,37 +259,31 @@ const CoachMatches: React.FC = () => {
 
       <Animated.View style={{ opacity: fadeAnim }} className="flex-1">
         {/* Header */}
-        <View className="px-6 pb-4 border-b border-white-100/10 flex-row justify-between items-center">
-          <Text className="text-white-100 text-3xl font-bold">Matches</Text>
+        <View className="px-5 pb-3 border-b border-white-100/10 flex-row justify-between items-center">
+          <Text className="text-white-100 text-3xl font-extrabold">Matches</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <TouchableOpacity style={styles.createButton} onPress={openCreateGameModal}>
               <Ionicons name="add" size={20} color="#000" />
               <Text style={styles.createButtonText}>Create</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={async () => {
-                const authToken = await getAuthToken();
-                if (!authToken) return;
+              onPress={() => {
+                fetchInteractionRef.current?.cancel();
+                fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+                  const authToken = await getAuthToken();
+                  if (!authToken) return;
 
-                dispatch(clearMatches());
-                dispatch(fetchMatches(authToken));
+                  dispatch(clearMatches());
+                  dispatch(fetchMatches(authToken));
+                });
               }}
+              disabled={status === "loading"}
             >
-              <Text
-                className="text-gold-100 font-semibold"
-                onPress={() => {
-                  fetchInteractionRef.current?.cancel();
-                  fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
-                    const authToken = await getAuthToken();
-                    if (!authToken) return;
-
-                    dispatch(clearMatches());
-                    dispatch(fetchMatches(authToken));
-                  });
-                }}
-              >
-                Refresh
-              </Text>
+              <Ionicons
+                name="refresh"
+                size={24}
+                color={status === "loading" ? "#AAAAAA" : "#FFD700"}
+              />
             </TouchableOpacity>
           </View>
         </View>

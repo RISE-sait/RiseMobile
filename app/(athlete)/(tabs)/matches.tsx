@@ -8,13 +8,12 @@ import dayjs from "dayjs"
 import { SafeAreaView } from "react-native-safe-area-context"
 import MatchCard from "../../../components/events/MatchCard"
 import { StatusBar } from "expo-status-bar"
-import { FontAwesome6 } from "@expo/vector-icons"
 import { useAppDispatch, useAppSelector } from "../../../store/hooks"
 import { fetchMatches, clearMatches } from "../../../store/slices/gamesSlice"
 import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
 import EmptyState from "../../../components/feedback/EmptyState"
+import PageTitle from "@/components/PageTitle"
 import { useAuth } from "@/utils/auth"
-import Constants from "expo-constants"
 
 const { width } = Dimensions.get("window")
 
@@ -186,24 +185,22 @@ const MatchesScreen: React.FC = () => {
 
       <View className="flex-1">
         {/* Header */}
-        <View className="px-6 pb-4 border-b border-white-100/10 flex-row justify-between items-center">
-          <Text className="text-white-100 text-3xl font-bold">Matches</Text>
-          <TouchableOpacity
-            onPress={() => {
-              fetchInteractionRef.current?.cancel()
-              fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
-                const authToken = await getAuthToken()
+        <PageTitle
+          title="Matches"
+          showRefreshIcon
+          isRefreshing={status === "loading"}
+          onButtonPress={() => {
+            fetchInteractionRef.current?.cancel()
+            fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+              const authToken = await getAuthToken()
 
-                if (authToken) {
-                  dispatch(clearMatches())
-                  dispatch(fetchMatches(authToken))
-                }
-              })
-            }}
-          >
-            <Text className="text-gold-100 font-semibold">Refresh</Text>
-          </TouchableOpacity>
-        </View>
+              if (authToken) {
+                dispatch(clearMatches())
+                dispatch(fetchMatches(authToken))
+              }
+            })
+          }}
+        />
 
         {/* Horizontal Calendar */}
         <FlatList

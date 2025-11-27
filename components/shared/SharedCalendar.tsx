@@ -23,7 +23,6 @@ import Constants from "expo-constants"
 interface SharedCalendarProps {
   userRole: "athlete" | "coach" | "instructor" | "parent"
   title?: string
-  subtitle?: string
   childrenData?: any[]
 }
 
@@ -41,7 +40,6 @@ interface CalendarEvent {
 const SharedCalendar: React.FC<SharedCalendarProps> = ({
   userRole,
   title = "Calendar",
-  subtitle,
   childrenData = [],
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format("YYYY-MM-DD"))
@@ -324,7 +322,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
       <StatusBar translucent style="light" />
 
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <PageTitle title={title} subtitle={subtitle} onButtonPress={subtitle ? handleRefresh : undefined} />
+        <PageTitle title={title} onButtonPress={handleRefresh} showRefreshIcon isRefreshing={isLoading} />
 
         <View className="px-5 py-2">
           <CalendarCard
