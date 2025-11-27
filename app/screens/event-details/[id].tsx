@@ -127,6 +127,7 @@ const EventDetails: React.FC = () => {
   const [isCheckingPayment, setIsCheckingPayment] = useState(false)
   const [enrollmentOptions, setEnrollmentOptions] = useState<any>(null)
   const [loadingEnrollmentOptions, setLoadingEnrollmentOptions] = useState(false)
+  const [enrollmentOptionsLoaded, setEnrollmentOptionsLoaded] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [membershipLoaded, setMembershipLoaded] = useState(false)
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -218,13 +219,15 @@ const EventDetails: React.FC = () => {
       if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: API call completed - ${apiDuration}ms`)
 
       setEnrollmentOptions(options)
+      setEnrollmentOptionsLoaded(true)
 
       const totalDuration = Date.now() - startTime
-      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: Completed - ${totalDuration}ms total`)
+      if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEnrollmentOptions: Completed - ${totalDuration}ms total`, options)
     } catch (error) {
       const totalDuration = Date.now() - startTime
       if (__DEV__) console.warn(`❌ [Event ${id}] fetchEnrollmentOptions: Error after ${totalDuration}ms`, error)
       setEnrollmentOptions(null)
+      setEnrollmentOptionsLoaded(true) // Mark as loaded even on error so we know we tried
     } finally {
       setLoadingEnrollmentOptions(false)
     }
@@ -626,6 +629,11 @@ const EventDetails: React.FC = () => {
       })
 
       setRegistered(isUserEnrolled)
+
+      // Fetch enrollment options to determine if registration is available (for non-practice events)
+      if (!processedEvent.title.toLowerCase().includes('practice')) {
+        fetchEnrollmentOptions(cleanedId)
+      }
 
       const totalDuration = Date.now() - startTime
       if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed successfully - ${totalDuration}ms total`)
@@ -1126,7 +1134,15 @@ const EventDetails: React.FC = () => {
             <FontAwesome5 name="share-alt" size={22} color={COLORS.primary} />
           </TouchableOpacity>
 
-          {!event.title.toLowerCase().includes('practice') && (
+          {/* Only show register button if:
+              1. Not a practice
+              2. Enrollment options loaded
+              3. Registration is available (can_enroll_free OR credit_cost > 0 OR stripe_price_id OR membership_plan_id)
+          */}
+          {!event.title.toLowerCase().includes('practice') &&
+           enrollmentOptionsLoaded &&
+           enrollmentOptions &&
+           (enrollmentOptions.can_enroll_free || enrollmentOptions.credit_cost > 0 || enrollmentOptions.stripe_price_id || enrollmentOptions.membership_plan_id) && (
             <TouchableOpacity
               style={[styles.registerButton, registered && styles.registeredButton, isPastEvent && styles.disabledButton]}
               onPress={handleRegister}

@@ -63,7 +63,24 @@ const parseApiDateFormat = (dateString: string): { date: string; time: string } 
   if (!dateString) return { date: dayjs().format("YYYY-MM-DD"), time: "TBD" }
 
   try {
-    const [datePart, timePart] = dateString.split(" ")
+    // Handle both formats: "2025-11-27 14:30:00" (space) and "2025-11-27T14:30:00" (ISO)
+    let datePart: string
+    let timePart: string
+
+    if (dateString.includes("T")) {
+      // ISO format: "2025-11-27T14:30:00Z" or "2025-11-27T14:30:00"
+      [datePart, timePart] = dateString.split("T")
+      timePart = timePart.split("Z")[0] // Remove Z if present
+    } else if (dateString.includes(" ")) {
+      // Space format: "2025-11-27 14:30:00 -0700"
+      const parts = dateString.split(" ")
+      datePart = parts[0]
+      timePart = parts[1]
+    } else {
+      // Just a date, no time
+      return { date: dayjs(dateString).format("YYYY-MM-DD"), time: "TBD" }
+    }
+
     const formattedDate = dayjs(datePart).format("YYYY-MM-DD")
     const [hour, minute] = timePart.split(":")
     const hourNum = parseInt(hour, 10)

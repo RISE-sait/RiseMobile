@@ -120,7 +120,7 @@ export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (t
         })
       })
     }
-    
+
     // Process practices
     if (responseData.practices && Array.isArray(responseData.practices)) {
       responseData.practices.forEach((practice: any) => {
