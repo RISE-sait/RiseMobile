@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import type { RootState } from '@/store';
 import NotificationService from '@/app/services/notificationService';
@@ -12,6 +12,18 @@ const NotificationManager = () => {
   const { getValidToken } = useAuth();
   const appState = useRef(AppState.currentState);
   const hasInitialized = useRef(false);
+  const coldStartHealthCheckDone = useRef(false);
+
+  // Diagnostic logging - Environment check (print in release too)
+  useEffect(() => {
+    console.log('========================================');
+    console.log('[NotificationManager] ENVIRONMENT CHECK');
+    console.log('[NotificationManager] appOwnership:', Constants.appOwnership);
+    console.log('[NotificationManager] isStandalone:', isStandalone);
+    console.log('[NotificationManager] Platform:', Platform.OS);
+    console.log('[NotificationManager] user?.token exists:', !!user?.token);
+    console.log('========================================');
+  }, [isStandalone, user?.token]);
 
   // Memoize the token getter to avoid recreating on every render
   const tokenGetter = useCallback(async () => {
@@ -20,10 +32,12 @@ const NotificationManager = () => {
 
   // Initialize notifications on login
   useEffect(() => {
-    if (!isStandalone) {
-      if (__DEV__) {
-        console.log('[NotificationManager] Skipping setup in non-standalone environment')
-      }
+    console.log('[NotificationManager] Init effect running');
+
+    // Initialize in non-Expo Go environments (appOwnership !== 'expo') to avoid skipping dev client
+    const shouldInit = Constants.appOwnership !== 'expo';
+    if (!shouldInit) {
+      console.log('[NotificationManager] Skipping setup in Expo Go environment');
       return;
     }
 
@@ -38,18 +52,24 @@ const NotificationManager = () => {
         if (user?.token) {
           const token = await notificationService.initialize(user.token);
           hasInitialized.current = true;
-          if (__DEV__) {
-            if (token) {
-              console.log('[NotificationManager] Initialization successful');
-            } else {
-              console.warn('[NotificationManager] Initialization completed but no token obtained');
+
+          if (token) {
+            console.log('[NotificationManager] Initialization successful');
+
+            // Cold start health check after a delay
+            if (!coldStartHealthCheckDone.current) {
+              setTimeout(async () => {
+                console.log('[NotificationManager] Running cold start health check');
+                await notificationService.verifyAndReRegister();
+                coldStartHealthCheckDone.current = true;
+              }, 5000); // 5 seconds after initialization
             }
+          } else {
+            console.warn('[NotificationManager] Initialization completed but no token obtained');
           }
         }
       } catch (error) {
-        if (__DEV__) {
-          console.warn('[NotificationManager] Initialization error:', error);
-        }
+        console.warn('[NotificationManager] Initialization error:', error);
       }
     };
 
@@ -58,7 +78,8 @@ const NotificationManager = () => {
 
   // Re-check registration when app comes to foreground
   useEffect(() => {
-    if (!isStandalone || !user?.token) return;
+    // Allow dev client to trigger foreground validation, only skip in Expo Go
+    if (Constants.appOwnership === 'expo' || !user?.token) return;
 
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       // App came to foreground from background/inactive
@@ -66,28 +87,18 @@ const NotificationManager = () => {
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
+        console.log('[NotificationManager] App came to foreground, running health check');
         try {
           const notificationService = NotificationService.getInstance();
 
           // Ensure token getter is set
           notificationService.setTokenGetter(tokenGetter);
 
-          // If not registered, try to register again
-          if (!notificationService.isDeviceRegistered()) {
-            // Re-initialize to get push token if needed, then register
-            if (!notificationService.getPushToken()) {
-              await notificationService.initialize(user.token);
-            } else {
-              const registered = await notificationService.ensureRegistered();
-              if (__DEV__) {
-                console.log('[NotificationManager] Foreground registration check:', registered ? 'success' : 'failed');
-              }
-            }
-          }
+          // Run health check which will re-register if needed
+          const result = await notificationService.verifyAndReRegister();
+          console.log('[NotificationManager] Foreground health check:', result.success ? 'success' : result.message);
         } catch (error) {
-          if (__DEV__) {
-            console.warn('[NotificationManager] Foreground registration error:', error);
-          }
+          console.warn('[NotificationManager] Foreground health check error:', error);
         }
       }
 
