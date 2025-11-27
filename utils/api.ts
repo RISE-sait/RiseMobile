@@ -278,7 +278,13 @@ export const registerUser = async (
   role: string,
   dob: string,
   phoneNumber: string,
-  countryCode: string
+  countryCode: string,
+  athleteFields?: {
+    gender: string
+    emergencyContactName: string
+    emergencyContactPhone: string
+    emergencyContactRelationship: string
+  }
 ): Promise<any> => {
   try {
     // 🔹 Validate and clean inputs
@@ -322,6 +328,10 @@ export const registerUser = async (
         last_name: lastName,
         phone_number: phoneNumber,
         country_code: countryCode,
+        gender: athleteFields?.gender || "M",
+        emergency_contact_name: athleteFields?.emergencyContactName || "",
+        emergency_contact_phone: athleteFields?.emergencyContactPhone || "",
+        emergency_contact_relationship: athleteFields?.emergencyContactRelationship || "",
         has_consent_to_email_marketing: true,
         has_consent_to_sms: true,
         waivers: [

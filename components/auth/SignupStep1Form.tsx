@@ -171,6 +171,23 @@ export const SignupStep1Form = ({
           </TouchableOpacity>
         </View>
         {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+
+        {/* Password Match Indicator */}
+        {confirmPassword.length > 0 && (
+          <View style={styles.passwordMatchContainer}>
+            <Ionicons
+              name={password === confirmPassword ? "checkmark-circle" : "close-circle"}
+              size={16}
+              color={password === confirmPassword ? "#2EB62C" : "#FF4D4F"}
+            />
+            <Text style={[
+              styles.passwordMatchText,
+              { color: password === confirmPassword ? "#2EB62C" : "#FF4D4F" }
+            ]}>
+              {password === confirmPassword ? "Passwords match" : "Passwords do not match"}
+            </Text>
+          </View>
+        )}
       </View>
 
       <TouchableOpacity
@@ -254,6 +271,16 @@ const styles = StyleSheet.create({
   strengthTextContainer: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  passwordMatchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    marginLeft: 30,
+  },
+  passwordMatchText: {
+    fontSize: 12,
+    marginLeft: 6,
   },
   nextButton: {
     marginTop: 20,

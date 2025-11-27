@@ -17,6 +17,8 @@ interface SignupFormContainerProps {
   setConfirmPasswordVisible: (visible: boolean) => void
   phoneInputFocused: boolean
   setPhoneInputFocused: (focused: boolean) => void
+  emergencyPhoneInputFocused: boolean
+  setEmergencyPhoneInputFocused: (focused: boolean) => void
   fadeAnim: Animated.Value
   slideAnim: Animated.Value
   validatePassword: (password: string) => { valid: boolean; strength: string; message: string }
@@ -28,7 +30,10 @@ interface SignupFormContainerProps {
   countryPickerVisible: boolean
   setPhoneCountryPickerVisible: (visible: boolean) => void
   phoneCountryPickerVisible: boolean
+  emergencyPhoneCountryPickerVisible: boolean
+  setEmergencyPhoneCountryPickerVisible: (visible: boolean) => void
   formatPhoneNumber: (text: string) => void
+  formatEmergencyContactPhone: (text: string) => void
   step: number
   setStep: (step: number) => void
 }
@@ -44,6 +49,8 @@ export const SignupFormContainer: React.FC<SignupFormContainerProps> = ({
   setConfirmPasswordVisible,
   phoneInputFocused,
   setPhoneInputFocused,
+  emergencyPhoneInputFocused,
+  setEmergencyPhoneInputFocused,
   fadeAnim,
   slideAnim,
   validatePassword,
@@ -55,7 +62,10 @@ export const SignupFormContainer: React.FC<SignupFormContainerProps> = ({
   countryPickerVisible,
   setPhoneCountryPickerVisible,
   phoneCountryPickerVisible,
+  emergencyPhoneCountryPickerVisible,
+  setEmergencyPhoneCountryPickerVisible,
   formatPhoneNumber,
+  formatEmergencyContactPhone,
   step,
   setStep,
 }) => {
@@ -124,6 +134,8 @@ export const SignupFormContainer: React.FC<SignupFormContainerProps> = ({
           setLastName={(value) => updateFormData("lastName", value)}
           dateOfBirth={formData.dateOfBirth}
           setDateOfBirth={(value) => updateFormData("dateOfBirth", value)}
+          gender={formData.gender}
+          setGender={(value) => updateFormData("gender", value)}
           role={formData.role}
           setRole={(value) => updateFormData("role", value)}
           phoneNumber={formData.phoneNumber}
@@ -153,6 +165,20 @@ export const SignupFormContainer: React.FC<SignupFormContainerProps> = ({
           setAcceptedTerms={(value) => updateFormData("acceptedTerms", value)}
           acceptedWaiver={formData.acceptedWaiver}
           setAcceptedWaiver={(value) => updateFormData("acceptedWaiver", value)}
+          emergencyContactName={formData.emergencyContactName}
+          setEmergencyContactName={(value) => updateFormData("emergencyContactName", value)}
+          emergencyContactPhone={formData.emergencyContactPhone}
+          setEmergencyContactPhone={(value) => updateFormData("emergencyContactPhone", value)}
+          emergencyContactPhoneFormatted={formData.emergencyContactPhoneFormatted}
+          emergencyContactPhoneCountry={formData.emergencyContactPhoneCountry}
+          setEmergencyContactPhoneCountry={(value) => updateFormData("emergencyContactPhoneCountry", value)}
+          emergencyPhoneInputFocused={emergencyPhoneInputFocused}
+          setEmergencyPhoneInputFocused={setEmergencyPhoneInputFocused}
+          emergencyPhoneCountryPickerVisible={emergencyPhoneCountryPickerVisible}
+          setEmergencyPhoneCountryPickerVisible={setEmergencyPhoneCountryPickerVisible}
+          formatEmergencyContactPhone={formatEmergencyContactPhone}
+          emergencyContactRelationship={formData.emergencyContactRelationship}
+          setEmergencyContactRelationship={(value) => updateFormData("emergencyContactRelationship", value)}
         />
       )}
     </View>

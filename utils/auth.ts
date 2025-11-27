@@ -199,6 +199,12 @@ export const useAuth = () => {
     dob: string, // ✅ Change from age:number → dob:string
     phoneNumber: string,
     countryCode: string,
+    athleteFields?: {
+      gender: string
+      emergencyContactName: string
+      emergencyContactPhone: string
+      emergencyContactRelationship: string
+    },
   ) => {
     setIsLoading(true)
 
@@ -213,6 +219,7 @@ export const useAuth = () => {
         dob, // ✅ Correct argument
         phoneNumber,
         countryCode,
+        athleteFields,
       )
 
       // ❌ DO NOT automatically log the user in!
