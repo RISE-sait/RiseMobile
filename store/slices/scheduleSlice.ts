@@ -41,11 +41,9 @@ const initialState: ScheduleState = {
 // Fetch schedule data from /secure/schedule endpoint
 export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (token: string, { rejectWithValue }) => {
   try {
-
     const response = await axios.get(`${API_URL}/secure/schedule`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-
 
     const responseData = response.data
     
