@@ -17,6 +17,14 @@ export interface Court {
   }
 }
 
+// Helper function to check if an event is currently happening
+const isEventHappeningNow = (startTime: string, endTime: string): boolean => {
+  const now = new Date()
+  const start = new Date(startTime)
+  const end = new Date(endTime)
+  return now >= start && now <= end
+}
+
 interface CourtsState {
   courts: Court[]
   loading: 'idle' | 'pending' | 'succeeded' | 'failed'
@@ -49,39 +57,36 @@ export const fetchCourts = createAsyncThunk(
     }
 
     try {
-      // Batch all API calls in parallel instead of sequential per-court calls
-      const [courtsResponse, allPracticesResponse, allGamesResponse] = await Promise.all([
+      // Batch all API calls in parallel - use public endpoints to get ALL activities at RISE
+      const [courtsResponse, allPracticesResponse, allGamesResponse, allEventsResponse] = await Promise.all([
         axios.get(`${API_URL}/courts`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get(`${API_URL}/practices?status=in_progress`, {
+        axios.get(`${API_URL}/practices`, {
           headers: { Authorization: `Bearer ${token}` },
         }).catch(() => ({ data: [] })), // Fallback to empty array if fails
-        axios.get(`${API_URL}/games?status=in_progress`, {
+        axios.get(`${API_URL}/games`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => ({ data: [] })), // Fallback to empty array if fails
+        axios.get(`${API_URL}/events`, {
           headers: { Authorization: `Bearer ${token}` },
         }).catch(() => ({ data: [] })), // Fallback to empty array if fails
       ])
 
       const courts = courtsResponse.data
-      const activePractices = allPracticesResponse.data || []
-      const activeGames = allGamesResponse.data || []
+      const allPractices = allPracticesResponse.data || []
+      const allGames = allGamesResponse.data || []
+      const allEvents = allEventsResponse.data || []
 
-      // Helper function to check if an event is currently happening
-      const isEventHappeningNow = (startTime: string, endTime: string): boolean => {
-        const now = new Date()
-        const start = new Date(startTime)
-        const end = new Date(endTime)
-        return now >= start && now <= end
-      }
-
-      // Process courts with status checking (much faster - no additional API calls)
+      // Process courts with status checking based on current time
       const courtsWithStatus = courts.map((court: any) => {
         let status: Court['status'] = 'available'
         let currentEvent: Court['current_event'] | undefined
 
         // Check if there's an active practice on this court that's happening RIGHT NOW
-        const courtPractice = activePractices.find((p: any) =>
+        const courtPractice = allPractices.find((p: any) =>
           p.court_id === court.id &&
+          p.start_time && p.end_time &&
           isEventHappeningNow(p.start_time, p.end_time)
         )
         if (courtPractice) {
@@ -96,8 +101,9 @@ export const fetchCourts = createAsyncThunk(
         }
         // Check if there's an active game on this court that's happening RIGHT NOW
         else {
-          const courtGame = activeGames.find((g: any) =>
+          const courtGame = allGames.find((g: any) =>
             g.court_id === court.id &&
+            g.start_time && g.end_time &&
             isEventHappeningNow(g.start_time, g.end_time)
           )
           if (courtGame) {
@@ -108,6 +114,24 @@ export const fetchCourts = createAsyncThunk(
               start_time: courtGame.start_time,
               end_time: courtGame.end_time,
               type: 'game'
+            }
+          }
+          // Check if there's an active event on this court that's happening RIGHT NOW
+          else {
+            const courtEvent = allEvents.find((e: any) =>
+              e.court_id === court.id &&
+              e.start_at && e.end_at &&
+              isEventHappeningNow(e.start_at, e.end_at)
+            )
+            if (courtEvent) {
+              status = 'in_use'
+              currentEvent = {
+                id: courtEvent.id,
+                title: courtEvent.program?.name || courtEvent.name || 'Event',
+                start_time: courtEvent.start_at,
+                end_time: courtEvent.end_at,
+                type: 'event'
+              }
             }
           }
         }
@@ -181,36 +205,35 @@ export const forceFetchCourts = createAsyncThunk(
   'courts/forceFetchCourts',
   async (token: string, { rejectWithValue }) => {
     try {
-      // Batch all API calls in parallel instead of sequential per-court calls
-      const [courtsResponse, allPracticesResponse, allGamesResponse] = await Promise.all([
+      // Batch all API calls in parallel - use public endpoints to get ALL activities at RISE
+      const [courtsResponse, allPracticesResponse, allGamesResponse, allEventsResponse] = await Promise.all([
         axios.get(`${API_URL}/courts`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get(`${API_URL}/practices?status=in_progress`, {
+        axios.get(`${API_URL}/practices`, {
           headers: { Authorization: `Bearer ${token}` },
         }).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/games?status=in_progress`, {
+        axios.get(`${API_URL}/games`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/events`, {
           headers: { Authorization: `Bearer ${token}` },
         }).catch(() => ({ data: [] })),
       ])
 
       const courts = courtsResponse.data
-      const activePractices = allPracticesResponse.data || []
-      const activeGames = allGamesResponse.data || []
-
-      const isEventHappeningNow = (startTime: string, endTime: string): boolean => {
-        const now = new Date()
-        const start = new Date(startTime)
-        const end = new Date(endTime)
-        return now >= start && now <= end
-      }
+      const allPractices = allPracticesResponse.data || []
+      const allGames = allGamesResponse.data || []
+      const allEvents = allEventsResponse.data || []
 
       const courtsWithStatus = courts.map((court: any) => {
         let status: Court['status'] = 'available'
         let currentEvent: Court['current_event'] | undefined
 
-        const courtPractice = activePractices.find((p: any) =>
+        // Check practices
+        const courtPractice = allPractices.find((p: any) =>
           p.court_id === court.id &&
+          p.start_time && p.end_time &&
           isEventHappeningNow(p.start_time, p.end_time)
         )
         if (courtPractice) {
@@ -223,8 +246,10 @@ export const forceFetchCourts = createAsyncThunk(
             type: 'practice'
           }
         } else {
-          const courtGame = activeGames.find((g: any) =>
+          // Check games
+          const courtGame = allGames.find((g: any) =>
             g.court_id === court.id &&
+            g.start_time && g.end_time &&
             isEventHappeningNow(g.start_time, g.end_time)
           )
           if (courtGame) {
@@ -235,6 +260,23 @@ export const forceFetchCourts = createAsyncThunk(
               start_time: courtGame.start_time,
               end_time: courtGame.end_time,
               type: 'game'
+            }
+          } else {
+            // Check events
+            const courtEvent = allEvents.find((e: any) =>
+              e.court_id === court.id &&
+              e.start_at && e.end_at &&
+              isEventHappeningNow(e.start_at, e.end_at)
+            )
+            if (courtEvent) {
+              status = 'in_use'
+              currentEvent = {
+                id: courtEvent.id,
+                title: courtEvent.program?.name || courtEvent.name || 'Event',
+                start_time: courtEvent.start_at,
+                end_time: courtEvent.end_at,
+                type: 'event'
+              }
             }
           }
         }
