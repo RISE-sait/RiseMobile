@@ -18,6 +18,8 @@ interface SignupStep2FormProps {
   setLastName: (text: string) => void
   dateOfBirth: string
   setDateOfBirth: (date: string) => void
+  gender: string
+  setGender: (gender: string) => void
   role: string
   setRole: (role: string) => void
   phoneNumber: string
@@ -47,6 +49,21 @@ interface SignupStep2FormProps {
   setAcceptedTerms: (accepted: boolean) => void
   acceptedWaiver: boolean
   setAcceptedWaiver: (accepted: boolean) => void
+  // Emergency contact fields (for athletes)
+  emergencyContactName: string
+  setEmergencyContactName: (name: string) => void
+  emergencyContactPhone: string
+  setEmergencyContactPhone: (phone: string) => void
+  emergencyContactPhoneFormatted: string
+  emergencyContactPhoneCountry: any
+  setEmergencyContactPhoneCountry: (country: any) => void
+  emergencyPhoneInputFocused: boolean
+  setEmergencyPhoneInputFocused: (focused: boolean) => void
+  emergencyPhoneCountryPickerVisible: boolean
+  setEmergencyPhoneCountryPickerVisible: (visible: boolean) => void
+  formatEmergencyContactPhone: (text: string) => void
+  emergencyContactRelationship: string
+  setEmergencyContactRelationship: (relationship: string) => void
 }
 
 export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
@@ -56,6 +73,8 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
   setLastName,
   dateOfBirth,
   setDateOfBirth,
+  gender,
+  setGender,
   role,
   setRole,
   phoneNumber,
@@ -83,8 +102,23 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
   setAcceptedTerms,
   acceptedWaiver,
   setAcceptedWaiver,
+  emergencyContactName,
+  setEmergencyContactName,
+  emergencyContactPhone,
+  setEmergencyContactPhone,
+  emergencyContactPhoneFormatted,
+  emergencyContactPhoneCountry,
+  setEmergencyContactPhoneCountry,
+  emergencyPhoneInputFocused,
+  setEmergencyPhoneInputFocused,
+  emergencyPhoneCountryPickerVisible,
+  setEmergencyPhoneCountryPickerVisible,
+  formatEmergencyContactPhone,
+  emergencyContactRelationship,
+  setEmergencyContactRelationship,
 }) => {
   const [isDatePickerVisible, setDatePickerVisible] = useState(false)
+  const [isGenderPickerVisible, setGenderPickerVisible] = useState(false)
 
   const showDatePicker = () => {
     setDatePickerVisible(true)
@@ -260,6 +294,127 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
         {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
       </View>
 
+      {/* Gender Selection (Athletes only) */}
+      {role === "athlete" && (
+        <View style={styles.inputContainer}>
+          <Text style={styles.sectionLabel}>Gender</Text>
+          <View style={styles.genderContainer}>
+            {[
+              { value: "M", label: "Male" },
+              { value: "F", label: "Female" },
+              { value: "O", label: "Other" },
+            ].map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.genderOption,
+                  gender === option.value && styles.genderOptionSelected,
+                ]}
+                onPress={() => {
+                  setGender(option.value)
+                  if (errors.gender) setErrors({ ...errors, gender: null })
+                }}
+              >
+                <Text
+                  style={[
+                    styles.genderOptionText,
+                    gender === option.value && styles.genderOptionTextSelected,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+        </View>
+      )}
+
+      {/* Emergency Contact Section (Athletes only) */}
+      {role === "athlete" && (
+        <>
+          <Text style={styles.sectionTitle}>Emergency Contact</Text>
+
+          {/* Emergency Contact Name */}
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="person-outline" size={20} color="#9EA0A4" style={styles.inputIcon} />
+              <TextInput
+                placeholder="Emergency Contact Name"
+                placeholderTextColor="#9EA0A4"
+                style={[styles.input, errors.emergencyContactName && styles.inputError]}
+                value={emergencyContactName}
+                onChangeText={(text) => {
+                  setEmergencyContactName(text)
+                  if (errors.emergencyContactName) setErrors({ ...errors, emergencyContactName: null })
+                }}
+              />
+            </View>
+            {errors.emergencyContactName && <Text style={styles.errorText}>{errors.emergencyContactName}</Text>}
+          </View>
+
+          {/* Emergency Contact Phone */}
+          <View style={styles.inputContainer}>
+            <View style={[styles.inputWrapper, errors.emergencyContactPhone && styles.inputError]}>
+              <Ionicons name="call-outline" size={20} color="#9EA0A4" style={styles.inputIcon} />
+
+              <TouchableOpacity style={styles.countryCodeContainer} onPress={() => setEmergencyPhoneCountryPickerVisible(true)}>
+                <Text style={styles.countryCodeText}>{emergencyContactPhoneCountry ? `+${emergencyContactPhoneCountry.callingCode?.[0] || "1"}` : "+1"}</Text>
+                <Ionicons name="chevron-down" size={16} color="#9EA0A4" />
+              </TouchableOpacity>
+
+              <TextInput
+                placeholder="Emergency Contact Phone"
+                placeholderTextColor="#9EA0A4"
+                style={styles.input}
+                value={emergencyPhoneInputFocused ? emergencyContactPhone : emergencyContactPhoneFormatted}
+                onChangeText={formatEmergencyContactPhone}
+                keyboardType="phone-pad"
+                onFocus={() => setEmergencyPhoneInputFocused(true)}
+                onBlur={() => setEmergencyPhoneInputFocused(false)}
+              />
+            </View>
+            {errors.emergencyContactPhone && <Text style={styles.errorText}>{errors.emergencyContactPhone}</Text>}
+          </View>
+
+          {/* Emergency Phone Country Picker Modal */}
+          {emergencyPhoneCountryPickerVisible && (
+            <CountryPicker
+              withFilter
+              withFlag
+              withCallingCode
+              withAlphaFilter
+              withEmoji
+              countryCode={emergencyContactPhoneCountry?.cca2 || "US"}
+              onSelect={(selectedCountry) => {
+                setEmergencyContactPhoneCountry(selectedCountry)
+                setEmergencyPhoneCountryPickerVisible(false)
+              }}
+              onClose={() => setEmergencyPhoneCountryPickerVisible(false)}
+              visible={true}
+            />
+          )}
+
+          {/* Emergency Contact Relationship */}
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="people-outline" size={20} color="#9EA0A4" style={styles.inputIcon} />
+              <TextInput
+                placeholder="Relationship (e.g., Parent, Spouse)"
+                placeholderTextColor="#9EA0A4"
+                style={[styles.input, errors.emergencyContactRelationship && styles.inputError]}
+                value={emergencyContactRelationship}
+                onChangeText={(text) => {
+                  setEmergencyContactRelationship(text)
+                  if (errors.emergencyContactRelationship) setErrors({ ...errors, emergencyContactRelationship: null })
+                }}
+              />
+            </View>
+            {errors.emergencyContactRelationship && <Text style={styles.errorText}>{errors.emergencyContactRelationship}</Text>}
+          </View>
+        </>
+      )}
+
       {/* Phone Number with Country Code */}
       <View style={styles.inputContainer}>
         <View style={[styles.inputWrapper, errors.phoneNumber && styles.inputError]}>
@@ -271,7 +426,7 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
           </TouchableOpacity>
 
           <TextInput
-            placeholder="Phone Number"
+            placeholder="Your Phone Number"
             placeholderTextColor="#9EA0A4"
             style={styles.input}
             value={phoneInputFocused ? phoneNumber : formattedPhoneNumber}
@@ -506,6 +661,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginRight: 10,
+  },
+  sectionTitle: {
+    color: "#FFD700",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  sectionLabel: {
+    color: "#9EA0A4",
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  genderContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  genderOption: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#333",
+    alignItems: "center",
+  },
+  genderOptionSelected: {
+    borderColor: "#FFD700",
+    backgroundColor: "rgba(255, 215, 0, 0.1)",
+  },
+  genderOptionText: {
+    color: "#9EA0A4",
+    fontSize: 14,
+  },
+  genderOptionTextSelected: {
+    color: "#FFD700",
+    fontWeight: "600",
   },
 })
 

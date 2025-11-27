@@ -37,6 +37,7 @@ export interface SignupFormData {
   lastName: string
   role: string
   dateOfBirth: string
+  gender: string
   phoneNumber: string
   phoneCountry: {
     cca2: string
@@ -50,6 +51,15 @@ export interface SignupFormData {
   formattedPhoneNumber: string
   acceptedTerms: boolean
   acceptedWaiver: boolean
+  // Emergency contact fields (for athletes)
+  emergencyContactName: string
+  emergencyContactPhone: string
+  emergencyContactPhoneFormatted: string
+  emergencyContactPhoneCountry: {
+    cca2: string
+    callingCode?: string[]
+  }
+  emergencyContactRelationship: string
 }
 
 export interface SignupFormErrors {
@@ -60,9 +70,13 @@ export interface SignupFormErrors {
   lastName?: string | null
   role?: string | null
   dateOfBirth?: string | null
+  gender?: string | null
   phoneNumber?: string | null
   acceptedTerms?: string | null
   acceptedWaiver?: string | null
+  emergencyContactName?: string | null
+  emergencyContactPhone?: string | null
+  emergencyContactRelationship?: string | null
   general?: string | null
   [key: string]: string | null | undefined
 }
@@ -77,18 +91,27 @@ export const useSignupForm = () => {
     lastName: "",
     role: "",
     dateOfBirth: "",
+    gender: "",
     phoneNumber: "",
     phoneCountry: {
-      cca2: "US",
+      cca2: "CA",
       callingCode: ["1"],
     },
     country: {
-      cca2: "US",
-      name: "United States",
+      cca2: "CA",
+      name: "Canada",
     },
     formattedPhoneNumber: "",
     acceptedTerms: false,
     acceptedWaiver: false,
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    emergencyContactPhoneFormatted: "",
+    emergencyContactPhoneCountry: {
+      cca2: "CA",
+      callingCode: ["1"],
+    },
+    emergencyContactRelationship: "",
   })
 
   // UI state
@@ -96,9 +119,11 @@ export const useSignupForm = () => {
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false)
   const [phoneInputFocused, setPhoneInputFocused] = useState(false)
+  const [emergencyPhoneInputFocused, setEmergencyPhoneInputFocused] = useState(false)
   const [roleModalVisible, setRoleModalVisible] = useState(false)
   const [countryPickerVisible, setCountryPickerVisible] = useState(false)
   const [phoneCountryPickerVisible, setPhoneCountryPickerVisible] = useState(false)
+  const [emergencyPhoneCountryPickerVisible, setEmergencyPhoneCountryPickerVisible] = useState(false)
 
   // Update form data
   const updateFormData = (field: keyof SignupFormData, value: any) => {
@@ -131,6 +156,23 @@ export const useSignupForm = () => {
     updateFormData("formattedPhoneNumber", formatted)
   }
 
+  // Format emergency contact phone number
+  const formatEmergencyContactPhone = (text: string) => {
+    // Remove all non-numeric characters
+    const cleaned = text.replace(/\D/g, "")
+    updateFormData("emergencyContactPhone", cleaned)
+
+    // Format based on length
+    let formatted = cleaned
+    if (cleaned.length > 3 && cleaned.length <= 6) {
+      formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`
+    } else if (cleaned.length > 6) {
+      formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`
+    }
+
+    updateFormData("emergencyContactPhoneFormatted", formatted)
+  }
+
   // Validate form
   const validateForm = () => {
     const newErrors: SignupFormErrors = {}
@@ -148,7 +190,13 @@ export const useSignupForm = () => {
 
     if (!formData.role) newErrors.role = "Please select a role"
 
-    if (formData.role === "athlete" && !formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required"
+    if (formData.role === "athlete") {
+      if (!formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required"
+      if (!formData.gender) newErrors.gender = "Please select your gender"
+      if (!formData.emergencyContactName) newErrors.emergencyContactName = "Emergency contact name is required"
+      if (!formData.emergencyContactPhone) newErrors.emergencyContactPhone = "Emergency contact phone is required"
+      if (!formData.emergencyContactRelationship) newErrors.emergencyContactRelationship = "Emergency contact relationship is required"
+    }
 
     // Waiver and terms validation
     if (!formData.acceptedTerms) newErrors.acceptedTerms = "You must accept the Terms of Service"
@@ -164,18 +212,23 @@ export const useSignupForm = () => {
     passwordVisible,
     confirmPasswordVisible,
     phoneInputFocused,
+    emergencyPhoneInputFocused,
     roleModalVisible,
     countryPickerVisible,
     phoneCountryPickerVisible,
+    emergencyPhoneCountryPickerVisible,
     updateFormData,
     setErrors,
     setPasswordVisible,
     setConfirmPasswordVisible,
     setPhoneInputFocused,
+    setEmergencyPhoneInputFocused,
     setRoleModalVisible,
     setCountryPickerVisible,
     setPhoneCountryPickerVisible,
+    setEmergencyPhoneCountryPickerVisible,
     formatPhoneNumber,
+    formatEmergencyContactPhone,
     validateForm,
     validatePassword,
   }

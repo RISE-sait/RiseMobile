@@ -42,6 +42,11 @@ export const useSignupSubmission = (
       }
 
 
+      // Format emergency contact phone with country code
+      const fullEmergencyPhone = formData.role === "athlete"
+        ? `+${formData.emergencyContactPhoneCountry.callingCode?.[0] || "1"}${formData.emergencyContactPhone}`
+        : ""
+
       // Send request to your register function
       const response = await register(
         formData.email,
@@ -52,6 +57,13 @@ export const useSignupSubmission = (
         formData.dateOfBirth,
         fullPhoneNumber,
         formData.country.cca2,
+        // Additional fields for athletes
+        formData.role === "athlete" ? {
+          gender: formData.gender,
+          emergencyContactName: formData.emergencyContactName,
+          emergencyContactPhone: fullEmergencyPhone,
+          emergencyContactRelationship: formData.emergencyContactRelationship,
+        } : undefined,
       )
 
 

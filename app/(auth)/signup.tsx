@@ -37,18 +37,23 @@ const SignUpScreen = () => {
     passwordVisible,
     confirmPasswordVisible,
     phoneInputFocused,
+    emergencyPhoneInputFocused,
     roleModalVisible,
     countryPickerVisible,
     phoneCountryPickerVisible,
+    emergencyPhoneCountryPickerVisible,
     updateFormData,
     setErrors,
     setPasswordVisible,
     setConfirmPasswordVisible,
     setPhoneInputFocused,
+    setEmergencyPhoneInputFocused,
     setRoleModalVisible,
     setCountryPickerVisible,
     setPhoneCountryPickerVisible,
+    setEmergencyPhoneCountryPickerVisible,
     formatPhoneNumber,
+    formatEmergencyContactPhone,
     validateForm,
     validatePassword,
   } = useSignupForm()
@@ -103,6 +108,8 @@ const SignUpScreen = () => {
                   setConfirmPasswordVisible={setConfirmPasswordVisible}
                   phoneInputFocused={phoneInputFocused}
                   setPhoneInputFocused={setPhoneInputFocused}
+                  emergencyPhoneInputFocused={emergencyPhoneInputFocused}
+                  setEmergencyPhoneInputFocused={setEmergencyPhoneInputFocused}
                   fadeAnim={fadeAnim}
                   slideAnim={slideAnim}
                   validatePassword={validatePassword}
@@ -114,7 +121,10 @@ const SignUpScreen = () => {
                   countryPickerVisible={countryPickerVisible}
                   setPhoneCountryPickerVisible={setPhoneCountryPickerVisible}
                   phoneCountryPickerVisible={phoneCountryPickerVisible}
+                  emergencyPhoneCountryPickerVisible={emergencyPhoneCountryPickerVisible}
+                  setEmergencyPhoneCountryPickerVisible={setEmergencyPhoneCountryPickerVisible}
                   formatPhoneNumber={formatPhoneNumber}
+                  formatEmergencyContactPhone={formatEmergencyContactPhone}
                   step={step}
                   setStep={setStep}
                 />
