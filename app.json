@@ -2,7 +2,7 @@
   "expo": {
     "name": "RISE Sports Complex",
     "slug": "RiseMobile",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/rise-icon.png",
     "scheme": "myapp",
