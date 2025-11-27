@@ -3,4 +3,13 @@ export * from './core/constants';
 export * from './core/types';
 export { refreshBackendJwt } from './core/client';
 
-// TODO: Add auth, users, teams, etc. exports in later phases
+// ⚠️ Phase 2: Auth module exports
+export {
+  loginUser,
+  verifyEmail,
+  resendVerificationEmail,
+  registerChild,
+  registerUser,
+} from './auth';
+
+// TODO: Add users, teams, games, etc. exports in later phases
