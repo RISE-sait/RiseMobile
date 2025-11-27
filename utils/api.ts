@@ -4,68 +4,27 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "fire
 import { auth } from "@/firebase/firebaseConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const API_URL = "https://api-461776259687.us-west2.run.app";
+// ⚠️ MIGRATED TO: utils/api/core/constants.ts
+// export const API_URL = "https://api-461776259687.us-west2.run.app";
 
-// 🔹 Error Type System for API Responses
-export type APIErrorType =
-  | 'network'              // Network connection issues (fetch failed, etc.)
-  | 'auth'                 // Authentication issues (401 - token expired)
-  | 'permission'           // Authorization issues (403 - insufficient permissions)
-  | 'not_found'            // Resource not found (404)
-  | 'server'               // Server errors (500, 502)
-  | 'service_unavailable'  // Service unavailable (503 - maintenance)
-  | 'validation'           // Request validation errors (400)
-  | 'conflict'             // Resource conflict (409 - duplicate, out of stock)
-  | 'timeout'              // Request timeout (408 - payment timeout)
-  | 'rate_limit'           // Too many requests (429)
-  | 'payload_too_large'    // File too large (413 - >10MB)
-  | 'gone'                 // Resource permanently gone (410 - account expired)
-  | 'unknown';             // Other errors
+// ⚠️ MIGRATED TO: utils/api/core/types.ts
+// export type APIErrorType = ...
+// export interface APIError { ... }
+// export interface APIResponse<T> { ... }
+// type User = { ... }
 
-export interface APIError {
-  message: string;           // Technical error message for logging
-  status: number;            // HTTP status code
-  type: APIErrorType;        // Error type for handling
-  userMessage?: string;      // User-friendly message for display
-}
+// ⚠️ MIGRATED TO: utils/api/core/client.ts
+// export const refreshBackendJwt = async (): Promise<string> => { ... }
 
-export interface APIResponse<T> {
-  data: T | null;
-  error: APIError | null;
-}
+// Import from new structure for internal use
+import { API_URL } from './api/core/constants';
+import { type APIErrorType, type APIError, type APIResponse, type User } from './api/core/types';
+import { refreshBackendJwt as _refreshBackendJwt } from './api/core/client';
 
-type User = {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  countryCode: string;
-  phoneNumber?: string;
-  token: string;
-  firebaseId: string;
-  profileImage?: string;
-};
-
-export const refreshBackendJwt = async (): Promise<string> => {
-  const firebaseUser = auth.currentUser;
-  if (!firebaseUser) throw new Error("No user currently logged in.");
-
-  // 🔄 Refresh Firebase token
-  const firebaseToken = await firebaseUser.getIdToken(true); // true forces refresh
-
-  // 🌐 Exchange Firebase token for new backend JWT
-  const response = await axios.post(`${API_URL}/auth`, { email: firebaseUser.email }, {
-    headers: { Authorization: `Bearer ${firebaseToken}` }
-  });
-
-  const jwtToken = response.headers["authorization"]?.replace("Bearer ", "") || "";
-  if (!jwtToken) throw new Error("JWT not returned from backend.");
-
-  // 🧠 Store the new JWT
-  await AsyncStorage.setItem("authToken", jwtToken);
-  return jwtToken;
-};
+// Re-export for external consumers (temporary bridge)
+export { API_URL };
+export type { APIErrorType, APIError, APIResponse, User };
+export const refreshBackendJwt = _refreshBackendJwt;
 
 // (Removed global axios interceptor to avoid global side-effects)
 
@@ -2384,4 +2343,4 @@ export const getUserSubsidyUsage = async (): Promise<APIResponse<any>> => {
       }
     };
   }
-};
+}
