@@ -16,9 +16,8 @@ const initialState: GamesState = {
 export const fetchMatches = createAsyncThunk("games/fetchMatches", async (token: string, { rejectWithValue, getState }) => {
   try {
 
-    // Use /games endpoint to fetch all matches for the user
-    // The hardcoded "upcoming" filter is removed to ensure data is always displayed
-    const response = await axios.get(`${API_URL}/games`, {
+    // Use /secure/games endpoint to fetch only matches for the user's team
+    const response = await axios.get(`${API_URL}/secure/games`, {
       headers: { Authorization: `Bearer ${token}` }
     })
 
