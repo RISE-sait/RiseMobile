@@ -78,6 +78,7 @@ interface ApiEventResponse {
   start_at?: string
   end_at?: string
   capacity?: number
+  registration_required?: boolean // Whether registration is required/allowed for this event
   // Practice-specific fields from /secure/events endpoint
   program?: {
     id: string
@@ -130,6 +131,7 @@ const EventDetails: React.FC = () => {
   const [enrollmentOptionsLoaded, setEnrollmentOptionsLoaded] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [membershipLoaded, setMembershipLoaded] = useState(false)
+  const [registrationRequired, setRegistrationRequired] = useState<boolean | null>(null)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
   const paymentCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -482,6 +484,8 @@ const EventDetails: React.FC = () => {
 
         setEvent(processedEvent);
         setLoading(false);
+        // Cached events don't have registration_required, keep as null (button won't show)
+        setRegistrationRequired(null);
 
         const totalDuration = Date.now() - startTime
         if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed (cached) - ${totalDuration}ms total`)
@@ -525,6 +529,8 @@ const EventDetails: React.FC = () => {
         if (practiceFromStore) {
           setEvent(practiceFromStore)
           setLoading(false)
+          // Practices don't require registration button (filtered by title check anyway)
+          setRegistrationRequired(false)
           const totalDuration = Date.now() - startTime
           if (__DEV__) console.log(`⏱️ [Event ${id}] fetchEventDetails: Completed (practice from store) - ${totalDuration}ms total`)
           return
@@ -629,6 +635,9 @@ const EventDetails: React.FC = () => {
       })
 
       setRegistered(isUserEnrolled)
+
+      // Save registration_required from API response
+      setRegistrationRequired(eventData.registration_required ?? null)
 
       // Fetch enrollment options to determine if registration is available (for non-practice events)
       if (!processedEvent.title.toLowerCase().includes('practice')) {
@@ -841,6 +850,8 @@ const EventDetails: React.FC = () => {
     }
 
     setEvent(mockEvent)
+    // Mock/fallback events should not show registration button
+    setRegistrationRequired(false)
   }
 
   const getStatusColor = (status: string) => {
@@ -1136,10 +1147,12 @@ const EventDetails: React.FC = () => {
 
           {/* Only show register button if:
               1. Not a practice
-              2. Enrollment options loaded
-              3. Registration is available (can_enroll_free OR credit_cost > 0 OR stripe_price_id OR membership_plan_id)
+              2. registration_required is true (from API)
+              3. Enrollment options loaded
+              4. Registration is available (can_enroll_free OR credit_cost > 0 OR stripe_price_id OR membership_plan_id)
           */}
           {!event.title.toLowerCase().includes('practice') &&
+           registrationRequired === true &&
            enrollmentOptionsLoaded &&
            enrollmentOptions &&
            (enrollmentOptions.can_enroll_free || enrollmentOptions.credit_cost > 0 || enrollmentOptions.stripe_price_id || enrollmentOptions.membership_plan_id) && (
