@@ -2,7 +2,24 @@ import axios from "axios";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
 import { API_URL } from "./core/constants";
-import type { User } from "./core/types";
+
+type User = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  countryCode: string;
+  phoneNumber?: string;
+  token: string;
+  firebaseId: string;
+  profileImage?: string;
+  team?: {
+    id?: string;
+    logo?: string;
+    name?: string;
+  };
+};
 
 // 🔹 **Login User with Firebase and API**
 export const loginUser = async (email: string, password: string): Promise<User> => {

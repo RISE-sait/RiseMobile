@@ -25,16 +25,3 @@ export interface APIResponse<T> {
   data: T | null;
   error: APIError | null;
 }
-
-export type User = {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  countryCode: string;
-  phoneNumber?: string;
-  token: string;
-  firebaseId: string;
-  profileImage?: string;
-};

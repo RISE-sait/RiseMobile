@@ -1,9 +1,9 @@
-// ⚠️ Phase 1: Core infrastructure exports
+// Core infrastructure
 export * from './core/constants';
 export * from './core/types';
 export { refreshBackendJwt } from './core/client';
 
-// ⚠️ Phase 2: Auth module exports
+// Auth
 export {
   loginUser,
   verifyEmail,
@@ -12,4 +12,70 @@ export {
   registerUser,
 } from './auth';
 
-// TODO: Add users, teams, games, etc. exports in later phases
+// Locations
+export { getLocations, getLocationById } from './locations';
+
+// Practices
+export {
+  createPractice,
+  createRecurringPractice,
+  getPracticePrograms,
+} from './practices';
+
+// Barber / haircuts
+export {
+  getHaircutAndBarberServices,
+  createHaircutBooking,
+  getUpcomingBookings,
+  getBarberAvailability,
+} from './barber';
+
+// Events
+export {
+  getEventEnrollmentOptions,
+  enrollEventWithCredits,
+} from './events';
+
+// Teams
+export {
+  getTeams,
+  getTeamById,
+  createTeam,
+  updateTeam,
+  deleteTeam,
+  getExternalTeams,
+  createExternalTeam,
+} from './teams';
+
+// Games
+export {
+  getGames,
+  getGameById,
+  createGame,
+  updateGame,
+  deleteGame,
+} from './games';
+
+// Memberships, credits, subsidies
+export {
+  getCreditPackages,
+  getAllMembershipPlans,
+  getUserMemberships,
+  getMembershipPlans,
+  getPlansForMembership,
+  purchaseMembershipPlan,
+  purchaseCreditPackage,
+  getMembershipByCustomerId,
+  getUserCredits,
+  getUserSubsidies,
+  getUserSubsidyBalance,
+  getUserSubsidyUsage,
+} from './membership';
+
+// Users / waivers
+export {
+  deleteUserAccount,
+  uploadWaiver,
+  getUserWaivers,
+  type Waiver,
+} from './users';
