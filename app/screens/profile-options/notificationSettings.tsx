@@ -24,6 +24,7 @@ import {
   isBiometricLoginEnabled,
   disableBiometricLogin,
   getBiometricDisplayName,
+  getBiometricCredentials,
   type BiometricCapability,
 } from "@/utils/biometricAuth";
 import { useAppSelector } from "@/store/hooks";
@@ -59,6 +60,7 @@ const NotificationSettingsScreen: React.FC = () => {
     supportedTypes: [],
   });
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [biometricLinkedEmail, setBiometricLinkedEmail] = useState<string | null>(null);
 
   // Get user data from Redux store
   const user = useAppSelector((state) => state.user.data);
@@ -91,6 +93,14 @@ const NotificationSettingsScreen: React.FC = () => {
       if (capability.isAvailable) {
         const isEnabled = await isBiometricLoginEnabled();
         setSettings(prev => ({ ...prev, biometricLogin: isEnabled }));
+
+        // Get the linked email to display
+        if (isEnabled) {
+          const credentials = await getBiometricCredentials();
+          setBiometricLinkedEmail(credentials?.email || null);
+        } else {
+          setBiometricLinkedEmail(null);
+        }
       }
     } catch (error) {
       // Error checking biometric availability
@@ -196,6 +206,7 @@ const NotificationSettingsScreen: React.FC = () => {
         const success = await disableBiometricLogin();
         if (success) {
           setSettings(prev => ({ ...prev, biometricLogin: false }));
+          setBiometricLinkedEmail(null);
           Alert.alert(
             "Biometric Login Disabled",
             `${getBiometricDisplayName(biometricCapability.biometricType)} login has been disabled.`
@@ -463,7 +474,9 @@ const NotificationSettingsScreen: React.FC = () => {
           {biometricCapability.isAvailable && (
             renderSettingRow(
               `${getBiometricDisplayName(biometricCapability.biometricType)} Login`,
-              `Use ${getBiometricDisplayName(biometricCapability.biometricType)} to sign in quickly and securely`,
+              biometricLinkedEmail
+                ? `Linked to ${biometricLinkedEmail}`
+                : `Use ${getBiometricDisplayName(biometricCapability.biometricType)} to sign in quickly and securely`,
               "biometricLogin",
               biometricCapability.biometricType === 'face' ? 'scan' : 'finger-print',
               false

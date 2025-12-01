@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from 'expo-router';
 import {
   checkBiometricCapability,
   performBiometricLogin,
   getBiometricDisplayName,
   saveBiometricCredentials,
   isBiometricLoginEnabled,
+  getBiometricCredentials,
   type BiometricCapability,
   type BiometricCredentials,
 } from '@/utils/biometricAuth';
@@ -32,24 +34,46 @@ const BiometricLogin: React.FC<BiometricLoginProps> = ({
   });
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
   const [isCheckingBiometric, setIsCheckingBiometric] = useState(false);
+  const [storedEmail, setStoredEmail] = useState<string | null>(null);
 
+  // Check biometric capability once on mount
   useEffect(() => {
-    initializeBiometric();
+    const checkCapability = async () => {
+      try {
+        const capability = await checkBiometricCapability();
+        setBiometricCapability(capability);
+      } catch (error) {
+        console.error('Error checking biometric capability:', error);
+      }
+    };
+    checkCapability();
   }, []);
 
-  const initializeBiometric = async () => {
-    try {
-      const capability = await checkBiometricCapability();
-      setBiometricCapability(capability);
+  // Re-check biometric enabled state every time the screen comes into focus
+  // This ensures we pick up changes made in settings or after switching accounts
+  useFocusEffect(
+    useCallback(() => {
+      const refreshBiometricState = async () => {
+        try {
+          if (biometricCapability.isAvailable) {
+            const enabled = await isBiometricLoginEnabled();
+            setIsBiometricEnabled(enabled);
 
-      if (capability.isAvailable) {
-        const enabled = await isBiometricLoginEnabled();
-        setIsBiometricEnabled(enabled);
-      }
-    } catch (error) {
-      console.error('Error initializing biometric:', error);
-    }
-  };
+            // Get the stored email to display which account is linked
+            if (enabled) {
+              const credentials = await getBiometricCredentials();
+              setStoredEmail(credentials?.email || null);
+            } else {
+              setStoredEmail(null);
+            }
+          }
+        } catch (error) {
+          console.error('Error refreshing biometric state:', error);
+        }
+      };
+      refreshBiometricState();
+    }, [biometricCapability.isAvailable])
+  );
 
   const handleBiometricLogin = async () => {
     if (isLoading || isCheckingBiometric) return;
@@ -169,6 +193,12 @@ const BiometricLogin: React.FC<BiometricLoginProps> = ({
           Or sign in with {getBiometricDisplayName(biometricCapability.biometricType)}
         </Text>
 
+        {storedEmail && (
+          <Text style={styles.storedEmailText}>
+            as {storedEmail}
+          </Text>
+        )}
+
         <TouchableOpacity
           style={[
             styles.biometricButton,
@@ -203,8 +233,15 @@ const styles = StyleSheet.create({
   loginWithText: {
     color: '#AAAAAA',
     fontSize: 14,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  storedEmailText: {
+    color: '#FFD700',
+    fontSize: 13,
     marginBottom: 15,
     textAlign: 'center',
+    fontWeight: '500',
   },
   biometricButton: {
     width: 70,
