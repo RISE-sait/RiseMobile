@@ -1,10 +1,21 @@
 import { useState, useEffect, useRef } from "react"
-import { InteractionManager } from "react-native"
+import { InteractionManager, Alert } from "react-native"
 import { useAppSelector } from "@/store/hooks"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
 import { useAuth } from "@/utils/auth"
+
+// Helper to check if error indicates account suspension
+const isSuspensionError = (errorData: any): boolean => {
+  if (!errorData) return false
+
+  const errorMessage = typeof errorData === 'string'
+    ? errorData.toLowerCase()
+    : (errorData?.message || errorData?.error?.message || errorData?.error || '').toLowerCase()
+
+  return errorMessage.includes('suspended') || errorMessage.includes('banned')
+}
 
 interface ScheduleEvent {
   id: string
@@ -227,9 +238,23 @@ export const useUpcomingEvent = () => {
 
     } catch (err: any) {
       const status = err.response?.status
-      const message = err.response?.data || err.message
+      const errorData = err.response?.data
 
-      if (status === 401 || status === 403 || message?.error?.message === "Invalid or expired token") {
+      // Check for account suspension
+      if (status === 403 && isSuspensionError(errorData)) {
+        if (!authFailureRef.current) {
+          authFailureRef.current = true
+          setError("Your account has been suspended.")
+          Alert.alert(
+            "Account Suspended",
+            "Your account has been suspended. Please contact support for assistance.",
+            [{ text: "OK", onPress: () => forceReLogin("Your account has been suspended.") }]
+          )
+        }
+        return
+      }
+
+      if (status === 401 || status === 403 || errorData?.error?.message === "Invalid or expired token") {
         if (!authFailureRef.current) {
           authFailureRef.current = true
           setError("Session expired. Please log in again.")
