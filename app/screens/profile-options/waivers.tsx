@@ -10,6 +10,7 @@ import {
   RefreshControl,
   TextInput,
   Modal,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -206,7 +207,7 @@ const WaiversScreen: React.FC = () => {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>My Waivers</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -330,15 +331,15 @@ const WaiversScreen: React.FC = () => {
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -346,8 +347,11 @@ const styles = {
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
     color: COLORS.text,
+  },
+  headerSpacer: {
+    width: 40,
   },
   content: {
     flex: 1,
@@ -355,8 +359,8 @@ const styles = {
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
     color: COLORS.textSecondary,
@@ -364,8 +368,8 @@ const styles = {
     fontSize: 16,
   },
   infoBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
@@ -383,8 +387,8 @@ const styles = {
     marginBottom: 100,
   },
   waiverItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
@@ -395,8 +399,8 @@ const styles = {
     height: 44,
     borderRadius: 22,
     backgroundColor: COLORS.cardLight,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   waiverContent: {
     flex: 1,
@@ -404,7 +408,7 @@ const styles = {
   },
   waiverTitle: {
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: COLORS.text,
   },
   waiverDate: {
@@ -416,28 +420,28 @@ const styles = {
     fontSize: 13,
     color: COLORS.textSecondary,
     marginTop: 4,
-    fontStyle: 'italic' as const,
+    fontStyle: 'italic',
   },
   emptyState: {
-    alignItems: 'center' as const,
+    alignItems: 'center',
     paddingVertical: 60,
     paddingHorizontal: 20,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
     color: COLORS.text,
     marginTop: 16,
   },
   emptyDescription: {
     fontSize: 14,
     color: COLORS.textSecondary,
-    textAlign: 'center' as const,
+    textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
   },
   uploadButtonContainer: {
-    position: 'absolute' as const,
+    position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
@@ -447,9 +451,9 @@ const styles = {
     borderTopColor: '#333',
   },
   uploadButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingVertical: 16,
@@ -457,13 +461,13 @@ const styles = {
   },
   uploadButtonText: {
     fontSize: 16,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
     color: COLORS.background,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end' as const,
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: COLORS.card,
@@ -473,19 +477,19 @@ const styles = {
     paddingBottom: 40,
   },
   modalHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
     color: COLORS.text,
   },
   selectedFileContainer: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.cardLight,
     borderRadius: 12,
     padding: 16,
@@ -499,7 +503,7 @@ const styles = {
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: COLORS.text,
     marginBottom: 8,
   },
@@ -510,42 +514,42 @@ const styles = {
     fontSize: 14,
     color: COLORS.text,
     minHeight: 80,
-    textAlignVertical: 'top' as const,
+    textAlignVertical: 'top',
     marginBottom: 24,
   },
   modalActions: {
-    flexDirection: 'row' as const,
+    flexDirection: 'row',
     gap: 12,
   },
   cancelButton: {
     flex: 1,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.cardLight,
     borderRadius: 12,
     paddingVertical: 16,
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: COLORS.text,
   },
   confirmButton: {
     flex: 1,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingVertical: 16,
   },
   confirmButtonText: {
     fontSize: 16,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
     color: COLORS.background,
   },
   disabledButton: {
     opacity: 0.6,
   },
-};
+});
 
 export default WaiversScreen;
