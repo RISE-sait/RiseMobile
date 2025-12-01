@@ -86,7 +86,7 @@ export default function EventDetailsModalScreen() {
           { bottom: TAB_BAR_HEIGHT + insets.bottom },
         ]}
       />
-      <View className="mx-4 my-4">
+      <View style={styles.modalContainer}>
         <Pressable onPress={(e) => e.stopPropagation()}>
           <Animated.View
             style={{
@@ -260,11 +260,6 @@ export default function EventDetailsModalScreen() {
           </Animated.View>
         </Pressable>
       </View>
-      <TouchableOpacity
-        className="flex-1"
-        activeOpacity={1}
-        onPress={handleClose}
-      />
     </View>
   );
 }
@@ -275,6 +270,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: "100%",
+    paddingHorizontal: 16,
   },
   overlay: {
     position: "absolute",

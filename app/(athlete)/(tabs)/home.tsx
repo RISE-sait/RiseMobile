@@ -148,8 +148,8 @@ export default function AthleteHome() {
                 lastName={user.lastName}
                 role={user.role}
                 profileImage={{ uri: user.profileImage }}
-                countryCode={user?.countryCode} // Ensure countryCode is always defined
-                teamLogo={images.teamLogo}
+                countryCode={user?.countryCode}
+                teamLogo={user?.team?.logo}
                 onPress={() => router.push("/profile")}
               />
             ) : (

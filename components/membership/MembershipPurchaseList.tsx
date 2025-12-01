@@ -451,79 +451,84 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       Number.isFinite(joiningFeeValue) &&
       joiningFeeValue > 0;
 
-    console.log("🟣 Rendering plan card for:", item.name, "| ID:", item.id, "| Joining Fee:", joiningFeeRaw);
+    // Format price for display
+    const formattedPrice = item.price
+      ? (typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : item.price.toString().replace(/\$\$/g, '$'))
+      : null;
+
     return (
       <View style={styles.accordionPlanCard}>
         <LinearGradient
-          colors={["#1A1A1A", "#2A2A2A"]}
+          colors={["#1C1C1E", "#2C2C2E"]}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          end={{ x: 0, y: 1 }}
           style={styles.accordionCardGradient}
         >
-        {/* Plan Header */}
-        <View style={styles.planHeader}>
-          <View style={styles.planTitleContainer}>
-            <FontAwesomeIcon icon={faCrown} color="#FFD700" size={20} />
+          {/* Plan Name with Icon */}
+          <View style={styles.planTitleRow}>
+            <View style={styles.planIconContainer}>
+              <FontAwesomeIcon icon={faCrown} color="#FFD700" size={16} />
+            </View>
             <Text style={styles.planName}>{item.name}</Text>
           </View>
 
-
-          {/* Price display */}
-          <View style={styles.priceContainer}>
-            <Text style={styles.priceText}>
-              {item.price ? (typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : item.price.toString().replace(/\$\$/g, '$')) : "Price not available"}
-            </Text>
-            {item.price && <Text style={styles.priceNote}>bi-weekly</Text>}
-          </View>
-        </View>
-
-        {/* Joining Fee display - show only if joining_fee_price exists and > 0 */}
-        {shouldShowJoiningFee && (
-          <View style={styles.joiningFeeContainer}>
-            <Text style={styles.joiningFeeLabel}>Joining Fee:</Text>
-            <Text style={styles.joiningFeeAmount}>
-              {joiningFeeRaw.replace(/\$\$/g, '$')}
-            </Text>
-          </View>
-        )}
-
-        {/* Plan Description */}
-        {item.description && (
-          <Text style={styles.planDescription}>{item.description}</Text>
-        )}
-
-        {/* Plan Benefits */}
-        {item.benefits && renderBenefits(item.benefits)}
-
-        {/* Purchase Button */}
-        <TouchableOpacity
-          style={[
-            styles.purchaseButton,
-            purchaseLoadingId === item.id && styles.purchaseButtonLoading
-          ]}
-          onPress={() => {
-            console.log("🟢 Purchase button pressed for:", item.name, "| ID:", item.id);
-            handlePurchase(item.id, item.name);
-          }}
-          disabled={purchaseLoadingId === item.id}
-        >
-          {purchaseLoadingId === item.id ? (
-            <View style={styles.buttonLoadingContainer}>
-              <ActivityIndicator size="small" color="#000000" />
-              <Text style={[styles.purchaseButtonText, { marginLeft: 8 }]}> 
-                Processing...
-              </Text>
+          {/* Price Section - Prominent Display */}
+          <View style={styles.pricingSection}>
+            <View style={styles.priceRow}>
+              {formattedPrice ? (
+                <>
+                  <Text style={styles.priceAmount}>{formattedPrice}</Text>
+                  <Text style={styles.pricePeriod}>/bi-weekly</Text>
+                </>
+              ) : (
+                <Text style={styles.priceUnavailable}>Contact for pricing</Text>
+              )}
             </View>
-          ) : (
-            <Text style={styles.purchaseButtonText}>
-              Purchase Plan
-            </Text>
+
+            {/* Joining Fee - Subtle display */}
+            {shouldShowJoiningFee && (
+              <Text style={styles.joiningFeeText}>
+                + {joiningFeeRaw.replace(/\$\$/g, '$')} one-time joining fee
+              </Text>
+            )}
+          </View>
+
+          {/* Divider */}
+          <View style={styles.divider} />
+
+          {/* Plan Description */}
+          {item.description && (
+            <Text style={styles.planDescription}>{item.description}</Text>
           )}
 
-          {/* Test Mode Note (removed per request) */}
-        </TouchableOpacity>
-      </LinearGradient>
-    </View>
+          {/* Plan Benefits */}
+          {item.benefits && renderBenefits(item.benefits)}
+
+          {/* Purchase Button */}
+          <TouchableOpacity
+            style={[
+              styles.purchaseButton,
+              purchaseLoadingId === item.id && styles.purchaseButtonLoading
+            ]}
+            onPress={() => {
+              handlePurchase(item.id, item.name);
+            }}
+            disabled={purchaseLoadingId === item.id}
+            activeOpacity={0.8}
+          >
+            {purchaseLoadingId === item.id ? (
+              <View style={styles.buttonLoadingContainer}>
+                <ActivityIndicator size="small" color="#000000" />
+                <Text style={[styles.purchaseButtonText, { marginLeft: 8 }]}>
+                  Processing...
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.purchaseButtonText}>Get Started</Text>
+            )}
+          </TouchableOpacity>
+        </LinearGradient>
+      </View>
     );
   };
 
@@ -673,7 +678,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0C0B0B",
+    backgroundColor: "#0A0A0A",
   },
   loadingContainer: {
     flex: 1,
@@ -718,8 +723,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   listContainer: {
-    padding: 12,
-    paddingBottom: 20,
+    padding: 16,
+    paddingBottom: 40,
   },
   planCard: {
     marginBottom: 20,
@@ -735,96 +740,116 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   accordionPlanCard: {
-    marginHorizontal: 12,
-    marginVertical: 8,
-    borderRadius: 10,
+    marginHorizontal: 4,
+    marginVertical: 10,
+    borderRadius: 16,
     overflow: "hidden",
-    elevation: 2,
+    elevation: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
   },
   accordionCardGradient: {
-    padding: 14,
+    padding: 20,
   },
-  planHeader: {
-    marginBottom: 12,
-  },
-  planTitleContainer: {
+  planTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  planIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 215, 0, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
   },
   planName: {
     color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
+    flex: 1,
+    letterSpacing: 0.3,
+  },
+  pricingSection: {
+    marginBottom: 16,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  priceAmount: {
+    color: "#FFFFFF",
+    fontSize: 32,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  pricePeriod: {
+    color: "#888888",
+    fontSize: 14,
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  priceUnavailable: {
+    color: "#888888",
     fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 8,
-  },
-  priceContainer: {
-    alignItems: "flex-start",
-  },
-  priceText: {
-    color: "#FFD700",
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  priceNote: {
-    color: "#999999",
-    fontSize: 12,
     fontStyle: "italic",
   },
-  joiningFeeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(255, 215, 0, 0.1)",
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: "#FFD700",
-  },
-  joiningFeeLabel: {
-    color: "#CCCCCC",
-    fontSize: 13,
-    marginRight: 8,
-  },
-  joiningFeeAmount: {
+  joiningFeeText: {
     color: "#FFD700",
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 6,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#333333",
+    marginBottom: 16,
   },
   planDescription: {
-    color: "#CCCCCC",
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 12,
+    color: "#AAAAAA",
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
   },
   benefitsContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderRadius: 12,
+    padding: 14,
   },
   benefitItem: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
+    alignItems: "flex-start",
+    marginBottom: 10,
   },
   benefitText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    marginLeft: 8,
+    color: "#E0E0E0",
+    fontSize: 14,
+    marginLeft: 12,
     flex: 1,
+    lineHeight: 20,
   },
   purchaseButton: {
     backgroundColor: "#FFD700",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     alignItems: "center",
+    shadowColor: "#FFD700",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   purchaseButtonLoading: {
-    backgroundColor: "#B8860B", // Darker gold when loading
+    backgroundColor: "#B8960B",
+    shadowOpacity: 0.1,
   },
   buttonLoadingContainer: {
     flexDirection: "row",
@@ -833,8 +858,9 @@ const styles = StyleSheet.create({
   },
   purchaseButtonText: {
     color: "#000000",
-    fontSize: 15,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   purchaseButtonSubtext: {
     color: "#777777",
@@ -843,10 +869,13 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333333",
-    backgroundColor: "#1A1A1A",
+    paddingVertical: 16,
+    backgroundColor: "#141414",
+    borderRadius: 12,
+    marginHorizontal: 4,
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: "#252525",
   },
   sectionHeaderContent: {
     flexDirection: "row",
@@ -859,47 +888,50 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 2,
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 4,
+    letterSpacing: 0.3,
   },
   sectionDescription: {
-    color: "#CCCCCC",
-    fontSize: 12,
-    lineHeight: 16,
+    color: "#888888",
+    fontSize: 13,
+    lineHeight: 18,
   },
   sectionStateContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 32,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#1A1A1A",
-    marginHorizontal: 20,
+    backgroundColor: "#141414",
+    marginHorizontal: 4,
     marginVertical: 8,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#252525",
   },
   sectionStateText: {
-    color: "#999999",
-    fontSize: 16,
+    color: "#888888",
+    fontSize: 15,
     textAlign: "center",
-    marginBottom: 8,
+    marginTop: 8,
   },
   sectionErrorText: {
     color: "#EF4444",
-    fontSize: 16,
+    fontSize: 15,
     textAlign: "center",
     marginBottom: 16,
   },
   retryButton: {
     backgroundColor: "#FFD700",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: "center",
   },
   retryButtonText: {
     color: "#000000",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
   },
 });
