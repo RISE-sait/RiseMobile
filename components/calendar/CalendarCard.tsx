@@ -11,50 +11,48 @@ interface CalendarCardProps {
 
 const CalendarCard: React.FC<CalendarCardProps> = ({ selectedDate, events, onDayPress, minDate }) => {
   // Create marked dates object
-  const markedDates = {
-    // Selected date
-    [selectedDate]: {
-      selected: true,
-      selectedColor: "#FCA311",
-      selectedTextColor: "#000000",
+  const markedDates = Object.entries(events).reduce(
+    (acc, [date, dateEvents]) => {
+      const dots = []
+
+      // Check for matches (orange dots)
+      if (dateEvents.some((event) => event.type === "match")) {
+        dots.push({ key: "match", color: "#FCA311" })
+      }
+
+      // Check for other event types (green dots)
+      // This includes course, practice, or any other type that's not match
+      if (dateEvents.some((event) => event.type !== "match")) {
+        dots.push({ key: "event", color: "#4ade80" })
+      }
+
+      // For the selected date, include both selection styling AND dots
+      if (date === selectedDate) {
+        acc[date] = {
+          selected: true,
+          selectedColor: "#FCA311",
+          selectedTextColor: "#000000",
+          dots,
+          marked: dots.length > 0,
+        }
+      } else {
+        acc[date] = {
+          dots,
+          marked: dots.length > 0,
+        }
+      }
+
+      return acc
     },
-
-    // Dates with events
-    ...Object.entries(events).reduce(
-      (acc, [date, dateEvents]) => {
-        // If it's the selected date, we still want to show the dots
-        const dots = []
-
-        // Check for matches (orange dots)
-        if (dateEvents.some((event) => event.type === "match")) {
-          dots.push({ key: "match", color: "#FCA311" })
-        }
-
-        // Check for other event types (green dots)
-        // This includes course, practice, or any other type that's not match
-        if (dateEvents.some((event) => event.type !== "match")) {
-          dots.push({ key: "event", color: "#4ade80" })
-        }
-
-        // For the selected date, we want both the selection and the dots
-        if (date === selectedDate) {
-          acc[date] = {
-            ...acc[date],
-            dots,
-            marked: dots.length > 0,
-          }
-        } else {
-          acc[date] = {
-            dots,
-            marked: dots.length > 0,
-          }
-        }
-
-        return acc
+    // Initialize with selected date (in case it has no events)
+    {
+      [selectedDate]: {
+        selected: true,
+        selectedColor: "#FCA311",
+        selectedTextColor: "#000000",
       },
-      {} as Record<string, any>,
-    ),
-  }
+    } as Record<string, any>,
+  )
 
   return (
     <View className="rounded-xl bg-[#121212] overflow-hidden">

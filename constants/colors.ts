@@ -22,5 +22,7 @@ export const COLORS = {
   // Chart colors (using primary gold)
   chart: "#FCA311",
   chartBackground: "rgba(252, 163, 17, 0.1)",
+  // Empty state icon color
+  emptyState: "#FCA311",
 }
 

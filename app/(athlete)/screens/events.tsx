@@ -304,7 +304,7 @@ const EventsScreen: React.FC = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="calendar-outline" size={50} color="#333" />
+      <Ionicons name="calendar-outline" size={50} color="#FCA311" />
       <Text style={styles.emptyText}>No events found</Text>
       <Text style={styles.emptySubtext}>
         {activeFilter !== "All"
