@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { View, Text, ScrollView, Alert } from "react-native"
+import { View, Text, ScrollView, Alert, Linking } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
@@ -8,15 +8,21 @@ import { faEnvelope, faPhone, faPaperPlane } from "@fortawesome/free-solid-svg-i
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import BackButton from "@/components/buttons/BackButton"
+import { useAppSelector } from "@/store/hooks"
+import { API_URL } from "@/utils/api/core/constants"
+
+const SUPPORT_EMAIL = "info@risesportscomplex.com"
+const SUPPORT_PHONE = "(587) 899-7473"
 
 export default function ContactUs() {
   const router = useRouter()
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
+  const user = useAppSelector((state) => state.user.data)
+  const [name, setName] = useState(user ? `${user.firstName} ${user.lastName}`.trim() : "")
+  const [email, setEmail] = useState(user?.email || "")
   const [message, setMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name || !email || !message) {
       Alert.alert("Missing Information", "Please fill in all fields")
       return
@@ -24,20 +30,60 @@ export default function ContactUs() {
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
-      Alert.alert("Message Sent", "Thank you for your message. We'll get back to you soon.", [
-        {
-          text: "OK",
-          onPress: () => {
-            setName("")
-            setEmail("")
-            setMessage("")
-          },
+    try {
+      // Send via backend API
+      const response = await fetch(`${API_URL}/contact`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ])
-    }, 1500)
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+          phone: user?.phoneNumber || "",
+          token: user?.token || "",
+        }),
+      })
+
+      if (response.ok) {
+        Alert.alert("Message Sent", "Thank you for your message. We'll get back to you soon.", [
+          {
+            text: "OK",
+            onPress: () => {
+              setMessage("")
+            },
+          },
+        ])
+      } else {
+        // Fallback to mailto if API fails
+        throw new Error("API not available")
+      }
+    } catch (error) {
+      // Fallback: Open email client with pre-filled message
+      const subject = encodeURIComponent(`Contact from ${name} (RISE App)`)
+      const body = encodeURIComponent(
+        `Name: ${name}\nEmail: ${email}\nUser ID: ${user?.id || "Not logged in"}\n\nMessage:\n${message}`
+      )
+      const mailtoUrl = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`
+
+      const canOpen = await Linking.canOpenURL(mailtoUrl)
+      if (canOpen) {
+        await Linking.openURL(mailtoUrl)
+        Alert.alert("Email Client Opened", "Please send the email from your email app.", [
+          {
+            text: "OK",
+            onPress: () => {
+              setMessage("")
+            },
+          },
+        ])
+      } else {
+        Alert.alert("Error", "Unable to send message. Please email us directly at " + SUPPORT_EMAIL)
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -52,12 +98,12 @@ export default function ContactUs() {
 
         <View className="bg-[#1A1A1A] rounded-xl p-5 mb-6">
           <View className="flex-row items-center mb-4">
-            <FontAwesomeIcon icon={faEnvelope} color="#F0F0F0" size={20} />
-            <Text className="text-[#F0F0F0] text-base ml-3">support@rise.com</Text>
+            <FontAwesomeIcon icon={faEnvelope} color="#FCA311" size={20} />
+            <Text className="text-[#F0F0F0] text-base ml-3">{SUPPORT_EMAIL}</Text>
           </View>
           <View className="flex-row items-center">
-            <FontAwesomeIcon icon={faPhone} color="#F0F0F0" size={20} />
-            <Text className="text-[#F0F0F0] text-base ml-3">1-800-RISE-APP</Text>
+            <FontAwesomeIcon icon={faPhone} color="#FCA311" size={20} />
+            <Text className="text-[#F0F0F0] text-base ml-3">{SUPPORT_PHONE}</Text>
           </View>
         </View>
 
@@ -96,15 +142,15 @@ export default function ContactUs() {
 
           <Button
             onPress={handleSubmit}
-            className="bg-[#007AFF] rounded-lg mt-6 py-4 flex-row justify-center items-center"
+            style={{ backgroundColor: "#FCA311", borderRadius: 8, marginTop: 24, paddingVertical: 16 }}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
-              <Text className="text-[#F0F0F0] text-base font-semibold">Sending...</Text>
+              <Text style={{ color: "#000000", fontSize: 16, fontWeight: "600" }}>Sending...</Text>
             ) : (
               <>
-                <FontAwesomeIcon icon={faPaperPlane} color="#F0F0F0" size={16} style={{ marginRight: 8 }} />
-                <Text className="text-[#F0F0F0] text-base font-semibold">Send Message</Text>
+                <FontAwesomeIcon icon={faPaperPlane} color="#000000" size={16} style={{ marginRight: 8 }} />
+                <Text style={{ color: "#000000", fontSize: 16, fontWeight: "600" }}>Send Message</Text>
               </>
             )}
           </Button>
