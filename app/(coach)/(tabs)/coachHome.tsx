@@ -81,21 +81,21 @@ export default function CoachHomeScreen() {
       route: "/(coach)/screens/selectTeamForRoster",
       icon: "users",
       description: "Manage players & assignments",
-      colors: ["#134E5E", "#71B280"] as [string, string],
+      colors: ["#FCA311", "#C36A04"] as [string, string],
     },
     {
       label: "Training Schedule",
       route: "/(coach)/(tabs)/coachCalendar",
       icon: "calendar-check",
       description: "Plan upcoming practices",
-      colors: ["#42275A", "#734B6D"] as [string, string],
+      colors: ["#8E2DE2", "#4A00E0"] as [string, string],
     },
     {
       label: "Match History",
       route: "/(coach)/screens/matchHistory",
       icon: "trophy",
       description: "Review results & stats",
-      colors: ["#E65C00", "#F9D423"] as [string, string],
+      colors: ["#0F2027", "#2C5364"] as [string, string],
     },
   ];
 
