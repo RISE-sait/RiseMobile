@@ -614,7 +614,7 @@ const getStatusIndicator = (status: string) => {
     
     return (
       <View style={styles.emptyContainer}>
-        <FontAwesome6 name="history" size={50} color="#333" />
+        <FontAwesome6 name="clock-rotate-left" size={50} color="#FCA311" />
         <Text style={styles.emptyText}>No match history found</Text>
         <Text style={styles.emptySubtext}>
           {filteredMatches.length === 0 && matches.length > 0 
