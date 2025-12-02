@@ -179,7 +179,7 @@ const WaiversScreen: React.FC = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="document-text-outline" size={64} color={COLORS.textSecondary} />
+      <Ionicons name="document-text-outline" size={64} color={COLORS.primary} />
       <Text style={styles.emptyTitle}>No Waivers</Text>
       <Text style={styles.emptyDescription}>
         You haven't uploaded any waivers yet. Tap the button below to upload your first waiver document.
