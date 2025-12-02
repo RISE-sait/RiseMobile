@@ -31,7 +31,7 @@ type EventDetailsModalProps = {
 }
 
 const statusStyles = {
-  scheduled: { label: "SCHEDULED", color: "#FFD369" },
+  scheduled: { label: "SCHEDULED", color: "#FCA311" },
   in_progress: { label: "IN PROGRESS", color: "#EF4444" },
   completed: { label: "COMPLETED", color: "#4ade80" },
   canceled: { label: "CANCELED", color: "#6b7280" },

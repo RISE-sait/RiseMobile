@@ -56,38 +56,38 @@ const TermsOfServiceScreen = () => {
           </Text>
           <View className="space-y-3">
             <View className="flex-row items-start">
-              <FontAwesome5 name="mobile-alt" size={16} color="#FFD700" className="mt-1 mr-3" />
+              <FontAwesome5 name="mobile-alt" size={16} color="#FCA311" className="mt-1 mr-3" />
               <Text className="text-[#CCCCCC] text-base flex-1">Mobile app usage and account responsibilities</Text>
             </View>
             <View className="flex-row items-start">
-              <FontAwesome5 name="calendar-check" size={16} color="#FFD700" className="mt-1 mr-3" />
+              <FontAwesome5 name="calendar-check" size={16} color="#FCA311" className="mt-1 mr-3" />
               <Text className="text-[#CCCCCC] text-base flex-1">Event registration and booking policies</Text>
             </View>
             <View className="flex-row items-start">
-              <FontAwesome5 name="credit-card" size={16} color="#FFD700" className="mt-1 mr-3" />
+              <FontAwesome5 name="credit-card" size={16} color="#FCA311" className="mt-1 mr-3" />
               <Text className="text-[#CCCCCC] text-base flex-1">Payment terms and refund policies</Text>
             </View>
             <View className="flex-row items-start">
-              <FontAwesome5 name="star" size={16} color="#FFD700" className="mt-1 mr-3" />
+              <FontAwesome5 name="star" size={16} color="#FCA311" className="mt-1 mr-3" />
               <Text className="text-[#CCCCCC] text-base flex-1">Credits system and membership benefits</Text>
             </View>
             <View className="flex-row items-start">
-              <FontAwesome5 name="shield-alt" size={16} color="#FFD700" className="mt-1 mr-3" />
+              <FontAwesome5 name="shield-alt" size={16} color="#FCA311" className="mt-1 mr-3" />
               <Text className="text-[#CCCCCC] text-base flex-1">User conduct and facility rules</Text>
             </View>
             <View className="flex-row items-start">
-              <FontAwesome5 name="ban" size={16} color="#FFD700" className="mt-1 mr-3" />
+              <FontAwesome5 name="ban" size={16} color="#FCA311" className="mt-1 mr-3" />
               <Text className="text-[#CCCCCC] text-base flex-1">Cancellation and modification policies</Text>
             </View>
           </View>
         </View>
 
         {/* Important Notice */}
-        <View className="mb-8 bg-[#2A1A00] border-l-4 border-[#FFD700] p-4 rounded-r-lg">
+        <View className="mb-8 bg-[#2A1A00] border-l-4 border-[#FCA311] p-4 rounded-r-lg">
           <View className="flex-row items-start">
-            <FontAwesome5 name="exclamation-triangle" size={16} color="#FFD700" className="mt-1 mr-3" />
+            <FontAwesome5 name="exclamation-triangle" size={16} color="#FCA311" className="mt-1 mr-3" />
             <View className="flex-1">
-              <Text className="text-[#FFD700] font-semibold text-base mb-2">Important Notice</Text>
+              <Text className="text-[#FCA311] font-semibold text-base mb-2">Important Notice</Text>
               <Text className="text-[#CCCCCC] text-sm leading-5">
                 Please read our complete terms of service carefully. These terms include important information about liability, dispute resolution, and your rights as a user.
               </Text>
@@ -111,7 +111,7 @@ const TermsOfServiceScreen = () => {
         {/* Call to Action Button */}
         <TouchableOpacity
           onPress={openTermsOfService}
-          className="bg-[#FFD700] rounded-lg py-4 px-6 items-center mb-6"
+          className="bg-[#FCA311] rounded-lg py-4 px-6 items-center mb-6"
           activeOpacity={0.8}
         >
           <View className="flex-row items-center">

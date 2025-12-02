@@ -88,7 +88,7 @@ const ForgotPasswordScreen = () => {
               onPress={() => router.back()}
               hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             >
-              <Ionicons name="arrow-back" size={24} color="#FFD700" />
+              <Ionicons name="arrow-back" size={24} color="#FCA311" />
             </TouchableOpacity>
 
             {emailSent ? (
@@ -111,7 +111,7 @@ const ForgotPasswordScreen = () => {
 
                   <TouchableOpacity style={styles.returnButton} onPress={() => router.back()}>
                     <LinearGradient
-                      colors={["#FFD700", "#FFA500"]}
+                      colors={["#FCA311", "#E8920F"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.returnGradientButton}
@@ -149,7 +149,7 @@ const ForgotPasswordScreen = () => {
                     <Ionicons
                       name="mail-outline"
                       size={20}
-                      color={emailFocused ? "#FFD700" : "#9EA0A4"}
+                      color={emailFocused ? "#FCA311" : "#9EA0A4"}
                       style={styles.inputIcon}
                     />
                     <TextInput
@@ -182,7 +182,7 @@ const ForgotPasswordScreen = () => {
                     activeOpacity={0.9}
                   >
                     <LinearGradient
-                      colors={["#FFD700", "#FFA500"]}
+                      colors={["#FCA311", "#E8920F"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.gradientButton}
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(30, 30, 30, 0.7)",
   },
   inputWrapperFocused: {
-    borderColor: "#FFD700",
+    borderColor: "#FCA311",
   },
   inputError: {
     borderColor: "#FF4D4F",
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   resendText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
   },
 })

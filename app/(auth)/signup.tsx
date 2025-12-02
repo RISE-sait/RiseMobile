@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginHighlight: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontWeight: "bold",
   },
 })

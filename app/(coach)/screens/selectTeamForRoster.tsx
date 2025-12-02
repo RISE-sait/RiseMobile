@@ -18,6 +18,7 @@ import { StatusBar } from "expo-status-bar"
 import { FontAwesome6, Ionicons, MaterialIcons, AntDesign } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import * as Haptics from "expo-haptics"
+import * as ImagePicker from "expo-image-picker"
 import BackButton from "@/components/buttons/BackButton"
 import type { Team } from "@/types/team"
 import { useSelector, useDispatch } from "react-redux"
@@ -31,8 +32,8 @@ const { width } = Dimensions.get("window")
 
 // Define color constants
 const COLORS = {
-  primary: "#FFD700",
-  primaryDark: "#E6C200",
+  primary: "#FCA311",
+  primaryDark: "#D4890E",
   background: "#0C0B0B",
   card: "#1A1A1A",
   cardDark: "#141414",
@@ -62,6 +63,7 @@ const SelectTeamForRoster: React.FC = () => {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [teamName, setTeamName] = useState("")
   const [teamCapacity, setTeamCapacity] = useState("")
+  const [teamLogo, setTeamLogo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -112,6 +114,67 @@ const SelectTeamForRoster: React.FC = () => {
     setRefreshing(false)
   }
 
+  const pickTeamLogo = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!permissionResult.granted) {
+        Alert.alert("Permission Required", "Please allow access to your photos to upload a team logo.")
+        return
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+
+      if (!result.canceled && result.assets[0]) {
+        setTeamLogo(result.assets[0].uri)
+      }
+    } catch (error) {
+      console.error("Error picking image:", error)
+      Alert.alert("Error", "Failed to pick image. Please try again.")
+    }
+  }
+
+  const uploadTeamLogo = async (imageUri: string): Promise<string | null> => {
+    if (!user?.token) return null
+
+    try {
+      const formData = new FormData()
+      const filename = imageUri.split('/').pop() || 'team_logo.jpg'
+      const match = /\.(.+)$/.exec(filename)
+      const type = match ? `image/${match[1]}` : 'image/jpeg'
+
+      formData.append('image', {
+        uri: imageUri,
+        name: filename,
+        type,
+      } as any)
+
+      const uploadResponse = await fetch('https://api-461776259687.us-west2.run.app/upload/image?folder=teams', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+        },
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text()
+        console.error("Upload failed:", errorText)
+        return null
+      }
+
+      const uploadResult = await uploadResponse.json()
+      return uploadResult.url || null
+    } catch (error) {
+      console.error("Error uploading team logo:", error)
+      return null
+    }
+  }
+
   const handleTeamPress = (team: Team) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     // Navigate to team roster screen with selected team ID
@@ -123,6 +186,7 @@ const SelectTeamForRoster: React.FC = () => {
     setEditingTeam(null)
     setTeamName("")
     setTeamCapacity("")
+    setTeamLogo(null)
     setShowTeamModal(true)
   }
 
@@ -131,6 +195,7 @@ const SelectTeamForRoster: React.FC = () => {
     setEditingTeam(team)
     setTeamName(team.name || "")
     setTeamCapacity(team.capacity?.toString() || "")
+    setTeamLogo(team.logo_url || null)
     setShowTeamModal(true)
   }
 
@@ -141,6 +206,7 @@ const SelectTeamForRoster: React.FC = () => {
       setEditingTeam(null)
       setTeamName("")
       setTeamCapacity("")
+      setTeamLogo(null)
     }, 300)
   }
 
@@ -163,19 +229,35 @@ const SelectTeamForRoster: React.FC = () => {
 
     setSubmitting(true)
     try {
+      // Upload logo if a new one was selected (local file path)
+      let logoUrl: string | undefined = undefined
+      const isLocalFile = teamLogo && !teamLogo.startsWith('http')
+      if (isLocalFile) {
+        const uploadedUrl = await uploadTeamLogo(teamLogo)
+        if (uploadedUrl) {
+          logoUrl = uploadedUrl
+        }
+      } else if (teamLogo && teamLogo.startsWith('http')) {
+        // Keep existing URL if not changed
+        logoUrl = teamLogo
+      }
+
       if (editingTeam) {
         // Update existing team - must include coach_id (required by backend)
-        const updateData = {
+        const updateData: { name: string; capacity: number; coach_id: string; logo_url?: string } = {
           name: teamName.trim(),
           capacity,
           coach_id: editingTeam.coach?.id || user.id, // Use team's coach_id or fallback to current user
+        }
+        if (logoUrl) {
+          updateData.logo_url = logoUrl
         }
         await updateTeam(editingTeam.id!, updateData, user.token)
         Alert.alert("Success", "Team updated successfully")
       } else {
         // Get coach_id from existing team like Python script does
         let coachId = user.id; // Default to user.id
-        
+
         // Try to get coach_id from first available team
         if (teams && teams.length > 0) {
           const firstTeam = teams[0];
@@ -183,7 +265,7 @@ const SelectTeamForRoster: React.FC = () => {
             coachId = firstTeam.coach.id;
           }
         }
-        
+
         // Debug logging
         console.log("Creating new team with data:", {
           name: teamName.trim(),
@@ -191,14 +273,18 @@ const SelectTeamForRoster: React.FC = () => {
           coach_id: coachId,
           user_role: user.role,
           user_id: user.id,
-          teams_count: teams?.length || 0
+          teams_count: teams?.length || 0,
+          logo_url: logoUrl
         });
-        
+
         // Create new team - include coach_id as required by backend
-        const createData = {
+        const createData: { name: string; capacity: number; coach_id: string; logo_url?: string } = {
           name: teamName.trim(),
           capacity,
           coach_id: coachId, // Required by backend for coach-created teams
+        }
+        if (logoUrl) {
+          createData.logo_url = logoUrl
         }
         await createTeam(createData, user.token)
         Alert.alert("Success", "Team created successfully")
@@ -407,87 +493,6 @@ const SelectTeamForRoster: React.FC = () => {
     )
   }
 
-  const renderTeamModal = () => {
-    if (!showTeamModal) return null
-
-    return (
-      <Modal transparent visible={showTeamModal} animationType="none" onRequestClose={closeTeamModal}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeTeamModal}>
-          <Animated.View
-            style={[
-              styles.teamModal,
-              {
-                opacity: modalAnim,
-                transform: [
-                  {
-                    translateY: modalAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [50, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{editingTeam ? "Edit Team" : "Create Team"}</Text>
-                <TouchableOpacity onPress={closeTeamModal}>
-                  <AntDesign name="close" size={24} color="white" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.formContainer}>
-                <Text style={styles.fieldLabel}>Team Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter team name"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={teamName}
-                  onChangeText={setTeamName}
-                  editable={!submitting}
-                />
-
-                <Text style={styles.fieldLabel}>Capacity *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter team capacity"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={teamCapacity}
-                  onChangeText={setTeamCapacity}
-                  keyboardType="numeric"
-                  editable={!submitting}
-                />
-
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.cancelButton]}
-                    onPress={closeTeamModal}
-                    disabled={submitting}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.saveButton]}
-                    onPress={handleSaveTeam}
-                    disabled={submitting}
-                  >
-                    {submitting ? (
-                      <ActivityIndicator size="small" color="#000" />
-                    ) : (
-                      <Text style={styles.saveButtonText}>{editingTeam ? "Update" : "Create"}</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        </TouchableOpacity>
-      </Modal>
-    )
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar translucent style="light" />
@@ -519,7 +524,109 @@ const SelectTeamForRoster: React.FC = () => {
         />
       </Animated.View>
 
-      {renderTeamModal()}
+      {/* Team Create/Edit Modal */}
+      {showTeamModal && (
+        <Modal transparent visible={showTeamModal} animationType="none" onRequestClose={closeTeamModal}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeTeamModal}>
+            <Animated.View
+              style={[
+                styles.teamModal,
+                {
+                  opacity: modalAnim,
+                  transform: [
+                    {
+                      translateY: modalAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [50, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{editingTeam ? "Edit Team" : "Create Team"}</Text>
+                  <TouchableOpacity onPress={closeTeamModal}>
+                    <AntDesign name="close" size={24} color="white" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.formContainer}>
+                  <Text style={styles.fieldLabel}>Team Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter team name"
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={teamName}
+                    onChangeText={setTeamName}
+                    editable={!submitting}
+                  />
+
+                  <Text style={styles.fieldLabel}>Capacity *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter team capacity"
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={teamCapacity}
+                    onChangeText={setTeamCapacity}
+                    keyboardType="numeric"
+                    editable={!submitting}
+                  />
+
+                  <Text style={styles.fieldLabel}>Team Logo</Text>
+                  <TouchableOpacity
+                    style={styles.logoUploadContainer}
+                    onPress={pickTeamLogo}
+                    disabled={submitting}
+                    activeOpacity={0.7}
+                  >
+                    {teamLogo ? (
+                      <View style={styles.logoPreviewWrapper}>
+                        <Image
+                          source={{ uri: teamLogo, cache: 'reload' }}
+                          style={styles.logoPreviewImage}
+                          onError={(e) => console.log("Image error:", e.nativeEvent.error)}
+                        />
+                        <View style={styles.logoChangeOverlay}>
+                          <Ionicons name="camera" size={16} color="#FFF" />
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.logoPlaceholder}>
+                        <Ionicons name="image-outline" size={32} color={COLORS.textSecondary} />
+                        <Text style={styles.logoPlaceholderText}>Tap to upload logo</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.cancelButton]}
+                      onPress={closeTeamModal}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.saveButton]}
+                      onPress={handleSaveTeam}
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <ActivityIndicator size="small" color="#000" />
+                      ) : (
+                        <Text style={styles.saveButtonText}>{editingTeam ? "Update" : "Create"}</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          </TouchableOpacity>
+        </Modal>
+      )}
 
       {/* Error Toast for non-blocking error display */}
       <ErrorToast message={errorMessage} />
@@ -791,6 +898,53 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  logoUploadContainer: {
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  logoPreviewWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    position: "relative",
+    backgroundColor: COLORS.cardDark,
+  },
+  logoPreviewImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  logoChangeOverlay: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.cardDark,
+    borderWidth: 2,
+    borderColor: "#333",
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoPlaceholderText: {
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    marginTop: 4,
+    textAlign: "center",
+    paddingHorizontal: 5,
   },
 })
 

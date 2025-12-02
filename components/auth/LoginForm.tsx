@@ -68,7 +68,7 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
           <Ionicons
             name="mail-outline"
             size={20}
-            color={emailFocused ? "#FFD700" : "#9EA0A4"}
+            color={emailFocused ? "#FCA311" : "#9EA0A4"}
             style={styles.inputIcon}
           />
           <TextInput
@@ -102,7 +102,7 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
           <Ionicons
             name="lock-closed-outline"
             size={20}
-            color={passwordFocused ? "#FFD700" : "#9EA0A4"}
+            color={passwordFocused ? "#FCA311" : "#9EA0A4"}
             style={styles.inputIcon}
           />
           <TextInput
@@ -134,7 +134,7 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
 
       <TouchableOpacity style={styles.loginButton} onPress={handleSubmit} disabled={isLoading}>
         <LinearGradient
-          colors={["#FFD700", "#FFA500"]}
+          colors={["#FCA311", "#E8920F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradientButton}
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   inputWrapperFocused: {
-    borderBottomColor: "#FFD700",
+    borderBottomColor: "#FCA311",
   },
   inputIcon: {
     marginRight: 10,
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   forgotPasswordText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
   },
   loginButton: {

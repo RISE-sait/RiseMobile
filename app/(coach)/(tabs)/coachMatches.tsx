@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, StyleSheet, Alert, InteractionManager } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, Alert, InteractionManager } from "react-native";
 import dayjs from "dayjs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -17,12 +17,6 @@ import { useAuth } from "@/utils/auth";
 import useScreenFocusLogger from "@/hooks/useScreenFocusLogger";
 
 const { width } = Dimensions.get("window");
-
-// Define color constants
-const COLORS = {
-  primary: "#FFD700",
-  background: "#0C0B0B",
-};
 
 // Fixed function to generate exactly 13 days (6 before + today + 6 after)
 const generateWeekDates = (): dayjs.Dayjs[] => {
@@ -130,11 +124,6 @@ const CoachMatches: React.FC = () => {
   }, [status, error]);
 
   // Navigation handlers
-  const openCreateGameModal = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/(coach)/screens/createMatch");
-  };
-
   const openEditGameModal = (game: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
@@ -261,31 +250,25 @@ const CoachMatches: React.FC = () => {
         {/* Header */}
         <View className="px-5 pb-3 border-b border-white-100/10 flex-row justify-between items-center">
           <Text className="text-white-100 text-3xl font-extrabold">Matches</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <TouchableOpacity style={styles.createButton} onPress={openCreateGameModal}>
-              <Ionicons name="add" size={20} color="#000" />
-              <Text style={styles.createButtonText}>Create</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                fetchInteractionRef.current?.cancel();
-                fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
-                  const authToken = await getAuthToken();
-                  if (!authToken) return;
+          <TouchableOpacity
+            onPress={() => {
+              fetchInteractionRef.current?.cancel();
+              fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+                const authToken = await getAuthToken();
+                if (!authToken) return;
 
-                  dispatch(clearMatches());
-                  dispatch(fetchMatches(authToken));
-                });
-              }}
-              disabled={status === "loading"}
-            >
-              <Ionicons
-                name="refresh"
-                size={24}
-                color={status === "loading" ? "#AAAAAA" : "#FFD700"}
-              />
-            </TouchableOpacity>
-          </View>
+                dispatch(clearMatches());
+                dispatch(fetchMatches(authToken));
+              });
+            }}
+            disabled={status === "loading"}
+          >
+            <Ionicons
+              name="refresh"
+              size={24}
+              color={status === "loading" ? "#AAAAAA" : "#FCA311"}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Horizontal Calendar */}
@@ -327,15 +310,7 @@ const CoachMatches: React.FC = () => {
           <EmptyState
             icon="calendar-days"
             title="No Matches Found"
-            message="No matches scheduled for this date. Schedule games for your teams or check other dates."
-            actionLabel="Refresh"
-            onAction={async () => {
-              const authToken = await getAuthToken();
-              if (!authToken) return;
-
-              dispatch(clearMatches());
-              dispatch(fetchMatches(authToken));
-            }}
+            message="No matches scheduled for this date. Go to the Book tab to schedule new matches."
           />
         )}
       </Animated.View>
@@ -343,21 +318,5 @@ const CoachMatches: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  createButton: {
-    backgroundColor: COLORS.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 4,
-  },
-  createButtonText: {
-    color: "#000",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-});
 
 export default CoachMatches;

@@ -92,7 +92,7 @@ const QRCodeModal = () => {
 
             {/* 🔹 QR Code Image */}
             <View className="bg-black-100/80 p-5 rounded-2xl border border-white-100/10 items-center">
-              <LinearGradient colors={["#FCA311", "#FFD369"]} className="p-1 rounded-2xl">
+              <LinearGradient colors={["#FCA311", "#FFB84D"]} className="p-1 rounded-2xl">
                 <Image
                   source={{
                     uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`,

@@ -593,7 +593,7 @@ const getStatusIndicator = (status: string) => {
     if (status === "loading") {
       return (
         <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
+          <ActivityIndicator size="large" color="#FCA311" />
           <Text style={styles.emptyText}>Loading match history...</Text>
         </View>
       );
@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
   },
   content: {
     flex: 1,
@@ -832,7 +832,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1A1A1A",
   },
   activeTab: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
   },
   tabContent: {
     flexDirection: "row",
@@ -884,7 +884,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   leagueText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontWeight: "bold",
     fontSize: 12,
   },
@@ -1024,7 +1024,7 @@ const styles = StyleSheet.create({
   },
   
   finalScoreText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 18,
     fontWeight: "bold",
     textAlign: "center",
@@ -1038,13 +1038,13 @@ const styles = StyleSheet.create({
     borderTopColor: "#333",
   },
     winningScore: {
-    color: "#4CAF50", // Changed from "#FFD700"
+    color: "#4CAF50", // Changed from "#FCA311"
   },
   losingScore: {
     color: "#FF6B6B", // Changed from "#AAA"
   },
   tieScore: {
-    color: "#FFD700", // Changed from "#FFF"
+    color: "#FCA311", // Changed from "#FFF"
   },
   centerDateText: {
     color: "#AAA",
@@ -1054,7 +1054,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   matchInfoTitle: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 8,
@@ -1079,7 +1079,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   infoMessageText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     marginLeft: 8,
     flex: 1,
@@ -1091,7 +1091,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   basicStatsTitle: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
@@ -1114,7 +1114,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   basicStatScore: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 4,
@@ -1149,7 +1149,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   mvpTitle: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 16,
     fontWeight: "bold",
     marginLeft: 8,
@@ -1166,7 +1166,7 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 35,
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: "#FCA311",
   },
   mvpStatsContainer: {
     flex: 1,
@@ -1183,7 +1183,7 @@ const styles = StyleSheet.create({
     minWidth: 60,
   },
   statBubbleValue: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -1273,7 +1273,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     marginTop: 5,
   },
   timelineLine: {
@@ -1289,7 +1289,7 @@ const styles = StyleSheet.create({
     marginLeft: 15,
   },
   timelineTime: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     fontWeight: "bold",
   },
@@ -1354,7 +1354,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   viewDetailsText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     fontWeight: "bold",
     marginRight: 5,
@@ -1415,7 +1415,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   filterOptionSelected: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
   },
   filterOptionText: {
     color: "#FFF",
@@ -1476,7 +1476,7 @@ const styles = StyleSheet.create({
     flex: 2,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     borderRadius: 10,
     paddingVertical: 15,
   },

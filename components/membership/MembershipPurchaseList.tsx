@@ -325,7 +325,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         "The purchase request is taking longer than expected. Please try again.",
         [{ text: "OK", onPress: () => {}, style: "primary" }],
         "clock",
-        "#FFA500"
+        "#E8920F"
       );
     }, 30000); // 30 second timeout
 
@@ -400,7 +400,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           "Unable to initiate purchase. Please try again later or contact support.",
           [{ text: "OK", onPress: () => {}, style: "primary" }],
           "circle-exclamation",
-          "#FFA500"
+          "#E8920F"
         );
       }
     } catch (error: any) {
@@ -467,7 +467,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           {/* Plan Name with Icon */}
           <View style={styles.planTitleRow}>
             <View style={styles.planIconContainer}>
-              <FontAwesomeIcon icon={faCrown} color="#FFD700" size={16} />
+              <FontAwesomeIcon icon={faCrown} color="#FCA311" size={16} />
             </View>
             <Text style={styles.planName}>{item.name}</Text>
           </View>
@@ -573,7 +573,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           </View>
           <FontAwesomeIcon
             icon={isExpanded ? faChevronUp : faChevronDown}
-            color="#FFD700"
+            color="#FCA311"
             size={16}
           />
         </View>
@@ -618,7 +618,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           if (section.loading) {
             return (
               <View style={styles.sectionStateContainer}>
-                <ActivityIndicator size="small" color="#FFD700" />
+                <ActivityIndicator size="small" color="#FCA311" />
                 <Text style={styles.sectionStateText}>Loading plans...</Text>
               </View>
             );
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   joiningFeeText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 13,
     fontWeight: "500",
     marginTop: 6,
@@ -836,12 +836,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   purchaseButton: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: "center",
-    shadowColor: "#FFD700",
+    shadowColor: "#FCA311",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -923,7 +923,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 10,

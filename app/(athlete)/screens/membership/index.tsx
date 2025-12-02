@@ -210,22 +210,22 @@ const MembershipScreen: React.FC = () => {
         {/* Custom Tab Bar */}
         <View style={{ flexDirection: 'row', backgroundColor: '#1A1A1A', borderBottomWidth: 1, borderBottomColor: '#222222' }}>
           <TouchableOpacity
-            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'memberships' ? '#FFD700' : 'transparent' }}
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'memberships' ? '#FCA311' : 'transparent' }}
             onPress={() => setActiveTab('memberships')}
           >
-            <Text style={{ color: activeTab === 'memberships' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Memberships</Text>
+            <Text style={{ color: activeTab === 'memberships' ? '#FCA311' : '#999999', fontWeight: 'bold' }}>Memberships</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'credits' ? '#FFD700' : 'transparent' }}
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'credits' ? '#FCA311' : 'transparent' }}
             onPress={() => setActiveTab('credits')}
           >
-            <Text style={{ color: activeTab === 'credits' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Credits</Text>
+            <Text style={{ color: activeTab === 'credits' ? '#FCA311' : '#999999', fontWeight: 'bold' }}>Credits</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FFD700' : 'transparent' }}
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FCA311' : 'transparent' }}
             onPress={() => setActiveTab('subsidy')}
           >
-            <Text style={{ color: activeTab === 'subsidy' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
+            <Text style={{ color: activeTab === 'subsidy' ? '#FCA311' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
           </TouchableOpacity>
         </View>
         {/* Content based on active tab */}
@@ -245,7 +245,7 @@ const MembershipScreen: React.FC = () => {
                     </View>
                     <View className="bg-[#1A1A1A] rounded-lg p-4">
                       <View className="flex-row items-center justify-center py-8">
-                        <ActivityIndicator size="small" color="#FFD700" />
+                        <ActivityIndicator size="small" color="#FCA311" />
                         <Text className="text-[#999999] ml-3 text-sm">Loading your membership...</Text>
                       </View>
                     </View>
@@ -305,22 +305,22 @@ const MembershipScreen: React.FC = () => {
         {/* Custom Tab Bar */}
         <View style={{ flexDirection: 'row', backgroundColor: '#1A1A1A', borderBottomWidth: 1, borderBottomColor: '#222222' }}>
           <TouchableOpacity
-            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'memberships' ? '#FFD700' : 'transparent' }}
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'memberships' ? '#FCA311' : 'transparent' }}
             onPress={() => setActiveTab('memberships')}
           >
-            <Text style={{ color: activeTab === 'memberships' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Memberships</Text>
+            <Text style={{ color: activeTab === 'memberships' ? '#FCA311' : '#999999', fontWeight: 'bold' }}>Memberships</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'credits' ? '#FFD700' : 'transparent' }}
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'credits' ? '#FCA311' : 'transparent' }}
             onPress={() => setActiveTab('credits')}
           >
-            <Text style={{ color: activeTab === 'credits' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Credits</Text>
+            <Text style={{ color: activeTab === 'credits' ? '#FCA311' : '#999999', fontWeight: 'bold' }}>Credits</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FFD700' : 'transparent' }}
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FCA311' : 'transparent' }}
             onPress={() => setActiveTab('subsidy')}
           >
-            <Text style={{ color: activeTab === 'subsidy' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
+            <Text style={{ color: activeTab === 'subsidy' ? '#FCA311' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
           </TouchableOpacity>
         </View>
         {/* Content based on active tab */}
@@ -336,14 +336,14 @@ const MembershipScreen: React.FC = () => {
               {errorType === 'auth' ? (
                 <TouchableOpacity
                   onPress={() => router.replace('/(auth)/login')}
-                  className="bg-[#FFD700] px-6 py-3 rounded-lg"
+                  className="bg-[#FCA311] px-6 py-3 rounded-lg"
                 >
                   <Text className="text-black font-semibold">Log In</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
                   onPress={() => loadMembershipData(true)}
-                  className="bg-[#FFD700] px-6 py-3 rounded-lg"
+                  className="bg-[#FCA311] px-6 py-3 rounded-lg"
                 >
                   <Text className="text-black font-semibold">Retry</Text>
                 </TouchableOpacity>
@@ -394,22 +394,22 @@ const MembershipScreen: React.FC = () => {
       {/* Custom Tab Bar */}
       <View style={{ flexDirection: 'row', backgroundColor: '#1A1A1A', borderBottomWidth: 1, borderBottomColor: '#222222' }}>
         <TouchableOpacity
-          style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'memberships' ? '#FFD700' : 'transparent' }}
+          style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'memberships' ? '#FCA311' : 'transparent' }}
           onPress={() => setActiveTab('memberships')}
         >
-          <Text style={{ color: activeTab === 'memberships' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Memberships</Text>
+          <Text style={{ color: activeTab === 'memberships' ? '#FCA311' : '#999999', fontWeight: 'bold' }}>Memberships</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'credits' ? '#FFD700' : 'transparent' }}
+          style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'credits' ? '#FCA311' : 'transparent' }}
           onPress={() => setActiveTab('credits')}
         >
-          <Text style={{ color: activeTab === 'credits' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Credits</Text>
+          <Text style={{ color: activeTab === 'credits' ? '#FCA311' : '#999999', fontWeight: 'bold' }}>Credits</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FFD700' : 'transparent' }}
+          style={{ flex: 1, paddingVertical: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab === 'subsidy' ? '#FCA311' : 'transparent' }}
           onPress={() => setActiveTab('subsidy')}
         >
-          <Text style={{ color: activeTab === 'subsidy' ? '#FFD700' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
+          <Text style={{ color: activeTab === 'subsidy' ? '#FCA311' : '#999999', fontWeight: 'bold' }}>Subsidy</Text>
         </TouchableOpacity>
       </View>
       {/* Content based on active tab */}

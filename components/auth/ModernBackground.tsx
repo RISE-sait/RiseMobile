@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#FFD700",
+    borderColor: "#FCA311",
   },
   circle1: {
     width: width * 1.5,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: width * 2,
     height: 1,
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     transform: [{ rotate: "-30deg" }],
     left: -width * 0.5,
   },

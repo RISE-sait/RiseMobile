@@ -34,7 +34,7 @@ import { resolveImageSource } from "@/utils/imageSource"
 const { width } = Dimensions.get("window")
 
 const statusStyles = {
-  scheduled: { label: "SCHEDULED", color: "#FFD369", bgColor: "rgba(255, 211, 105, 0.15)" },
+  scheduled: { label: "SCHEDULED", color: "#FCA311", bgColor: "rgba(252, 163, 17, 0.15)" },
   in_progress: { label: "IN PROGRESS", color: "#EF4444", bgColor: "rgba(239, 68, 68, 0.15)" },
   completed: { label: "COMPLETED", color: "#4ade80", bgColor: "rgba(74, 222, 128, 0.15)" },
   canceled: { label: "CANCELED", color: "#6b7280", bgColor: "rgba(107, 114, 128, 0.15)" },

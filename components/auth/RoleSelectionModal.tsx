@@ -29,27 +29,27 @@ export const RoleSelectionModal = ({ visible, onClose, onSelectRole, currentRole
 
               <TouchableOpacity style={styles.roleOption} onPress={() => handleRoleSelect("athlete")}>
                 <View style={styles.roleIconContainer}>
-                  <FontAwesome5 name="basketball-ball" size={24} color="#FFD700" />
+                  <FontAwesome5 name="basketball-ball" size={24} color="#FCA311" />
                 </View>
                 <View style={styles.roleTextContainer}>
                   <Text style={styles.roleTitle}>Athlete</Text>
                   <Text style={styles.roleDescription}>Players looking to improve their game</Text>
                 </View>
                 {currentRole === "athlete" && (
-                  <Ionicons name="checkmark-circle" size={24} color="#FFD700" style={styles.checkIcon} />
+                  <Ionicons name="checkmark-circle" size={24} color="#FCA311" style={styles.checkIcon} />
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.roleOption} onPress={() => handleRoleSelect("coach")}>
                 <View style={styles.roleIconContainer}>
-                  <FontAwesome5 name="chalkboard-teacher" size={24} color="#FFD700" />
+                  <FontAwesome5 name="chalkboard-teacher" size={24} color="#FCA311" />
                 </View>
                 <View style={styles.roleTextContainer}>
                   <Text style={styles.roleTitle}>Coach</Text>
                   <Text style={styles.roleDescription}>Team coaches and trainers</Text>
                 </View>
                 {currentRole === "coach" && (
-                  <Ionicons name="checkmark-circle" size={24} color="#FFD700" style={styles.checkIcon} />
+                  <Ionicons name="checkmark-circle" size={24} color="#FCA311" style={styles.checkIcon} />
                 )}
               </TouchableOpacity>
 
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   closeModalButton: {
     marginTop: 20,
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 25,

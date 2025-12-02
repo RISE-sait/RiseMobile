@@ -200,15 +200,15 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
   const renderRoleIcon = () => {
     switch (role) {
       case "athlete":
-        return <FontAwesome5 name="basketball-ball" size={18} color="#FFD700" />
+        return <FontAwesome5 name="basketball-ball" size={18} color="#FCA311" />
       case "coach":
-        return <FontAwesome5 name="chalkboard-teacher" size={18} color="#FFD700" />
+        return <FontAwesome5 name="chalkboard-teacher" size={18} color="#FCA311" />
       case "parent":
-        return <Ionicons name="people" size={18} color="#FFD700" />
+        return <Ionicons name="people" size={18} color="#FCA311" />
       case "instructor":
-        return <MaterialCommunityIcons name="whistle" size={18} color="#FFD700" />
+        return <MaterialCommunityIcons name="whistle" size={18} color="#FCA311" />
       case "barber":
-        return <MaterialCommunityIcons name="content-cut" size={18} color="#FFD700" />
+        return <MaterialCommunityIcons name="content-cut" size={18} color="#FCA311" />
       default:
         return <Ionicons name="person-outline" size={18} color="#9EA0A4" />
     }
@@ -538,7 +538,7 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
 
       <TouchableOpacity style={styles.signUpButton} onPress={onSignUp} disabled={isLoading}>
         <LinearGradient
-          colors={["#FFD700", "#FFA500"]}
+          colors={["#FCA311", "#E8920F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradientButton}
@@ -625,8 +625,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxBoxChecked: {
-    backgroundColor: "#FFD700",
-    borderColor: "#FFD700",
+    backgroundColor: "#FCA311",
+    borderColor: "#FCA311",
   },
   checkboxText: {
     flex: 1,
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   linkText: {
-    color: "#FFD700",
+    color: "#FCA311",
     textDecorationLine: "underline",
   },
   checkboxError: {
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   sectionTitle: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 16,
     fontWeight: "bold",
     marginTop: 16,
@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   genderOptionSelected: {
-    borderColor: "#FFD700",
+    borderColor: "#FCA311",
     backgroundColor: "rgba(255, 215, 0, 0.1)",
   },
   genderOptionText: {
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   genderOptionTextSelected: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontWeight: "600",
   },
 })

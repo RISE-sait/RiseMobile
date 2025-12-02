@@ -40,7 +40,7 @@ interface MatchProps {
 }
 
 const statusStyles = {
-  scheduled: { color: "#FFA500", label: "SCHEDULED", icon: "clock" },
+  scheduled: { color: "#E8920F", label: "SCHEDULED", icon: "clock" },
   in_progress: { color: "#EF4444", label: "IN PROGRESS", icon: "circle-dot" },
   completed: { color: "#22C55E", label: "COMPLETED", icon: "check-circle" },
   canceled: { color: "#9CA3AF", label: "CANCELED", icon: "x-circle" },
@@ -160,7 +160,7 @@ const MatchCard: React.FC<MatchProps> = ({ match, onEdit, onDelete, showActions 
           className="flex-1 bg-gold-100/20 py-2 px-4 rounded-lg mr-2 flex-row items-center justify-center"
           activeOpacity={0.7}
         >
-          <FontAwesome6 name="edit" size={14} color="#FFD700" />
+          <FontAwesome6 name="edit" size={14} color="#FCA311" />
           <Text className="text-gold-100 font-semibold ml-2 text-sm">Edit</Text>
         </TouchableOpacity>
 

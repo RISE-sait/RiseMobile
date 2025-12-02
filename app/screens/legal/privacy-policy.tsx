@@ -94,7 +94,7 @@ const PrivacyPolicyScreen = () => {
         {/* Call to Action Button */}
         <TouchableOpacity
           onPress={openPrivacyPolicy}
-          className="bg-[#FFD700] rounded-lg py-4 px-6 items-center mb-6"
+          className="bg-[#FCA311] rounded-lg py-4 px-6 items-center mb-6"
           activeOpacity={0.8}
         >
           <View className="flex-row items-center">

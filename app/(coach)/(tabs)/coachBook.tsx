@@ -36,8 +36,8 @@ const cardWidth = width * 0.85
 
 // Define color constants
 const COLORS = {
-  primary: "#FFD700",
-  primaryDark: "#E6C200",
+  primary: "#FCA311",
+  primaryDark: "#D4890E",
   background: "#0C0B0B",
   card: "#1A1A1A",
   cardDark: "#141414",
@@ -63,6 +63,14 @@ const featuredFacilities = [
   },
   {
     id: "2",
+    title: "Schedule Match",
+    description: "Create and manage team matches",
+    image:
+      "https://images.unsplash.com/photo-1574623452334-1e0ac2b3ccb4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+      route: "/screens/createMatch",
+  },
+  {
+    id: "3",
     title: "RISE Courts",
     description: "View court availability and current activities",
     image:
@@ -78,6 +86,12 @@ const bookingOptions = [
     icon: "basketball-ball",
     route: "/screens/coach-booking/practiceBooking",
     color: "#FF7043",
+  },
+  {
+    title: "Matches",
+    icon: "trophy",
+    route: "/screens/createMatch",
+    color: "#8E44AD",
   },
   {
     title: "RISE Courts",
