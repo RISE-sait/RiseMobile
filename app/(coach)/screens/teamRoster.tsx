@@ -35,6 +35,10 @@ interface RosterMember {
   rebounds?: number
   assists?: number
   steals?: number
+  // Profile image fields - API may use different naming conventions
+  profile_image?: string
+  profileImage?: string
+  photo_url?: string  // This is what athletes use when uploading their profile pictures
 }
 
 // Define Player interface
@@ -71,8 +75,8 @@ const { width, height } = Dimensions.get("window")
 
 // Define color constants
 const COLORS = {
-  primary: "#FFD700",
-  primaryDark: "#E6C200",
+  primary: "#FCA311",
+  primaryDark: "#D4890E",
   background: "#0C0B0B",
   card: "#1A1A1A",
   cardDark: "#141414",
@@ -118,7 +122,9 @@ const mapRosterMemberToPlayer = (member: RosterMember, index: number): Player =>
   age: 22,
   experience: 2,
   college: "Unknown",
-  image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
+  // Use the member's profile image if available, otherwise use placeholder
+  // API may return photo_url (athlete upload), profile_image, or profileImage (camelCase)
+  image: member.photo_url || member.profile_image || member.profileImage || "",
   position: "F", // Default position
   status: "Active", // Everyone is active
   stats: {

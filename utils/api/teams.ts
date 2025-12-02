@@ -79,7 +79,7 @@ export const getTeamById = async (teamId: string, token: string): Promise<any> =
 };
 
 // Create a new team
-export const createTeam = async (teamData: { name: string; capacity: number; logo?: string; coach_id?: string }, token: string): Promise<any> => {
+export const createTeam = async (teamData: { name: string; capacity: number; logo_url?: string; coach_id?: string }, token: string): Promise<any> => {
   try {
     const firebaseUser = auth.currentUser;
 
@@ -113,7 +113,7 @@ export const createTeam = async (teamData: { name: string; capacity: number; log
 };
 
 // Update an existing team
-export const updateTeam = async (teamId: string, teamData: { name: string; capacity: number; coach_id: string; logo?: string }, token: string): Promise<any> => {
+export const updateTeam = async (teamId: string, teamData: { name: string; capacity: number; coach_id: string; logo_url?: string }, token: string): Promise<any> => {
   try {
     const firebaseUser = auth.currentUser;
 

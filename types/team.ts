@@ -9,6 +9,8 @@ export interface Player {
   steals: number
   wins: number
   losses: number
+  profile_image?: string
+  profileImage?: string
 }
 
 export interface Team {

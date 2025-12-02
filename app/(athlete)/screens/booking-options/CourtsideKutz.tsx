@@ -610,7 +610,7 @@ const BarberBookingScreen = () => {
           {item.name}
         </Text>
         <View className="flex-row items-center mt-1">
-          <FontAwesome6 name="star" size={14} color={selectedBarber?.id === item.id ? "#000" : "#FFD700"} solid />
+          <FontAwesome6 name="star" size={14} color={selectedBarber?.id === item.id ? "#000" : "#FCA311"} solid />
           <Text className={`ml-1 ${selectedBarber?.id === item.id ? "text-black" : "text-gray-300"}`}>
             {item.rating}
           </Text>
@@ -650,7 +650,7 @@ const BarberBookingScreen = () => {
             <FontAwesome6
               name={item.icon as any}
               size={18}
-              color={selectedService?.id === item.id ? "#000" : "#FFD700"}
+              color={selectedService?.id === item.id ? "#000" : "#FCA311"}
             />
           </View>
           <Text className={`ml-3 text-lg font-bold ${selectedService?.id === item.id ? "text-black-100" : "text-white-100"}`}>
@@ -764,7 +764,7 @@ const BarberBookingScreen = () => {
     if (isLoading) {
       return (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#FFD700" />
+          <ActivityIndicator size="large" color="#FCA311" />
           <Text className="text-white-100 mt-4">Loading barber services...</Text>
         </View>
       )
@@ -821,7 +821,7 @@ const BarberBookingScreen = () => {
       {/* Loading state for time slots - only show after 300ms delay */}
       {isTimeSlotsLoading && showLoadingIndicator && (
         <View className="flex-row items-center justify-center py-6">
-          <ActivityIndicator size="small" color="#FFD700" />
+          <ActivityIndicator size="small" color="#FCA311" />
           <Text className="text-white-100 ml-2">Fetching available times...</Text>
         </View>
       )}
@@ -1006,19 +1006,19 @@ const renderConfirmationModal = () => (
               <View className="bg-[#222] p-4 rounded-xl mb-4">
                 <Text className="text-white-100 font-bold mb-3">Appointment Details</Text>
                 <View className="flex-row items-center mb-3">
-                  <FontAwesome6 name="calendar" size={16} color="#FFD700" className="w-6" />
+                  <FontAwesome6 name="calendar" size={16} color="#FCA311" className="w-6" />
                   <Text className="text-white-100 ml-2">{dayjs(selectedDate).format("MMMM D, YYYY")}</Text>
                 </View>
                 <View className="flex-row items-center mb-3">
-                  <FontAwesome6 name="clock" size={16} color="#FFD700" className="w-6" />
+                  <FontAwesome6 name="clock" size={16} color="#FCA311" className="w-6" />
                   <Text className="text-white-100 ml-2">{selectedTime}</Text>
                 </View>
                 <View className="flex-row items-center mb-3">
-                  <FontAwesome6 name="user" size={16} color="#FFD700" className="w-6" />
+                  <FontAwesome6 name="user" size={16} color="#FCA311" className="w-6" />
                   <Text className="text-white-100 ml-2">{selectedBarber?.name}</Text>
                 </View>
                 <View className="flex-row items-center">
-                  <FontAwesome6 name="cut" size={16} color="#FFD700" className="w-6" />
+                  <FontAwesome6 name="cut" size={16} color="#FCA311" className="w-6" />
                   <Text className="text-white-100 ml-2">{selectedService?.name}</Text>
                 </View>
               </View>

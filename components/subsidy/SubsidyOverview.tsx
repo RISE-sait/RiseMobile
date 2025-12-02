@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   balanceAmount: {
-    color: '#FFD700',
+    color: '#FCA311',
     fontSize: 36,
     fontWeight: 'bold',
     marginBottom: 16,
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   subsidyAmount: {
-    color: '#FFD700',
+    color: '#FCA311',
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,

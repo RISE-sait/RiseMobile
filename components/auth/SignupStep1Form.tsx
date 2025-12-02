@@ -124,7 +124,7 @@ export const SignupStep1Form = ({
                         case "weak":
                           return "#FF4D4F"
                         case "medium":
-                          return "#FFA500"
+                          return "#E8920F"
                         case "good":
                           return "#2EB62C"
                         case "strong":
@@ -205,7 +205,7 @@ export const SignupStep1Form = ({
         }}
       >
         <LinearGradient
-          colors={["#FFD700", "#FFA500"]}
+          colors={["#FCA311", "#E8920F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradientButton}

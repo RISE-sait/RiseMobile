@@ -95,7 +95,7 @@ export const RegistrationComplete = ({ email, successAnim, checkmarkScale, role 
           },
         ]}
       >
-        <Ionicons name="checkmark" size={80} color="#FFD700" />
+        <Ionicons name="checkmark" size={80} color="#FCA311" />
       </Animated.View>
 
       <Animated.Text style={[styles.successTitle, { opacity: successAnim }]}>Registration Complete!</Animated.Text>
@@ -106,13 +106,13 @@ export const RegistrationComplete = ({ email, successAnim, checkmarkScale, role 
 
       <Animated.View style={[styles.successInfo, { opacity: successAnim }]}>
         <View style={styles.infoItem}>
-          <Ionicons name="mail-outline" size={20} color="#FFD700" />
+          <Ionicons name="mail-outline" size={20} color="#FCA311" />
           <Text style={styles.infoText}>Verification email sent to:</Text>
         </View>
         <Text style={styles.infoValue}>{email}</Text>
 
         <View style={styles.infoItem}>
-          <Ionicons name="time-outline" size={20} color="#FFD700" />
+          <Ionicons name="time-outline" size={20} color="#FCA311" />
           <Text style={styles.infoText}>{isAthlete ? "Access time:" : "Estimated approval time:"}</Text>
         </View>
         <Text style={styles.infoValue}>{approvalTimeText}</Text>
@@ -120,7 +120,7 @@ export const RegistrationComplete = ({ email, successAnim, checkmarkScale, role 
 
       <TouchableOpacity style={styles.loginButton} onPress={() => router.replace("/(auth)/login")}>
         <LinearGradient
-          colors={["#FFD700", "#FFA500"]}
+          colors={["#FCA311", "#E8920F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradientButton}
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   resendButtonText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     textAlign: "center",
     textDecorationLine: "underline",

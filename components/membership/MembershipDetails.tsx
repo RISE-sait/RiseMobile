@@ -100,7 +100,7 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
       {/* Membership Card */}
       <View style={styles.cardContainer}>
         <LinearGradient
-          colors={["#FFD700", "#FFA500"]}
+          colors={["#FCA311", "#E8920F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.membershipCard}
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   closeButtonText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 16,
   },
   modalContent: {

@@ -102,7 +102,7 @@ export default function CoachHomeScreen() {
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] items-center justify-center">
-        <ActivityIndicator size="large" color="#FFD700" />
+        <ActivityIndicator size="large" color="#FCA311" />
       </SafeAreaView>
     );
   }
@@ -132,7 +132,7 @@ export default function CoachHomeScreen() {
                   Upload a picture to personalize your account and help your athletes recognize you.
                 </Text>
                 <TouchableOpacity
-                  className="mt-3 px-4 py-2 rounded-lg bg-[#FFD700]"
+                  className="mt-3 px-4 py-2 rounded-lg bg-[#FCA311]"
                   onPress={() => router.push("/screens/edit-profile")}
                   activeOpacity={0.85}
                 >

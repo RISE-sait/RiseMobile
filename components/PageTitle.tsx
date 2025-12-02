@@ -19,7 +19,7 @@ const PageTitle: React.FC<PageTitleProps> = ({ title, subtitle, align = "left", 
         <Ionicons
           name="refresh"
           size={24}
-          color={isRefreshing ? "#AAAAAA" : "#FFD700"}
+          color={isRefreshing ? "#AAAAAA" : "#FCA311"}
         />
       </TouchableOpacity>
     ) : subtitle && (

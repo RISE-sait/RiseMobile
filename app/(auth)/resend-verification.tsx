@@ -100,7 +100,7 @@ const ResendVerificationScreen = () => {
         <View style={styles.content}>
           {/* Back Button */}
           <TouchableOpacity style={styles.backButton} onPress={handleGoToLogin}>
-            <Ionicons name="arrow-back" size={24} color="#FFD700" />
+            <Ionicons name="arrow-back" size={24} color="#FCA311" />
           </TouchableOpacity>
 
           {/* Icon */}
@@ -108,7 +108,7 @@ const ResendVerificationScreen = () => {
             {emailSent ? (
               <Ionicons name="mail-outline" size={80} color="#4CAF50" />
             ) : (
-              <Ionicons name="mail-unread-outline" size={80} color="#FFD700" />
+              <Ionicons name="mail-unread-outline" size={80} color="#FCA311" />
             )}
           </View>
 
@@ -126,7 +126,7 @@ const ResendVerificationScreen = () => {
           {!emailSent && (
             <View style={styles.inputContainer}>
               <View style={[styles.inputWrapper, emailFocused && styles.inputWrapperFocused, error && styles.inputError]}>
-                <Ionicons name="mail-outline" size={20} color={emailFocused ? "#FFD700" : "#9EA0A4"} style={styles.inputIcon} />
+                <Ionicons name="mail-outline" size={20} color={emailFocused ? "#FCA311" : "#9EA0A4"} style={styles.inputIcon} />
                 <TextInput
                   placeholder="Email address"
                   placeholderTextColor="#9EA0A4"
@@ -181,7 +181,7 @@ const ResendVerificationScreen = () => {
               disabled={isLoading || cooldownSeconds > 0}
             >
               <LinearGradient
-                colors={cooldownSeconds > 0 ? ["#666", "#555"] : ["#FFD700", "#FFA500"]}
+                colors={cooldownSeconds > 0 ? ["#666", "#555"] : ["#FCA311", "#E8920F"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.gradientButton}
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   inputWrapperFocused: {
-    borderBottomColor: "#FFD700",
+    borderBottomColor: "#FCA311",
   },
   inputIcon: {
     marginRight: 10,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   secondaryButtonText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     fontWeight: "600",
   },

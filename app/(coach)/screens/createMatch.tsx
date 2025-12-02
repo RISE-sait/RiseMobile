@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,12 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  Modal,
+  Animated,
+  Dimensions,
+  Image,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, AntDesign } from "@expo/vector-icons";
@@ -23,8 +28,8 @@ import * as Haptics from "expo-haptics";
 
 // Define color constants
 const COLORS = {
-  primary: "#FFD700",
-  primaryDark: "#E6C200",
+  primary: "#FCA311",
+  primaryDark: "#D4890E",
   background: "#0C0B0B",
   card: "#1A1A1A",
   cardDark: "#141414",
@@ -36,10 +41,15 @@ const COLORS = {
   info: "#2196F3",
 };
 
+const { width } = Dimensions.get("window");
+
 export default function CreateMatchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const dispatch = useAppDispatch();
+
+  // Animation refs
+  const modalAnim = useRef(new Animated.Value(0)).current;
 
   const gameId = params.gameId as string | undefined;
   const token = useAppSelector((state) => state.user.data?.token);
@@ -53,8 +63,15 @@ export default function CreateMatchScreen() {
   const [locationId, setLocationId] = useState("");
   const [gameDate, setGameDate] = useState(new Date());
   const [gameTime, setGameTime] = useState(new Date());
+  const [gameEndTime, setGameEndTime] = useState(() => {
+    // Default end time is 2 hours after start time
+    const defaultEnd = new Date();
+    defaultEnd.setHours(defaultEnd.getHours() + 2);
+    return defaultEnd;
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   // Data states
   const [locations, setLocations] = useState<any[]>([]);
@@ -69,7 +86,7 @@ export default function CreateMatchScreen() {
   const [showExternalTeamModal, setShowExternalTeamModal] = useState(false);
   const [externalTeamName, setExternalTeamName] = useState("");
   const [externalTeamCapacity, setExternalTeamCapacity] = useState("");
-  const [externalTeamLogoUrl, setExternalTeamLogoUrl] = useState("");
+  const [externalTeamLogo, setExternalTeamLogo] = useState<string | null>(null);
   const [creatingExternalTeam, setCreatingExternalTeam] = useState(false);
 
   // UI states
@@ -128,12 +145,125 @@ export default function CreateMatchScreen() {
         setGameDate(startDate);
         setGameTime(startDate);
       }
+
+      if (editingGame.end_time) {
+        const endDate = new Date(editingGame.end_time);
+        setGameEndTime(endDate);
+      } else if (editingGame.start_time) {
+        // Default to 2 hours after start if no end time
+        const defaultEnd = new Date(editingGame.start_time);
+        defaultEnd.setHours(defaultEnd.getHours() + 2);
+        setGameEndTime(defaultEnd);
+      }
     } else {
       // Set default home team for create mode
       const defaultHomeTeam = teams && teams.length > 0 ? teams[0].id : "";
       setHomeTeamId(defaultHomeTeam);
     }
   }, [editingGame, teams]);
+
+  // Animation helpers
+  const openModal = () => {
+    Animated.spring(modalAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+  };
+
+  const closeModal = () => {
+    Animated.timing(modalAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Open external team modal with animation
+  const openExternalTeamModal = () => {
+    setShowAwayTeamPicker(false);
+    setExternalTeamName("");
+    setExternalTeamCapacity("");
+    setExternalTeamLogo(null);
+    setShowExternalTeamModal(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    openModal();
+  };
+
+  // Close external team modal
+  const closeExternalTeamModal = () => {
+    closeModal();
+    setTimeout(() => {
+      setShowExternalTeamModal(false);
+      setExternalTeamName("");
+      setExternalTeamCapacity("");
+      setExternalTeamLogo(null);
+    }, 200);
+  };
+
+  // Pick logo for external team
+  const pickExternalTeamLogo = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Permission Required", "Please allow access to your photos to upload a team logo.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setExternalTeamLogo(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to pick image. Please try again.");
+    }
+  };
+
+  // Upload logo to server
+  const uploadExternalTeamLogo = async (imageUri: string): Promise<string | null> => {
+    if (!token) return null;
+
+    try {
+      const formData = new FormData();
+      const filename = imageUri.split('/').pop() || 'team_logo.jpg';
+      const match = /\.(.+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      formData.append('image', {
+        uri: imageUri,
+        name: filename,
+        type,
+      } as any);
+
+      const uploadResponse = await fetch('https://api-461776259687.us-west2.run.app/upload/image?folder=teams', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error("Upload failed:", errorText);
+        return null;
+      }
+
+      const uploadResult = await uploadResponse.json();
+      return uploadResult.url || null;
+    } catch (error) {
+      console.error("Error uploading team logo:", error);
+      return null;
+    }
+  };
 
   const handleSave = async () => {
     // Validation
@@ -166,10 +296,20 @@ export default function CreateMatchScreen() {
       .hour(gameTime.getHours())
       .minute(gameTime.getMinutes());
 
+    const combinedEndDateTime = dayjs(gameDate)
+      .hour(gameEndTime.getHours())
+      .minute(gameEndTime.getMinutes());
+
     const now = dayjs();
 
     if (combinedDateTime.isBefore(now)) {
       setErrorMessage("Game date and time must be in the future");
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
+
+    if (combinedEndDateTime.isBefore(combinedDateTime) || combinedEndDateTime.isSame(combinedDateTime)) {
+      setErrorMessage("End time must be after start time");
       setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
@@ -182,16 +322,22 @@ export default function CreateMatchScreen() {
 
     setSubmitting(true);
     try {
-      const combinedDateTime = dayjs(gameDate)
+      const startDateTime = dayjs(gameDate)
         .hour(gameTime.getHours())
         .minute(gameTime.getMinutes())
+        .toISOString();
+
+      const endDateTime = dayjs(gameDate)
+        .hour(gameEndTime.getHours())
+        .minute(gameEndTime.getMinutes())
         .toISOString();
 
       const gameData = {
         home_team_id: homeTeamId,
         away_team_id: awayTeamId,
         location_id: locationId,
-        start_time: combinedDateTime,
+        start_time: startDateTime,
+        end_time: endDateTime,
         status: "scheduled" as const,
       };
 
@@ -239,13 +385,24 @@ export default function CreateMatchScreen() {
 
     setCreatingExternalTeam(true);
     try {
+      // Upload logo if selected
+      let logoUrl: string | undefined = undefined;
+      if (externalTeamLogo && !externalTeamLogo.startsWith('http')) {
+        const uploadedUrl = await uploadExternalTeamLogo(externalTeamLogo);
+        if (uploadedUrl) {
+          logoUrl = uploadedUrl;
+        }
+      } else if (externalTeamLogo && externalTeamLogo.startsWith('http')) {
+        logoUrl = externalTeamLogo;
+      }
+
       const teamData: { name: string; capacity: number; logo_url?: string } = {
         name: externalTeamName.trim(),
         capacity,
       };
 
-      if (externalTeamLogoUrl.trim()) {
-        teamData.logo_url = externalTeamLogoUrl.trim();
+      if (logoUrl) {
+        teamData.logo_url = logoUrl;
       }
 
       await createExternalTeam(teamData, token);
@@ -255,10 +412,7 @@ export default function CreateMatchScreen() {
       setExternalTeams(Array.isArray(updatedExternalTeams) ? updatedExternalTeams : []);
 
       // Close modal and reset form
-      setShowExternalTeamModal(false);
-      setExternalTeamName("");
-      setExternalTeamCapacity("");
-      setExternalTeamLogoUrl("");
+      closeExternalTeamModal();
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
@@ -360,11 +514,20 @@ export default function CreateMatchScreen() {
         />
 
         <DateTimeSelector
-          label="Game Time *"
+          label="Start Time *"
           date={gameTime}
           setDate={setGameTime}
           showPicker={showTimePicker}
           setShowPicker={setShowTimePicker}
+          mode="time"
+        />
+
+        <DateTimeSelector
+          label="End Time *"
+          date={gameEndTime}
+          setDate={setGameEndTime}
+          showPicker={showEndTimePicker}
+          setShowPicker={setShowEndTimePicker}
           mode="time"
         />
 
@@ -392,95 +555,142 @@ export default function CreateMatchScreen() {
         </View>
       </ScrollView>
 
-      {/* Picker Sheets */}
-      {/* Home Team Picker */}
-      {showHomeTeamPicker && (
-        <View style={styles.pickerSheet}>
-          <View style={styles.pickerSheetContent}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Home Team</Text>
-              <TouchableOpacity onPress={() => setShowHomeTeamPicker(false)}>
-                <AntDesign name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.pickerList}>
-              {teams && teams.length > 0 ? (
-                teams.map((team: any) => (
-                  <TouchableOpacity
-                    key={team.id}
-                    style={[
-                      styles.pickerItem,
-                      homeTeamId === team.id && styles.pickerItemSelected,
-                    ]}
-                    onPress={() => {
-                      setHomeTeamId(team.id);
-                      setShowHomeTeamPicker(false);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <Text
+      {/* Home Team Picker Modal */}
+      <Modal transparent visible={showHomeTeamPicker} animationType="fade" onRequestClose={() => setShowHomeTeamPicker(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowHomeTeamPicker(false)}>
+          <View style={styles.pickerModal}>
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Home Team</Text>
+                <TouchableOpacity onPress={() => setShowHomeTeamPicker(false)}>
+                  <AntDesign name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.pickerModalList} showsVerticalScrollIndicator={false}>
+                {teams && teams.length > 0 ? (
+                  teams.map((team: any) => (
+                    <TouchableOpacity
+                      key={team.id}
                       style={[
-                        styles.pickerItemText,
-                        homeTeamId === team.id && styles.pickerItemTextSelected,
+                        styles.pickerModalItem,
+                        homeTeamId === team.id && styles.pickerModalItemSelected,
                       ]}
+                      onPress={() => {
+                        setHomeTeamId(team.id);
+                        setShowHomeTeamPicker(false);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
                     >
-                      {team.name}
+                      <View style={styles.pickerItemContent}>
+                        {team.logo_url ? (
+                          <Image source={{ uri: team.logo_url }} style={styles.teamLogoSmall} />
+                        ) : (
+                          <View style={styles.teamLogoPlaceholder}>
+                            <Ionicons name="people" size={16} color={COLORS.textSecondary} />
+                          </View>
+                        )}
+                        <Text
+                          style={[
+                            styles.pickerModalItemText,
+                            homeTeamId === team.id && styles.pickerModalItemTextSelected,
+                          ]}
+                        >
+                          {team.name}
+                        </Text>
+                      </View>
+                      {homeTeamId === team.id && (
+                        <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>
+                      {teamsLoading === "pending" ? "Loading teams..." : "No teams available. Please create a team first."}
                     </Text>
-                    {homeTeamId === team.id && (
-                      <Ionicons name="checkmark" size={20} color={COLORS.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>
-                    {teamsLoading === "pending" ? "Loading teams..." : "No teams available. Please create a team first."}
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
+                  </View>
+                )}
+              </ScrollView>
+            </TouchableOpacity>
           </View>
-        </View>
-      )}
+        </TouchableOpacity>
+      </Modal>
 
-      {/* Away Team Picker */}
-      {showAwayTeamPicker && (
-        <View style={styles.pickerSheet}>
-          <View style={styles.pickerSheetContent}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Away Team</Text>
-              <TouchableOpacity onPress={() => setShowAwayTeamPicker(false)}>
-                <AntDesign name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.pickerList}>
-              {/* Create External Team Button */}
-              <TouchableOpacity
-                style={[styles.pickerItem, styles.createExternalTeamButton]}
-                onPress={() => {
-                  setShowAwayTeamPicker(false);
-                  setShowExternalTeamModal(true);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-                <Ionicons name="add-circle" size={20} color={COLORS.primary} />
-                <Text style={[styles.pickerItemText, { color: COLORS.primary, marginLeft: 8 }]}>
-                  Create External Team
-                </Text>
-              </TouchableOpacity>
+      {/* Away Team Picker Modal */}
+      <Modal transparent visible={showAwayTeamPicker} animationType="fade" onRequestClose={() => setShowAwayTeamPicker(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAwayTeamPicker(false)}>
+          <View style={styles.pickerModal}>
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Away Team</Text>
+                <TouchableOpacity onPress={() => setShowAwayTeamPicker(false)}>
+                  <AntDesign name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.pickerModalList} showsVerticalScrollIndicator={false}>
+                {/* Create External Team Button */}
+                <TouchableOpacity
+                  style={styles.createExternalTeamBtn}
+                  onPress={openExternalTeamModal}
+                >
+                  <Ionicons name="add-circle" size={22} color={COLORS.primary} />
+                  <Text style={styles.createExternalTeamText}>Create External Team</Text>
+                </TouchableOpacity>
 
-              {/* Internal Teams */}
-              {teams?.filter((team: any) => team.id !== homeTeamId).length > 0 && (
-                <>
-                  <Text style={styles.sectionHeader}>Internal Teams</Text>
-                  {teams
-                    .filter((team: any) => team.id !== homeTeamId)
-                    .map((team: any) => (
+                {/* Internal Teams */}
+                {teams?.filter((team: any) => team.id !== homeTeamId).length > 0 && (
+                  <>
+                    <Text style={styles.pickerSectionHeader}>Your Teams</Text>
+                    {teams
+                      .filter((team: any) => team.id !== homeTeamId)
+                      .map((team: any) => (
+                        <TouchableOpacity
+                          key={team.id}
+                          style={[
+                            styles.pickerModalItem,
+                            awayTeamId === team.id && styles.pickerModalItemSelected,
+                          ]}
+                          onPress={() => {
+                            setAwayTeamId(team.id);
+                            setShowAwayTeamPicker(false);
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          }}
+                        >
+                          <View style={styles.pickerItemContent}>
+                            {team.logo_url ? (
+                              <Image source={{ uri: team.logo_url }} style={styles.teamLogoSmall} />
+                            ) : (
+                              <View style={styles.teamLogoPlaceholder}>
+                                <Ionicons name="people" size={16} color={COLORS.textSecondary} />
+                              </View>
+                            )}
+                            <Text
+                              style={[
+                                styles.pickerModalItemText,
+                                awayTeamId === team.id && styles.pickerModalItemTextSelected,
+                              ]}
+                            >
+                              {team.name}
+                            </Text>
+                          </View>
+                          {awayTeamId === team.id && (
+                            <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                  </>
+                )}
+
+                {/* External Teams */}
+                {externalTeams.length > 0 && (
+                  <>
+                    <Text style={styles.pickerSectionHeader}>External Teams</Text>
+                    {externalTeams.map((team: any) => (
                       <TouchableOpacity
                         key={team.id}
                         style={[
-                          styles.pickerItem,
-                          awayTeamId === team.id && styles.pickerItemSelected,
+                          styles.pickerModalItem,
+                          awayTeamId === team.id && styles.pickerModalItemSelected,
                         ]}
                         onPress={() => {
                           setAwayTeamId(team.id);
@@ -488,200 +698,208 @@ export default function CreateMatchScreen() {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         }}
                       >
-                        <Text
-                          style={[
-                            styles.pickerItemText,
-                            awayTeamId === team.id && styles.pickerItemTextSelected,
-                          ]}
-                        >
-                          {team.name}
-                        </Text>
+                        <View style={styles.pickerItemContent}>
+                          {team.logo_url ? (
+                            <Image source={{ uri: team.logo_url }} style={styles.teamLogoSmall} />
+                          ) : (
+                            <View style={styles.teamLogoPlaceholder}>
+                              <Ionicons name="globe-outline" size={16} color={COLORS.textSecondary} />
+                            </View>
+                          )}
+                          <View>
+                            <Text
+                              style={[
+                                styles.pickerModalItemText,
+                                awayTeamId === team.id && styles.pickerModalItemTextSelected,
+                              ]}
+                            >
+                              {team.name}
+                            </Text>
+                            <Text style={styles.pickerItemSubtext}>External Team</Text>
+                          </View>
+                        </View>
                         {awayTeamId === team.id && (
-                          <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                          <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
                         )}
                       </TouchableOpacity>
                     ))}
-                </>
-              )}
+                  </>
+                )}
 
-              {/* External Teams */}
-              {externalTeams.length > 0 && (
-                <>
-                  <Text style={styles.sectionHeader}>External Teams</Text>
-                  {externalTeams.map((team: any) => (
+                {/* Empty state */}
+                {(!teams || teams.length <= 1) && externalTeams.length === 0 && (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No teams available for selection.</Text>
+                    <Text style={[styles.emptyStateText, { fontSize: 12, marginTop: 8 }]}>
+                      Create an external team using the button above.
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Location Picker Modal */}
+      <Modal transparent visible={showLocationPicker} animationType="fade" onRequestClose={() => setShowLocationPicker(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLocationPicker(false)}>
+          <View style={styles.pickerModal}>
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Location</Text>
+                <TouchableOpacity onPress={() => setShowLocationPicker(false)}>
+                  <AntDesign name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.pickerModalList} showsVerticalScrollIndicator={false}>
+                {locations && locations.length > 0 ? (
+                  locations.map((location: any) => (
                     <TouchableOpacity
-                      key={team.id}
+                      key={location.id}
                       style={[
-                        styles.pickerItem,
-                        awayTeamId === team.id && styles.pickerItemSelected,
+                        styles.pickerModalItem,
+                        locationId === location.id && styles.pickerModalItemSelected,
                       ]}
                       onPress={() => {
-                        setAwayTeamId(team.id);
-                        setShowAwayTeamPicker(false);
+                        setLocationId(location.id);
+                        setShowLocationPicker(false);
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
                     >
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.pickerItemText,
-                            awayTeamId === team.id && styles.pickerItemTextSelected,
-                          ]}
-                        >
-                          {team.name}
-                        </Text>
-                        <Text style={styles.teamSubtext}>External Team</Text>
+                      <View style={styles.pickerItemContent}>
+                        <View style={styles.locationIconContainer}>
+                          <Ionicons name="location" size={18} color={COLORS.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.pickerModalItemText,
+                              locationId === location.id && styles.pickerModalItemTextSelected,
+                            ]}
+                          >
+                            {location.name}
+                          </Text>
+                          <Text style={styles.pickerItemSubtext}>{location.address}</Text>
+                        </View>
                       </View>
-                      {awayTeamId === team.id && (
-                        <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                      {locationId === location.id && (
+                        <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
                       )}
                     </TouchableOpacity>
-                  ))}
-                </>
-              )}
-
-              {/* Empty state */}
-              {(!teams || teams.length <= 1) && externalTeams.length === 0 && (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No teams available for selection.</Text>
-                  <Text style={[styles.emptyStateText, { fontSize: 12, marginTop: 8 }]}>
-                    Create an external team using the button above or add more internal teams.
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>Loading locations...</Text>
+                  </View>
+                )}
+              </ScrollView>
+            </TouchableOpacity>
           </View>
-        </View>
-      )}
-
-      {/* Location Picker */}
-      {showLocationPicker && (
-        <View style={styles.pickerSheet}>
-          <View style={styles.pickerSheetContent}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Location</Text>
-              <TouchableOpacity onPress={() => setShowLocationPicker(false)}>
-                <AntDesign name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.pickerList}>
-              {locations && locations.length > 0 ? (
-                locations.map((location: any) => (
-                  <TouchableOpacity
-                    key={location.id}
-                    style={[
-                      styles.pickerItem,
-                      locationId === location.id && styles.pickerItemSelected,
-                    ]}
-                    onPress={() => {
-                      setLocationId(location.id);
-                      setShowLocationPicker(false);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.pickerItemText,
-                          locationId === location.id && styles.pickerItemTextSelected,
-                        ]}
-                      >
-                        {location.name}
-                      </Text>
-                      <Text style={styles.teamSubtext}>{location.address}</Text>
-                    </View>
-                    {locationId === location.id && (
-                      <Ionicons name="checkmark" size={20} color={COLORS.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>Loading locations...</Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      )}
+        </TouchableOpacity>
+      </Modal>
 
       {/* External Team Creation Modal */}
       {showExternalTeamModal && (
-        <View style={styles.pickerSheet}>
-          <View style={styles.pickerSheetContent}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Create External Team</Text>
-              <TouchableOpacity
-                onPress={() => setShowExternalTeamModal(false)}
-                disabled={creatingExternalTeam}
-              >
-                <AntDesign name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled">
-              <View style={{ padding: 16 }}>
-                <Text style={styles.fieldLabel}>Team Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter team name"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={externalTeamName}
-                  onChangeText={setExternalTeamName}
-                  editable={!creatingExternalTeam}
-                />
-
-                <Text style={styles.fieldLabel}>Capacity *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter capacity (e.g., 15)"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={externalTeamCapacity}
-                  onChangeText={setExternalTeamCapacity}
-                  keyboardType="number-pad"
-                  editable={!creatingExternalTeam}
-                />
-
-                <Text style={styles.fieldLabel}>Logo URL (Optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter logo URL"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={externalTeamLogoUrl}
-                  onChangeText={setExternalTeamLogoUrl}
-                  autoCapitalize="none"
-                  editable={!creatingExternalTeam}
-                />
-
-                <View style={styles.buttonContainer}>
-                  <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={() => {
-                      setShowExternalTeamModal(false);
-                      setExternalTeamName("");
-                      setExternalTeamCapacity("");
-                      setExternalTeamLogoUrl("");
-                    }}
-                    disabled={creatingExternalTeam}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.button, styles.saveButton]}
-                    onPress={handleCreateExternalTeam}
-                    disabled={creatingExternalTeam}
-                  >
-                    {creatingExternalTeam ? (
-                      <ActivityIndicator size="small" color="#000" />
-                    ) : (
-                      <Text style={styles.saveButtonText}>Create</Text>
-                    )}
+        <Modal transparent visible={showExternalTeamModal} animationType="none" onRequestClose={closeExternalTeamModal}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeExternalTeamModal}>
+            <Animated.View
+              style={[
+                styles.externalTeamModal,
+                {
+                  opacity: modalAnim,
+                  transform: [
+                    {
+                      translateY: modalAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [50, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Create External Team</Text>
+                  <TouchableOpacity onPress={closeExternalTeamModal} disabled={creatingExternalTeam}>
+                    <AntDesign name="close" size={24} color="white" />
                   </TouchableOpacity>
                 </View>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
+
+                <View style={styles.modalFormContainer}>
+                  <Text style={styles.fieldLabel}>Team Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter team name"
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={externalTeamName}
+                    onChangeText={setExternalTeamName}
+                    editable={!creatingExternalTeam}
+                  />
+
+                  <Text style={styles.fieldLabel}>Capacity *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter capacity (e.g., 15)"
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={externalTeamCapacity}
+                    onChangeText={setExternalTeamCapacity}
+                    keyboardType="number-pad"
+                    editable={!creatingExternalTeam}
+                  />
+
+                  <Text style={styles.fieldLabel}>Team Logo</Text>
+                  <TouchableOpacity
+                    style={styles.logoUploadContainer}
+                    onPress={pickExternalTeamLogo}
+                    disabled={creatingExternalTeam}
+                    activeOpacity={0.7}
+                  >
+                    {externalTeamLogo ? (
+                      <View style={styles.logoPreviewWrapper}>
+                        <Image
+                          source={{ uri: externalTeamLogo, cache: 'reload' }}
+                          style={styles.logoPreviewImage}
+                        />
+                        <View style={styles.logoChangeOverlay}>
+                          <Ionicons name="camera" size={16} color="#FFF" />
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.logoPlaceholder}>
+                        <Ionicons name="image-outline" size={32} color={COLORS.textSecondary} />
+                        <Text style={styles.logoPlaceholderText}>Tap to upload logo</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalCancelButton]}
+                      onPress={closeExternalTeamModal}
+                      disabled={creatingExternalTeam}
+                    >
+                      <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalSaveButton]}
+                      onPress={handleCreateExternalTeam}
+                      disabled={creatingExternalTeam}
+                    >
+                      {creatingExternalTeam ? (
+                        <ActivityIndicator size="small" color="#000" />
+                      ) : (
+                        <Text style={styles.modalSaveButtonText}>Create</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          </TouchableOpacity>
+        </Modal>
       )}
 
       {/* Error Toast */}
@@ -792,24 +1010,128 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
-  // Picker sheet styles
-  pickerSheet: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
+  emptyState: {
+    padding: 24,
+    alignItems: "center",
   },
-  pickerSheetContent: {
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  emptyStateText: {
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    fontSize: 14,
+  },
+  // Picker Modal Styles
+  pickerModal: {
+    width: width - 40,
     maxHeight: "70%",
-    paddingBottom: 20,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    overflow: "hidden",
   },
-  pickerHeader: {
+  pickerModalList: {
+    maxHeight: 350,
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+  },
+  pickerModalItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginTop: 8,
+    backgroundColor: COLORS.cardDark,
+  },
+  pickerModalItemSelected: {
+    backgroundColor: `${COLORS.primary}20`,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  pickerModalItemText: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: "500",
+  },
+  pickerModalItemTextSelected: {
+    color: COLORS.primary,
+    fontWeight: "600",
+  },
+  pickerItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 12,
+  },
+  pickerItemSubtext: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  pickerSectionHeader: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    marginTop: 16,
+    marginBottom: 4,
+    marginLeft: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  teamLogoSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.cardDark,
+  },
+  teamLogoPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#333",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  locationIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${COLORS.primary}20`,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  createExternalTeamBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginTop: 8,
+    backgroundColor: `${COLORS.primary}15`,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderStyle: "dashed",
+    gap: 8,
+  },
+  createExternalTeamText: {
+    color: COLORS.primary,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  // Modal styles for external team creation
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  externalTeamModal: {
+    width: width - 40,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -817,57 +1139,88 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#333",
   },
-  pickerTitle: {
+  modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,
   },
-  pickerList: {
-    paddingHorizontal: 16,
+  modalFormContainer: {
+    padding: 16,
   },
-  pickerItem: {
+  modalActions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#222",
-  },
-  pickerItemSelected: {
-    backgroundColor: `${COLORS.primary}15`,
-    borderRadius: 8,
-    borderBottomColor: COLORS.primary,
-  },
-  pickerItemText: {
-    fontSize: 16,
-    color: COLORS.text,
-    fontWeight: "500",
-  },
-  pickerItemTextSelected: {
-    color: COLORS.primary,
-    fontWeight: "600",
-  },
-  createExternalTeamButton: {
-    backgroundColor: `${COLORS.primary}20`,
-    borderColor: COLORS.primary,
-    borderWidth: 1,
-  },
-  sectionHeader: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
     marginTop: 16,
-    marginBottom: 8,
-    marginLeft: 12,
-    textTransform: "uppercase",
+    gap: 12,
   },
-  emptyState: {
-    padding: 20,
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelButton: {
+    backgroundColor: "#333",
+  },
+  modalCancelButtonText: {
+    color: COLORS.text,
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  modalSaveButton: {
+    backgroundColor: COLORS.primary,
+  },
+  modalSaveButtonText: {
+    color: "#000",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  logoUploadContainer: {
+    marginBottom: 8,
     alignItems: "center",
   },
-  emptyStateText: {
+  logoPreviewWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    position: "relative",
+    backgroundColor: COLORS.cardDark,
+  },
+  logoPreviewImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  logoChangeOverlay: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.cardDark,
+    borderWidth: 2,
+    borderColor: "#333",
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoPlaceholderText: {
     color: COLORS.textSecondary,
+    fontSize: 10,
+    marginTop: 4,
     textAlign: "center",
+    paddingHorizontal: 5,
   },
 });

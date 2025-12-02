@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   joinText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#FFD700",
+    color: "#FCA311",
     letterSpacing: 1,
   },
   titleContainer: {
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   highlightText: {
-    color: "#FFD700",
+    color: "#FCA311",
   },
 })
 

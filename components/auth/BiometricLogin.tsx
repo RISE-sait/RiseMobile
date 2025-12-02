@@ -174,7 +174,7 @@ const BiometricLogin: React.FC<BiometricLoginProps> = ({
           <Ionicons
             name={getBiometricIcon()}
             size={20}
-            color="#FFD700"
+            color="#FCA311"
             style={styles.icon}
           />
           <Text style={styles.enableText}>
@@ -210,7 +210,7 @@ const BiometricLogin: React.FC<BiometricLoginProps> = ({
           <Ionicons
             name={getBiometricIcon()}
             size={32}
-            color="#FFD700"
+            color="#FCA311"
           />
         </TouchableOpacity>
 
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   storedEmailText: {
-    color: '#FFD700',
+    color: '#FCA311',
     fontSize: 13,
     marginBottom: 15,
     textAlign: 'center',
@@ -249,11 +249,11 @@ const styles = StyleSheet.create({
     borderRadius: 35,
     backgroundColor: 'rgba(255, 215, 0, 0.1)',
     borderWidth: 2,
-    borderColor: '#FFD700',
+    borderColor: '#FCA311',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    shadowColor: '#FFD700',
+    shadowColor: '#FCA311',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -274,12 +274,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     backgroundColor: 'rgba(255, 215, 0, 0.1)',
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: '#FCA311',
     borderRadius: 25,
     marginTop: 10,
   },
   enableText: {
-    color: '#FFD700',
+    color: '#FCA311',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,

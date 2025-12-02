@@ -30,8 +30,8 @@ const cardWidth = width * 0.85
 
 // Define color constants
 const COLORS = {
-  primary: "#FFD700",
-  primaryDark: "#E6C200",
+  primary: "#FCA311",
+  primaryDark: "#D4890E",
   background: "#0C0B0B",
   card: "#1A1A1A",
   cardDark: "#141414",
