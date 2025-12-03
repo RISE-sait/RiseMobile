@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, Linking, Alert, Platform } from "react-native"
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, Linking, Alert, Platform, ActivityIndicator } from "react-native"
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import DateTimePickerModal from "react-native-modal-datetime-picker"
@@ -536,15 +536,21 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
         {errors.acceptedWaiver && <Text style={styles.checkboxError}>{errors.acceptedWaiver}</Text>}
       </View>
 
-      <TouchableOpacity style={styles.signUpButton} onPress={onSignUp} disabled={isLoading}>
+      <TouchableOpacity style={styles.signUpButton} onPress={onSignUp} disabled={isLoading} activeOpacity={0.8}>
         <LinearGradient
-          colors={["#FCA311", "#E8920F"]}
+          colors={isLoading ? ["rgba(252, 163, 17, 0.5)", "rgba(232, 146, 15, 0.5)"] : ["#FCA311", "#E8920F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradientButton}
         >
-          <Text style={styles.buttonText}>SIGN UP</Text>
-          <Ionicons name="arrow-forward" size={20} color="#000" />
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#000" />
+          ) : (
+            <>
+              <Text style={styles.buttonText}>SIGN UP</Text>
+              <Ionicons name="arrow-forward" size={20} color="#000" />
+            </>
+          )}
         </LinearGradient>
       </TouchableOpacity>
     </Animated.View>

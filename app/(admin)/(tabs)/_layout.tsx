@@ -4,6 +4,7 @@ import { Tabs, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import icons from "@/constants/icons";
 import { useModalOverlayPresence } from "@/hooks/useModalOverlayTracker";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchTeams } from "@/store/slices/teamsSlice";
 import { fetchCourts } from "@/store/slices/courtsSlice";
@@ -21,7 +22,7 @@ const TabIcon = ({
   <View className="flex-1 mt-3 flex flex-col items-center">
     <Image
       source={icon}
-      tintColor={focused ? "#FCA311" : "#666876"} // Adjust tint color for focus
+      tintColor={focused ? "#FCA311" : "#666876"}
       resizeMode="contain"
       className="w-6 h-6"
     />
@@ -36,7 +37,35 @@ const TabIcon = ({
   </View>
 );
 
-const CoachTabsLayout = () => {
+const TabIconVector = ({
+  focused,
+  IconComponent,
+  iconName,
+  title,
+}: {
+  focused: boolean;
+  IconComponent: any;
+  iconName: string;
+  title: string;
+}) => (
+  <View className="flex-1 mt-3 flex flex-col items-center">
+    <IconComponent
+      name={iconName}
+      size={24}
+      color={focused ? "#FCA311" : "#666876"}
+    />
+    <Text
+      className={`${focused
+          ? "text-gold-100 font-rubik-medium"
+          : "text-gray-900 font-rubik"
+        } text-xs w-full text-center mt-1`}
+    >
+      {title}
+    </Text>
+  </View>
+);
+
+const AdminTabsLayout = () => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const hasGlobalModal = useModalOverlayPresence();
@@ -44,18 +73,18 @@ const CoachTabsLayout = () => {
   const { getValidToken } = useAuth();
   const user = useAppSelector((state) => state.user.data);
 
-  // Fetch initial data when coach tabs load
+  // Fetch initial data when admin tabs load
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         const token = await getValidToken();
         if (token && user?.id) {
-          console.log("[CoachTabs] Fetching teams and courts...");
+          console.log("[AdminTabs] Fetching teams and courts...");
           dispatch(fetchTeams(token));
           dispatch(fetchCourts(token));
         }
       } catch (error) {
-        console.error("[CoachTabs] Failed to fetch initial data:", error);
+        console.error("[AdminTabs] Failed to fetch initial data:", error);
       }
     };
 
@@ -64,7 +93,7 @@ const CoachTabsLayout = () => {
 
   useEffect(() => {
     if (__DEV__) {
-      console.log(`[CoachTabs] hasGlobalModal changed -> ${hasGlobalModal}`);
+      console.log(`[AdminTabs] hasGlobalModal changed -> ${hasGlobalModal}`);
     }
   }, [hasGlobalModal]);
 
@@ -73,20 +102,20 @@ const CoachTabsLayout = () => {
       tabPress: (event: { preventDefault: () => void }) => {
         if (__DEV__) {
           console.log(
-            `[CoachTabs] tabPress -> ${targetRoute} (hasGlobalModal=${hasGlobalModal})`,
+            `[AdminTabs] tabPress -> ${targetRoute} (hasGlobalModal=${hasGlobalModal})`,
           );
         }
 
         if (!hasGlobalModal) {
           if (__DEV__) {
-            console.log(`[CoachTabs] allowing navigation to ${targetRoute}`);
+            console.log(`[AdminTabs] allowing navigation to ${targetRoute}`);
           }
           return;
         }
 
         event.preventDefault();
         if (__DEV__) {
-          console.log(`[CoachTabs] preventing default navigation, manually replacing route`);
+          console.log(`[AdminTabs] preventing default navigation, manually replacing route`);
         }
         router.back();
         requestAnimationFrame(() => {
@@ -98,7 +127,6 @@ const CoachTabsLayout = () => {
   );
 
   return (
-
     <Tabs
       screenOptions={{
         tabBarShowLabel: false,
@@ -114,64 +142,89 @@ const CoachTabsLayout = () => {
       }}
     >
       <Tabs.Screen
-        name="coachHome"
+        name="dashboard"
         options={{
-          title: "Home",
+          title: "Dashboard",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.home} title="Home" focused={focused} />
+            <TabIcon icon={icons.home} title="Dashboard" focused={focused} />
           ),
         }}
-        listeners={interceptTabPress("/(coach)/(tabs)/coachHome")}
+        listeners={interceptTabPress("/(admin)/(tabs)/dashboard")}
       />
       <Tabs.Screen
-        name="coachMatches"
+        name="customers"
         options={{
-          title: "Matches",
+          title: "Customers",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.matches} title="Matches" focused={focused} />
+            <TabIconVector
+              IconComponent={Ionicons}
+              iconName="people"
+              title="Customers"
+              focused={focused}
+            />
           ),
         }}
-        listeners={interceptTabPress("/(coach)/(tabs)/coachMatches")}
+        listeners={interceptTabPress("/(admin)/(tabs)/customers")}
       />
       <Tabs.Screen
-        name="coachCalendar"
+        name="staff"
         options={{
-          title: "Calendar",
+          title: "Staff",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.calendar} title="Calendar" focused={focused} />
+            <TabIconVector
+              IconComponent={MaterialIcons}
+              iconName="badge"
+              title="Staff"
+              focused={focused}
+            />
           ),
         }}
-        listeners={interceptTabPress("/(coach)/(tabs)/coachCalendar")}
+        listeners={interceptTabPress("/(admin)/(tabs)/staff")}
       />
       <Tabs.Screen
-        name="coachBook"
+        name="manage"
         options={{
-          title: "Book",
+          title: "Manage",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.booking} title="Book" focused={focused} />
+            <TabIconVector
+              IconComponent={Ionicons}
+              iconName="grid"
+              title="Manage"
+              focused={focused}
+            />
           ),
         }}
-        listeners={interceptTabPress("/(coach)/(tabs)/coachBook")}
+        listeners={interceptTabPress("/(admin)/(tabs)/manage")}
       />
       <Tabs.Screen
-        name="coachProfile"
+        name="schedule"
         options={{
-          title: "Profile",
+          href: null,
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="more"
+        options={{
+          title: "More",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon={icons.person} title="Profile" focused={focused} />
+            <TabIconVector
+              IconComponent={Ionicons}
+              iconName="menu"
+              title="More"
+              focused={focused}
+            />
           ),
         }}
-        listeners={interceptTabPress("/(coach)/(tabs)/coachProfile")}
+        listeners={interceptTabPress("/(admin)/(tabs)/more")}
       />
     </Tabs>
-
-
   );
 };
 
-export default CoachTabsLayout;
+export default AdminTabsLayout;

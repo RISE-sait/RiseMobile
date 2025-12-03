@@ -24,6 +24,7 @@ interface SharedCalendarProps {
   userRole: "athlete" | "coach" | "instructor" | "parent"
   title?: string
   childrenData?: any[]
+  embedded?: boolean // New prop to indicate it's embedded in another view
 }
 
 // Define an interface for calendar events
@@ -41,6 +42,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   userRole,
   title = "Calendar",
   childrenData = [],
+  embedded = false,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format("YYYY-MM-DD"))
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -317,6 +319,32 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
     }
   }, [userRole, formattedDate])
 
+  // Render embedded version (no SafeAreaView, StatusBar, or PageTitle)
+  if (embedded) {
+    return (
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <View className="px-5 pt-2">
+          <CalendarCard
+            selectedDate={selectedDate}
+            events={windowedCalendarEvents}
+            onDayPress={(day) => setSelectedDate(day.dateString)}
+          />
+        </View>
+
+        {/* Updated EventListContainer that accepts data directly */}
+        <EventListContainer
+          date={dayjs(selectedDate).format("DD MMM YYYY")}
+          data={combinedEventsForSelectedDate}
+          isLoading={isLoading}
+          error={error}
+          onRetry={handleRefresh}
+          emptyMessage={emptyStateMessage}
+        />
+      </Animated.View>
+    )
+  }
+
+  // Render full version (original layout)
   return (
     <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2" edges={['top', 'left', 'right']}>
       <StatusBar translucent style="light" />

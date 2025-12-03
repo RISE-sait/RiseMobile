@@ -125,6 +125,7 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)/forgot-password" options={{ headerShown: false }} />
               <Stack.Screen name="(athlete)" options={{ headerShown: false }} />
               <Stack.Screen name="(coach)" options={{ headerShown: false }} />
+              <Stack.Screen name="(admin)" options={{ headerShown: false }} />
 
               {/* ✅ Shared screens stack - contains event/match/practice details and other shared screens */}
               <Stack.Screen name="screens" options={{ headerShown: false }} />

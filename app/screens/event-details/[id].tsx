@@ -470,7 +470,7 @@ const EventDetails: React.FC = () => {
           id: cachedEvent.id,
           title: ceName || "RISE Event",
           description: ceDescription || "No description provided.",
-          date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
+          date: formatDateRange(startDate, endDate),
           time: formatTimeRange(startDate, endDate),
           location: "RISE Facility",
           locationAddress: "",
@@ -607,7 +607,7 @@ const EventDetails: React.FC = () => {
         id: eventData.id,
         title: eventData.name || eventData.program?.name || (type === "practice" ? "Practice Session" : "RISE Event"),
         description: eventData.program?.description || eventData.description || (type === "practice" ? `${eventData.program?.name || "Practice"} session` : "No description provided."),
-        date: startDate ? dayjs(startDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
+        date: formatDateRange(startDate, endDate),
         time: formatTimeRange(startDate, endDate),
         location: eventData.location?.name || "RISE Facility",
         locationAddress: eventData.location?.address || "",
@@ -663,6 +663,12 @@ const EventDetails: React.FC = () => {
     if (!dateTimeStr) return null
 
     try {
+      // First try parsing as-is (handles ISO 8601 format like "2025-12-19T09:00:00-07:00")
+      let parsedDate = new Date(dateTimeStr)
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate
+      }
+
       // Handle the double timezone format: "2025-09-05 17:30:00 -0600 -0600"
       // Remove the duplicate timezone and convert to ISO format
       let cleanedDateStr = dateTimeStr.replace(/(-\d{4})\s+(-\d{4})$/, '$1')
@@ -670,7 +676,7 @@ const EventDetails: React.FC = () => {
       // Convert "2025-09-05 17:30:00 -0600" to ISO format "2025-09-05T17:30:00-06:00"
       cleanedDateStr = cleanedDateStr.replace(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+(-\d{2})(\d{2})/, '$1T$2$3:$4')
 
-      const parsedDate = new Date(cleanedDateStr)
+      parsedDate = new Date(cleanedDateStr)
       if (isNaN(parsedDate.getTime())) {
         return null
       }
@@ -758,6 +764,26 @@ const EventDetails: React.FC = () => {
     const hour12 = hours % 12 || 12
 
     return `${hour12}:${minutes.toString().padStart(2, "0")} ${ampm}`
+  }
+
+  // Format date range for multi-day events
+  const formatDateRange = (startDate: Date | null, endDate: Date | null): string => {
+    if (!startDate) return dayjs().format("YYYY-MM-DD")
+
+    const start = dayjs(startDate)
+
+    if (!endDate) return start.format("YYYY-MM-DD")
+
+    const end = dayjs(endDate)
+
+    // Check if same day
+    if (start.isSame(end, 'day')) {
+      return start.format("YYYY-MM-DD")
+    }
+
+    // Multi-day event - return range format
+    // Format: "Dec 19 - Dec 21, 2025"
+    return `${start.format("MMM D")} - ${end.format("MMM D, YYYY")}`
   }
 
   // Get event title based on available data
@@ -1117,7 +1143,13 @@ const EventDetails: React.FC = () => {
             </View>
 
             <View style={styles.infoSection}>
-              <EventInfoRow icon="calendar" text={dayjs(event.date).format("dddd, MMMM D, YYYY")} />
+              <EventInfoRow
+                icon="calendar"
+                text={event.date.includes('-') && event.date.includes(',')
+                  ? event.date  // Already formatted range like "Dec 19 - Dec 21, 2025"
+                  : dayjs(event.date).format("dddd, MMMM D, YYYY")  // Single date
+                }
+              />
               <EventInfoRow icon="clock" text={event.time} />
               <EventInfoRow
                 icon="map-marker-alt"

@@ -26,6 +26,7 @@ import { fetchTeams, selectAllTeams, selectTeamsLoading, selectTeamsError, remov
 import type { RootState } from "@/store"
 import images from "@/constants/images"
 import { createTeam, updateTeam, deleteTeam } from "@/utils/api"
+import { getAllStaff } from "@/utils/api/admin"
 import { ErrorToast } from "@/components/auth/ErrorToast"
 
 const { width } = Dimensions.get("window")
@@ -64,6 +65,10 @@ const SelectTeamForRoster: React.FC = () => {
   const [teamName, setTeamName] = useState("")
   const [teamCapacity, setTeamCapacity] = useState("")
   const [teamLogo, setTeamLogo] = useState<string | null>(null)
+  const [selectedCoachId, setSelectedCoachId] = useState<string>("")
+  const [coaches, setCoaches] = useState<Array<{ id: string; name: string }>>([])
+  const [loadingCoaches, setLoadingCoaches] = useState(false)
+  const [showCoachPicker, setShowCoachPicker] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -181,21 +186,48 @@ const SelectTeamForRoster: React.FC = () => {
     router.push(`/(coach)/screens/teamRoster?teamId=${team.id}&teamName=${encodeURIComponent(team.name || "")}`)
   }
 
-  const openCreateTeamModal = () => {
+  const fetchCoaches = async () => {
+    if (!user?.token) return
+
+    setLoadingCoaches(true)
+    try {
+      // Get all staff with role filter for "coach"
+      const staffData = await getAllStaff(user.token, "coach")
+
+      // Transform staff data to coaches list
+      const coachesList = staffData.map((staff: any) => ({
+        id: staff.id,
+        name: `${staff.first_name} ${staff.last_name}`,
+      }))
+
+      console.log("Fetched coaches:", coachesList)
+      setCoaches(coachesList)
+    } catch (error) {
+      console.error("Error fetching coaches:", error)
+    } finally {
+      setLoadingCoaches(false)
+    }
+  }
+
+  const openCreateTeamModal = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setEditingTeam(null)
     setTeamName("")
     setTeamCapacity("")
     setTeamLogo(null)
+    setSelectedCoachId(user?.id || "")
+    await fetchCoaches()
     setShowTeamModal(true)
   }
 
-  const openEditTeamModal = (team: Team) => {
+  const openEditTeamModal = async (team: Team) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setEditingTeam(team)
     setTeamName(team.name || "")
     setTeamCapacity(team.capacity?.toString() || "")
     setTeamLogo(team.logo_url || null)
+    setSelectedCoachId(team.coach?.id || user?.id || "")
+    await fetchCoaches()
     setShowTeamModal(true)
   }
 
@@ -242,12 +274,22 @@ const SelectTeamForRoster: React.FC = () => {
         logoUrl = teamLogo
       }
 
+      // Validate coach selection for admins
+      const isAdmin = user.role === "admin" || user.role === "superadmin" || user.role === "super_admin"
+      if (isAdmin && !selectedCoachId) {
+        Alert.alert("Validation Error", "Please select a coach for this team")
+        return
+      }
+
+      // Use selected coach or current user
+      const coachId = selectedCoachId || user.id
+
       if (editingTeam) {
         // Update existing team - must include coach_id (required by backend)
         const updateData: { name: string; capacity: number; coach_id: string; logo_url?: string } = {
           name: teamName.trim(),
           capacity,
-          coach_id: editingTeam.coach?.id || user.id, // Use team's coach_id or fallback to current user
+          coach_id: coachId,
         }
         if (logoUrl) {
           updateData.logo_url = logoUrl
@@ -255,17 +297,6 @@ const SelectTeamForRoster: React.FC = () => {
         await updateTeam(editingTeam.id!, updateData, user.token)
         Alert.alert("Success", "Team updated successfully")
       } else {
-        // Get coach_id from existing team like Python script does
-        let coachId = user.id; // Default to user.id
-
-        // Try to get coach_id from first available team
-        if (teams && teams.length > 0) {
-          const firstTeam = teams[0];
-          if (firstTeam.coach && firstTeam.coach.id) {
-            coachId = firstTeam.coach.id;
-          }
-        }
-
         // Debug logging
         console.log("Creating new team with data:", {
           name: teamName.trim(),
@@ -281,7 +312,7 @@ const SelectTeamForRoster: React.FC = () => {
         const createData: { name: string; capacity: number; coach_id: string; logo_url?: string } = {
           name: teamName.trim(),
           capacity,
-          coach_id: coachId, // Required by backend for coach-created teams
+          coach_id: coachId,
         }
         if (logoUrl) {
           createData.logo_url = logoUrl
@@ -355,19 +386,24 @@ const SelectTeamForRoster: React.FC = () => {
   }
 
   // Render methods
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <BackButton />
-      <View style={styles.headerTitleContainer}>
-        <Text style={styles.headerTitle}>My Teams</Text>
+  const renderHeader = () => {
+    const isAdmin = user?.role === "admin" || user?.role === "superadmin" || user?.role === "super_admin"
+    const headerTitle = isAdmin ? "RISE Teams" : "My Teams"
+
+    return (
+      <View style={styles.header}>
+        <BackButton />
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>{headerTitle}</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.addButton} onPress={openCreateTeamModal}>
+            <Ionicons name="add" size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={styles.headerActions}>
-        <TouchableOpacity style={styles.addButton} onPress={openCreateTeamModal}>
-          <Ionicons name="add" size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  )
+    )
+  }
 
   const renderTeamItem = ({ item }: { item: Team }) => (
     <Animated.View
@@ -574,6 +610,31 @@ const SelectTeamForRoster: React.FC = () => {
                     editable={!submitting}
                   />
 
+                  {/* Coach Selection - Only for Admins */}
+                  {(user?.role === "admin" || user?.role === "superadmin" || user?.role === "super_admin") && (
+                    <>
+                      <Text style={styles.fieldLabel}>Assign Coach *</Text>
+                      {loadingCoaches ? (
+                        <View style={[styles.input, { justifyContent: 'center', alignItems: 'center' }]}>
+                          <ActivityIndicator size="small" color={COLORS.primary} />
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.dropdownButton}
+                          onPress={() => setShowCoachPicker(true)}
+                          disabled={submitting}
+                        >
+                          <Text style={selectedCoachId ? styles.dropdownText : styles.dropdownPlaceholder}>
+                            {selectedCoachId
+                              ? coaches.find(c => c.id === selectedCoachId)?.name || "Select a coach"
+                              : "Select a coach"}
+                          </Text>
+                          <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+
                   <Text style={styles.fieldLabel}>Team Logo</Text>
                   <TouchableOpacity
                     style={styles.logoUploadContainer}
@@ -624,6 +685,55 @@ const SelectTeamForRoster: React.FC = () => {
                 </View>
               </TouchableOpacity>
             </Animated.View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Coach Picker Modal */}
+      {showCoachPicker && (
+        <Modal transparent visible={showCoachPicker} animationType="fade" onRequestClose={() => setShowCoachPicker(false)}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowCoachPicker(false)}>
+            <View style={styles.coachPickerModal}>
+              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select Coach</Text>
+                  <TouchableOpacity onPress={() => setShowCoachPicker(false)}>
+                    <AntDesign name="close" size={24} color="white" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.coachPickerList}>
+                  {coaches.map((coach) => (
+                    <TouchableOpacity
+                      key={coach.id}
+                      style={[
+                        styles.coachOption,
+                        selectedCoachId === coach.id && styles.coachOptionSelected
+                      ]}
+                      onPress={() => {
+                        setSelectedCoachId(coach.id)
+                        setShowCoachPicker(false)
+                      }}
+                    >
+                      <View style={[
+                        styles.radioButton,
+                        selectedCoachId === coach.id && styles.radioButtonSelected
+                      ]}>
+                        {selectedCoachId === coach.id && (
+                          <View style={styles.radioButtonInner} />
+                        )}
+                      </View>
+                      <Text style={[
+                        styles.coachOptionText,
+                        selectedCoachId === coach.id && styles.coachOptionTextSelected
+                      ]}>
+                        {coach.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         </Modal>
       )}
@@ -945,6 +1055,81 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
     paddingHorizontal: 5,
+  },
+  dropdownButton: {
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#333",
+    marginBottom: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dropdownText: {
+    color: COLORS.text,
+    fontSize: 16,
+  },
+  dropdownPlaceholder: {
+    color: COLORS.textSecondary,
+    fontSize: 16,
+  },
+  coachPickerModal: {
+    width: width * 0.85,
+    maxHeight: "70%",
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 16,
+  },
+  coachPickerList: {
+    maxHeight: 400,
+  },
+  pickerContainer: {
+    marginBottom: 16,
+    maxHeight: 200,
+  },
+  coachOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  coachOptionSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: `${COLORS.primary}10`,
+  },
+  radioButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.textSecondary,
+    marginRight: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioButtonSelected: {
+    borderColor: COLORS.primary,
+  },
+  radioButtonInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+  },
+  coachOptionText: {
+    color: COLORS.textSecondary,
+    fontSize: 16,
+  },
+  coachOptionTextSelected: {
+    color: COLORS.text,
+    fontWeight: "600",
   },
 })
 

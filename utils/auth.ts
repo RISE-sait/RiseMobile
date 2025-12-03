@@ -162,8 +162,13 @@ export const useAuth = () => {
       dispatch(setReduxUser(userData))
       await saveUserToRedux(userData)
 
-      const userRole = userData.role.toLowerCase()
+      const userRole = userData.role?.toLowerCase()?.trim() || ""
 
+      // Debug log to see what role we're getting
+      if (__DEV__) {
+        console.log("🔍 User role from backend:", userData.role)
+        console.log("🔍 User role normalized:", userRole)
+      }
 
       // Now it's safe to navigate after login
       switch (userRole) {
@@ -173,8 +178,15 @@ export const useAuth = () => {
         case "coach":
           router.replace("/(coach)/(tabs)/coachHome")
           break
+        case "admin":
+        case "superadmin":
+        case "super_admin":
+        case "it":
+        case "receptionist":
+          router.replace("/(admin)/(tabs)/dashboard")
+          break
         default:
-          console.error("❌ Unknown role:", userRole)
+          console.error("❌ Unknown role:", userRole, "(original:", userData.role, ")")
           // Fallback to athlete for unknown roles
           router.replace("/(athlete)/(tabs)/home")
       }
@@ -326,15 +338,23 @@ export const useAuth = () => {
         await saveUserToRedux(userData)
 
         // ✅ Redirect Based on Role
-        switch (userData.role) {
+        const googleUserRole = userData.role?.toLowerCase()?.trim() || ""
+        switch (googleUserRole) {
           case "athlete":
             router.replace("/(athlete)/(tabs)/home")
             break
           case "coach":
             router.replace("/(coach)/(tabs)/coachHome")
             break
+          case "admin":
+          case "superadmin":
+          case "super_admin":
+          case "it":
+          case "receptionist":
+            router.replace("/(admin)/(tabs)/dashboard")
+            break
           default:
-            console.error("❌ Unknown role:", userData.role)
+            console.error("❌ Unknown role:", googleUserRole, "(original:", userData.role, ")")
             // Fallback to athlete for unknown roles
             router.replace("/(athlete)/(tabs)/home")
         }
@@ -419,15 +439,23 @@ export const useAuth = () => {
       await saveUserToRedux(userData)
 
       // 🔹 Redirect Based on Role
-      switch (userData.role) {
+      const appleUserRole = userData.role?.toLowerCase()?.trim() || ""
+      switch (appleUserRole) {
         case "athlete":
           router.replace("/(athlete)/(tabs)/home")
           break
         case "coach":
           router.replace("/(coach)/(tabs)/coachHome")
           break
+        case "admin":
+        case "superadmin":
+        case "super_admin":
+        case "it":
+        case "receptionist":
+          router.replace("/(admin)/(tabs)/dashboard")
+          break
         default:
-          console.error("❌ Unknown role:", userData.role)
+          console.error("❌ Unknown role:", appleUserRole, "(original:", userData.role, ")")
           // Fallback to athlete for unknown roles
           router.replace("/(athlete)/(tabs)/home")
       }

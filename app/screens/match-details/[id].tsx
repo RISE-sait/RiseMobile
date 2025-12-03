@@ -56,6 +56,10 @@ interface GameData {
   status?: string // Add status field from API
   home_team_logo_url?: string
   away_team_logo_url?: string
+  location?: { name: string } // Nested location object
+  location_name?: string // Flat location field
+  end_at?: string // End time field
+  end_time?: string // Alternative end time field name
 }
 
 const MatchDetailsScreen = () => {
@@ -168,6 +172,10 @@ const MatchDetailsScreen = () => {
             status: gameData.status || "scheduled", // Extract actual status from API
             home_team_logo_url: gameData.home_team_logo_url,
             away_team_logo_url: gameData.away_team_logo_url,
+            location: gameData.location,
+            location_name: gameData.location_name,
+            end_at: gameData.end_at,
+            end_time: gameData.end_time,
           }
 
           setGame(transformedGame)
@@ -358,6 +366,22 @@ const MatchDetailsScreen = () => {
                 icon="calendar"
                 text={game.created_at ? dayjs(game.created_at).format("dddd, MMMM D, YYYY") : "Date not available"}
               />
+              <EventInfoRow
+                icon="clock"
+                text={
+                  game.created_at && (game.end_at || game.end_time)
+                    ? `${dayjs(game.created_at).format("h:mm A")} - ${dayjs(game.end_at || game.end_time).format("h:mm A")}`
+                    : game.created_at
+                      ? dayjs(game.created_at).format("h:mm A")
+                      : "Time not available"
+                }
+              />
+              {(game.location?.name || game.location_name) && (
+                <EventInfoRow
+                  icon="map-marker-alt"
+                  text={game.location?.name || game.location_name || "Location not available"}
+                />
+              )}
               <EventInfoRow icon="user" text={`Teams: ${homeTeamName} vs ${awayTeamName}`} />
             </View>
 

@@ -162,6 +162,8 @@ export const createPracticeThunk = createAsyncThunk<
       const jwt = await refreshBackendJwt()
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
+      console.log("[createPracticeThunk] Sending payload to API:", payload);
+
       const response = await axios.post(
         `${API_URL}/practices`,
         payload,
@@ -169,6 +171,8 @@ export const createPracticeThunk = createAsyncThunk<
           headers: { Authorization: `Bearer ${jwt}` },
         }
       )
+
+      console.log("[createPracticeThunk] API response:", response.data);
 
       const responseData = response.data as any
       const item: CalendarItem = {
@@ -221,6 +225,7 @@ export const createRecurringPracticeThunk = createAsyncThunk<
       const jwt = await refreshBackendJwt()
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
+      console.log("[createRecurringPracticeThunk] Sending payload to API:", payload);
 
       const response = await axios.post(
         `${API_URL}/practices/recurring`,
@@ -229,6 +234,8 @@ export const createRecurringPracticeThunk = createAsyncThunk<
           headers: { Authorization: `Bearer ${jwt}` },
         }
       )
+
+      console.log("[createRecurringPracticeThunk] API response:", response.data);
 
 
       // Send notification for recurring practice
