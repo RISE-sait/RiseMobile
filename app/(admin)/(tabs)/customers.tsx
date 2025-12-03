@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
@@ -16,8 +16,8 @@ import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
 import { useAuth } from "@/utils/auth";
 import { getCustomers, type Customer } from "@/utils/api/admin";
 
-// Customer Card Component - Matching app list item style
-const CustomerCard = ({
+// Customer Card Component - Memoized to prevent unnecessary re-renders
+const CustomerCard = memo(({
   customer,
   onPress,
 }: {
@@ -72,7 +72,7 @@ const CustomerCard = ({
       <FontAwesome6 name="chevron-right" size={18} color="#666" />
     </TouchableOpacity>
   );
-};
+});
 
 export default function CustomersScreen() {
   const router = useRouter();
@@ -161,13 +161,23 @@ export default function CustomersScreen() {
     });
   };
 
-  // Calculate active and archived counts safely
-  const activeCount = customers && Array.isArray(customers)
-    ? customers.filter((c) => !c.is_archived).length
-    : 0;
-  const archivedCount = customers && Array.isArray(customers)
-    ? customers.filter((c) => c.is_archived).length
-    : 0;
+  // Memoized active and archived counts to prevent recalculation on every render
+  const { activeCount, archivedCount } = useMemo(() => {
+    if (!customers || !Array.isArray(customers)) {
+      return { activeCount: 0, archivedCount: 0 };
+    }
+    let active = 0;
+    let archived = 0;
+    // Single pass through array instead of two filter operations
+    for (const customer of customers) {
+      if (customer.is_archived) {
+        archived++;
+      } else {
+        active++;
+      }
+    }
+    return { activeCount: active, archivedCount: archived };
+  }, [customers]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
@@ -231,49 +241,16 @@ export default function CustomersScreen() {
           <ActivityIndicator size="large" color="#FCA311" />
         </View>
       ) : (
-        <ScrollView
-          className="flex-1 px-10 mt-6"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#FCA311"
-              colors={["#FCA311"]}
+        <FlatList
+          data={customers}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <CustomerCard
+              customer={item}
+              onPress={() => handleCustomerPress(item)}
             />
-          }
-          onScroll={({ nativeEvent }) => {
-            const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-            const isCloseToBottom =
-              layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
-            if (isCloseToBottom) {
-              loadMore();
-            }
-          }}
-          scrollEventThrottle={400}
-        >
-          {customers && customers.length > 0 ? (
-            <>
-              {customers.map((customer) => (
-                <CustomerCard
-                  key={customer.id}
-                  customer={customer}
-                  onPress={() => handleCustomerPress(customer)}
-                />
-              ))}
-              {isLoadingMore && (
-                <View className="py-4 items-center">
-                  <ActivityIndicator size="small" color="#FCA311" />
-                </View>
-              )}
-              {currentPage >= totalPages && customers.length > 0 && (
-                <Text className="text-gray-500 font-Outfit-Regular text-center py-4 text-sm">
-                  No more customers to load
-                </Text>
-              )}
-            </>
-          ) : (
+          )}
+          ListEmptyComponent={
             <View className="flex-1 items-center justify-center py-20">
               <View className="bg-[#2A2A2A] p-5 rounded-full mb-4">
                 <FontAwesome6 name="users" size={48} color="#FCA311" />
@@ -287,8 +264,40 @@ export default function CustomersScreen() {
                   : "Customers will appear here once they register"}
               </Text>
             </View>
-          )}
-        </ScrollView>
+          }
+          ListFooterComponent={
+            <>
+              {isLoadingMore && (
+                <View className="py-4 items-center">
+                  <ActivityIndicator size="small" color="#FCA311" />
+                </View>
+              )}
+              {currentPage >= totalPages && customers.length > 0 && (
+                <Text className="text-gray-500 font-Outfit-Regular text-center py-4 text-sm">
+                  No more customers to load
+                </Text>
+              )}
+            </>
+          }
+          contentContainerStyle={{ paddingHorizontal: 40, paddingTop: 24, paddingBottom: 100, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FCA311"
+              colors={["#FCA311"]}
+            />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={15}
+          windowSize={10}
+          initialNumToRender={15}
+          updateCellsBatchingPeriod={50}
+        />
       )}
     </SafeAreaView>
   );

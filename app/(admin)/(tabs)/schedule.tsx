@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   View,
   Text,
@@ -23,8 +23,8 @@ import {
 } from "@/utils/api/admin";
 import SharedCalendar from "@/components/shared/SharedCalendar";
 
-// Tab Button
-const TabButton = ({
+// Tab Button - Memoized to prevent unnecessary re-renders
+const TabButton = memo(({
   title,
   isActive,
   count,
@@ -64,10 +64,10 @@ const TabButton = ({
       )}
     </View>
   </TouchableOpacity>
-);
+));
 
-// Event Card
-const EventCard = ({ event, onPress }: { event: ScheduleEvent; onPress: () => void }) => {
+// Event Card - Memoized to prevent unnecessary re-renders
+const EventCard = memo(({ event, onPress }: { event: ScheduleEvent; onPress: () => void }) => {
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("en-US", {
@@ -194,10 +194,10 @@ const EventCard = ({ event, onPress }: { event: ScheduleEvent; onPress: () => vo
       </LinearGradient>
     </TouchableOpacity>
   );
-};
+});
 
-// Game Card
-const GameCard = ({ game, onPress }: { game: ScheduleGame; onPress: () => void }) => {
+// Game Card - Memoized to prevent unnecessary re-renders
+const GameCard = memo(({ game, onPress }: { game: ScheduleGame; onPress: () => void }) => {
   const formatTime = (dateString: string) => {
     if (!dateString) return "Time TBD";
     const date = new Date(dateString);
@@ -311,10 +311,10 @@ const GameCard = ({ game, onPress }: { game: ScheduleGame; onPress: () => void }
       </LinearGradient>
     </TouchableOpacity>
   );
-};
+});
 
-// Practice Card
-const PracticeCard = ({ practice, onPress }: { practice: SchedulePractice; onPress: () => void }) => {
+// Practice Card - Memoized to prevent unnecessary re-renders
+const PracticeCard = memo(({ practice, onPress }: { practice: SchedulePractice; onPress: () => void }) => {
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("en-US", {
@@ -419,10 +419,10 @@ const PracticeCard = ({ practice, onPress }: { practice: SchedulePractice; onPre
       </LinearGradient>
     </TouchableOpacity>
   );
-};
+});
 
-// Empty State
-const EmptyState = ({ type }: { type: string }) => {
+// Empty State - Memoized to prevent unnecessary re-renders
+const EmptyState = memo(({ type }: { type: string }) => {
   const getIcon = () => {
     switch (type) {
       case "events":
@@ -447,7 +447,7 @@ const EmptyState = ({ type }: { type: string }) => {
       </Text>
     </View>
   );
-};
+});
 
 export default function ScheduleScreen() {
   const { getValidToken } = useAuth();
@@ -487,13 +487,21 @@ export default function ScheduleScreen() {
     fetchSchedule();
   }, [fetchSchedule]);
 
-  const eventsCount = schedule?.events?.length || 0;
-  const gamesCount = schedule?.games?.length || 0;
-  const practicesCount = schedule?.practices?.length || 0;
-  const totalCount = eventsCount + gamesCount + practicesCount;
+  // Memoized counts to prevent recalculation on every render
+  const { eventsCount, gamesCount, practicesCount, totalCount } = useMemo(() => {
+    const events = schedule?.events?.length || 0;
+    const games = schedule?.games?.length || 0;
+    const practices = schedule?.practices?.length || 0;
+    return {
+      eventsCount: events,
+      gamesCount: games,
+      practicesCount: practices,
+      totalCount: events + games + practices,
+    };
+  }, [schedule]);
 
-  // Deduplicate events by ID (for multi-day events)
-  const deduplicateById = <T extends { id: string }>(items: T[]): T[] => {
+  // Deduplicate helper function - defined once outside useMemo
+  const deduplicateById = useCallback(<T extends { id: string }>(items: T[]): T[] => {
     const seen = new Set<string>();
     return items.filter(item => {
       if (seen.has(item.id)) {
@@ -502,41 +510,53 @@ export default function ScheduleScreen() {
       seen.add(item.id);
       return true;
     });
-  };
+  }, []);
 
-  // Combine and sort all items for "All" tab (deduplicated)
-  const allItems = [
-    ...deduplicateById(schedule?.events || []).map((e) => ({
-      type: "event" as const,
-      data: e,
-      time: new Date(e.start_at || "")
-    })),
-    ...deduplicateById(schedule?.games || []).map((g) => ({
-      type: "game" as const,
-      data: g,
-      time: new Date((g as any).start_time || g.start_at || "")
-    })),
-    ...deduplicateById(schedule?.practices || []).map((p) => ({
-      type: "practice" as const,
-      data: p,
-      time: new Date(p.start_at || p.start_time || "")
-    })),
-  ].sort((a, b) => a.time.getTime() - b.time.getTime());
+  // Memoized sorted and deduplicated events
+  const sortedEvents = useMemo(() => {
+    return deduplicateById([...(schedule?.events || [])]).sort(
+      (a, b) => new Date(a.start_at || "").getTime() - new Date(b.start_at || "").getTime()
+    );
+  }, [schedule?.events, deduplicateById]);
 
-  // Sort and deduplicate individual arrays
-  const sortedEvents = deduplicateById([...(schedule?.events || [])]).sort(
-    (a, b) => new Date(a.start_at || "").getTime() - new Date(b.start_at || "").getTime()
-  );
-  const sortedGames = deduplicateById([...(schedule?.games || [])]).sort((a, b) => {
-    const aTime = new Date((a as any).start_time || a.start_at || "").getTime();
-    const bTime = new Date((b as any).start_time || b.start_at || "").getTime();
-    return aTime - bTime;
-  });
-  const sortedPractices = deduplicateById([...(schedule?.practices || [])]).sort((a, b) => {
-    const aTime = new Date(a.start_at || a.start_time || "").getTime();
-    const bTime = new Date(b.start_at || b.start_time || "").getTime();
-    return aTime - bTime;
-  });
+  // Memoized sorted and deduplicated games
+  const sortedGames = useMemo(() => {
+    return deduplicateById([...(schedule?.games || [])]).sort((a, b) => {
+      const aTime = new Date((a as any).start_time || a.start_at || "").getTime();
+      const bTime = new Date((b as any).start_time || b.start_at || "").getTime();
+      return aTime - bTime;
+    });
+  }, [schedule?.games, deduplicateById]);
+
+  // Memoized sorted and deduplicated practices
+  const sortedPractices = useMemo(() => {
+    return deduplicateById([...(schedule?.practices || [])]).sort((a, b) => {
+      const aTime = new Date(a.start_at || a.start_time || "").getTime();
+      const bTime = new Date(b.start_at || b.start_time || "").getTime();
+      return aTime - bTime;
+    });
+  }, [schedule?.practices, deduplicateById]);
+
+  // Memoized combined and sorted items for "All" tab
+  const allItems = useMemo(() => {
+    return [
+      ...sortedEvents.map((e) => ({
+        type: "event" as const,
+        data: e,
+        time: new Date(e.start_at || "")
+      })),
+      ...sortedGames.map((g) => ({
+        type: "game" as const,
+        data: g,
+        time: new Date((g as any).start_time || g.start_at || "")
+      })),
+      ...sortedPractices.map((p) => ({
+        type: "practice" as const,
+        data: p,
+        time: new Date(p.start_at || p.start_time || "")
+      })),
+    ].sort((a, b) => a.time.getTime() - b.time.getTime());
+  }, [sortedEvents, sortedGames, sortedPractices]);
 
   const renderContent = () => {
     switch (activeTab) {

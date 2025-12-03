@@ -10,8 +10,8 @@ import { StatusBar } from "expo-status-bar"
 import dayjs from "dayjs"
 import { useDispatch, useSelector } from "react-redux"
 import type { RootState } from "@/store"
-import { fetchEvents } from "@/store/slices/eventsSlice"
-import { fetchMatches } from "@/store/slices/gamesSlice"
+import { fetchEvents, clearEvents } from "@/store/slices/eventsSlice"
+import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
 import type { Match } from "@/store/slices/gamesSlice"
 import { fetchSchedule, clearSchedule, clearScheduleError } from "@/store/slices/scheduleSlice"
 import PageTitle from "@/components/PageTitle"
@@ -80,7 +80,7 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
 
 // Fetch calendar data - stable reference without dependencies
-  const fetchCalendarData = useCallback(async () => {
+  const fetchCalendarData = useCallback(async (forceRefresh = false) => {
     // Only proceed if component is still mounted
     if (!isMountedRef.current) {
       return
@@ -104,6 +104,12 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
           return
         }
 
+        // Clear existing schedule data before fetching fresh data
+        // This ensures we don't show stale data (e.g., events user is no longer enrolled in)
+        if (forceRefresh) {
+          dispatch(clearSchedule())
+        }
+
         // Try unified schedule endpoint first
         try {
           await dispatch(fetchSchedule(jwt) as any).unwrap()
@@ -115,6 +121,13 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
           // Fallback to separate endpoints when schedule fails
           // Clear schedule error to prevent UI lockup
           dispatch(clearScheduleError())
+
+          // Clear events and matches data when force refreshing to remove stale entries
+          if (forceRefresh) {
+            dispatch(clearEvents())
+            dispatch(clearMatches())
+          }
+
           dispatch(fetchEvents(jwt) as any)
           dispatch(fetchMatches(jwt) as any)
         }
@@ -127,8 +140,9 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   }, []) // Empty deps - rely on dispatch/getValidToken/forceReLogin closure
 
   // Memoize the refresh handler - stable reference
+  // Pass true to force refresh and clear stale data
   const handleRefresh = useCallback(() => {
-    fetchCalendarData()
+    fetchCalendarData(true)
   }, []) // Empty deps - fetchCalendarData is stable
 
   // Animation and initial data fetch - only run once

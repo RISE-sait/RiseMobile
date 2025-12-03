@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   View,
   Text,
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  ActivityIndicator,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -21,6 +21,123 @@ import {
 } from "@/utils/api/admin";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import GoToCards, { type NavigationOption } from "@/components/GoToCards";
+
+// Skeleton Loader Component with shimmer animation
+const SkeletonLoader = memo(({ width, height, borderRadius = 8, style }: {
+  width: number | string;
+  height: number;
+  borderRadius?: number;
+  style?: any;
+}) => {
+  const animatedValue = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(animatedValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animatedValue, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [animatedValue]);
+
+  const opacity = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.6],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: '#2A2A2A',
+          opacity,
+        },
+        style,
+      ]}
+    />
+  );
+});
+
+// Dashboard Skeleton - Shows while loading
+const DashboardSkeleton = memo(() => (
+  <ScrollView
+    className="flex-1"
+    contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+    showsVerticalScrollIndicator={false}
+  >
+    {/* Profile Header Skeleton */}
+    <View className="w-full px-5 mt-10">
+      <View className="bg-[#1A1A1A] rounded-2xl p-4 flex-row items-center">
+        <SkeletonLoader width={60} height={60} borderRadius={30} />
+        <View className="ml-4 flex-1">
+          <SkeletonLoader width={150} height={20} style={{ marginBottom: 8 }} />
+          <SkeletonLoader width={100} height={14} />
+        </View>
+      </View>
+    </View>
+
+    {/* Stats Overview Skeleton */}
+    <View className="w-full px-10 mt-10">
+      <SkeletonLoader width={120} height={24} style={{ marginBottom: 12 }} />
+      <View className="bg-[#1A1A1A] rounded-xl overflow-hidden p-4">
+        <View className="flex-row justify-between">
+          <View className="items-center flex-1">
+            <SkeletonLoader width={50} height={36} style={{ marginBottom: 8 }} />
+            <SkeletonLoader width={70} height={12} />
+          </View>
+          <View className="w-px bg-gray-700" />
+          <View className="items-center flex-1">
+            <SkeletonLoader width={50} height={36} style={{ marginBottom: 8 }} />
+            <SkeletonLoader width={50} height={12} />
+          </View>
+          <View className="w-px bg-gray-700" />
+          <View className="items-center flex-1">
+            <SkeletonLoader width={50} height={36} style={{ marginBottom: 8 }} />
+            <SkeletonLoader width={60} height={12} />
+          </View>
+        </View>
+      </View>
+    </View>
+
+    {/* Today's Schedule Skeleton */}
+    <View className="w-full px-10 mt-10">
+      <SkeletonLoader width={180} height={24} style={{ marginBottom: 12 }} />
+      <View className="bg-[#1A1A1A] rounded-xl overflow-hidden p-4">
+        <View className="flex-row items-center">
+          <SkeletonLoader width={56} height={56} borderRadius={12} />
+          <View className="ml-4 flex-1">
+            <SkeletonLoader width={60} height={12} style={{ marginBottom: 8 }} />
+            <SkeletonLoader width="80%" height={20} style={{ marginBottom: 8 }} />
+            <SkeletonLoader width={120} height={14} />
+          </View>
+        </View>
+      </View>
+    </View>
+
+    {/* Navigation Cards Skeleton */}
+    <View className="w-full px-10 mt-10">
+      <SkeletonLoader width={140} height={24} style={{ marginBottom: 12 }} />
+      <View className="flex-row flex-wrap justify-between">
+        <SkeletonLoader width="48%" height={100} borderRadius={16} style={{ marginBottom: 12 }} />
+        <SkeletonLoader width="48%" height={100} borderRadius={16} style={{ marginBottom: 12 }} />
+        <SkeletonLoader width="48%" height={100} borderRadius={16} />
+      </View>
+    </View>
+  </ScrollView>
+));
 
 // Today's Schedule Section - Matching UpcomingCard style
 const TodayScheduleCard = ({ schedule, onPress }: { schedule: TodaySchedule; onPress: () => void }) => {
@@ -305,9 +422,9 @@ export default function AdminDashboard() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#0C0B0B] items-center justify-center">
-        <ActivityIndicator size="large" color="#FCA311" />
-        <Text className="text-white-100 text-center mt-4">Loading dashboard...</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
+        <StatusBar translucent backgroundColor="transparent" style="light" />
+        <DashboardSkeleton />
       </SafeAreaView>
     );
   }

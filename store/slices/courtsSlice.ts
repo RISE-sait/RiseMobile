@@ -25,6 +25,88 @@ const isEventHappeningNow = (startTime: string, endTime: string): boolean => {
   return now >= start && now <= end
 }
 
+// Type for active events grouped by court_id
+interface ActiveEvent {
+  id: string
+  title: string
+  start_time: string
+  end_time: string
+  type: 'practice' | 'game' | 'event'
+}
+
+// Build a Map of court_id -> active event for O(1) lookups
+const buildActiveEventsMap = (
+  practices: any[],
+  games: any[],
+  events: any[]
+): Map<string, ActiveEvent> => {
+  const activeEventsMap = new Map<string, ActiveEvent>()
+
+  // Process practices - O(n) single pass
+  for (const p of practices) {
+    if (p.court_id && p.start_time && p.end_time && isEventHappeningNow(p.start_time, p.end_time)) {
+      // Only set if not already set (first match wins - practices have priority)
+      if (!activeEventsMap.has(p.court_id)) {
+        activeEventsMap.set(p.court_id, {
+          id: p.id,
+          title: `${p.team_name || 'Team'} Practice`,
+          start_time: p.start_time,
+          end_time: p.end_time,
+          type: 'practice'
+        })
+      }
+    }
+  }
+
+  // Process games - O(n) single pass
+  for (const g of games) {
+    if (g.court_id && g.start_time && g.end_time && isEventHappeningNow(g.start_time, g.end_time)) {
+      if (!activeEventsMap.has(g.court_id)) {
+        activeEventsMap.set(g.court_id, {
+          id: g.id,
+          title: `${g.home_team_name || 'Team'} vs ${g.away_team_name || 'Team'}`,
+          start_time: g.start_time,
+          end_time: g.end_time,
+          type: 'game'
+        })
+      }
+    }
+  }
+
+  // Process events - O(n) single pass
+  for (const e of events) {
+    if (e.court_id && e.start_at && e.end_at && isEventHappeningNow(e.start_at, e.end_at)) {
+      if (!activeEventsMap.has(e.court_id)) {
+        activeEventsMap.set(e.court_id, {
+          id: e.id,
+          title: e.program?.name || e.name || 'Event',
+          start_time: e.start_at,
+          end_time: e.end_at,
+          type: 'event'
+        })
+      }
+    }
+  }
+
+  return activeEventsMap
+}
+
+// Process courts with active events map for O(1) lookups per court
+const processCourtsWithStatus = (courts: any[], activeEventsMap: Map<string, ActiveEvent>): Court[] => {
+  return courts.map((court: any) => {
+    const activeEvent = activeEventsMap.get(court.id)
+
+    return {
+      id: court.id,
+      name: court.name,
+      location_id: court.location_id,
+      location_name: court.location_name,
+      status: activeEvent ? 'in_use' : 'available',
+      current_event: activeEvent,
+    } as Court
+  })
+}
+
 interface CourtsState {
   courts: Court[]
   loading: 'idle' | 'pending' | 'succeeded' | 'failed'
@@ -78,73 +160,11 @@ export const fetchCourts = createAsyncThunk(
       const allGames = allGamesResponse.data || []
       const allEvents = allEventsResponse.data || []
 
-      // Process courts with status checking based on current time
-      const courtsWithStatus = courts.map((court: any) => {
-        let status: Court['status'] = 'available'
-        let currentEvent: Court['current_event'] | undefined
+      // Build Map for O(1) lookups instead of O(n) find() per court
+      const activeEventsMap = buildActiveEventsMap(allPractices, allGames, allEvents)
 
-        // Check if there's an active practice on this court that's happening RIGHT NOW
-        const courtPractice = allPractices.find((p: any) =>
-          p.court_id === court.id &&
-          p.start_time && p.end_time &&
-          isEventHappeningNow(p.start_time, p.end_time)
-        )
-        if (courtPractice) {
-          status = 'in_use'
-          currentEvent = {
-            id: courtPractice.id,
-            title: `${courtPractice.team_name || 'Team'} Practice`,
-            start_time: courtPractice.start_time,
-            end_time: courtPractice.end_time,
-            type: 'practice'
-          }
-        }
-        // Check if there's an active game on this court that's happening RIGHT NOW
-        else {
-          const courtGame = allGames.find((g: any) =>
-            g.court_id === court.id &&
-            g.start_time && g.end_time &&
-            isEventHappeningNow(g.start_time, g.end_time)
-          )
-          if (courtGame) {
-            status = 'in_use'
-            currentEvent = {
-              id: courtGame.id,
-              title: `${courtGame.home_team_name || 'Team'} vs ${courtGame.away_team_name || 'Team'}`,
-              start_time: courtGame.start_time,
-              end_time: courtGame.end_time,
-              type: 'game'
-            }
-          }
-          // Check if there's an active event on this court that's happening RIGHT NOW
-          else {
-            const courtEvent = allEvents.find((e: any) =>
-              e.court_id === court.id &&
-              e.start_at && e.end_at &&
-              isEventHappeningNow(e.start_at, e.end_at)
-            )
-            if (courtEvent) {
-              status = 'in_use'
-              currentEvent = {
-                id: courtEvent.id,
-                title: courtEvent.program?.name || courtEvent.name || 'Event',
-                start_time: courtEvent.start_at,
-                end_time: courtEvent.end_at,
-                type: 'event'
-              }
-            }
-          }
-        }
-
-        return {
-          id: court.id,
-          name: court.name,
-          location_id: court.location_id,
-          location_name: court.location_name,
-          status,
-          current_event: currentEvent,
-        } as Court
-      })
+      // Process courts with O(1) lookups
+      const courtsWithStatus = processCourtsWithStatus(courts, activeEventsMap)
 
       return courtsWithStatus
     } catch (error) {
@@ -226,70 +246,11 @@ export const forceFetchCourts = createAsyncThunk(
       const allGames = allGamesResponse.data || []
       const allEvents = allEventsResponse.data || []
 
-      const courtsWithStatus = courts.map((court: any) => {
-        let status: Court['status'] = 'available'
-        let currentEvent: Court['current_event'] | undefined
+      // Build Map for O(1) lookups instead of O(n) find() per court
+      const activeEventsMap = buildActiveEventsMap(allPractices, allGames, allEvents)
 
-        // Check practices
-        const courtPractice = allPractices.find((p: any) =>
-          p.court_id === court.id &&
-          p.start_time && p.end_time &&
-          isEventHappeningNow(p.start_time, p.end_time)
-        )
-        if (courtPractice) {
-          status = 'in_use'
-          currentEvent = {
-            id: courtPractice.id,
-            title: `${courtPractice.team_name || 'Team'} Practice`,
-            start_time: courtPractice.start_time,
-            end_time: courtPractice.end_time,
-            type: 'practice'
-          }
-        } else {
-          // Check games
-          const courtGame = allGames.find((g: any) =>
-            g.court_id === court.id &&
-            g.start_time && g.end_time &&
-            isEventHappeningNow(g.start_time, g.end_time)
-          )
-          if (courtGame) {
-            status = 'in_use'
-            currentEvent = {
-              id: courtGame.id,
-              title: `${courtGame.home_team_name || 'Team'} vs ${courtGame.away_team_name || 'Team'}`,
-              start_time: courtGame.start_time,
-              end_time: courtGame.end_time,
-              type: 'game'
-            }
-          } else {
-            // Check events
-            const courtEvent = allEvents.find((e: any) =>
-              e.court_id === court.id &&
-              e.start_at && e.end_at &&
-              isEventHappeningNow(e.start_at, e.end_at)
-            )
-            if (courtEvent) {
-              status = 'in_use'
-              currentEvent = {
-                id: courtEvent.id,
-                title: courtEvent.program?.name || courtEvent.name || 'Event',
-                start_time: courtEvent.start_at,
-                end_time: courtEvent.end_at,
-                type: 'event'
-              }
-            }
-          }
-        }
-
-        return {
-          id: court.id,
-          name: court.name,
-          location_id: court.location_id,
-          location_name: court.location_name,
-          status,
-          current_event: currentEvent,
-        } as Court
-      })
+      // Process courts with O(1) lookups
+      const courtsWithStatus = processCourtsWithStatus(courts, activeEventsMap)
 
       return courtsWithStatus
     } catch (error) {

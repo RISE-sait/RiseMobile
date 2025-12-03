@@ -11,7 +11,7 @@ export default function CoachLayout() {
       <Stack.Screen name="screens/createMatch" options={{ presentation: "modal" }} />
       <Stack.Screen name="screens/matchHistory" options={{ presentation: "modal" }} />
       <Stack.Screen name="screens/selectTeamForRoster" options={{ presentation: "modal" }} />
-      <Stack.Screen name="screens/teamRoster" options={{ presentation: "modal" }} />
+      <Stack.Screen name="screens/teamRoster" options={{ presentation: "card" }} />
       <Stack.Screen name="screens/coach-booking/practiceBooking" options={{ presentation: "modal" }} />
       <Stack.Screen name="screens/profile-options/contactUs" options={{ presentation: "modal" }} />
 

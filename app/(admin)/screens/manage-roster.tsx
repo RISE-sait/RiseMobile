@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -35,6 +36,152 @@ interface Team {
   capacity: number;
   roster?: RosterMember[];
 }
+
+// Helper function defined outside component
+const getInitials = (name: string) => {
+  const parts = name.split(" ");
+  return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || ""}`.toUpperCase();
+};
+
+// Memoized Available Athlete Item
+const AvailableAthleteItem = memo(({
+  athlete,
+  onAdd,
+  isProcessing,
+  isFull,
+}: {
+  athlete: Customer;
+  onAdd: () => void;
+  isProcessing: boolean;
+  isFull: boolean;
+}) => (
+  <View className="flex-row items-center justify-between py-4 border-b border-[#222]">
+    <View className="flex-row items-center flex-1">
+      {athlete.photo_url ? (
+        <Image
+          source={{ uri: athlete.photo_url }}
+          style={{ width: 48, height: 48, borderRadius: 24 }}
+        />
+      ) : (
+        <View
+          style={{ width: 48, height: 48, borderRadius: 24 }}
+          className="bg-gold-100 items-center justify-center"
+        >
+          <Text className="text-black-100 font-Oswald-Bold text-lg">
+            {getInitials(`${athlete.first_name} ${athlete.last_name}`)}
+          </Text>
+        </View>
+      )}
+      <View className="ml-3 flex-1">
+        <Text className="text-white-100 font-Outfit-Medium text-lg">
+          {athlete.first_name} {athlete.last_name}
+        </Text>
+        <Text className="text-gray-400 font-Outfit-Regular text-base mt-0.5">
+          {athlete.email}
+        </Text>
+      </View>
+    </View>
+    <TouchableOpacity
+      className="px-5 py-2.5 rounded-lg"
+      style={{ backgroundColor: isFull ? "#333" : "rgba(76, 175, 80, 0.15)" }}
+      onPress={onAdd}
+      disabled={isFull || isProcessing}
+    >
+      {isProcessing ? (
+        <ActivityIndicator size="small" color="#4CAF50" />
+      ) : (
+        <Text
+          className="font-Outfit-Medium text-base"
+          style={{ color: isFull ? "#666" : "#4CAF50" }}
+        >
+          Add
+        </Text>
+      )}
+    </TouchableOpacity>
+  </View>
+));
+
+// Memoized Roster Member Item
+const RosterMemberItem = memo(({
+  member,
+  onRemove,
+  isProcessing,
+  isLast,
+}: {
+  member: RosterMember;
+  onRemove: () => void;
+  isProcessing: boolean;
+  isLast: boolean;
+}) => (
+  <View
+    className="flex-row items-center justify-between py-4"
+    style={{
+      borderBottomWidth: isLast ? 0 : 1,
+      borderBottomColor: "#222",
+    }}
+  >
+    <View className="flex-row items-center flex-1">
+      {member.photo_url ? (
+        <Image
+          source={{ uri: member.photo_url }}
+          style={{ width: 48, height: 48, borderRadius: 24 }}
+        />
+      ) : (
+        <View
+          style={{ width: 48, height: 48, borderRadius: 24 }}
+          className="bg-gold-100 items-center justify-center"
+        >
+          <Text className="text-black-100 font-Oswald-Bold text-lg">
+            {getInitials(member.name || "")}
+          </Text>
+        </View>
+      )}
+      <View className="ml-3 flex-1">
+        <Text className="text-white-100 font-Outfit-Medium text-lg">
+          {member.name}
+        </Text>
+        {member.email && (
+          <Text className="text-gray-400 font-Outfit-Regular text-base mt-0.5">
+            {member.email}
+          </Text>
+        )}
+      </View>
+    </View>
+    <TouchableOpacity
+      className="px-5 py-2.5 rounded-lg"
+      style={{ backgroundColor: "rgba(255, 107, 107, 0.15)" }}
+      onPress={onRemove}
+      disabled={isProcessing}
+    >
+      {isProcessing ? (
+        <ActivityIndicator size="small" color="#FF6B6B" />
+      ) : (
+        <Text className="text-red-400 font-Outfit-Medium text-base">
+          Remove
+        </Text>
+      )}
+    </TouchableOpacity>
+  </View>
+));
+
+// Memoized Empty States
+const EmptyAthletesState = memo(({ hasSearch }: { hasSearch: boolean }) => (
+  <View className="py-8 items-center">
+    <FontAwesome6 name="users" size={40} color="#666" />
+    <Text className="text-gray-400 font-Outfit-Regular text-base mt-2">
+      {hasSearch ? "No athletes found" : "Search for athletes to add"}
+    </Text>
+  </View>
+));
+
+const EmptyRosterState = memo(() => (
+  <View className="py-8 items-center">
+    <FontAwesome6 name="users-slash" size={40} color="#666" />
+    <Text className="text-gray-400 font-Outfit-Regular text-base mt-2">
+      No players on roster yet
+    </Text>
+  </View>
+));
 
 export default function ManageRosterScreen() {
   const router = useRouter();
@@ -90,24 +237,31 @@ export default function ManageRosterScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  // Filter athletes locally based on search query and roster membership
-  const availableAthletes = allAthletes.filter((athlete) => {
-    // Filter out athletes already on team
-    const notOnTeam = !rosterMembers.some((member) => member.id === athlete.id);
+  // Memoized roster member IDs for fast lookup
+  const rosterMemberIds = useMemo(() => {
+    return new Set(rosterMembers.map((member) => member.id));
+  }, [rosterMembers]);
 
-    // If no search query, return all available athletes
-    if (!searchQuery) return notOnTeam;
+  // Memoized filter athletes - only recalculates when dependencies change
+  const availableAthletes = useMemo(() => {
+    return allAthletes.filter((athlete) => {
+      // Filter out athletes already on team (using Set for O(1) lookup)
+      if (rosterMemberIds.has(athlete.id)) return false;
 
-    // Filter by search query
-    const query = searchQuery.toLowerCase();
-    const fullName = `${athlete.first_name} ${athlete.last_name}`.toLowerCase();
-    const matchesSearch = fullName.includes(query) || athlete.email.toLowerCase().includes(query);
+      // If no search query, return all available athletes
+      if (!searchQuery) return true;
 
-    return notOnTeam && matchesSearch;
-  });
+      // Filter by search query
+      const query = searchQuery.toLowerCase();
+      const fullName = `${athlete.first_name} ${athlete.last_name}`.toLowerCase();
+      return fullName.includes(query) || athlete.email.toLowerCase().includes(query);
+    });
+  }, [allAthletes, rosterMemberIds, searchQuery]);
 
-  // Check if team is at capacity
-  const isFull = rosterMembers.length >= (team?.capacity || 0);
+  // Memoized capacity check
+  const isFull = useMemo(() => {
+    return rosterMembers.length >= (team?.capacity || 0);
+  }, [rosterMembers.length, team?.capacity]);
 
   // Add athlete to team
   const handleAddAthlete = async (athleteId: string) => {
@@ -191,11 +345,6 @@ export default function ManageRosterScreen() {
     );
   };
 
-  const getInitials = (name: string) => {
-    const parts = name.split(" ");
-    return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || ""}`.toUpperCase();
-  };
-
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] items-center justify-center">
@@ -275,68 +424,30 @@ export default function ManageRosterScreen() {
             )}
           </View>
 
-          {/* Available Athletes List */}
+          {/* Available Athletes List - Using FlatList for performance */}
           {availableAthletes.length > 0 ? (
-            <View className="max-h-64">
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {availableAthletes.map((athlete) => (
-                  <View
-                    key={athlete.id}
-                    className="flex-row items-center justify-between py-4 border-b border-[#222]"
-                  >
-                    <View className="flex-row items-center flex-1">
-                      {athlete.photo_url ? (
-                        <Image
-                          source={{ uri: athlete.photo_url }}
-                          style={{ width: 48, height: 48, borderRadius: 24 }}
-                        />
-                      ) : (
-                        <View
-                          style={{ width: 48, height: 48, borderRadius: 24 }}
-                          className="bg-gold-100 items-center justify-center"
-                        >
-                          <Text className="text-black-100 font-Oswald-Bold text-lg">
-                            {getInitials(`${athlete.first_name} ${athlete.last_name}`)}
-                          </Text>
-                        </View>
-                      )}
-                      <View className="ml-3 flex-1">
-                        <Text className="text-white-100 font-Outfit-Medium text-lg">
-                          {athlete.first_name} {athlete.last_name}
-                        </Text>
-                        <Text className="text-gray-400 font-Outfit-Regular text-base mt-0.5">
-                          {athlete.email}
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      className="px-5 py-2.5 rounded-lg"
-                      style={{ backgroundColor: isFull ? "#333" : "rgba(76, 175, 80, 0.15)" }}
-                      onPress={() => handleAddAthlete(athlete.id)}
-                      disabled={isFull || processingIds.has(athlete.id)}
-                    >
-                      {processingIds.has(athlete.id) ? (
-                        <ActivityIndicator size="small" color="#4CAF50" />
-                      ) : (
-                        <Text
-                          className="font-Outfit-Medium text-base"
-                          style={{ color: isFull ? "#666" : "#4CAF50" }}
-                        >
-                          Add
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </ScrollView>
+            <View style={{ maxHeight: 256 }}>
+              <FlatList
+                data={availableAthletes}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <AvailableAthleteItem
+                    athlete={item}
+                    onAdd={() => handleAddAthlete(item.id)}
+                    isProcessing={processingIds.has(item.id)}
+                    isFull={isFull}
+                  />
+                )}
+                showsVerticalScrollIndicator={false}
+                // Performance optimizations
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                initialNumToRender={5}
+              />
             </View>
           ) : (
-            <View className="py-8 items-center">
-              <FontAwesome6 name="users" size={40} color="#666" />
-              <Text className="text-gray-400 font-Outfit-Regular text-base mt-2">
-                {searchQuery ? "No athletes found" : "Search for athletes to add"}
-              </Text>
-            </View>
+            <EmptyAthletesState hasSearch={!!searchQuery} />
           )}
 
           {isFull && (
@@ -359,64 +470,16 @@ export default function ManageRosterScreen() {
 
           {rosterMembers.length > 0 ? (
             rosterMembers.map((member, index) => (
-              <View
+              <RosterMemberItem
                 key={member.id}
-                className="flex-row items-center justify-between py-4"
-                style={{
-                  borderBottomWidth: index < rosterMembers.length - 1 ? 1 : 0,
-                  borderBottomColor: "#222",
-                }}
-              >
-                <View className="flex-row items-center flex-1">
-                  {member.photo_url ? (
-                    <Image
-                      source={{ uri: member.photo_url }}
-                      style={{ width: 48, height: 48, borderRadius: 24 }}
-                    />
-                  ) : (
-                    <View
-                      style={{ width: 48, height: 48, borderRadius: 24 }}
-                      className="bg-gold-100 items-center justify-center"
-                    >
-                      <Text className="text-black-100 font-Oswald-Bold text-lg">
-                        {getInitials(member.name || "")}
-                      </Text>
-                    </View>
-                  )}
-                  <View className="ml-3 flex-1">
-                    <Text className="text-white-100 font-Outfit-Medium text-lg">
-                      {member.name}
-                    </Text>
-                    {member.email && (
-                      <Text className="text-gray-400 font-Outfit-Regular text-base mt-0.5">
-                        {member.email}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-                <TouchableOpacity
-                  className="px-5 py-2.5 rounded-lg"
-                  style={{ backgroundColor: "rgba(255, 107, 107, 0.15)" }}
-                  onPress={() => handleRemoveAthlete(member.id!)}
-                  disabled={processingIds.has(member.id!)}
-                >
-                  {processingIds.has(member.id!) ? (
-                    <ActivityIndicator size="small" color="#FF6B6B" />
-                  ) : (
-                    <Text className="text-red-400 font-Outfit-Medium text-base">
-                      Remove
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+                member={member}
+                onRemove={() => handleRemoveAthlete(member.id!)}
+                isProcessing={processingIds.has(member.id!)}
+                isLast={index === rosterMembers.length - 1}
+              />
             ))
           ) : (
-            <View className="py-8 items-center">
-              <FontAwesome6 name="users-slash" size={40} color="#666" />
-              <Text className="text-gray-400 font-Outfit-Regular text-base mt-2">
-                No players on roster yet
-              </Text>
-            </View>
+            <EmptyRosterState />
           )}
         </View>
       </ScrollView>

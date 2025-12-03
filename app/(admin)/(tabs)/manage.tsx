@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react"
 import {
   ScrollView,
   View,
@@ -63,8 +63,8 @@ const featuredOptions = [
   },
 ]
 
-// Management options grid - focused on scheduling/team management only
-const managementOptions = [
+// Management options grid - focused on scheduling/team management only (static, defined outside component)
+const MANAGEMENT_OPTIONS = [
   {
     title: "Practices",
     icon: "basketball-ball",
@@ -100,20 +100,70 @@ const managementOptions = [
     description: "View calendar",
     color: "#FCA311",
   },
-]
+] as const
+
+// Memoized Management Option Card Component
+const ManagementOptionCard = memo(({
+  option,
+  onPress,
+}: {
+  option: typeof MANAGEMENT_OPTIONS[number]
+  onPress: () => void
+}) => (
+  <TouchableOpacity
+    style={{
+      width: "48%",
+      height: 120,
+      backgroundColor: COLORS.card,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      justifyContent: "space-between",
+    }}
+    activeOpacity={0.8}
+    onPress={onPress}
+  >
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+      }}
+    >
+      <View
+        style={{
+          width: 50,
+          height: 50,
+          borderRadius: 25,
+          backgroundColor: option.color + "20",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <FontAwesome5 name={option.icon} size={20} color={option.color} />
+      </View>
+    </View>
+
+    <View>
+      <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: "600" }}>{option.title}</Text>
+      <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 2 }}>
+        {option.description}
+      </Text>
+    </View>
+  </TouchableOpacity>
+))
 
 const AdminManage = () => {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
-  const [filteredOptions, setFilteredOptions] = useState(managementOptions)
   const scrollX = useRef(new Animated.Value(0)).current
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(50)).current
 
+  // Start animations when component mounts (only once)
   useEffect(() => {
-    // Start animations when component mounts
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -126,26 +176,28 @@ const AdminManage = () => {
         useNativeDriver: true,
       }),
     ]).start()
+  }, [])
 
-    // Filter options based on search query
+  // Memoized filtered options - only recalculates when searchQuery changes
+  const filteredOptions = useMemo(() => {
     if (searchQuery.trim() === "") {
-      setFilteredOptions(managementOptions)
-    } else {
-      const filtered = managementOptions.filter((option) =>
-        option.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-      setFilteredOptions(filtered)
+      return MANAGEMENT_OPTIONS
     }
+    return MANAGEMENT_OPTIONS.filter((option) =>
+      option.title.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   }, [searchQuery])
 
-  const handleOptionPress = (route: string) => {
+  // Memoized handler to prevent recreation on every render
+  const handleOptionPress = useCallback((route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     if (route) {
       router.push(route as any)
     }
-  }
+  }, [router])
 
-  const renderFeaturedItem = ({ item, index }: { item: any; index: number }) => {
+  // Memoized render function for featured items
+  const renderFeaturedItem = useCallback(({ item, index }: { item: any; index: number }) => {
     const inputRange = [(index - 1) * cardWidth, index * cardWidth, (index + 1) * cardWidth]
 
     const opacity = scrollX.interpolate({
@@ -198,7 +250,7 @@ const AdminManage = () => {
         </Animated.View>
       </TouchableOpacity>
     )
-  }
+  }, [scrollX, handleOptionPress])
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -311,48 +363,11 @@ const AdminManage = () => {
               }}
             >
               {filteredOptions.map((option) => (
-                <TouchableOpacity
+                <ManagementOptionCard
                   key={option.title}
-                  style={{
-                    width: "48%",
-                    height: 120,
-                    backgroundColor: COLORS.card,
-                    borderRadius: 12,
-                    padding: 16,
-                    marginBottom: 16,
-                    justifyContent: "space-between",
-                  }}
-                  activeOpacity={0.8}
+                  option={option}
                   onPress={() => handleOptionPress(option.route)}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: 25,
-                        backgroundColor: option.color + "20",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <FontAwesome5 name={option.icon} size={20} color={option.color} />
-                    </View>
-                  </View>
-
-                  <View>
-                    <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: "600" }}>{option.title}</Text>
-                    <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 2 }}>
-                      {option.description}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                />
               ))}
             </View>
           </View>

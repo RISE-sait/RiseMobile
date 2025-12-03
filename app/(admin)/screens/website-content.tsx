@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
 import {
   View,
   Text,
@@ -28,8 +28,8 @@ import {
   type PromoVideo,
 } from "@/utils/api/admin";
 
-// Tab Button
-const TabButton = ({
+// Memoized Tab Button
+const TabButton = memo(({
   title,
   isActive,
   count,
@@ -72,10 +72,10 @@ const TabButton = ({
       )}
     </View>
   </TouchableOpacity>
-);
+));
 
-// Status Badge
-const StatusBadge = ({ item }: { item: { is_active: boolean; start_date?: string; end_date?: string } }) => {
+// Memoized Status Badge
+const StatusBadge = memo(({ item }: { item: { is_active: boolean; start_date?: string; end_date?: string } }) => {
   const getStatus = () => {
     if (!item.is_active) return { label: "Inactive", color: "#666" };
 
@@ -100,10 +100,10 @@ const StatusBadge = ({ item }: { item: { is_active: boolean; start_date?: string
       </Text>
     </View>
   );
-};
+});
 
-// Hero Promo Card
-const HeroPromoCard = ({
+// Memoized Hero Promo Card
+const HeroPromoCard = memo(({
   promo,
   onToggle,
   isUpdating,
@@ -171,10 +171,10 @@ const HeroPromoCard = ({
       </View>
     </View>
   </View>
-);
+));
 
-// Feature Card Component
-const FeatureCardItem = ({
+// Memoized Feature Card Component
+const FeatureCardItem = memo(({
   card,
   onToggle,
   isUpdating,
@@ -235,10 +235,10 @@ const FeatureCardItem = ({
       </View>
     </View>
   </View>
-);
+));
 
-// Promo Video Card
-const PromoVideoCard = ({
+// Memoized Promo Video Card
+const PromoVideoCard = memo(({
   video,
   onToggle,
   isUpdating,
@@ -311,10 +311,10 @@ const PromoVideoCard = ({
       </View>
     </View>
   </View>
-);
+));
 
-// Empty State
-const EmptyState = ({ type }: { type: string }) => (
+// Memoized Empty State
+const EmptyState = memo(({ type }: { type: string }) => (
   <View className="py-10 items-center">
     <View
       className="w-20 h-20 rounded-full items-center justify-center mb-4"
@@ -327,7 +327,7 @@ const EmptyState = ({ type }: { type: string }) => (
       No {type} found
     </Text>
   </View>
-);
+));
 
 export default function WebsiteContentScreen() {
   const router = useRouter();
@@ -372,7 +372,15 @@ export default function WebsiteContentScreen() {
     fetchContent();
   }, [fetchContent]);
 
-  const handleToggleHeroPromo = async (promo: HeroPromo) => {
+  // Memoize tab counts
+  const tabCounts = useMemo(() => ({
+    hero: heroPromos.length,
+    features: featureCards.length,
+    videos: promoVideos.length,
+  }), [heroPromos.length, featureCards.length, promoVideos.length]);
+
+  // Memoize toggle handlers with useCallback
+  const handleToggleHeroPromo = useCallback(async (promo: HeroPromo) => {
     setUpdatingIds((prev) => new Set(prev).add(promo.id));
     try {
       const token = await getValidToken();
@@ -411,9 +419,9 @@ export default function WebsiteContentScreen() {
         return newSet;
       });
     }
-  };
+  }, [getValidToken]);
 
-  const handleToggleFeatureCard = async (card: FeatureCard) => {
+  const handleToggleFeatureCard = useCallback(async (card: FeatureCard) => {
     setUpdatingIds((prev) => new Set(prev).add(card.id));
     try {
       const token = await getValidToken();
@@ -450,9 +458,9 @@ export default function WebsiteContentScreen() {
         return newSet;
       });
     }
-  };
+  }, [getValidToken]);
 
-  const handleTogglePromoVideo = async (video: PromoVideo) => {
+  const handleTogglePromoVideo = useCallback(async (video: PromoVideo) => {
     setUpdatingIds((prev) => new Set(prev).add(video.id));
     try {
       const token = await getValidToken();
@@ -489,9 +497,10 @@ export default function WebsiteContentScreen() {
         return newSet;
       });
     }
-  };
+  }, [getValidToken]);
 
-  const renderContent = () => {
+  // Memoized content renderer based on active tab
+  const renderContent = useCallback(() => {
     switch (activeTab) {
       case "hero":
         if (heroPromos.length === 0) return <EmptyState type="hero promos" />;
@@ -524,7 +533,7 @@ export default function WebsiteContentScreen() {
           />
         ));
     }
-  };
+  }, [activeTab, heroPromos, featureCards, promoVideos, updatingIds, handleToggleHeroPromo, handleToggleFeatureCard, handleTogglePromoVideo]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
@@ -576,19 +585,19 @@ export default function WebsiteContentScreen() {
         <TabButton
           title="Hero"
           isActive={activeTab === "hero"}
-          count={heroPromos.length}
+          count={tabCounts.hero}
           onPress={() => setActiveTab("hero")}
         />
         <TabButton
           title="Features"
           isActive={activeTab === "features"}
-          count={featureCards.length}
+          count={tabCounts.features}
           onPress={() => setActiveTab("features")}
         />
         <TabButton
           title="Videos"
           isActive={activeTab === "videos"}
-          count={promoVideos.length}
+          count={tabCounts.videos}
           onPress={() => setActiveTab("videos")}
         />
       </View>

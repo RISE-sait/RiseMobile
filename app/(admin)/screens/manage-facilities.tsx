@@ -9,6 +9,10 @@ import {
   Modal,
   ActivityIndicator,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -531,74 +535,87 @@ export default function ManageFacilities() {
         transparent={true}
         onRequestClose={() => setShowLocationModal(false)}
       >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "flex-end" }}>
-          <View
-            style={{
-              backgroundColor: COLORS.card,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              padding: 24,
-              maxHeight: "80%",
-            }}
-          >
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: "bold" }}>
-                {editingLocation ? "Edit Facility" : "Add Facility"}
-              </Text>
-              <TouchableOpacity onPress={() => setShowLocationModal(false)}>
-                <Ionicons name="close" size={28} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "flex-end" }}>
+              <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                <View
+                  style={{
+                    backgroundColor: COLORS.card,
+                    borderTopLeftRadius: 24,
+                    borderTopRightRadius: 24,
+                    padding: 24,
+                    maxHeight: "80%",
+                  }}
+                >
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                    <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: "bold" }}>
+                      {editingLocation ? "Edit Facility" : "Add Facility"}
+                    </Text>
+                    <TouchableOpacity onPress={() => setShowLocationModal(false)}>
+                      <Ionicons name="close" size={28} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
 
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 8 }}>Facility Name</Text>
-              <TextInput
-                value={locationName}
-                onChangeText={setLocationName}
-                placeholder="e.g., RISE Sports Complex"
-                placeholderTextColor={COLORS.textSecondary}
-                style={{
-                  backgroundColor: COLORS.background,
-                  color: COLORS.text,
-                  padding: 16,
-                  borderRadius: 12,
-                  fontSize: 16,
-                }}
-              />
-            </View>
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 8 }}>Facility Name</Text>
+                    <TextInput
+                      value={locationName}
+                      onChangeText={setLocationName}
+                      placeholder="e.g., RISE Sports Complex"
+                      placeholderTextColor={COLORS.textSecondary}
+                      returnKeyType="next"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                      style={{
+                        backgroundColor: COLORS.background,
+                        color: COLORS.text,
+                        padding: 16,
+                        borderRadius: 12,
+                        fontSize: 16,
+                      }}
+                    />
+                  </View>
 
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 8 }}>Address</Text>
-              <TextInput
-                value={locationAddress}
-                onChangeText={setLocationAddress}
-                placeholder="e.g., 123 Main St, Calgary, AB"
-                placeholderTextColor={COLORS.textSecondary}
-                style={{
-                  backgroundColor: COLORS.background,
-                  color: COLORS.text,
-                  padding: 16,
-                  borderRadius: 12,
-                  fontSize: 16,
-                }}
-              />
-            </View>
+                  <View style={{ marginBottom: 24 }}>
+                    <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 8 }}>Address</Text>
+                    <TextInput
+                      value={locationAddress}
+                      onChangeText={setLocationAddress}
+                      placeholder="e.g., 123 Main St, Calgary, AB"
+                      placeholderTextColor={COLORS.textSecondary}
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                      style={{
+                        backgroundColor: COLORS.background,
+                        color: COLORS.text,
+                        padding: 16,
+                        borderRadius: 12,
+                        fontSize: 16,
+                      }}
+                    />
+                  </View>
 
-            <TouchableOpacity
-              onPress={handleSaveLocation}
-              style={{
-                backgroundColor: COLORS.primary,
-                padding: 16,
-                borderRadius: 12,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: COLORS.background, fontSize: 16, fontWeight: "600" }}>
-                {editingLocation ? "Update Facility" : "Create Facility"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+                  <TouchableOpacity
+                    onPress={handleSaveLocation}
+                    style={{
+                      backgroundColor: COLORS.primary,
+                      padding: 16,
+                      borderRadius: 12,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ color: COLORS.background, fontSize: 16, fontWeight: "600" }}>
+                      {editingLocation ? "Update Facility" : "Create Facility"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Court Modal */}
@@ -608,143 +625,132 @@ export default function ManageFacilities() {
         transparent={true}
         onRequestClose={() => setShowCourtModal(false)}
       >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "flex-end" }}>
-          <View
-            style={{
-              backgroundColor: COLORS.card,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              padding: 24,
-              maxHeight: "80%",
-            }}
-          >
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: "bold" }}>
-                {editingCourt ? "Edit Court" : "Add Court"}
-              </Text>
-              <TouchableOpacity onPress={() => setShowCourtModal(false)}>
-                <Ionicons name="close" size={28} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 8 }}>Court Name</Text>
-              <TextInput
-                value={courtName}
-                onChangeText={setCourtName}
-                placeholder="e.g., Court 1"
-                placeholderTextColor={COLORS.textSecondary}
-                style={{
-                  backgroundColor: COLORS.background,
-                  color: COLORS.text,
-                  padding: 16,
-                  borderRadius: 12,
-                  fontSize: 16,
-                }}
-              />
-            </View>
-
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 8 }}>Facility</Text>
-              <TouchableOpacity
-                onPress={() => setShowLocationPicker(true)}
-                style={{
-                  backgroundColor: COLORS.background,
-                  padding: 16,
-                  borderRadius: 12,
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ color: COLORS.text, fontSize: 16 }}>
-                  {courtLocationId ? getLocationName(courtLocationId) : "Select a facility"}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              onPress={handleSaveCourt}
-              style={{
-                backgroundColor: COLORS.primary,
-                padding: 16,
-                borderRadius: 12,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: COLORS.background, fontSize: 16, fontWeight: "600" }}>
-                {editingCourt ? "Update Court" : "Create Court"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Location Picker Modal */}
-      <Modal
-        visible={showLocationPicker}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowLocationPicker(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "flex-end" }}>
-          <View
-            style={{
-              backgroundColor: COLORS.card,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              padding: 24,
-              maxHeight: "60%",
-            }}
-          >
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: "bold" }}>Select Facility</Text>
-              <TouchableOpacity onPress={() => setShowLocationPicker(false)}>
-                <Ionicons name="close" size={28} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView>
-              {locations.map((location) => (
-                <TouchableOpacity
-                  key={location.id}
-                  onPress={() => {
-                    setCourtLocationId(location.id);
-                    setShowLocationPicker(false);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "flex-end" }}>
+              <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                <View
                   style={{
-                    padding: 16,
-                    backgroundColor: courtLocationId === location.id ? COLORS.primary : COLORS.background,
-                    borderRadius: 12,
-                    marginBottom: 8,
+                    backgroundColor: COLORS.card,
+                    borderTopLeftRadius: 24,
+                    borderTopRightRadius: 24,
+                    padding: 24,
+                    maxHeight: "80%",
                   }}
                 >
-                  <Text
-                    style={{
-                      color: courtLocationId === location.id ? COLORS.background : COLORS.text,
-                      fontSize: 16,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {location.name}
-                  </Text>
-                  <Text
-                    style={{
-                      color: courtLocationId === location.id ? COLORS.cardDark : COLORS.textSecondary,
-                      fontSize: 14,
-                      marginTop: 4,
-                    }}
-                  >
-                    {location.address}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                    <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: "bold" }}>
+                      {editingCourt ? "Edit Court" : "Add Court"}
+                    </Text>
+                    <TouchableOpacity onPress={() => setShowCourtModal(false)}>
+                      <Ionicons name="close" size={28} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+                    <View style={{ marginBottom: 16 }}>
+                      <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 8 }}>Court Name</Text>
+                      <TextInput
+                        value={courtName}
+                        onChangeText={setCourtName}
+                        placeholder="e.g., Court 1"
+                        placeholderTextColor={COLORS.textSecondary}
+                        returnKeyType="done"
+                        onSubmitEditing={() => Keyboard.dismiss()}
+                        style={{
+                          backgroundColor: COLORS.background,
+                          color: COLORS.text,
+                          padding: 16,
+                          borderRadius: 12,
+                          fontSize: 16,
+                        }}
+                      />
+                    </View>
+
+                    <View style={{ marginBottom: 24 }}>
+                      <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 8 }}>Facility</Text>
+                      <TouchableOpacity
+                        onPress={() => setShowLocationPicker(!showLocationPicker)}
+                        style={{
+                          backgroundColor: COLORS.background,
+                          padding: 16,
+                          borderRadius: 12,
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: COLORS.text, fontSize: 16 }}>
+                          {courtLocationId ? getLocationName(courtLocationId) : "Select a facility"}
+                        </Text>
+                        <Ionicons name={showLocationPicker ? "chevron-up" : "chevron-down"} size={20} color={COLORS.textSecondary} />
+                      </TouchableOpacity>
+                      {/* Inline Location Picker - expanded below dropdown */}
+                      {showLocationPicker && (
+                        <View style={{ marginTop: 8, maxHeight: 200 }}>
+                          {locations.map((location) => (
+                            <TouchableOpacity
+                              key={location.id}
+                              onPress={() => {
+                                setCourtLocationId(location.id);
+                                setShowLocationPicker(false);
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                              }}
+                              style={{
+                                padding: 12,
+                                backgroundColor: courtLocationId === location.id ? COLORS.primary : COLORS.background,
+                                borderRadius: 8,
+                                marginBottom: 6,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: courtLocationId === location.id ? COLORS.background : COLORS.text,
+                                  fontSize: 15,
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {location.name}
+                              </Text>
+                              <Text
+                                style={{
+                                  color: courtLocationId === location.id ? COLORS.cardDark : COLORS.textSecondary,
+                                  fontSize: 13,
+                                  marginTop: 2,
+                                }}
+                              >
+                                {location.address}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={handleSaveCourt}
+                      style={{
+                        backgroundColor: COLORS.primary,
+                        padding: 16,
+                        borderRadius: 12,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ color: COLORS.background, fontSize: 16, fontWeight: "600" }}>
+                        {editingCourt ? "Update Court" : "Create Court"}
+                      </Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
+
     </SafeAreaView>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
 import {
   View,
   Text,
@@ -16,8 +16,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/utils/auth";
 import { getAllStaff, getStaffActivityLogs, type Staff, type StaffActivityLog } from "@/utils/api/admin";
 
-// Info Row Component
-const InfoRow = ({
+// Memoized Info Row Component
+const InfoRow = memo(({
   icon,
   label,
   value,
@@ -55,7 +55,47 @@ const InfoRow = ({
       </View>
     )}
   </TouchableOpacity>
-);
+));
+
+// Helper functions moved outside component to prevent recreation
+const getInitials = (firstName?: string, lastName?: string) => {
+  return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
+};
+
+const getRoleColor = (role?: string) => {
+  switch (role?.toLowerCase()) {
+    case "admin":
+      return "#FCA311";
+    case "superadmin":
+    case "super admin":
+      return "#FF6B6B";
+    case "it":
+      return "#4ECDC4";
+    case "receptionist":
+      return "#9B59B6";
+    case "coach":
+      return "#4CAF50";
+    case "instructor":
+      return "#2196F3";
+    case "barber":
+      return "#FF9800";
+    default:
+      return "#FCA311";
+  }
+};
+
+// Helper to get lighter shade of color for gradient
+const getLighterColor = (hex: string) => {
+  // Convert hex to RGB and make it lighter
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Mix with white (lighter)
+  const lighterR = Math.min(255, r + 50);
+  const lighterG = Math.min(255, g + 50);
+  const lighterB = Math.min(255, b + 50);
+  return `rgb(${lighterR}, ${lighterG}, ${lighterB})`;
+};
 
 export default function StaffDetailsScreen() {
   const router = useRouter();
@@ -99,56 +139,30 @@ export default function StaffDetailsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getInitials = (firstName?: string, lastName?: string) => {
-    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
-  };
-
-  const getRoleColor = (role?: string) => {
-    switch (role?.toLowerCase()) {
-      case "admin":
-        return "#FCA311";
-      case "superadmin":
-      case "super admin":
-        return "#FF6B6B";
-      case "it":
-        return "#4ECDC4";
-      case "receptionist":
-        return "#9B59B6";
-      case "coach":
-        return "#4CAF50";
-      case "instructor":
-        return "#2196F3";
-      case "barber":
-        return "#FF9800";
-      default:
-        return "#FCA311";
-    }
-  };
-
-  // Helper to get lighter shade of color for gradient
-  const getLighterColor = (hex: string) => {
-    // Convert hex to RGB and make it lighter
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    // Mix with white (lighter)
-    const lighterR = Math.min(255, r + 50);
-    const lighterG = Math.min(255, g + 50);
-    const lighterB = Math.min(255, b + 50);
-    return `rgb(${lighterR}, ${lighterG}, ${lighterB})`;
-  };
-
-  const handleCall = () => {
+  // Memoize handlers to prevent recreation
+  const handleCall = useCallback(() => {
     if (staff?.phone) {
       Linking.openURL(`tel:${staff.phone}`);
     }
-  };
+  }, [staff?.phone]);
 
-  const handleEmail = () => {
+  const handleEmail = useCallback(() => {
     if (staff?.email) {
       Linking.openURL(`mailto:${staff.email}`);
     }
-  };
+  }, [staff?.email]);
+
+  // Memoize computed values
+  const roleColor = useMemo(() => getRoleColor(staff?.role_name), [staff?.role_name]);
+  const lighterRoleColor = useMemo(() => getLighterColor(roleColor), [roleColor]);
+  const staffInitials = useMemo(
+    () => getInitials(staff?.first_name, staff?.last_name),
+    [staff?.first_name, staff?.last_name]
+  );
+  const joinedDate = useMemo(
+    () => staff?.created_at ? new Date(staff.created_at).toLocaleDateString() : "Not available",
+    [staff?.created_at]
+  );
 
   if (isLoading) {
     return (
@@ -187,8 +201,6 @@ export default function StaffDetailsScreen() {
     );
   }
 
-  const roleColor = getRoleColor(staff.role_name);
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
@@ -225,7 +237,7 @@ export default function StaffDetailsScreen() {
             />
           ) : (
             <LinearGradient
-              colors={[roleColor, getLighterColor(roleColor)]}
+              colors={[roleColor, lighterRoleColor]}
               style={{
                 width: 110,
                 height: 110,
@@ -236,7 +248,7 @@ export default function StaffDetailsScreen() {
               className="items-center justify-center"
             >
               <Text className="text-white-100 font-Oswald-Bold text-4xl">
-                {getInitials(staff.first_name, staff.last_name)}
+                {staffInitials}
               </Text>
             </LinearGradient>
           )}
@@ -404,7 +416,7 @@ export default function StaffDetailsScreen() {
           <InfoRow
             icon="calendar"
             label="Joined"
-            value={staff.created_at ? new Date(staff.created_at).toLocaleDateString() : "Not available"}
+            value={joinedDate}
           />
         </View>
       </ScrollView>

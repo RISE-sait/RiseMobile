@@ -383,9 +383,31 @@ const EventDetails: React.FC = () => {
   
 
   // Function to start payment verification polling
-  const startPaymentVerification = () => {
+  const startPaymentVerification = async () => {
+    // Clear any existing interval
+    if (paymentCheckInterval.current) {
+      clearInterval(paymentCheckInterval.current)
+    }
+
+    // Check immediately first - don't wait for the first interval
+    try {
+      const isEnrolled = await checkEnrollmentStatus()
+      if (isEnrolled) {
+        setIsCheckingPayment(false)
+        Alert.alert(
+          "Payment Successful!",
+          "You've been successfully enrolled in this event.",
+          [{ text: "OK" }]
+        )
+        return
+      }
+    } catch (error) {
+      if (__DEV__) console.warn("Error checking enrollment status (initial):", error)
+    }
+
+    // If not enrolled yet, start polling with shorter intervals
     let attempts = 0
-    const maxAttempts = 12 // Check for 1 minute (5s * 12 = 60s)
+    const maxAttempts = 30 // Check for 1 minute (2s * 30 = 60s)
 
     paymentCheckInterval.current = setInterval(async () => {
       attempts++
@@ -422,7 +444,7 @@ const EventDetails: React.FC = () => {
           [{ text: "OK", onPress: () => fetchEventDetails() }]
         )
       }
-    }, 5000) // Check every 5 seconds
+    }, 2000) // Check every 2 seconds for faster feedback
   }
 
   // Function to clean the ID by removing any suffix (e.g., "-7")
@@ -957,8 +979,36 @@ const EventDetails: React.FC = () => {
           if (data.payment_link || data.payment_url) {
             // Outcome 2: Stripe payment required
             const paymentUrl = data.payment_link || data.payment_url
-            setIsCheckingPayment(true)
-            await WebBrowser.openBrowserAsync(paymentUrl)
+
+            // Show warning dialog before opening payment
+            Alert.alert(
+              "⚠️ Complete Your Payment",
+              "You will now be redirected to complete your payment.\n\n" +
+              "IMPORTANT: Please complete the payment before closing the browser. " +
+              "Closing without paying may result in issues with your registration.\n\n" +
+              "Do not close the payment page until you see a confirmation.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                  onPress: () => {
+                    setEnrolling(false)
+                    setShowPaymentOptions(false)
+                  }
+                },
+                {
+                  text: "Continue to Payment",
+                  style: "default",
+                  onPress: async () => {
+                    setIsCheckingPayment(true)
+                    // Open browser and wait for it to close
+                    await WebBrowser.openBrowserAsync(paymentUrl)
+                    // Browser closed - start verification immediately
+                    startPaymentVerification()
+                  }
+                }
+              ]
+            )
             // Don't show alert immediately - let app state handling take care of verification
           } else {
             // Outcome 1: Free enrollment successful
@@ -1177,6 +1227,17 @@ const EventDetails: React.FC = () => {
             <FontAwesome5 name="share-alt" size={22} color={COLORS.primary} />
           </TouchableOpacity>
 
+          {/* Show "Open to All" message for events that don't require registration */}
+          {!event.title.toLowerCase().includes('practice') &&
+           registrationRequired === false && (
+            <View style={styles.noRegistrationBadge}>
+              <FontAwesome5 name="users" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+              <Text style={styles.noRegistrationText}>
+                {isPastEvent ? "Event Ended" : "Open to All - Come Watch!"}
+              </Text>
+            </View>
+          )}
+
           {/* Only show register button if:
               1. Not a practice
               2. registration_required is true (from API)
@@ -1251,13 +1312,23 @@ const EventDetails: React.FC = () => {
               onPress={() => enrollInEvent('stripe')}
               disabled={enrolling}
             >
-              <FontAwesome5 name="credit-card" size={20} color={COLORS.primary} />
+              <FontAwesome5
+                name={enrollmentOptions?.can_enroll_free ? "check-circle" : "credit-card"}
+                size={20}
+                color={COLORS.primary}
+              />
               <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>Enroll</Text>
+                <Text style={styles.paymentOptionTitle}>
+                  {enrollmentOptions?.can_enroll_free
+                    ? "Enroll for Free"
+                    : "Enroll & Pay"}
+                </Text>
                 <Text style={styles.paymentOptionSubtitle}>
                   {enrollmentOptions?.can_enroll_free
-                    ? "Free enrollment"
-                    : "Free for members or pay with card"}
+                    ? (enrollmentOptions?.membership_plan_id && membershipData?.membership_plan_id === enrollmentOptions?.membership_plan_id
+                        ? "Included with your membership"
+                        : "No payment required")
+                    : "Pay with card"}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -1593,6 +1664,23 @@ const styles = StyleSheet.create({
   },
   insufficientCreditsText: {
     color: '#FF5252',
+  },
+  noRegistrationBadge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${COLORS.primary}20`,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}40`,
+  },
+  noRegistrationText: {
+    color: COLORS.primary,
+    fontSize: 15,
+    fontWeight: '600',
   },
 })
 
