@@ -6,8 +6,6 @@ import {
   Animated,
   Dimensions,
   StyleSheet,
-  TouchableWithoutFeedback,
-  Keyboard,
   Alert,
 } from "react-native"
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view"
@@ -253,28 +251,29 @@ const handleEnableBiometric = async (email: string, password: string) => {
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
       <SafeAreaView style={styles.container} edges={["top"]}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={styles.keyboardAvoidView}
-            keyboardVerticalOffset={0}
-          >
-            <View style={styles.fullScreenBackground}>
-              <LinearGradient
-                colors={["#000", "#000", "rgba(0,0,0,0.9)", "#121212"]}
-                style={styles.gradientBackground}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.keyboardAvoidView}
+          keyboardVerticalOffset={0}
+        >
+          <View style={styles.fullScreenBackground}>
+            <LinearGradient
+              colors={["#000", "#000", "rgba(0,0,0,0.9)", "#121212"]}
+              style={styles.gradientBackground}
+            >
+              <KeyboardAwareScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                enableOnAndroid={true}
+                enableAutomaticScroll={true}
+                extraScrollHeight={20}
+                extraHeight={Platform.OS === "android" ? 120 : 80}
+                keyboardOpeningTime={250}
+                scrollEnabled={true}
               >
-                <KeyboardAwareScrollView
-                  style={styles.scrollView}
-                  contentContainerStyle={styles.scrollContent}
-                  showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  enableOnAndroid={true}
-                  enableAutomaticScroll={true}
-                  extraScrollHeight={20}
-                  extraHeight={Platform.OS === "android" ? 120 : 80}
-                  keyboardOpeningTime={250}
-                >
                   {/* Logo */}
                   <AnimatedLogo fadeAnim={fadeAnim} />
 
@@ -308,11 +307,10 @@ const handleEnableBiometric = async (email: string, password: string) => {
                     {/* Add bottom padding */}
                     <View style={styles.bottomPadding} />
                   </Animated.View>
-                </KeyboardAwareScrollView>
-              </LinearGradient>
-            </View>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
+              </KeyboardAwareScrollView>
+            </LinearGradient>
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
 
       {/* Error message */}
