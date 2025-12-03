@@ -1,9 +1,9 @@
 import React, { useRef, useEffect } from "react";
-import { View, Text, Image, Animated, TouchableOpacity, StyleSheet } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { View, Text, Animated, TouchableOpacity, StyleSheet } from "react-native";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import QRCode from "react-native-qrcode-svg";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { useRegisterModalOverlay } from "@/hooks/useModalOverlayTracker";
@@ -43,7 +43,7 @@ export default function QRCodeModalScreen() {
     return null;
   }
 
-  const qrData = `https://api-461776259687.us-west2.run.app/customers/checkin/${userId}`;
+  const qrData = userId;
 
   return (
     <View style={styles.root} pointerEvents="box-none">
@@ -73,15 +73,17 @@ export default function QRCodeModalScreen() {
         </View>
 
         {/* 🔹 QR Code Image */}
-        <View className="bg-black-100/80 p-5 rounded-2xl border border-white-100/10 items-center">
-          <LinearGradient colors={["#FCA311", "#FFB84D"]} className="p-1 rounded-2xl">
-            <Image
-              source={{
-                uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`,
-              }}
-              className="w-56 h-56 rounded-lg"
+        <View className="items-center">
+          <View className="bg-white p-5 rounded-2xl">
+            <QRCode
+              value={qrData}
+              size={300}
+              backgroundColor="white"
+              color="black"
+              ecl="H"
+              quietZone={10}
             />
-          </LinearGradient>
+          </View>
         </View>
       </Animated.View>
     </View>
