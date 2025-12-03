@@ -21,7 +21,7 @@ import dayjs from "dayjs";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice";
 import { selectAllTeams, selectTeamsLoading } from "@/store/slices/teamsSlice";
-import { createGame, updateGame, getLocations, getExternalTeams, createExternalTeam } from "@/utils/api";
+import { createGame, updateGame, getLocations, getExternalTeams, createExternalTeam, getCourts } from "@/utils/api";
 import { ErrorToast } from "@/components/auth/ErrorToast";
 import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector";
 import * as Haptics from "expo-haptics";
@@ -61,6 +61,7 @@ export default function CreateMatchScreen() {
   const [homeTeamId, setHomeTeamId] = useState("");
   const [awayTeamId, setAwayTeamId] = useState("");
   const [locationId, setLocationId] = useState("");
+  const [courtId, setCourtId] = useState("");
   const [gameDate, setGameDate] = useState(new Date());
   const [gameTime, setGameTime] = useState(new Date());
   const [gameEndTime, setGameEndTime] = useState(() => {
@@ -75,12 +76,14 @@ export default function CreateMatchScreen() {
 
   // Data states
   const [locations, setLocations] = useState<any[]>([]);
+  const [courts, setCourts] = useState<any[]>([]);
   const [externalTeams, setExternalTeams] = useState<any[]>([]);
 
   // Picker states
   const [showHomeTeamPicker, setShowHomeTeamPicker] = useState(false);
   const [showAwayTeamPicker, setShowAwayTeamPicker] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showCourtPicker, setShowCourtPicker] = useState(false);
 
   // External team creation states
   const [showExternalTeamModal, setShowExternalTeamModal] = useState(false);
@@ -124,6 +127,34 @@ export default function CreateMatchScreen() {
 
     loadData();
   }, []);
+
+  // Fetch courts when location changes
+  useEffect(() => {
+    const fetchCourtsForLocation = async () => {
+      if (!locationId || !token) {
+        setCourts([]);
+        setCourtId("");
+        return;
+      }
+
+      try {
+        const courtsData = await getCourts(token);
+        // Filter courts by location
+        const locationCourts = courtsData.filter((court: any) => court.location_id === locationId);
+        setCourts(locationCourts);
+
+        // Auto-select first court if available
+        if (locationCourts.length > 0 && !courtId) {
+          setCourtId(locationCourts[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to fetch courts:", error);
+        setCourts([]);
+      }
+    };
+
+    fetchCourtsForLocation();
+  }, [locationId, token]);
 
   // Initialize form with editing game data or defaults
   useEffect(() => {
@@ -332,7 +363,7 @@ export default function CreateMatchScreen() {
         .minute(gameEndTime.getMinutes())
         .toISOString();
 
-      const gameData = {
+      const gameData: any = {
         home_team_id: homeTeamId,
         away_team_id: awayTeamId,
         location_id: locationId,
@@ -340,6 +371,11 @@ export default function CreateMatchScreen() {
         end_time: endDateTime,
         status: "scheduled" as const,
       };
+
+      // Add court_id if selected
+      if (courtId) {
+        gameData.court_id = courtId;
+      }
 
       if (editingGame) {
         await updateGame(editingGame.id!, gameData, token);
@@ -502,6 +538,26 @@ export default function CreateMatchScreen() {
             />
           </TouchableOpacity>
         </View>
+
+        {/* Court Picker - Only show if location is selected and has courts */}
+        {locationId && courts.length > 0 && (
+          <View style={styles.formSection}>
+            <Text style={styles.fieldLabel}>Court (Optional)</Text>
+            <TouchableOpacity
+              style={[styles.picker, !courtId && styles.pickerPlaceholder]}
+              onPress={() => setShowCourtPicker(!showCourtPicker)}
+            >
+              <Text style={[styles.pickerText, !courtId && styles.pickerPlaceholderText]}>
+                {courtId ? courts.find((c: any) => c.id === courtId)?.name : "Select court"}
+              </Text>
+              <Ionicons
+                name={showCourtPicker ? "chevron-up" : "chevron-down"}
+                size={20}
+                color={COLORS.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Date and Time Pickers */}
         <DateTimeSelector
@@ -791,6 +847,61 @@ export default function CreateMatchScreen() {
                 ) : (
                   <View style={styles.emptyState}>
                     <Text style={styles.emptyStateText}>Loading locations...</Text>
+                  </View>
+                )}
+              </ScrollView>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Court Picker Modal */}
+      <Modal transparent visible={showCourtPicker} animationType="none" onRequestClose={() => setShowCourtPicker(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowCourtPicker(false)}>
+          <View style={styles.pickerModal}>
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Court</Text>
+                <TouchableOpacity onPress={() => setShowCourtPicker(false)}>
+                  <AntDesign name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.pickerModalList} showsVerticalScrollIndicator={false}>
+                {courts && courts.length > 0 ? (
+                  courts.map((court: any) => (
+                    <TouchableOpacity
+                      key={court.id}
+                      style={[
+                        styles.pickerModalItem,
+                        courtId === court.id && styles.pickerModalItemSelected,
+                      ]}
+                      onPress={() => {
+                        setCourtId(court.id);
+                        setShowCourtPicker(false);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    >
+                      <View style={styles.pickerItemContent}>
+                        <View style={styles.locationIconContainer}>
+                          <Ionicons name="basketball" size={18} color={COLORS.primary} />
+                        </View>
+                        <Text
+                          style={[
+                            styles.pickerModalItemText,
+                            courtId === court.id && styles.pickerModalItemTextSelected,
+                          ]}
+                        >
+                          {court.name}
+                        </Text>
+                      </View>
+                      {courtId === court.id && (
+                        <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No courts available</Text>
                   </View>
                 )}
               </ScrollView>

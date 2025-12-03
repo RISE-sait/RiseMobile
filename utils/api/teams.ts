@@ -229,3 +229,65 @@ export const createExternalTeam = async (
     throw error;
   }
 };
+
+// 🔹 **Athlete Team Assignment API Functions**
+
+// Assign athlete to team
+export const addAthleteToTeam = async (
+  athleteId: string,
+  teamId: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const response = await axios.put(
+      `${API_URL}/athletes/${athleteId}/team/${teamId}`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return { success: true };
+  } catch (error: any) {
+    console.error(
+      `❌ Error adding athlete ${athleteId} to team ${teamId}:`,
+      error?.response?.data || error.message
+    );
+    const errorMessage = error?.response?.data?.error?.message ||
+                        error?.response?.data?.message ||
+                        "Failed to add athlete to team";
+    return { success: false, error: errorMessage };
+  }
+};
+
+// Remove athlete from team
+export const removeAthleteFromTeam = async (
+  athleteId: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const response = await axios.delete(
+      `${API_URL}/athletes/${athleteId}/team`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return { success: true };
+  } catch (error: any) {
+    console.error(
+      `❌ Error removing athlete ${athleteId} from team:`,
+      error?.response?.data || error.message
+    );
+    const errorMessage = error?.response?.data?.error?.message ||
+                        error?.response?.data?.message ||
+                        "Failed to remove athlete from team";
+    return { success: false, error: errorMessage };
+  }
+};

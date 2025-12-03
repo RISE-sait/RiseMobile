@@ -96,6 +96,11 @@ const CoachPracticeBooking = () => {
   const user = useSelector(selectCurrentUser)
   const isBooking = useSelector((state: RootState) => state.practices.isBooking)
 
+  // Determine if user is admin
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin" || user?.role === "super_admin"
+
+  // For admins, show all teams; for coaches, show only their teams
+  const allTeams = useSelector(selectAllTeams)
   const coachTeams = useSelector((state: RootState) =>
     user?.id ? selectTeamsForCoach(state, user.id) : [],
     (left, right) => {
@@ -104,6 +109,7 @@ const CoachPracticeBooking = () => {
     }
   )
 
+  const displayTeams = isAdmin ? allTeams : coachTeams
   const courts = useSelector(selectAllCourts)
 
 
@@ -115,24 +121,28 @@ useEffect(() => {
   const fetchCoachData = async () => {
     try {
       if (!firebaseUser) {
+        console.log("No firebase user")
         return
       }
 
       if (!user?.id) {
+        console.log("No user id")
         return
       }
 
       // Use centralized token management
       const token = await getValidToken()
       if (!token) {
+        console.log("No token")
         return
       }
 
+      console.log("Fetching teams and courts...")
       // Fetch both teams and courts
       dispatch(fetchTeams(token))
       dispatch(fetchCourts(token))
     } catch (error) {
-      // Silent error handling
+      console.error("Error fetching coach data:", error)
     }
   }
 
@@ -200,15 +210,15 @@ useEffect(() => {
   
 const formatTeamForDisplay = (team: Team) => ({
   ...team,
-  players: 0, // or estimate if you later add roster
+  players: team.roster?.length ?? team.capacity ?? 0, // Use roster count if available, fallback to capacity, then 0
   icon: "users",
   image: team.logo_url || "https://via.placeholder.com/40x40?text=T", // Use actual team logo or fallback
 })
 
   // Memoize the formatted teams to prevent unnecessary re-renders
   const formattedTeams = useMemo(() => {
-    return coachTeams.map(formatTeamForDisplay)
-  }, [coachTeams, user?.id])
+    return displayTeams.map(formatTeamForDisplay)
+  }, [displayTeams, user?.id])
 
   
 const handleConfirmBooking = async () => {
@@ -296,7 +306,14 @@ const handleConfirmBooking = async () => {
       team_id: selectedTeam.id,
     };
 
-    // Practice booking payload prepared
+    // Debug logging to verify location_id
+    console.log("[PracticeBooking] Selected court:", {
+      id: selectedCourt.id,
+      name: selectedCourt.name,
+      location_id: selectedCourt.location_id,
+      location_name: selectedCourt.location_name
+    });
+    console.log("[PracticeBooking] Practice payload:", isRecurring ? recurringPayload : payload);
 
     // Create the practice
     try {
@@ -403,6 +420,16 @@ const handleConfirmBooking = async () => {
                     <Text style={styles.sectionSubtitle}>Select when and where you want to schedule this practice</Text>
                   </View>
 
+                  {/* Info Box - Only for Admins */}
+                  {isAdmin && (
+                    <View style={styles.infoBox}>
+                      <Ionicons name="information-circle" size={20} color={COLORS.primary} />
+                      <Text style={styles.infoBoxText}>
+                        When selecting a court for practices, please review the facility details
+                      </Text>
+                    </View>
+                  )}
+
                   {/* Date & Time Selection - BEFORE Court Selection */}
                   <DateTimeSelector
                     label="Date"
@@ -440,18 +467,7 @@ const handleConfirmBooking = async () => {
                   {/* Court Selection - AFTER Date/Time */}
                   {courts.length === 0 ? (
                     <View style={styles.noCourtsContainer}>
-                      <Text style={styles.noCourtsText}>No courts found. Pull down to refresh or check your connection.</Text>
-                      <TouchableOpacity
-                        style={styles.refreshButton}
-                        onPress={async () => {
-                          const token = await getValidToken()
-                          if (token) {
-                            dispatch(forceFetchCourts(token))
-                          }
-                        }}
-                      >
-                        <Text style={styles.refreshButtonText}>Refresh Courts</Text>
-                      </TouchableOpacity>
+                      <Text style={styles.noCourtsText}>Loading courts...</Text>
                     </View>
                   ) : (
                     <CourtSelector
@@ -746,6 +762,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: COLORS.background,
+  },
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: `${COLORS.primary}15`,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  infoBoxText: {
+    fontSize: 14,
+    color: COLORS.text,
+    marginLeft: 10,
+    flex: 1,
+    lineHeight: 20,
   },
 })
 

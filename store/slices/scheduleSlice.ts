@@ -53,44 +53,57 @@ export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (t
     // Process events
     if (responseData.events && Array.isArray(responseData.events)) {
       responseData.events.forEach((event: any) => {
-        // Parse date correctly - handle both ISO format and space-separated format
-        let parsedDate = event.date
-        if (!parsedDate && event.start_at) {
-          // Handle format like "2025-11-05 18:30:00 -0700 -0700"
+        // Parse start date
+        let startDate = event.date
+        if (!startDate && event.start_at) {
           if (event.start_at.includes('T')) {
-            // ISO format: 2025-11-05T18:30:00
-            parsedDate = event.start_at.split('T')[0]
+            startDate = event.start_at.split('T')[0]
           } else {
-            // Space format: 2025-11-05 18:30:00 -0700 -0700
-            parsedDate = event.start_at.split(' ')[0]
+            startDate = event.start_at.split(' ')[0]
           }
         }
-        if (!parsedDate) {
-          parsedDate = new Date().toISOString().split('T')[0]
+        if (!startDate) {
+          startDate = new Date().toISOString().split('T')[0]
         }
 
+        // Parse end date if exists (for multi-day events)
+        let endDate = startDate // Default to same day
+        if (event.end_at) {
+          if (event.end_at.includes('T')) {
+            endDate = event.end_at.split('T')[0]
+          } else {
+            endDate = event.end_at.split(' ')[0]
+          }
+        }
 
-        scheduleItems.push({
+        // Format time
+        const formattedTime = event.time || (event.start_at ? (() => {
+          try {
+            const date = new Date(event.start_at)
+            if (!isNaN(date.getTime())) {
+              return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+            }
+            const timeStr = event.start_at.split(' ')[1]
+            if (timeStr) {
+              const [hours, minutes] = timeStr.split(':')
+              const hour12 = parseInt(hours) > 12 ? parseInt(hours) - 12 : parseInt(hours)
+              const ampm = parseInt(hours) >= 12 ? 'PM' : 'AM'
+              const displayHour = hour12 === 0 ? 12 : hour12
+              return `${displayHour}:${minutes} ${ampm}`
+            }
+            return "TBD"
+          } catch (e) {
+            return "TBD"
+          }
+        })() : "TBD")
+
+        // Create event object
+        const eventItem = {
           id: event.id,
           name: event.program?.name || event.name || event.title || "Event",
           title: event.program?.name || event.name || event.title || "Event",
-          date: parsedDate,
-          time: event.time || (event.start_at ? (() => {
-            try {
-              // Handle format like "2025-11-05 18:30:00 -0700 -0700"
-              const timeStr = event.start_at.split(' ')[1] // Get "18:30:00"
-              if (timeStr) {
-                const [hours, minutes] = timeStr.split(':')
-                const hour12 = parseInt(hours) > 12 ? parseInt(hours) - 12 : parseInt(hours)
-                const ampm = parseInt(hours) >= 12 ? 'PM' : 'AM'
-                const displayHour = hour12 === 0 ? 12 : hour12
-                return `${displayHour}:${minutes} ${ampm}`
-              }
-              return "TBD"
-            } catch (e) {
-              return "TBD"
-            }
-          })() : "TBD"),
+          date: startDate,
+          time: formattedTime,
           type: event.program?.type || "event",
           location: (typeof event.location === 'object' ? event.location?.name || event.location?.address : event.location) || event.location_name || "TBD",
           description: event.program?.description || event.description || "Event scheduled",
@@ -98,7 +111,27 @@ export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (t
           updated_at: event.updated_at,
           program_type: event.program?.type,
           program: event.program,
-        })
+        }
+
+        // If multi-day event, create entries for each day (for calendar view)
+        // But also mark them so we can deduplicate in list view
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+
+        if (start.getTime() !== end.getTime()) {
+          // Multi-day event - add entry for each day
+          const currentDate = new Date(start)
+          while (currentDate <= end) {
+            scheduleItems.push({
+              ...eventItem,
+              date: currentDate.toISOString().split('T')[0]
+            })
+            currentDate.setDate(currentDate.getDate() + 1)
+          }
+        } else {
+          // Single day event
+          scheduleItems.push(eventItem)
+        }
       })
     }
     

@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { FontAwesome6, Ionicons, MaterialIcons, MaterialCommunityIcons, AntDesign, Feather } from "@expo/vector-icons"
-import { useRouter, useLocalSearchParams } from "expo-router"
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router"
 import * as Haptics from "expo-haptics"
 import BackButton from "@/components/buttons/BackButton"
 import { getTeamById } from "@/utils/api"
@@ -189,6 +189,14 @@ const TeamRoster: React.FC = () => {
     fetchPlayers()
   }, [])
 
+  // Refresh team data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh team data when returning from manage roster screen
+      fetchPlayers()
+    }, [teamId, user?.token])
+  )
+
   useEffect(() => {
     // Apply filters and sorting whenever relevant state changes
     filterAndSortPlayers()
@@ -313,6 +321,20 @@ const TeamRoster: React.FC = () => {
   }
 
 
+  // Navigate to manage roster screen (admin only)
+  const handleManageRoster = () => {
+    router.push({
+      pathname: "/(admin)/screens/manage-roster",
+      params: {
+        teamId: teamId,
+        teamName: teamData?.name || teamName || "Team"
+      }
+    })
+  }
+
+  // Check if user is admin or superadmin
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin"
+
   // Render methods
   const renderHeader = () => (
     <View style={styles.header}>
@@ -324,6 +346,11 @@ const TeamRoster: React.FC = () => {
       </View>
 
       <View style={styles.headerActions}>
+        {isAdmin && (
+          <TouchableOpacity style={styles.manageButton} onPress={handleManageRoster}>
+            <FontAwesome6 name="users-gear" size={16} color="#000" />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.iconButton} onPress={toggleSortModal}>
           <MaterialCommunityIcons name="sort" size={24} color="white" />
         </TouchableOpacity>
@@ -599,6 +626,15 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  manageButton: {
+    backgroundColor: COLORS.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
   },
   iconButton: {
     padding: 8,

@@ -13,7 +13,17 @@ export {
 } from './auth';
 
 // Locations
-export { getLocations, getLocationById } from './locations';
+export {
+  getLocations,
+  getLocationById,
+  createLocation,
+  updateLocation,
+  deleteLocation,
+  getCourts,
+  createCourt,
+  updateCourt,
+  deleteCourt,
+} from './locations';
 
 // Practices
 export {

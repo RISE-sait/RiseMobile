@@ -57,7 +57,17 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
             )}
             <View style={styles.teamInfo}>
               <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.players}>{item.players} Players</Text>
+              <View style={styles.detailsRow}>
+                {item.coach?.name && (
+                  <Text style={styles.details}>Coach: {item.coach.name}</Text>
+                )}
+                {/* Only show player count if it's greater than 0 (0 means roster data not available) */}
+                {item.players > 0 && (
+                  <Text style={styles.details}>
+                    {item.coach?.name ? ' • ' : ''}{item.players} {item.players === 1 ? 'Player' : 'Players'}
+                  </Text>
+                )}
+              </View>
             </View>
             {selectedTeam?.id === item.id && <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />}
           </TouchableOpacity>
@@ -119,6 +129,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     fontWeight: "bold",
+  },
+  detailsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginTop: 4,
+  },
+  details: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
   players: {
     fontSize: 14,
