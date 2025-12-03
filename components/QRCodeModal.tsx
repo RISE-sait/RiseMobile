@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { View, Modal, Text, Image, Animated, TouchableOpacity, Pressable } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { View, Modal, Text, Animated, TouchableOpacity, Pressable } from "react-native";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
+import QRCode from "react-native-qrcode-svg";
 import QRCodeButton from "./buttons/QRCodeButton";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
@@ -36,9 +36,7 @@ const QRCodeModal = () => {
     return null;
   }
 
-  const qrData = `https://api-461776259687.us-west2.run.app/customers/checkin/${userId}`;
-
-
+  const qrData = userId;
 
   const toggleModal = () => {
     if (__DEV__) {
@@ -91,16 +89,17 @@ const QRCodeModal = () => {
             </View>
 
             {/* 🔹 QR Code Image */}
-            <View className="bg-black-100/80 p-5 rounded-2xl border border-white-100/10 items-center">
-              <LinearGradient colors={["#FCA311", "#FFB84D"]} className="p-1 rounded-2xl">
-                <Image
-                  source={{
-                    uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`,
-                  }}
-                  className="w-56 h-56 rounded-lg"
+            <View className="items-center">
+              <View className="bg-white p-5 rounded-2xl">
+                <QRCode
+                  value={qrData}
+                  size={300}
+                  backgroundColor="white"
+                  color="black"
+                  ecl="H"
+                  quietZone={10}
                 />
-
-              </LinearGradient>
+              </View>
             </View>
             </Animated.View>
           </Pressable>
