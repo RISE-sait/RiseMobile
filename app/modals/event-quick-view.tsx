@@ -158,16 +158,26 @@ export default function EventDetailsModalScreen() {
                 <View className="flex-row items-center justify-between my-4 bg-[#222222] p-4 rounded-xl">
                   <View className="items-center flex-1">
                     {event.homeLogo ? (
-                      <Image
-                        source={{
-                          uri:
+                      <View style={{
+                        width: 64,
+                        height: 64,
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        borderRadius: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        <Image
+                          source={
                             typeof event.homeLogo === "string"
-                              ? event.homeLogo
-                              : "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-                        }}
-                        className="w-16 h-16 rounded-full bg-[#2A2A2A]"
-                        resizeMode="contain"
-                      />
+                              ? { uri: event.homeLogo }
+                              : event.homeLogo?.uri
+                                ? { uri: event.homeLogo.uri }
+                                : event.homeLogo
+                          }
+                          style={{ width: 48, height: 48 }}
+                          resizeMode="contain"
+                        />
+                      </View>
                     ) : (
                       <View className="w-16 h-16 rounded-full bg-[#2A2A2A] items-center justify-center">
                         <Text className="text-white-100 text-xl font-bold">{event.homeTeam?.charAt(0)}</Text>
@@ -192,16 +202,26 @@ export default function EventDetailsModalScreen() {
 
                   <View className="items-center flex-1">
                     {event.awayLogo ? (
-                      <Image
-                        source={{
-                          uri:
+                      <View style={{
+                        width: 64,
+                        height: 64,
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        borderRadius: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        <Image
+                          source={
                             typeof event.awayLogo === "string"
-                              ? event.awayLogo
-                              : "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-                        }}
-                        className="w-16 h-16 rounded-full bg-[#2A2A2A]"
-                        resizeMode="contain"
-                      />
+                              ? { uri: event.awayLogo }
+                              : event.awayLogo?.uri
+                                ? { uri: event.awayLogo.uri }
+                                : event.awayLogo
+                          }
+                          style={{ width: 48, height: 48 }}
+                          resizeMode="contain"
+                        />
+                      </View>
                     ) : (
                       <View className="w-16 h-16 rounded-full bg-[#2A2A2A] items-center justify-center">
                         <Text className="text-white-100 text-xl font-bold">{event.awayTeam?.charAt(0)}</Text>

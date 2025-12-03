@@ -45,17 +45,33 @@ const extractTitle = (event: any): string => {
 }
 
 export const determineEventType = (event: any): CalendarItem["type"] => {
+  // First, check if the event has an explicit type field from the API
+  const explicitType = event.type?.toLowerCase()
+  if (explicitType) {
+    if (["match", "game"].includes(explicitType)) return "match"
+    if (["practice", "training"].includes(explicitType)) return "practice"
+    if (["course", "class"].includes(explicitType)) return "course"
+    if (explicitType === "event") return "event"
+  }
+
+  // Then check program type
   const programType = event.program?.type?.toLowerCase()
-  const title = extractTitle(event).toLowerCase()
+  if (programType) {
+    if (["match", "game"].includes(programType)) return "match"
+    if (["practice", "training"].includes(programType)) return "practice"
+    if (["course", "class"].includes(programType)) return "course"
+  }
 
-  if (["match", "game"].includes(programType)) return "match"
-  if (["practice", "training"].includes(programType)) return "practice"
-  if (["course", "class"].includes(programType)) return "course"
+  // Check event_type or program_type fields
+  const eventType = (event.event_type || event.program_type || event.category || "").toLowerCase()
+  if (eventType) {
+    if (eventType.includes("match") || eventType.includes("game")) return "match"
+    if (eventType.includes("practice") || eventType.includes("training")) return "practice"
+    if (eventType.includes("course") || eventType.includes("class")) return "course"
+  }
 
-  if ([event.event_type, event.program_type, event.type, event.category].some(t => `${t}`.toLowerCase().includes("match") || `${t}`.toLowerCase().includes("game"))) return "match"
-  if (title.includes("practice") || title.includes("training")) return "practice"
-  if (title.includes("course") || title.includes("class")) return "course"
-
+  // Default to "event" - do NOT guess based on title keywords
+  // This ensures consistent typing across all instances of the same event
   return "event"
 }
 

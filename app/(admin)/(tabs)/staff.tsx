@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
@@ -23,8 +23,8 @@ import {
   type PendingStaff,
 } from "@/utils/api/admin";
 
-// Staff Card Component
-const StaffCard = ({
+// Staff Card Component - Memoized to prevent unnecessary re-renders
+const StaffCard = memo(({
   staff,
   onPress,
 }: {
@@ -118,10 +118,10 @@ const StaffCard = ({
       <FontAwesome6 name="chevron-right" size={18} color="#666" />
     </TouchableOpacity>
   );
-};
+});
 
-// Pending Staff Card Component
-const PendingStaffCard = ({
+// Pending Staff Card Component - Memoized to prevent unnecessary re-renders
+const PendingStaffCard = memo(({
   staff,
   onApprove,
   onReject,
@@ -206,10 +206,10 @@ const PendingStaffCard = ({
       </View>
     </View>
   );
-};
+});
 
-// Tab Button Component
-const TabButton = ({
+// Tab Button Component - Memoized to prevent unnecessary re-renders
+const TabButton = memo(({
   title,
   isActive,
   count,
@@ -249,7 +249,28 @@ const TabButton = ({
       )}
     </View>
   </TouchableOpacity>
-);
+));
+
+// Empty State Component - Memoized
+const EmptyState = memo(({ type }: { type: "staff" | "pending" }) => (
+  <View className="flex-1 items-center justify-center py-20">
+    <View className="bg-[#2A2A2A] p-5 rounded-full mb-4">
+      <FontAwesome6
+        name={type === "staff" ? "user-tie" : "circle-check"}
+        size={48}
+        color={type === "staff" ? "#FCA311" : "#4CAF50"}
+      />
+    </View>
+    <Text className="text-white-100 font-Oswald-Medium text-xl">
+      {type === "staff" ? "No Staff Members" : "All Caught Up!"}
+    </Text>
+    <Text className="text-gray-400 font-Outfit-Regular text-base text-center mt-2 px-8">
+      {type === "staff"
+        ? "Staff members will appear here once approved"
+        : "No pending staff applications to review"}
+    </Text>
+  </View>
+));
 
 export default function StaffScreen() {
   const router = useRouter();
@@ -424,11 +445,19 @@ export default function StaffScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#FCA311" />
         </View>
-      ) : (
-        <ScrollView
-          className="flex-1 px-10 mt-6"
+      ) : activeTab === "active" ? (
+        <FlatList
+          data={staffList}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <StaffCard
+              staff={item}
+              onPress={() => handleStaffPress(item)}
+            />
+          )}
+          ListEmptyComponent={<EmptyState type="staff" />}
+          contentContainerStyle={{ paddingHorizontal: 40, paddingTop: 24, paddingBottom: 100, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -437,49 +466,43 @@ export default function StaffScreen() {
               colors={["#FCA311"]}
             />
           }
-        >
-          {activeTab === "active" ? (
-            staffList && staffList.length > 0 ? (
-              staffList.map((staff) => (
-                <StaffCard
-                  key={staff.id}
-                  staff={staff}
-                  onPress={() => handleStaffPress(staff)}
-                />
-              ))
-            ) : (
-              <View className="flex-1 items-center justify-center py-20">
-                <View className="bg-[#2A2A2A] p-5 rounded-full mb-4">
-                  <FontAwesome6 name="user-tie" size={48} color="#FCA311" />
-                </View>
-                <Text className="text-white-100 font-Oswald-Medium text-xl">No Staff Members</Text>
-                <Text className="text-gray-400 font-Outfit-Regular text-base text-center mt-2 px-8">
-                  Staff members will appear here once approved
-                </Text>
-              </View>
-            )
-          ) : pendingStaffList && pendingStaffList.length > 0 ? (
-            pendingStaffList.map((staff) => (
-              <PendingStaffCard
-                key={staff.id}
-                staff={staff}
-                onApprove={() => handleApprove(staff.id)}
-                onReject={() => handleReject(staff.id)}
-                isProcessing={processingIds.has(staff.id)}
-              />
-            ))
-          ) : (
-            <View className="flex-1 items-center justify-center py-20">
-              <View className="bg-[#2A2A2A] p-5 rounded-full mb-4">
-                <FontAwesome6 name="circle-check" size={48} color="#4CAF50" />
-              </View>
-              <Text className="text-white-100 font-Oswald-Medium text-xl">All Caught Up!</Text>
-              <Text className="text-gray-400 font-Outfit-Regular text-base text-center mt-2 px-8">
-                No pending staff applications to review
-              </Text>
-            </View>
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
+          updateCellsBatchingPeriod={50}
+        />
+      ) : (
+        <FlatList
+          data={pendingStaffList}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <PendingStaffCard
+              staff={item}
+              onApprove={() => handleApprove(item.id)}
+              onReject={() => handleReject(item.id)}
+              isProcessing={processingIds.has(item.id)}
+            />
           )}
-        </ScrollView>
+          ListEmptyComponent={<EmptyState type="pending" />}
+          contentContainerStyle={{ paddingHorizontal: 40, paddingTop: 24, paddingBottom: 100, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FCA311"
+              colors={["#FCA311"]}
+            />
+          }
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
+          updateCellsBatchingPeriod={50}
+        />
       )}
     </SafeAreaView>
   );

@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 20,
-    marginTop: 16,
+    marginTop: 0,
     marginBottom: 16,
     alignItems: 'center',
   },
@@ -550,6 +550,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   listContainer: {
+    paddingTop: 4,
     paddingBottom: 20,
   },
   transactionItem: {

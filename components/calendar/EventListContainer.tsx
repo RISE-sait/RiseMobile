@@ -40,24 +40,36 @@ const mapTypeToValidType = (item: EventItem): "event" | "match" | "practice" | "
   // Map based on the type property
   switch (type) {
     case "match":
-      return "match"
     case "game":
       return "match"
     case "practice":
-      return "practice"
-    case "course":
-      return "course"
     case "training":
       return "practice"
+    case "course":
     case "class":
       return "course"
+    case "event":
     case "tryouts":
-      return "event"
     case "tryout":
       return "event"
   }
 
-  // If type doesn't match, check program_type
+  // If type doesn't match, check program.type
+  if (item.program?.type) {
+    const programType = item.program.type.toLowerCase()
+
+    if (programType === "match" || programType === "game") {
+      return "match"
+    }
+    if (programType === "practice" || programType === "training") {
+      return "practice"
+    }
+    if (programType === "course" || programType === "class") {
+      return "course"
+    }
+  }
+
+  // Check program_type field
   if (item.program_type) {
     const programType = item.program_type.toLowerCase()
 
@@ -72,30 +84,8 @@ const mapTypeToValidType = (item: EventItem): "event" | "match" | "practice" | "
     }
   }
 
-  // Check title for clues
-  const title = (item.title || "").toLowerCase()
-
-  if (title.includes("match") || title.includes("game") || title.includes("vs") || title.includes("versus")) {
-    return "match"
-  }
-
-  if (title.includes("practice") || title.includes("training") || title.includes("drill")) {
-    return "practice"
-  }
-
-  if (title.includes("course") || title.includes("class") || title.includes("lesson")) {
-    return "course"
-  }
-
-  // Use ID as a fallback to distribute events more evenly
-  const lastChar = item.id.charAt(item.id.length - 1)
-  const charCode = lastChar.charCodeAt(0) || 0
-
-  if (charCode % 3 === 0) return "match"
-  if (charCode % 3 === 1) return "practice"
-  if (charCode % 3 === 2) return "course"
-
-  // Default to event
+  // Default to "event" - do NOT guess based on title or ID
+  // This ensures consistent typing across all instances of the same event
   return "event"
 }
 

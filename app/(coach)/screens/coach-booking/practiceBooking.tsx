@@ -20,7 +20,6 @@ import { COLORS } from "@/constants/colors";
 import DateTimeSelector from "@/components/practiceBooking/DateTimeSelector";
 import TeamSelector from "@/components/practiceBooking/TeamSelector";
 import CourtSelector from "@/components/practiceBooking/CourtSelector";
-import RecurringOptions from "@/components/practiceBooking/RecurringOptions";
 import ConfirmationModal from "@/components/practiceBooking/ConfirmationModal";
 import StepIndicator from "@/components/practiceBooking/StepIndicator";
 import { createPracticeThunk, createRecurringPracticeThunk } from "@/store/slices/practicesSlice";
@@ -47,12 +46,6 @@ const DEFAULT_BOOKING_CONFIG = {
 
 
 
-interface RecurringOptionsType {
-  weekly: boolean
-  biweekly: boolean
-  monthly: boolean
-  occurrences: number
-}
 
 
 
@@ -82,12 +75,12 @@ const CoachPracticeBooking = () => {
   const [selectedTeam, setSelectedTeam] = useState<TeamDisplay | null>(null)
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null)
   const [isRecurring, setIsRecurring] = useState(false)
-  const [recurringOptions, setRecurringOptions] = useState<RecurringOptionsType>({
-    weekly: true,
-    biweekly: false,
-    monthly: false,
-    occurrences: 4,
+  const [endDate, setEndDate] = useState(() => {
+    const defaultEnd = new Date()
+    defaultEnd.setDate(defaultEnd.getDate() + 28) // Default to 4 weeks out
+    return defaultEnd
   })
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -168,6 +161,9 @@ useEffect(() => {
       if (!selectedCourt) {
         errors.court = "Please select a court"
       }
+      if (isRecurring && dayjs(endDate).isBefore(dayjs(date))) {
+        errors.endDate = "End date must be after start date"
+      }
     }
 
     if (currentStep === 2) {
@@ -182,7 +178,7 @@ useEffect(() => {
 
   const handleNextStep = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    
+
     if (!validateCurrentStep()) {
       // Show first error as an alert
       const firstError = Object.values(formErrors)[0]
@@ -191,8 +187,8 @@ useEffect(() => {
       }
       return
     }
-    
-    if (currentStep < 3) {
+
+    if (currentStep < 2) {
       setCurrentStep((prevStep) => prevStep + 1)
     } else {
       setShowConfirmation(true)
@@ -292,16 +288,29 @@ const handleConfirmBooking = async () => {
       team_id: selectedTeam.id,
     };
 
+    // Use user-selected start and end dates for recurring practices
+    // Backend creates one practice per week on the specified day between start and end dates
+    const recurrenceStartDate = dayjs(date).startOf('day');
+    const recurrenceEndDate = dayjs(endDate).startOf('day');
+
+    // Calculate approximate number of occurrences for display
+    const weeksDiff = recurrenceEndDate.diff(recurrenceStartDate, 'week') + 1;
+
+    console.log("[PracticeBooking] Recurring calculation:", {
+      startDate: recurrenceStartDate.format("YYYY-MM-DD"),
+      endDate: recurrenceEndDate.format("YYYY-MM-DD"),
+      approximateOccurrences: weeksDiff,
+      day: dayjs(date).format("dddd").toUpperCase(),
+    });
+
     const recurringPayload = {
       court_id: selectedCourt.id,
       day: dayjs(date).format("dddd").toUpperCase(), // "MONDAY" (uppercase)
       location_id: selectedCourt.location_id,
-      practice_start_at: combinedStartDateTime.format("HH:mm:ss+00:00"), // "18:00:00+00:00"
-      practice_end_at: combinedEndDateTime.format("HH:mm:ss+00:00"), // "20:00:00+00:00"
-      recurrence_start_at: dayjs(date).startOf('day').toISOString(), // "2025-10-01T00:00:00Z"
-      recurrence_end_at: dayjs(date)
-        .add((recurringOptions.occurrences - 1) * (recurringOptions.weekly ? 1 : recurringOptions.biweekly ? 2 : 4), "week")
-        .endOf('day').toISOString(), // "2025-10-31T23:59:59Z"
+      practice_start_at: combinedStartDateTime.format("HH:mm:ssZ"), // "18:00:00+00:00"
+      practice_end_at: combinedEndDateTime.format("HH:mm:ssZ"), // "20:00:00+00:00"
+      recurrence_start_at: recurrenceStartDate.toISOString(),
+      recurrence_end_at: recurrenceEndDate.toISOString(),
       status: "scheduled",
       team_id: selectedTeam.id,
     };
@@ -420,6 +429,27 @@ const handleConfirmBooking = async () => {
                     <Text style={styles.sectionSubtitle}>Select when and where you want to schedule this practice</Text>
                   </View>
 
+                  {/* Recurring Toggle */}
+                  <View style={styles.recurringToggleContainer}>
+                    <View style={styles.recurringToggleLeft}>
+                      <Ionicons name="repeat" size={22} color={isRecurring ? COLORS.primary : COLORS.textSecondary} />
+                      <View style={styles.recurringToggleText}>
+                        <Text style={styles.recurringToggleLabel}>Recurring Practice</Text>
+                        <Text style={styles.recurringToggleSubtext}>
+                          {isRecurring ? "Weekly on " + dayjs(date).format("dddd") + "s" : "One-time practice"}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.recurringToggleButton, isRecurring && styles.recurringToggleButtonActive]}
+                      onPress={() => setIsRecurring(!isRecurring)}
+                    >
+                      <Text style={[styles.recurringToggleButtonText, isRecurring && styles.recurringToggleButtonTextActive]}>
+                        {isRecurring ? "ON" : "OFF"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
                   {/* Info Box - Only for Admins */}
                   {isAdmin && (
                     <View style={styles.infoBox}>
@@ -430,9 +460,9 @@ const handleConfirmBooking = async () => {
                     </View>
                   )}
 
-                  {/* Date & Time Selection - BEFORE Court Selection */}
+                  {/* Date Selection */}
                   <DateTimeSelector
-                    label="Date"
+                    label={isRecurring ? "Start Date" : "Date"}
                     date={date}
                     setDate={setDate}
                     showPicker={showDatePicker}
@@ -441,6 +471,30 @@ const handleConfirmBooking = async () => {
                     hasError={!!formErrors.date}
                     errorMessage={formErrors.date}
                   />
+
+                  {/* End Date - Only show if recurring */}
+                  {isRecurring && (
+                    <>
+                      <DateTimeSelector
+                        label="End Date"
+                        date={endDate}
+                        setDate={setEndDate}
+                        showPicker={showEndDatePicker}
+                        setShowPicker={setShowEndDatePicker}
+                        mode="date"
+                        hasError={!!formErrors.endDate}
+                        errorMessage={formErrors.endDate}
+                      />
+                      <View style={styles.recurringInfoBanner}>
+                        <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
+                        <Text style={styles.recurringInfoText}>
+                          This will create a practice every {dayjs(date).format("dddd")} from{" "}
+                          {dayjs(date).format("MMM D")} to {dayjs(endDate).format("MMM D, YYYY")}
+                          {" "}({Math.max(1, dayjs(endDate).diff(dayjs(date), 'week') + 1)} sessions)
+                        </Text>
+                      </View>
+                    </>
+                  )}
 
                   <View style={styles.timeRangeContainer}>
                     <DateTimeSelector
@@ -522,21 +576,6 @@ const handleConfirmBooking = async () => {
                 </>
               )}
 
-              {/* Step 3: Recurring Options */}
-              {currentStep === 3 && (
-                <>
-                  <View style={styles.sectionContainer}>
-                    <Text style={styles.sectionTitle}>Practice Schedule</Text>
-                    <Text style={styles.sectionSubtitle}>Configure if this practice should repeat</Text>
-                  </View>
-                  <RecurringOptions
-                    isRecurring={isRecurring}
-                    setIsRecurring={setIsRecurring}
-                    recurringOptions={recurringOptions}
-                    setRecurringOptions={setRecurringOptions}
-                  />
-                </>
-              )}
             </Animated.View>
           )}
           contentContainerStyle={styles.scrollViewContent}
@@ -549,13 +588,13 @@ const handleConfirmBooking = async () => {
         <TouchableOpacity style={[styles.footerButton, styles.backButton]} onPress={handleBackPress}>
           <Text style={styles.backButtonText}>{currentStep === 1 ? "Cancel" : "Back"}</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.footerButton, styles.nextButton]} 
+        <TouchableOpacity
+          style={[styles.footerButton, styles.nextButton]}
           onPress={handleNextStep}
         >
-          <Text style={styles.nextButtonText}>{currentStep < 3 ? "Next" : "Review"}</Text>
+          <Text style={styles.nextButtonText}>{currentStep < 2 ? "Next" : "Review"}</Text>
           <Ionicons
-            name={currentStep < 3 ? "arrow-forward" : "checkmark-circle"}
+            name={currentStep < 2 ? "arrow-forward" : "checkmark-circle"}
             size={20}
             color="#000"
             style={styles.nextButtonIcon}
@@ -576,7 +615,7 @@ const handleConfirmBooking = async () => {
         notes={undefined}
         isRecurring={isRecurring}
         recurringDetails={isRecurring ?
-          `Repeats ${recurringOptions.weekly ? 'weekly' : recurringOptions.biweekly ? 'biweekly' : 'monthly'} for ${recurringOptions.occurrences} occurrences` :
+          `Weekly on ${dayjs(date).format("dddd")}s from ${dayjs(date).format("MMM D")} to ${dayjs(endDate).format("MMM D, YYYY")} (${Math.max(1, dayjs(endDate).diff(dayjs(date), 'week') + 1)} sessions)` :
           undefined
         }
         isSubmitting={isBooking || isSubmitting}
@@ -779,6 +818,72 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
     lineHeight: 20,
+  },
+  recurringToggleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardLight,
+  },
+  recurringToggleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  recurringToggleText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  recurringToggleLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  recurringToggleSubtext: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  recurringToggleButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.cardDark,
+    minWidth: 60,
+    alignItems: "center",
+  },
+  recurringToggleButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  recurringToggleButtonText: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: COLORS.textSecondary,
+  },
+  recurringToggleButtonTextActive: {
+    color: COLORS.background,
+  },
+  recurringInfoBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: COLORS.primary + "15",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  recurringInfoText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.text,
+    marginLeft: 10,
+    lineHeight: 18,
   },
 })
 

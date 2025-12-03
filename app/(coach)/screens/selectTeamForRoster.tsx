@@ -12,6 +12,11 @@ import {
   Modal,
   TextInput,
   Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
@@ -563,31 +568,42 @@ const SelectTeamForRoster: React.FC = () => {
       {/* Team Create/Edit Modal */}
       {showTeamModal && (
         <Modal transparent visible={showTeamModal} animationType="none" onRequestClose={closeTeamModal}>
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeTeamModal}>
-            <Animated.View
-              style={[
-                styles.teamModal,
-                {
-                  opacity: modalAnim,
-                  transform: [
-                    {
-                      translateY: modalAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [50, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{editingTeam ? "Edit Team" : "Create Team"}</Text>
-                  <TouchableOpacity onPress={closeTeamModal}>
-                    <AntDesign name="close" size={24} color="white" />
-                  </TouchableOpacity>
-                </View>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                  <Animated.View
+                    style={[
+                      styles.teamModal,
+                      {
+                        opacity: modalAnim,
+                        transform: [
+                          {
+                            translateY: modalAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [50, 0],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>{editingTeam ? "Edit Team" : "Create Team"}</Text>
+                      <TouchableOpacity onPress={closeTeamModal}>
+                        <AntDesign name="close" size={24} color="white" />
+                      </TouchableOpacity>
+                    </View>
 
+                    <ScrollView
+                      style={styles.modalScrollView}
+                      showsVerticalScrollIndicator={false}
+                      keyboardShouldPersistTaps="handled"
+                    >
                 <View style={styles.formContainer}>
                   <Text style={styles.fieldLabel}>Team Name *</Text>
                   <TextInput
@@ -597,6 +613,8 @@ const SelectTeamForRoster: React.FC = () => {
                     value={teamName}
                     onChangeText={setTeamName}
                     editable={!submitting}
+                    returnKeyType="next"
+                    onSubmitEditing={() => Keyboard.dismiss()}
                   />
 
                   <Text style={styles.fieldLabel}>Capacity *</Text>
@@ -608,6 +626,8 @@ const SelectTeamForRoster: React.FC = () => {
                     onChangeText={setTeamCapacity}
                     keyboardType="numeric"
                     editable={!submitting}
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
                   />
 
                   {/* Coach Selection - Only for Admins */}
@@ -619,18 +639,54 @@ const SelectTeamForRoster: React.FC = () => {
                           <ActivityIndicator size="small" color={COLORS.primary} />
                         </View>
                       ) : (
-                        <TouchableOpacity
-                          style={styles.dropdownButton}
-                          onPress={() => setShowCoachPicker(true)}
-                          disabled={submitting}
-                        >
-                          <Text style={selectedCoachId ? styles.dropdownText : styles.dropdownPlaceholder}>
-                            {selectedCoachId
-                              ? coaches.find(c => c.id === selectedCoachId)?.name || "Select a coach"
-                              : "Select a coach"}
-                          </Text>
-                          <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
-                        </TouchableOpacity>
+                        <>
+                          <TouchableOpacity
+                            style={styles.dropdownButton}
+                            onPress={() => setShowCoachPicker(!showCoachPicker)}
+                            disabled={submitting}
+                          >
+                            <Text style={selectedCoachId ? styles.dropdownText : styles.dropdownPlaceholder}>
+                              {selectedCoachId
+                                ? coaches.find(c => c.id === selectedCoachId)?.name || "Select a coach"
+                                : "Select a coach"}
+                            </Text>
+                            <Ionicons name={showCoachPicker ? "chevron-up" : "chevron-down"} size={20} color={COLORS.textSecondary} />
+                          </TouchableOpacity>
+                          {/* Inline Coach Picker - expanded below dropdown */}
+                          {showCoachPicker && (
+                            <View style={styles.inlinePickerContainer}>
+                              {coaches.map((coach) => (
+                                <TouchableOpacity
+                                  key={coach.id}
+                                  style={[
+                                    styles.coachOption,
+                                    selectedCoachId === coach.id && styles.coachOptionSelected
+                                  ]}
+                                  onPress={() => {
+                                    setSelectedCoachId(coach.id)
+                                    setShowCoachPicker(false)
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                                  }}
+                                >
+                                  <View style={[
+                                    styles.radioButton,
+                                    selectedCoachId === coach.id && styles.radioButtonSelected
+                                  ]}>
+                                    {selectedCoachId === coach.id && (
+                                      <View style={styles.radioButtonInner} />
+                                    )}
+                                  </View>
+                                  <Text style={[
+                                    styles.coachOptionText,
+                                    selectedCoachId === coach.id && styles.coachOptionTextSelected
+                                  ]}>
+                                    {coach.name}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          )}
+                        </>
                       )}
                     </>
                   )}
@@ -681,60 +737,14 @@ const SelectTeamForRoster: React.FC = () => {
                         <Text style={styles.saveButtonText}>{editingTeam ? "Update" : "Create"}</Text>
                       )}
                     </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          </TouchableOpacity>
-        </Modal>
-      )}
-
-      {/* Coach Picker Modal */}
-      {showCoachPicker && (
-        <Modal transparent visible={showCoachPicker} animationType="fade" onRequestClose={() => setShowCoachPicker(false)}>
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowCoachPicker(false)}>
-            <View style={styles.coachPickerModal}>
-              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Select Coach</Text>
-                  <TouchableOpacity onPress={() => setShowCoachPicker(false)}>
-                    <AntDesign name="close" size={24} color="white" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.coachPickerList}>
-                  {coaches.map((coach) => (
-                    <TouchableOpacity
-                      key={coach.id}
-                      style={[
-                        styles.coachOption,
-                        selectedCoachId === coach.id && styles.coachOptionSelected
-                      ]}
-                      onPress={() => {
-                        setSelectedCoachId(coach.id)
-                        setShowCoachPicker(false)
-                      }}
-                    >
-                      <View style={[
-                        styles.radioButton,
-                        selectedCoachId === coach.id && styles.radioButtonSelected
-                      ]}>
-                        {selectedCoachId === coach.id && (
-                          <View style={styles.radioButtonInner} />
-                        )}
-                      </View>
-                      <Text style={[
-                        styles.coachOptionText,
-                        selectedCoachId === coach.id && styles.coachOptionTextSelected
-                      ]}>
-                        {coach.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
+                  </ScrollView>
+                  </Animated.View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -945,9 +955,13 @@ const styles = StyleSheet.create({
   },
   teamModal: {
     width: width * 0.9,
+    maxHeight: "85%",
     backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
+  },
+  modalScrollView: {
+    maxHeight: 500,
   },
   modalHeader: {
     flexDirection: "row",
@@ -1063,10 +1077,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: "#333",
-    marginBottom: 16,
+    marginBottom: 8,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  inlinePickerContainer: {
+    marginBottom: 16,
+    maxHeight: 200,
   },
   dropdownText: {
     color: COLORS.text,

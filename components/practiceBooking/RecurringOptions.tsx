@@ -23,11 +23,8 @@ const RecurringOptions: React.FC<RecurringOptionsProps> = ({
   recurringOptions = { weekly: true, biweekly: false, monthly: false, occurrences: 4 },
   setRecurringOptions,
 }) => {
-  // Calculate the frequency text for display
+  // Calculate the frequency text for display (currently only weekly is supported)
   const getFrequencyText = () => {
-    if (recurringOptions.weekly) return "weekly";
-    if (recurringOptions.biweekly) return "every 2 weeks";
-    if (recurringOptions.monthly) return "monthly";
     return "weekly";
   };
 
@@ -58,53 +55,56 @@ const RecurringOptions: React.FC<RecurringOptionsProps> = ({
             </Text>
           </View>
 
-          {/* Repeat Frequency */}
+          {/* Repeat Frequency - Currently only weekly is supported by the backend */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Repeat Every</Text>
             <View style={styles.frequencyButtons}>
               <TouchableOpacity
-                style={[styles.frequencyOption, recurringOptions?.weekly && styles.frequencySelected]}
-                onPress={() => setRecurringOptions({ ...recurringOptions, weekly: true, biweekly: false, monthly: false })}
-                activeOpacity={0.7}
+                style={[styles.frequencyOption, styles.frequencySelected]}
+                activeOpacity={1}
               >
                 <Ionicons
                   name="calendar"
                   size={18}
-                  color={recurringOptions?.weekly ? COLORS.background : COLORS.textSecondary}
+                  color={COLORS.background}
                 />
-                <Text style={[styles.frequencyText, recurringOptions?.weekly && styles.frequencySelectedText]}>
+                <Text style={[styles.frequencyText, styles.frequencySelectedText]}>
                   Week
                 </Text>
               </TouchableOpacity>
 
+              {/* Biweekly - Disabled (not supported by backend) */}
               <TouchableOpacity
-                style={[styles.frequencyOption, recurringOptions?.biweekly && styles.frequencySelected]}
-                onPress={() => setRecurringOptions({ ...recurringOptions, weekly: false, biweekly: true, monthly: false })}
-                activeOpacity={0.7}
+                style={[styles.frequencyOption, styles.frequencyDisabled]}
+                activeOpacity={1}
+                disabled={true}
               >
                 <Ionicons
                   name="calendar"
                   size={18}
-                  color={recurringOptions?.biweekly ? COLORS.background : COLORS.textSecondary}
+                  color={COLORS.textSecondary + "50"}
                 />
-                <Text style={[styles.frequencyText, recurringOptions?.biweekly && styles.frequencySelectedText]}>
+                <Text style={[styles.frequencyText, styles.frequencyDisabledText]}>
                   2 Weeks
                 </Text>
+                <Text style={styles.comingSoonBadge}>Soon</Text>
               </TouchableOpacity>
 
+              {/* Monthly - Disabled (not supported by backend) */}
               <TouchableOpacity
-                style={[styles.frequencyOption, recurringOptions?.monthly && styles.frequencySelected]}
-                onPress={() => setRecurringOptions({ ...recurringOptions, weekly: false, biweekly: false, monthly: true })}
-                activeOpacity={0.7}
+                style={[styles.frequencyOption, styles.frequencyDisabled]}
+                activeOpacity={1}
+                disabled={true}
               >
                 <Ionicons
                   name="calendar"
                   size={18}
-                  color={recurringOptions?.monthly ? COLORS.background : COLORS.textSecondary}
+                  color={COLORS.textSecondary + "50"}
                 />
-                <Text style={[styles.frequencyText, recurringOptions?.monthly && styles.frequencySelectedText]}>
+                <Text style={[styles.frequencyText, styles.frequencyDisabledText]}>
                   Month
                 </Text>
+                <Text style={styles.comingSoonBadge}>Soon</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -241,6 +241,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
+  frequencyDisabled: {
+    backgroundColor: COLORS.cardDark + "50",
+    borderColor: COLORS.cardDark + "50",
+    opacity: 0.6,
+  },
   frequencyText: {
     fontSize: 13,
     color: COLORS.textSecondary,
@@ -250,6 +255,17 @@ const styles = StyleSheet.create({
   frequencySelectedText: {
     color: COLORS.background,
     fontWeight: "bold",
+  },
+  frequencyDisabledText: {
+    color: COLORS.textSecondary + "80",
+  },
+  comingSoonBadge: {
+    fontSize: 9,
+    color: COLORS.primary,
+    fontWeight: "bold",
+    marginTop: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   occurrencesContainer: {
     flexDirection: "row",

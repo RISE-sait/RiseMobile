@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, memo } from "react";
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -24,8 +24,13 @@ import {
 import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 
-// Search Result Card
-const CustomerSearchCard = ({
+// Helper function defined outside component
+const getInitials = (firstName: string, lastName: string) => {
+  return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
+};
+
+// Memoized Search Result Card
+const CustomerSearchCard = memo(({
   customer,
   onCheckIn,
   isChecking,
@@ -34,10 +39,6 @@ const CustomerSearchCard = ({
   onCheckIn: () => void;
   isChecking: boolean;
 }) => {
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
-  };
-
   return (
     <View
       className="bg-[#1A1A1A] rounded-2xl p-4 mb-3"
@@ -101,10 +102,10 @@ const CustomerSearchCard = ({
       </TouchableOpacity>
     </View>
   );
-};
+});
 
-// Success Modal
-const CheckInSuccess = ({
+// Memoized Success Modal
+const CheckInSuccess = memo(({
   customer,
   membershipInfo,
   onDone,
@@ -113,10 +114,6 @@ const CheckInSuccess = ({
   membershipInfo: CustomerCheckIn | null;
   onDone: () => void;
 }) => {
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
-  };
-
   return (
     <View className="flex-1 items-center justify-center px-5">
       <View
@@ -192,7 +189,45 @@ const CheckInSuccess = ({
       </View>
     </View>
   );
-};
+});
+
+// Empty states - memoized
+const SearchingState = memo(() => (
+  <View className="py-10 items-center">
+    <ActivityIndicator size="large" color="#FCA311" />
+    <Text className="text-gray-400 font-Outfit-Regular mt-3">Searching...</Text>
+  </View>
+));
+
+const NoResultsState = memo(({ searchQuery }: { searchQuery: string }) => (
+  <View className="py-10 items-center">
+    <View
+      className="w-20 h-20 rounded-full items-center justify-center mb-4"
+      style={{ backgroundColor: "rgba(252, 163, 17, 0.15)" }}
+    >
+      <FontAwesome6 name="magnifying-glass" size={32} color="#FCA311" />
+    </View>
+    <Text className="text-white-100 font-Oswald-Medium text-lg">No Results</Text>
+    <Text className="text-gray-400 font-Outfit-Regular text-center mt-2 px-10">
+      No customers found matching "{searchQuery}"
+    </Text>
+  </View>
+));
+
+const InitialSearchState = memo(() => (
+  <View className="py-10 items-center">
+    <View
+      className="w-20 h-20 rounded-full items-center justify-center mb-4"
+      style={{ backgroundColor: "rgba(252, 163, 17, 0.15)" }}
+    >
+      <FontAwesome6 name="user-plus" size={32} color="#FCA311" />
+    </View>
+    <Text className="text-white-100 font-Oswald-Medium text-lg">Search Customers</Text>
+    <Text className="text-gray-400 font-Outfit-Regular text-center mt-2 px-10">
+      Enter at least 2 characters to search
+    </Text>
+  </View>
+));
 
 export default function CheckInScreen() {
   const router = useRouter();
@@ -343,18 +378,20 @@ export default function CheckInScreen() {
       </View>
 
       {/* Search Results */}
-      <ScrollView
-        className="flex-1 px-5 mt-4"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      >
-        {isSearching ? (
-          <View className="py-10 items-center">
-            <ActivityIndicator size="large" color="#FCA311" />
-            <Text className="text-gray-400 font-Outfit-Regular mt-3">Searching...</Text>
-          </View>
-        ) : searchResults.length > 0 ? (
-          <>
+      {isSearching ? (
+        <SearchingState />
+      ) : searchResults.length > 0 ? (
+        <FlatList
+          data={searchResults}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <CustomerSearchCard
+              customer={item}
+              onCheckIn={() => handleCheckIn(item)}
+              isChecking={checkingInId === item.id}
+            />
+          )}
+          ListHeaderComponent={
             <View className="flex-row items-center justify-between mb-3">
               <Text className="text-gray-400 font-Outfit-Medium text-sm uppercase tracking-wider">
                 Search Results
@@ -363,43 +400,20 @@ export default function CheckInScreen() {
                 {searchResults.length} found
               </Text>
             </View>
-            {searchResults.map((customer) => (
-              <CustomerSearchCard
-                key={customer.id}
-                customer={customer}
-                onCheckIn={() => handleCheckIn(customer)}
-                isChecking={checkingInId === customer.id}
-              />
-            ))}
-          </>
-        ) : searchQuery.length >= 2 ? (
-          <View className="py-10 items-center">
-            <View
-              className="w-20 h-20 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: "rgba(252, 163, 17, 0.15)" }}
-            >
-              <FontAwesome6 name="magnifying-glass" size={32} color="#FCA311" />
-            </View>
-            <Text className="text-white-100 font-Oswald-Medium text-lg">No Results</Text>
-            <Text className="text-gray-400 font-Outfit-Regular text-center mt-2 px-10">
-              No customers found matching "{searchQuery}"
-            </Text>
-          </View>
-        ) : (
-          <View className="py-10 items-center">
-            <View
-              className="w-20 h-20 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: "rgba(252, 163, 17, 0.15)" }}
-            >
-              <FontAwesome6 name="user-plus" size={32} color="#FCA311" />
-            </View>
-            <Text className="text-white-100 font-Oswald-Medium text-lg">Search Customers</Text>
-            <Text className="text-gray-400 font-Outfit-Regular text-center mt-2 px-10">
-              Enter at least 2 characters to search
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+          }
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
+        />
+      ) : searchQuery.length >= 2 ? (
+        <NoResultsState searchQuery={searchQuery} />
+      ) : (
+        <InitialSearchState />
+      )}
     </SafeAreaView>
   );
 }

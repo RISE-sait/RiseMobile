@@ -9,8 +9,6 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchEvents } from "@/store/slices/eventsSlice";
-import { fetchMatches } from "@/store/slices/gamesSlice";
-import type { Match } from "@/types";
 import type { RootState } from "@/store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import dayjs from "dayjs";
@@ -43,7 +41,6 @@ const EventsScreen: React.FC = () => {
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.user.data);
   const reduxEvents = useSelector((state: RootState) => state.events);
-  const reduxGames = useSelector((state: RootState) => state.games);
 
   const getToken = useCallback(async () => {
     let token = user?.token;
@@ -58,7 +55,6 @@ const EventsScreen: React.FC = () => {
     const token = await getToken();
     if (!token) return;
     dispatch(fetchEvents(token) as any);
-    dispatch(fetchMatches(token) as any);
   }, [dispatch, getToken]);
 
   useEffect(() => {
@@ -74,6 +70,7 @@ const EventsScreen: React.FC = () => {
     const seenEventIds = new Set<string>(); // ✅ Track seen event IDs to prevent duplicates
 
     // Convert Redux events
+    // All items from the events API are "events" - they should navigate to event-details
     Object.values(reduxEvents.byDate).forEach((eventGroup: any[]) => {
       eventGroup.forEach((event) => {
         // ✅ Validate event ID exists and is unique
@@ -89,8 +86,10 @@ const EventsScreen: React.FC = () => {
               time: event.time || "TBD",
               location: event.location || "TBD",
               image: event.program?.photo_url || "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-              type: event.type || "other",
-              program: event.program?.id ? { 
+              // Always use "other" for events from the events API - they should go to event-details
+              // The visual "type" from the slice is just for display, not navigation
+              type: "other",
+              program: event.program?.id ? {
                 id: event.program.id,
                 photo_url: event.program.photo_url
               } : undefined,
@@ -105,36 +104,8 @@ const EventsScreen: React.FC = () => {
     });
 
 
-    // Convert Redux matches
-    reduxGames.items.forEach((match: Match) => {
-      // ✅ Validate match ID exists and created_at exists
-      if (match.id && match.created_at) {
-        const createdDate = dayjs(match.created_at);
-        // ✅ Validate date before formatting to prevent "Invalid Date"
-        if (createdDate.isValid()) {
-          const date = createdDate.format("YYYY-MM-DD");
-          const time = createdDate.format("h:mm A");
-          // ✅ Also check for duplicate match IDs
-          if (!seenEventIds.has(match.id)) {
-            seenEventIds.add(match.id);
-            allEvents.push({
-              id: match.id,
-              title: match.name || `Match ${match.id.slice(0, 6)}`,
-              date,
-              time,
-              location: "RISE Basketball Court",
-              image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-              type: "match",
-            });
-          }
-        } else {
-          console.warn(`⚠️ Invalid date for match ${match.id}: ${match.created_at}`);
-        }
-      } else {
-        if (!match.id) console.warn(`⚠️ Match missing ID, skipping:`, match);
-        if (!match.created_at) console.warn(`⚠️ Match missing created_at, skipping:`, match);
-      }
-    });
+    // Note: Matches are NOT included here - they are viewed from the Matches tab
+    // This Events screen only shows events from the events API
 
     // Sort events by proximity to today (nearest dates first, regardless of past/future)
     const today = new Date();
@@ -157,7 +128,7 @@ const EventsScreen: React.FC = () => {
     const limitedEvents = sortedEvents.slice(0, 50);
 
     setEvents(limitedEvents);
-  }, [reduxEvents.byDate, reduxGames.items]);
+  }, [reduxEvents.byDate]);
 
   useEffect(() => {
     filterEvents(activeFilter);
@@ -228,26 +199,15 @@ const EventsScreen: React.FC = () => {
         style={styles.eventCard}
         activeOpacity={0.9}
         onPress={() => {
-          // Navigate to appropriate detail page based on data source
-          // Note: item.type is just a label from the event data, not the entity type
-          // Only items from reduxGames (matches) should go to match-details
-          // All items from reduxEvents should go to event-details
-          if (item.type === "match" || item.type === "game") {
-            router.push({
-              pathname: "/screens/match-details/[id]",
-              params: { id: item.id },
-            });
-          } else {
-            // All other items (including type="practice") are events
-            // They should navigate to event-details, not practice-details
-            router.push({
-              pathname: "/screens/event-details/[id]",
-              params: {
-                id: item.id,
-                source: "homepage",
-              },
-            });
-          }
+          // All events from this screen go to event-details
+          // (Matches are viewed from the Matches tab, not here)
+          router.push({
+            pathname: "/screens/event-details/[id]",
+            params: {
+              id: item.id,
+              source: "homepage",
+            },
+          });
         }}
 
       >
@@ -358,7 +318,7 @@ const EventsScreen: React.FC = () => {
       ) : (
         <FlatList
           data={filteredEvents}
-          keyExtractor={(item) => `${item.type}-${item.id}`}
+          keyExtractor={(item) => item.id}
           renderItem={renderEventItem}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}

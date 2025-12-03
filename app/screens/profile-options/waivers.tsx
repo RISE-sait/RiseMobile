@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import BackButton from "@/components/buttons/BackButton";
 import { COLORS } from "@/constants/colors";
 import { useAppSelector } from "@/store/hooks";
@@ -71,26 +71,67 @@ const WaiversScreen: React.FC = () => {
     loadWaivers(false);
   }, [loadWaivers]);
 
-  const handleSelectFile = async () => {
+  const handleSelectFile = async (useCamera: boolean = false) => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "image/*"],
-        copyToCacheDirectory: true,
-      });
+      // Request permissions
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(
+            "Permission Required",
+            "Camera permission is needed to take photos of your waiver."
+          );
+          return;
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(
+            "Permission Required",
+            "Photo library permission is needed to select waiver images."
+          );
+          return;
+        }
+      }
+
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            quality: 0.8,
+          });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
+        const asset = result.assets[0];
+        const fileName = asset.fileName || `waiver_${Date.now()}.jpg`;
         setSelectedFile({
-          uri: file.uri,
-          name: file.name,
-          type: file.mimeType || "application/octet-stream",
+          uri: asset.uri,
+          name: fileName,
+          type: asset.mimeType || "image/jpeg",
         });
         setShowUploadModal(true);
       }
     } catch (error) {
-      console.error("Error selecting document:", error);
-      Alert.alert("Error", "Failed to select document. Please try again.");
+      console.error("Error selecting image:", error);
+      Alert.alert("Error", "Failed to select image. Please try again.");
     }
+  };
+
+  const showImageSourceOptions = () => {
+    Alert.alert(
+      "Upload Waiver",
+      "Choose how you'd like to add your waiver image",
+      [
+        { text: "Take Photo", onPress: () => handleSelectFile(true) },
+        { text: "Choose from Library", onPress: () => handleSelectFile(false) },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
   };
 
   const handleUpload = async () => {
@@ -225,7 +266,7 @@ const WaiversScreen: React.FC = () => {
         <View style={styles.infoBanner}>
           <Ionicons name="information-circle" size={24} color={COLORS.primary} />
           <Text style={styles.infoText}>
-            Upload signed waiver documents for your records. Accepted formats: PDF, Images
+            Upload signed waiver documents for your records. Take a photo or select an image from your library.
           </Text>
         </View>
 
@@ -243,7 +284,7 @@ const WaiversScreen: React.FC = () => {
       <View style={styles.uploadButtonContainer}>
         <TouchableOpacity
           style={styles.uploadButton}
-          onPress={handleSelectFile}
+          onPress={showImageSourceOptions}
           disabled={uploading}
         >
           <Ionicons name="cloud-upload" size={24} color={COLORS.background} />

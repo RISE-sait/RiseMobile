@@ -108,11 +108,13 @@ export default function CustomerDetailsScreen() {
   const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
   const [weeklyUsage, setWeeklyUsage] = useState<CustomerWeeklyUsage | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(false);
+  const [creditsLoaded, setCreditsLoaded] = useState(false); // Track if credits data was loaded
   const [showAllTransactions, setShowAllTransactions] = useState(false);
 
   // Subsidies data
   const [subsidies, setSubsidies] = useState<Subsidy[]>([]);
   const [subsidiesLoading, setSubsidiesLoading] = useState(false);
+  const [subsidiesLoaded, setSubsidiesLoaded] = useState(false); // Track if subsidies data was loaded
 
   const fetchCustomer = useCallback(async () => {
     if (!customerId) return;
@@ -135,8 +137,9 @@ export default function CustomerDetailsScreen() {
   }, [fetchCustomer]);
 
   // Fetch credits data when Credits tab is activated
-  const fetchCreditsData = async () => {
-    if (!customerId || creditsLoading) return;
+  const fetchCreditsData = useCallback(async () => {
+    // Prevent duplicate fetches - check if already loading or already loaded
+    if (!customerId || creditsLoading || creditsLoaded) return;
     setCreditsLoading(true);
 
     try {
@@ -152,16 +155,18 @@ export default function CustomerDetailsScreen() {
       setCredits(creditsData);
       setTransactions(transactionsData?.transactions || []);
       setWeeklyUsage(weeklyUsageData);
+      setCreditsLoaded(true); // Mark as loaded
     } catch (error) {
       console.error("Error fetching credits data:", error);
     } finally {
       setCreditsLoading(false);
     }
-  };
+  }, [customerId, creditsLoading, creditsLoaded, getValidToken]);
 
   // Fetch subsidies data when Subsidies tab is activated
-  const fetchSubsidiesData = async () => {
-    if (!customerId || subsidiesLoading) return;
+  const fetchSubsidiesData = useCallback(async () => {
+    // Prevent duplicate fetches - check if already loading or already loaded
+    if (!customerId || subsidiesLoading || subsidiesLoaded) return;
     setSubsidiesLoading(true);
 
     try {
@@ -170,22 +175,22 @@ export default function CustomerDetailsScreen() {
 
       const subsidiesData = await getCustomerSubsidies(token, customerId, { limit: 50, page: 1 });
       setSubsidies(subsidiesData?.data || []);
+      setSubsidiesLoaded(true); // Mark as loaded
     } catch (error) {
       console.error("Error fetching subsidies data:", error);
     } finally {
       setSubsidiesLoading(false);
     }
-  };
+  }, [customerId, subsidiesLoading, subsidiesLoaded, getValidToken]);
 
-  // Fetch data when tab changes
+  // Fetch data when tab changes - with proper dependency tracking
   useEffect(() => {
-    if (activeTab === "credits" && !credits) {
+    if (activeTab === "credits" && !creditsLoaded && !creditsLoading) {
       fetchCreditsData();
-    } else if (activeTab === "subsidies" && subsidies.length === 0) {
+    } else if (activeTab === "subsidies" && !subsidiesLoaded && !subsidiesLoading) {
       fetchSubsidiesData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, creditsLoaded, creditsLoading, subsidiesLoaded, subsidiesLoading, fetchCreditsData, fetchSubsidiesData]);
 
   const getInitials = (firstName?: string, lastName?: string) => {
     return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
@@ -541,14 +546,14 @@ export default function CustomerDetailsScreen() {
               <>
                 {/* Credits Balance */}
                 <View
-                  className="bg-[#1A1A1A] rounded-2xl p-4 mb-6"
+                  className="bg-[#1A1A1A] rounded-2xl p-4 mb-6 overflow-visible"
                   style={{ borderWidth: 1, borderColor: "rgba(255,255,255,0.06)" }}
                 >
-                  <View className="py-4 border-b border-[#222]">
+                  <View className="py-3 border-b border-[#222]">
                     <Text className="text-gold-100 font-Oswald-Bold text-base">CREDITS BALANCE</Text>
                   </View>
                   <View className="items-center py-6">
-                    <Text className="text-gold-100 font-Oswald-Bold text-5xl">
+                    <Text className="text-gold-100 font-Oswald-Bold text-5xl" style={{ lineHeight: 56 }}>
                       {credits?.credits ?? 0}
                     </Text>
                     <Text className="text-gray-400 font-Outfit-Medium text-sm mt-2">
