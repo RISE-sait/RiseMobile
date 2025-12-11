@@ -125,17 +125,41 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           return;
         }
 
-        const initialSections: MembershipSection[] = membershipTypes.map((type) => ({
-          id: type.id,
-          title: type.name,
-          description: type.description || "",
-          data: [],
-          loading: false,
-          error: null,
-          loaded: false,
-        }));
+        // Pre-fetch plans for all membership types to determine which have visible plans
+        const sectionsWithPlans = await Promise.all(
+          membershipTypes.map(async (type) => {
+            const plansResult = await fetchPlansWithRetry(type.id);
+            const plans = plansResult.error ? [] : (plansResult.data || []);
+            const hasVisiblePlans = plans.length > 0;
 
-        setMembershipSections(initialSections);
+            return {
+              id: type.id,
+              title: type.name,
+              description: type.description || "",
+              data: hasVisiblePlans ? plans : [{
+                id: `${type.id}_placeholder`,
+                name: "",
+                description: "",
+                benefits: "",
+                price: 0,
+              }],
+              loading: false,
+              error: plansResult.error ? {
+                message: plansResult.error.message,
+                type: plansResult.error.type || "unknown",
+              } : null,
+              loaded: true,
+              hasVisiblePlans,
+            };
+          })
+        );
+
+        // Only include sections that have visible plans
+        const visibleSections = sectionsWithPlans.filter(
+          (section) => section.hasVisiblePlans
+        );
+
+        setMembershipSections(visibleSections);
       } catch (error) {
         console.warn("⚠️ Unexpected error fetching membership data:", error);
         setError("Failed to load membership information");
@@ -267,26 +291,13 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   };
 
   const handleToggleSection = (sectionId: string) => {
-    console.log("🟡 Section toggle - ID:", sectionId, "| Current expanded:", expandedSectionId);
     if (expandedSectionId === sectionId) {
-      console.log("🟡 Collapsing section");
       setExpandedSectionId(null);
       return;
     }
 
-    console.log("🟡 Expanding section");
     setExpandedSectionId(sectionId);
-    const target = membershipSections.find((section) => section.id === sectionId);
-    if (target && !target.loaded && !target.loading) {
-      console.log("🟡 Loading section plans for:", sectionId);
-      loadSectionPlans(sectionId);
-    } else {
-      console.log("🟡 Section already loaded or loading:", {
-        loaded: target?.loaded,
-        loading: target?.loading,
-        plansCount: target?.data?.length
-      });
-    }
+    // Plans are pre-loaded, so no need to load on expand
   };
 
   const retryFetchPlans = async (sectionId: string) => {
@@ -313,7 +324,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   };
 
   const handlePurchase = async (planId: string, planName: string) => {
-    console.log("🔷 handlePurchase called - Plan:", planName, "| ID:", planId);
     setPurchaseLoadingId(planId);
 
     // Set a timeout to reset loading state if request takes too long
@@ -330,16 +340,13 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     }, 30000); // 30 second timeout
 
     try {
-      console.log("🔷 Calling purchaseMembershipPlan API...");
       // Call API which now returns { data, error }
       const result: any = await purchaseMembershipPlan(planId);
-      console.log("🔷 API call completed. Result:", result);
 
       // Clear timeout if request completes
       clearTimeout(timeoutId);
 
       if (result?.error) {
-        console.log("🔷 Error detected - Status:", result.error.status, "| Message:", result.error.message);
         const status: number | undefined = result.error.status;
         let backendMessage: string | undefined = result.error.message;
 
@@ -363,7 +370,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
         }
 
         if (status === 409) {
-          console.log("🔷 Showing 'Already Subscribed' dialog");
           dialog.show(
             "Already Subscribed",
             backendMessage || "You already have an active membership for this plan.",
@@ -374,7 +380,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
           return;
         }
 
-        console.log("🔷 Showing 'Purchase Failed' dialog with message:", backendMessage);
         dialog.show(
           "Purchase Failed",
           backendMessage || "Unable to initiate purchase. Please try again later or contact support.",
@@ -389,10 +394,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       const data = result?.data;
       if (data && data.payment_url && onOpenPaymentWebView) {
         onOpenPaymentWebView(data.payment_url);
-        // Defer refresh until the WebView flow reports completion
-        if (onPurchaseCompleted) {
-          console.log("ℹ️ Purchase initiated via WebView; deferring onPurchaseCompleted until flow finishes.");
-        }
         return;
       } else {
         dialog.show(
@@ -588,19 +589,6 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     </View>
   );
 
-  // If user has existing membership, show header but minimal upgrade content
-  if (hasExistingMembership) {
-    return (
-      <View style={styles.container}>
-        {headerComponent}
-        <View style={{ padding: 16 }}>
-          <Text style={{ color: '#999999', fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
-            Membership upgrades and changes will be available soon.{'\n'}Contact support for assistance with your current membership.
-          </Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <>
@@ -614,44 +602,9 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
             return null;
           }
 
-          // Handle loading state
-          if (section.loading) {
-            return (
-              <View style={styles.sectionStateContainer}>
-                <ActivityIndicator size="small" color="#FCA311" />
-                <Text style={styles.sectionStateText}>Loading plans...</Text>
-              </View>
-            );
-          }
-
-          // Handle error state
-          if (section.error) {
-            return (
-              <View style={styles.sectionStateContainer}>
-                <Text style={styles.sectionErrorText}>
-                  {section.error.type === 'auth'
-                    ? 'Authentication failed. Please log in again.'
-                    : section.error.message}
-                </Text>
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={() => retryFetchPlans(section.id)}
-                >
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          }
-
-          // Handle empty state (no plans available)
+          // Skip placeholder items (sections with no visible plans are already filtered out)
           if (item.id.endsWith('_placeholder')) {
-            return (
-              <View style={styles.sectionStateContainer}>
-                <Text style={styles.sectionStateText}>
-                  No plans available for this membership type
-                </Text>
-              </View>
-            );
+            return null;
           }
 
           // Render normal plan card
