@@ -167,11 +167,18 @@ export const fetchUserEvents = createAsyncThunk("events/fetchUserEvents", async 
 // Fetch all available events for registration (public endpoint)
 export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: string, { rejectWithValue }) => {
   try {
-    // Focus on more recent past events and near-future events for better performance
-    const afterDate = dayjs().subtract(2, "weeks").format("YYYY-MM-DD")
-    const beforeDate = dayjs().add(3, "months").format("YYYY-MM-DD")
+    // Fetch events with dynamic date range based on current date
+    // 1 month before today to include recent past events, 6 months after for upcoming
+    const afterDate = dayjs().subtract(1, "month").format("YYYY-MM-DD")
+    const beforeDate = dayjs().add(6, "months").format("YYYY-MM-DD")
 
-    const response = await fetchWithRetry(`${API_URL}/events`, token, { after: afterDate, before: beforeDate })
+    // Request a high limit to ensure we get all events in the date range
+    const response = await fetchWithRetry(`${API_URL}/events`, token, {
+      after: afterDate,
+      before: beforeDate,
+      limit: 500,
+      per_page: 500,
+    })
     const { items, byDate } = processEvents(response.data)
 
     return {

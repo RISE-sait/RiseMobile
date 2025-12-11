@@ -37,6 +37,7 @@ const EventsScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<string>("All");
+  const [selectedMonth, setSelectedMonth] = useState<dayjs.Dayjs>(dayjs());
   const router = useRouter();
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.user.data);
@@ -67,7 +68,7 @@ const EventsScreen: React.FC = () => {
 
   useEffect(() => {
     const allEvents: Event[] = [];
-    const seenEventIds = new Set<string>(); // ✅ Track seen event IDs to prevent duplicates
+    const seenEventIds = new Set<string>();
 
     // Convert Redux events
     // All items from the events API are "events" - they should navigate to event-details
@@ -107,84 +108,83 @@ const EventsScreen: React.FC = () => {
     // Note: Matches are NOT included here - they are viewed from the Matches tab
     // This Events screen only shows events from the events API
 
-    // Sort events by proximity to today (nearest dates first, regardless of past/future)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time for accurate date comparison
-
+    // Sort events chronologically (earliest date first)
     const sortedEvents = allEvents.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      dateA.setHours(0, 0, 0, 0);
-      dateB.setHours(0, 0, 0, 0);
-
-      // Calculate distance from today
-      const distanceA = Math.abs(dateA.getTime() - today.getTime());
-      const distanceB = Math.abs(dateB.getTime() - today.getTime());
-
-      return distanceA - distanceB;
+      return dateA.getTime() - dateB.getTime();
     });
 
-    // Limit to 50 most recent/upcoming events for performance
-    const limitedEvents = sortedEvents.slice(0, 50);
+    // Limit to 100 most recent/upcoming events for performance
+    const limitedEvents = sortedEvents.slice(0, 100);
 
     setEvents(limitedEvents);
   }, [reduxEvents.byDate]);
 
   useEffect(() => {
-    filterEvents(activeFilter);
-  }, [events, activeFilter]);
+    filterEvents(activeFilter, selectedMonth);
+  }, [events, activeFilter, selectedMonth]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchData().finally(() => setRefreshing(false));
   };
 
-  const filterEvents = (filter: string) => {
+  const filterEvents = (filter: string, month: dayjs.Dayjs) => {
     let filtered = events;
 
-    if (filter !== "All") {
-      // Map UI filter labels to backend status values
+    // First filter by month
+    const monthStart = month.startOf("month");
+    const monthEnd = month.endOf("month");
+    filtered = events.filter(event => {
+      const eventDate = dayjs(event.date);
+      return eventDate.isAfter(monthStart.subtract(1, "day")) && eventDate.isBefore(monthEnd.add(1, "day"));
+    });
+
+    // Then apply status filter
+    if (filter === "All") {
+      // "All" shows only today and future events (no past events) for the selected month
+      filtered = filtered.filter(event => getEventStatus(event.date) !== "Past");
+    } else {
+      // Map UI filter labels to status values
       const statusMapping: Record<string, string> = {
-        "SCHEDULED": "scheduled",
-        "Ongoing": "Ongoing",
+        "Upcoming": "Upcoming",
+        "Today": "Today",
         "Past": "Past"
       };
       const backendStatus = statusMapping[filter] || filter;
-      filtered = events.filter(event => getEventStatus(event.date) === backendStatus);
+      filtered = filtered.filter(event => getEventStatus(event.date) === backendStatus);
     }
 
-    // Always sort filtered results by proximity to today (nearest dates first)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
+    // Sort chronologically (earliest date first for upcoming, most recent first for past)
     const sortedFiltered = filtered.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      dateA.setHours(0, 0, 0, 0);
-      dateB.setHours(0, 0, 0, 0);
 
-      // Calculate distance from today for proximity-based sorting
-      const distanceA = Math.abs(dateA.getTime() - today.getTime());
-      const distanceB = Math.abs(dateB.getTime() - today.getTime());
-
-      return distanceA - distanceB;
+      if (filter === "Past") {
+        // For past events, show most recent first
+        return dateB.getTime() - dateA.getTime();
+      }
+      // For upcoming/all, show earliest first
+      return dateA.getTime() - dateB.getTime();
     });
 
     setFilteredEvents(sortedFiltered);
   };
 
   const getEventStatus = (date: string) => {
-    const eventDate = new Date(date);
-    const today = new Date();
-    if (eventDate < today) return "Past";
-    if (eventDate.toDateString() === today.toDateString()) return "Ongoing";
-    return "scheduled";
+    const eventDate = dayjs(date).startOf("day");
+    const today = dayjs().startOf("day");
+
+    if (eventDate.isBefore(today)) return "Past";
+    if (eventDate.isSame(today)) return "Today";
+    return "Upcoming";
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "scheduled": return "#FCA311";
-      case "Ongoing": return "#4CAF50";
+      case "Upcoming": return "#FCA311";
+      case "Today": return "#4CAF50";
       case "Past": return "#9E9E9E";
       default: return "#FCA311";
     }
@@ -242,8 +242,33 @@ const EventsScreen: React.FC = () => {
     );
   };
 
+  const renderMonthSelector = () => {
+    const canGoBack = selectedMonth.isAfter(dayjs().subtract(1, "month"), "month");
+    const canGoForward = selectedMonth.isBefore(dayjs().add(6, "months"), "month");
+
+    return (
+      <View style={styles.monthSelectorContainer}>
+        <TouchableOpacity
+          style={[styles.monthArrow, !canGoBack && styles.monthArrowDisabled]}
+          onPress={() => canGoBack && setSelectedMonth(selectedMonth.subtract(1, "month"))}
+          disabled={!canGoBack}
+        >
+          <Ionicons name="chevron-back" size={24} color={canGoBack ? "#FCA311" : "#444"} />
+        </TouchableOpacity>
+        <Text style={styles.monthText}>{selectedMonth.format("MMMM YYYY")}</Text>
+        <TouchableOpacity
+          style={[styles.monthArrow, !canGoForward && styles.monthArrowDisabled]}
+          onPress={() => canGoForward && setSelectedMonth(selectedMonth.add(1, "month"))}
+          disabled={!canGoForward}
+        >
+          <Ionicons name="chevron-forward" size={24} color={canGoForward ? "#FCA311" : "#444"} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderFilterChips = () => {
-    const filters = ["All", "SCHEDULED", "Ongoing", "Past"];
+    const filters = ["All", "Upcoming", "Today", "Past"];
     return (
       <View style={styles.filtersContainer}>
         {filters.map(filter => (
@@ -268,8 +293,8 @@ const EventsScreen: React.FC = () => {
       <Text style={styles.emptyText}>No events found</Text>
       <Text style={styles.emptySubtext}>
         {activeFilter !== "All"
-          ? `There are no ${activeFilter.toLowerCase()} events`
-          : "Check back later for upcoming events"}
+          ? `There are no ${activeFilter.toLowerCase()} events in ${selectedMonth.format("MMMM YYYY")}`
+          : `No upcoming events in ${selectedMonth.format("MMMM YYYY")}`}
       </Text>
       {activeFilter !== "All" && (
         <TouchableOpacity style={styles.resetButton} onPress={() => setActiveFilter("All")}>
@@ -299,6 +324,7 @@ const EventsScreen: React.FC = () => {
         <Text style={styles.headerTitle}>Events</Text>
         <View style={{ width: 40 }} />
       </View>
+      {renderMonthSelector()}
       {renderFilterChips()}
 
       {/* Info Section */}
@@ -364,6 +390,29 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     color: "#FFFFFF",
+  },
+  monthSelectorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222",
+  },
+  monthArrow: {
+    padding: 8,
+  },
+  monthArrowDisabled: {
+    opacity: 0.5,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginHorizontal: 20,
+    minWidth: 150,
+    textAlign: "center",
   },
   filtersContainer: {
     flexDirection: "row",
