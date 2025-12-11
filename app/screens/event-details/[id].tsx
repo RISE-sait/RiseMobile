@@ -299,7 +299,7 @@ const EventDetails: React.FC = () => {
       image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
       organizer: "RISE Basketball",
       category: "Practice",
-      status: "scheduled",
+      status: "Upcoming",
       capacity: 0, // Default capacity since not in CalendarItem
     }
     
@@ -847,13 +847,16 @@ const EventDetails: React.FC = () => {
 
   // Determine event status based on start and end dates - returns standardized status values
   const getEventStatus = (startDate: Date | null, endDate: Date | null): string => {
-    if (!startDate) return "scheduled"
+    if (!startDate) return "Upcoming"
 
     const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
 
-    if (endDate && now > endDate) return "completed"
-    if (startDate <= now && (!endDate || now <= endDate)) return "in_progress"
-    return "scheduled"
+    if (endDate && now > endDate) return "Completed"
+    if (startDay.getTime() === today.getTime()) return "Today"
+    if (startDate <= now && (!endDate || now <= endDate)) return "In Progress"
+    return "Upcoming"
   }
 
   // Fallback to mock data if API fails
@@ -893,7 +896,7 @@ const EventDetails: React.FC = () => {
         "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
       organizer: "RISE Basketball",
       category,
-      status: "scheduled",
+      status: "Upcoming",
       capacity: 100,
     }
 
@@ -903,12 +906,16 @@ const EventDetails: React.FC = () => {
   }
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
+      case "upcoming":
       case "scheduled":
         return COLORS.primary
+      case "today":
+      case "in progress":
       case "in_progress":
         return COLORS.success
       case "completed":
+      case "past":
         return COLORS.textSecondary
       case "canceled":
         return COLORS.textSecondary
@@ -934,7 +941,7 @@ const EventDetails: React.FC = () => {
   const enrollInEvent = async (paymentMethod: 'stripe' | 'credits' = 'stripe') => {
     if (!event || !userData?.token) return
 
-    if (event.status === "completed") {
+    if (event.status.toLowerCase() === "completed" || event.status.toLowerCase() === "past") {
       setErrorMessage("This event has already ended.")
       setTimeout(() => setErrorMessage(null), 3000)
       return
@@ -1156,7 +1163,7 @@ const EventDetails: React.FC = () => {
   }
 
   const statusColor = getStatusColor(event.status)
-  const isPastEvent = event.status === "completed"
+  const isPastEvent = event.status.toLowerCase() === "completed" || event.status.toLowerCase() === "past"
 
   return (
     <SafeAreaView style={styles.container}>
