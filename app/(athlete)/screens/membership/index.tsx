@@ -415,48 +415,56 @@ const MembershipScreen: React.FC = () => {
       {/* Content based on active tab */}
       <View className="flex-1">
         {activeTab === 'memberships' ? (
-          userMemberships.length > 0 && !isExpiredMembership ? (
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          <MembershipPurchaseList
+            onPurchaseSuccess={refreshMembershipData}
+            onOpenPaymentWebView={handleOpenPaymentWebView}
+            onPurchaseCompleted={() => loadMembershipDataWithRetry()}
+            hasExistingMembership={false}
+            headerComponent={
               <View className="px-4 py-3">
-                <View className="mb-6">
-                  <View className="pb-2 mb-3 border-b border-[#222222]">
-                    <Text className="text-white-100 text-base font-semibold">Your Current Membership</Text>
+                {/* Show all current memberships if user has any */}
+                {userMemberships.length > 0 && !isExpiredMembership && (
+                  <View className="mb-6">
+                    <View className="pb-2 mb-3 border-b border-[#222222]">
+                      <Text className="text-white-100 text-base font-semibold">
+                        {userMemberships.length > 1 ? "Your Current Memberships" : "Your Current Membership"}
+                      </Text>
+                    </View>
+                    {userMemberships.map((membership, index) => (
+                      <View key={membership.id || index} style={{ marginBottom: index < userMemberships.length - 1 ? 12 : 0 }}>
+                        <MembershipDetails
+                          membership={membership}
+                          onRefresh={refreshMembershipData}
+                        />
+                      </View>
+                    ))}
                   </View>
-                  <MembershipDetails
-                    membership={userMemberships[0]}
-                    onRefresh={refreshMembershipData}
-                  />
+                )}
+
+                {/* Show expired membership notice */}
+                {isExpiredMembership && (
+                  <View className="mb-4 rounded-lg border border-[#b91c1c] bg-[#2f1a1a] p-3">
+                    <Text className="text-red-300 text-sm font-semibold">Your previous membership has expired.</Text>
+                    <Text className="text-[#e5e7eb] text-xs mt-1">
+                      Select a new plan below to continue your access.
+                    </Text>
+                  </View>
+                )}
+
+                {/* Available plans section header */}
+                <View className="mb-3">
+                  <View className="pb-2 mb-3 border-b border-[#222222]">
+                    <Text className="text-white-100 text-base font-semibold">Available Membership Plans</Text>
+                    <Text className="text-[#999999] text-xs mt-1">
+                      {userMemberships.length > 0 && !isExpiredMembership
+                        ? "Add another membership to your account"
+                        : "Choose a plan to get started with RISE"}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </ScrollView>
-          ) : (
-            <MembershipPurchaseList
-              onPurchaseSuccess={refreshMembershipData}
-              onOpenPaymentWebView={handleOpenPaymentWebView}
-              onPurchaseCompleted={() => loadMembershipDataWithRetry()}
-              hasExistingMembership={false}
-              headerComponent={
-                <View className="px-4 py-3">
-                  {isExpiredMembership && (
-                    <View className="mb-4 rounded-lg border border-[#b91c1c] bg-[#2f1a1a] p-3">
-                      <Text className="text-red-300 text-sm font-semibold">Your previous membership has expired.</Text>
-                      <Text className="text-[#e5e7eb] text-xs mt-1">
-                        Select a new plan below to continue your access.
-                      </Text>
-                    </View>
-                  )}
-                  <View className="mb-3">
-                    <View className="pb-2 mb-3 border-b border-[#222222]">
-                      <Text className="text-white-100 text-base font-semibold">Available Membership Plans</Text>
-                      <Text className="text-[#999999] text-xs mt-1">
-                        Choose a plan to get started with RISE
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              }
-            />
-          )
+            }
+          />
         ) : activeTab === 'credits' ? (
           // Credits tab content - using actual credits component
           <View className="flex-1">
