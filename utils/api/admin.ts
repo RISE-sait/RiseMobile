@@ -212,7 +212,7 @@ export const getCustomers = async (
   search?: string,
   page: number = 1,
   limit: number = 20
-): Promise<{ customers: Customer[]; total: number; page: number; pages: number }> => {
+): Promise<{ customers: Customer[]; total: number; page: number; pages: number; activeMembersCount?: number }> => {
   try {
     const offset = (page - 1) * limit;
     const params = new URLSearchParams({
@@ -234,6 +234,8 @@ export const getCustomers = async (
     let total: number;
     let currentPage: number;
     let totalPages: number;
+    // NEW: Extract active_members_count from backend response
+    let activeMembersCount: number | undefined = data.active_members_count;
 
     if (data.customers && typeof data.customers === 'object' && data.customers.data) {
       // Nested format
@@ -277,11 +279,12 @@ export const getCustomers = async (
       total,
       page: currentPage,
       pages: totalPages,
+      activeMembersCount,
     };
   } catch (error: any) {
     console.error("❌ Error fetching customers:", error?.response?.data || error.message);
     console.error("❌ Error status:", error?.response?.status);
-    return { customers: [], total: 0, page: 1, pages: 1 };
+    return { customers: [], total: 0, page: 1, pages: 1, activeMembersCount: undefined };
   }
 };
 

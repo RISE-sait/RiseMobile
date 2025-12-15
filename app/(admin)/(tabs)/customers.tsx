@@ -195,13 +195,14 @@ export default function CustomersScreen() {
 
       // Fetch total customers and archived count in parallel
       const [customersResult, archivedResult] = await Promise.all([
-        getCustomers(token, undefined, 1, 1), // Just to get total
+        getCustomers(token, undefined, 1, 1), // Just to get total and active_members_count
         getArchivedCustomersCount(token),
       ]);
 
       const total = customersResult.total;
       const archived = archivedResult.total;
-      const active = total - archived;
+      // Use active_members_count from backend if available, otherwise fallback to calculation
+      const active = customersResult.activeMembersCount ?? (total - archived);
 
       setTotalCustomers(total);
       setArchivedCount(archived);
