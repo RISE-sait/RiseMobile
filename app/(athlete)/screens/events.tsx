@@ -9,11 +9,12 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchEvents } from "@/store/slices/eventsSlice";
-import { fetchMatches } from "@/store/slices/gamesSlice";
-import type { Match } from "@/types";
 import type { RootState } from "@/store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import dayjs from "dayjs";
+import images from "@/constants/images";
+import { resolveImageSource } from "@/utils/imageSource";
+import Constants from "expo-constants";
 
 export interface Event {
   id: string;
@@ -23,7 +24,10 @@ export interface Event {
   location: string;
   image: string;
   type: "game" | "match" | "practice" | "course" | "other";
-  program?: { id: string };
+  program?: { 
+    id: string;
+    photo_url?: string;
+  };
 }
 
 
@@ -33,12 +37,11 @@ const EventsScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<string>("All");
+  const [selectedMonth, setSelectedMonth] = useState<dayjs.Dayjs>(dayjs());
   const router = useRouter();
-
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.user.data);
   const reduxEvents = useSelector((state: RootState) => state.events);
-  const reduxGames = useSelector((state: RootState) => state.games);
 
   const getToken = useCallback(async () => {
     let token = user?.token;
@@ -53,7 +56,6 @@ const EventsScreen: React.FC = () => {
     const token = await getToken();
     if (!token) return;
     dispatch(fetchEvents(token) as any);
-    dispatch(fetchMatches(token) as any);
   }, [dispatch, getToken]);
 
   useEffect(() => {
@@ -66,9 +68,10 @@ const EventsScreen: React.FC = () => {
 
   useEffect(() => {
     const allEvents: Event[] = [];
-    const seenEventIds = new Set<string>(); // ✅ Track seen event IDs to prevent duplicates
+    const seenEventIds = new Set<string>();
 
     // Convert Redux events
+    // All items from the events API are "events" - they should navigate to event-details
     Object.values(reduxEvents.byDate).forEach((eventGroup: any[]) => {
       eventGroup.forEach((event) => {
         // ✅ Validate event ID exists and is unique
@@ -83,9 +86,14 @@ const EventsScreen: React.FC = () => {
               date: eventDate.format("YYYY-MM-DD"),
               time: event.time || "TBD",
               location: event.location || "TBD",
-              image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-              type: event.type || "other",
-              program: event.program?.id ? { id: event.program.id } : undefined,
+              image: event.program?.photo_url || "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+              // Always use "other" for events from the events API - they should go to event-details
+              // The visual "type" from the slice is just for display, not navigation
+              type: "other",
+              program: event.program?.id ? {
+                id: event.program.id,
+                photo_url: event.program.photo_url
+              } : undefined,
             });
           } else {
             console.warn(`⚠️ Invalid date for event ${event.id}: ${event.date}`);
@@ -97,115 +105,86 @@ const EventsScreen: React.FC = () => {
     });
 
 
-    // Convert Redux matches
-    reduxGames.items.forEach((match: Match) => {
-      // ✅ Validate match ID exists and created_at exists
-      if (match.id && match.created_at) {
-        const createdDate = dayjs(match.created_at);
-        // ✅ Validate date before formatting to prevent "Invalid Date"
-        if (createdDate.isValid()) {
-          const date = createdDate.format("YYYY-MM-DD");
-          const time = createdDate.format("h:mm A");
-          // ✅ Also check for duplicate match IDs
-          if (!seenEventIds.has(match.id)) {
-            seenEventIds.add(match.id);
-            allEvents.push({
-              id: match.id,
-              title: match.name || `Match ${match.id.slice(0, 6)}`,
-              date,
-              time,
-              location: "RISE Basketball Court",
-              image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-              type: "match",
-            });
-          }
-        } else {
-          console.warn(`⚠️ Invalid date for match ${match.id}: ${match.created_at}`);
-        }
-      } else {
-        if (!match.id) console.warn(`⚠️ Match missing ID, skipping:`, match);
-        if (!match.created_at) console.warn(`⚠️ Match missing created_at, skipping:`, match);
-      }
-    });
+    // Note: Matches are NOT included here - they are viewed from the Matches tab
+    // This Events screen only shows events from the events API
 
-    // Sort events by proximity to today (nearest dates first, regardless of past/future)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time for accurate date comparison
-
+    // Sort events chronologically (earliest date first)
     const sortedEvents = allEvents.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      dateA.setHours(0, 0, 0, 0);
-      dateB.setHours(0, 0, 0, 0);
-
-      // Calculate distance from today
-      const distanceA = Math.abs(dateA.getTime() - today.getTime());
-      const distanceB = Math.abs(dateB.getTime() - today.getTime());
-
-      return distanceA - distanceB;
+      return dateA.getTime() - dateB.getTime();
     });
 
-    // Limit to 50 most recent/upcoming events for performance
-    const limitedEvents = sortedEvents.slice(0, 50);
+    // Limit to 100 most recent/upcoming events for performance
+    const limitedEvents = sortedEvents.slice(0, 100);
 
     setEvents(limitedEvents);
-  }, [reduxEvents.byDate, reduxGames.items]);
+  }, [reduxEvents.byDate]);
 
   useEffect(() => {
-    filterEvents(activeFilter);
-  }, [events, activeFilter]);
+    filterEvents(activeFilter, selectedMonth);
+  }, [events, activeFilter, selectedMonth]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchData().finally(() => setRefreshing(false));
   };
 
-  const filterEvents = (filter: string) => {
+  const filterEvents = (filter: string, month: dayjs.Dayjs) => {
     let filtered = events;
 
-    if (filter !== "All") {
-      // Map UI filter labels to backend status values
+    // First filter by month
+    const monthStart = month.startOf("month");
+    const monthEnd = month.endOf("month");
+    filtered = events.filter(event => {
+      const eventDate = dayjs(event.date);
+      return eventDate.isAfter(monthStart.subtract(1, "day")) && eventDate.isBefore(monthEnd.add(1, "day"));
+    });
+
+    // Then apply status filter
+    if (filter === "All") {
+      // "All" shows only today and future events (no past events) for the selected month
+      filtered = filtered.filter(event => getEventStatus(event.date) !== "Past");
+    } else {
+      // Map UI filter labels to status values
       const statusMapping: Record<string, string> = {
-        "SCHEDULED": "scheduled",
-        "Ongoing": "Ongoing",
+        "Upcoming": "Upcoming",
+        "Today": "Today",
         "Past": "Past"
       };
       const backendStatus = statusMapping[filter] || filter;
-      filtered = events.filter(event => getEventStatus(event.date) === backendStatus);
+      filtered = filtered.filter(event => getEventStatus(event.date) === backendStatus);
     }
 
-    // Always sort filtered results by proximity to today (nearest dates first)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
+    // Sort chronologically (earliest date first for upcoming, most recent first for past)
     const sortedFiltered = filtered.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      dateA.setHours(0, 0, 0, 0);
-      dateB.setHours(0, 0, 0, 0);
 
-      // Calculate distance from today for proximity-based sorting
-      const distanceA = Math.abs(dateA.getTime() - today.getTime());
-      const distanceB = Math.abs(dateB.getTime() - today.getTime());
-
-      return distanceA - distanceB;
+      if (filter === "Past") {
+        // For past events, show most recent first
+        return dateB.getTime() - dateA.getTime();
+      }
+      // For upcoming/all, show earliest first
+      return dateA.getTime() - dateB.getTime();
     });
 
     setFilteredEvents(sortedFiltered);
   };
 
   const getEventStatus = (date: string) => {
-    const eventDate = new Date(date);
-    const today = new Date();
-    if (eventDate < today) return "Past";
-    if (eventDate.toDateString() === today.toDateString()) return "Ongoing";
-    return "scheduled";
+    const eventDate = dayjs(date).startOf("day");
+    const today = dayjs().startOf("day");
+
+    if (eventDate.isBefore(today)) return "Past";
+    if (eventDate.isSame(today)) return "Today";
+    return "Upcoming";
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "scheduled": return "#FCA311";
-      case "Ongoing": return "#4CAF50";
+      case "Upcoming": return "#FCA311";
+      case "Today": return "#4CAF50";
       case "Past": return "#9E9E9E";
       default: return "#FCA311";
     }
@@ -220,33 +199,23 @@ const EventsScreen: React.FC = () => {
         style={styles.eventCard}
         activeOpacity={0.9}
         onPress={() => {
-          if (item.type === "match" || item.type === "game") {
-            // Navigate to match details - calls GET /games/{id}
-            router.push({
-              pathname: "/screens/match-details/[id]",
-              params: { id: item.id },
-            });
-          } else if (item.type === "practice") {
-            // Navigate to practice details - calls GET /practices/{id}
-            router.push({
-              pathname: "/screens/practice-details/[id]",
-              params: { id: item.id },
-            });
-          } else {
-            // Navigate to event details - calls GET /events/{id}
-            // Use actual event ID and mark as homepage source for public endpoint
-            router.push({
-              pathname: "/screens/event-details/[id]",
-              params: {
-                id: item.id, // Always use actual event ID
-                source: "homepage", // Mark as homepage for public endpoint
-              },
-            });
-          }
+          // All events from this screen go to event-details
+          // (Matches are viewed from the Matches tab, not here)
+          router.push({
+            pathname: "/screens/event-details/[id]",
+            params: {
+              id: item.id,
+              source: "homepage",
+            },
+          });
         }}
 
       >
-        <Image source={{ uri: item.image }} style={styles.eventImage} resizeMode="cover" />
+        <Image
+          source={resolveImageSource(item.image || item.program?.photo_url, images.event)}
+          style={styles.eventImage}
+          resizeMode="cover"
+        />
         <View style={styles.eventDetails}>
           <View style={styles.eventHeader}>
             <Text style={styles.eventTitle}>{item.title}</Text>
@@ -273,8 +242,33 @@ const EventsScreen: React.FC = () => {
     );
   };
 
+  const renderMonthSelector = () => {
+    const canGoBack = selectedMonth.isAfter(dayjs().subtract(1, "month"), "month");
+    const canGoForward = selectedMonth.isBefore(dayjs().add(6, "months"), "month");
+
+    return (
+      <View style={styles.monthSelectorContainer}>
+        <TouchableOpacity
+          style={[styles.monthArrow, !canGoBack && styles.monthArrowDisabled]}
+          onPress={() => canGoBack && setSelectedMonth(selectedMonth.subtract(1, "month"))}
+          disabled={!canGoBack}
+        >
+          <Ionicons name="chevron-back" size={24} color={canGoBack ? "#FCA311" : "#444"} />
+        </TouchableOpacity>
+        <Text style={styles.monthText}>{selectedMonth.format("MMMM YYYY")}</Text>
+        <TouchableOpacity
+          style={[styles.monthArrow, !canGoForward && styles.monthArrowDisabled]}
+          onPress={() => canGoForward && setSelectedMonth(selectedMonth.add(1, "month"))}
+          disabled={!canGoForward}
+        >
+          <Ionicons name="chevron-forward" size={24} color={canGoForward ? "#FCA311" : "#444"} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderFilterChips = () => {
-    const filters = ["All", "SCHEDULED", "Ongoing", "Past"];
+    const filters = ["All", "Upcoming", "Today", "Past"];
     return (
       <View style={styles.filtersContainer}>
         {filters.map(filter => (
@@ -295,12 +289,12 @@ const EventsScreen: React.FC = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="calendar-outline" size={50} color="#333" />
+      <Ionicons name="calendar-outline" size={50} color="#FCA311" />
       <Text style={styles.emptyText}>No events found</Text>
       <Text style={styles.emptySubtext}>
         {activeFilter !== "All"
-          ? `There are no ${activeFilter.toLowerCase()} events`
-          : "Check back later for upcoming events"}
+          ? `There are no ${activeFilter.toLowerCase()} events in ${selectedMonth.format("MMMM YYYY")}`
+          : `No upcoming events in ${selectedMonth.format("MMMM YYYY")}`}
       </Text>
       {activeFilter !== "All" && (
         <TouchableOpacity style={styles.resetButton} onPress={() => setActiveFilter("All")}>
@@ -314,12 +308,23 @@ const EventsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(athlete)/(tabs)/home")}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            const canGoBack = router.canGoBack?.() ?? false;
+            if (canGoBack) {
+              router.back();
+            } else {
+              router.replace("/(athlete)/(tabs)/home");
+            }
+          }}
+        >
           <Ionicons name="chevron-back" size={24} color="#F0F0F0" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Events</Text>
         <View style={{ width: 40 }} />
       </View>
+      {renderMonthSelector()}
       {renderFilterChips()}
 
       {/* Info Section */}
@@ -339,7 +344,7 @@ const EventsScreen: React.FC = () => {
       ) : (
         <FlatList
           data={filteredEvents}
-          keyExtractor={(item) => `${item.type}-${item.id}`}
+          keyExtractor={(item) => item.id}
           renderItem={renderEventItem}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -385,6 +390,29 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     color: "#FFFFFF",
+  },
+  monthSelectorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222",
+  },
+  monthArrow: {
+    padding: 8,
+  },
+  monthArrowDisabled: {
+    opacity: 0.5,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginHorizontal: 20,
+    minWidth: 150,
+    textAlign: "center",
   },
   filtersContainer: {
     flexDirection: "row",

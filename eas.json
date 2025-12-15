@@ -6,26 +6,51 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "development"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
+      "cache": {
+        "disabled": false
+      }
     },
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
+      "channel": "testflight",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
+      "cache": {
+        "disabled": false
       }
     },
     "production": {
       "autoIncrement": true,
       "distribution": "store",
+      "channel": "production",
       "ios": {
         "simulator": false
       },
       "android": {
         "gradleCommand": ":app:bundleRelease"
+      },
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
+      "cache": {
+        "disabled": false
       }
     }
   },
@@ -38,7 +63,7 @@
     },
     "production": {
       "ios": {
-        "appleId": "your-apple-id@example.com"
+        "appleId": "mostapha4567@icloud.com"
       },
       "android": {
         "track": "production"

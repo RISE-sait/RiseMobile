@@ -45,17 +45,33 @@ const extractTitle = (event: any): string => {
 }
 
 export const determineEventType = (event: any): CalendarItem["type"] => {
+  // First, check if the event has an explicit type field from the API
+  const explicitType = event.type?.toLowerCase()
+  if (explicitType) {
+    if (["match", "game"].includes(explicitType)) return "match"
+    if (["practice", "training"].includes(explicitType)) return "practice"
+    if (["course", "class"].includes(explicitType)) return "course"
+    if (explicitType === "event") return "event"
+  }
+
+  // Then check program type
   const programType = event.program?.type?.toLowerCase()
-  const title = extractTitle(event).toLowerCase()
+  if (programType) {
+    if (["match", "game"].includes(programType)) return "match"
+    if (["practice", "training"].includes(programType)) return "practice"
+    if (["course", "class"].includes(programType)) return "course"
+  }
 
-  if (["match", "game"].includes(programType)) return "match"
-  if (["practice", "training"].includes(programType)) return "practice"
-  if (["course", "class"].includes(programType)) return "course"
+  // Check event_type or program_type fields
+  const eventType = (event.event_type || event.program_type || event.category || "").toLowerCase()
+  if (eventType) {
+    if (eventType.includes("match") || eventType.includes("game")) return "match"
+    if (eventType.includes("practice") || eventType.includes("training")) return "practice"
+    if (eventType.includes("course") || eventType.includes("class")) return "course"
+  }
 
-  if ([event.event_type, event.program_type, event.type, event.category].some(t => `${t}`.toLowerCase().includes("match") || `${t}`.toLowerCase().includes("game"))) return "match"
-  if (title.includes("practice") || title.includes("training")) return "practice"
-  if (title.includes("course") || title.includes("class")) return "course"
-
+  // Default to "event" - do NOT guess based on title keywords
+  // This ensures consistent typing across all instances of the same event
   return "event"
 }
 
@@ -63,7 +79,24 @@ const parseApiDateFormat = (dateString: string): { date: string; time: string } 
   if (!dateString) return { date: dayjs().format("YYYY-MM-DD"), time: "TBD" }
 
   try {
-    const [datePart, timePart] = dateString.split(" ")
+    // Handle both formats: "2025-11-27 14:30:00" (space) and "2025-11-27T14:30:00" (ISO)
+    let datePart: string
+    let timePart: string
+
+    if (dateString.includes("T")) {
+      // ISO format: "2025-11-27T14:30:00Z" or "2025-11-27T14:30:00"
+      [datePart, timePart] = dateString.split("T")
+      timePart = timePart.split("Z")[0] // Remove Z if present
+    } else if (dateString.includes(" ")) {
+      // Space format: "2025-11-27 14:30:00 -0700"
+      const parts = dateString.split(" ")
+      datePart = parts[0]
+      timePart = parts[1]
+    } else {
+      // Just a date, no time
+      return { date: dayjs(dateString).format("YYYY-MM-DD"), time: "TBD" }
+    }
+
     const formattedDate = dayjs(datePart).format("YYYY-MM-DD")
     const [hour, minute] = timePart.split(":")
     const hourNum = parseInt(hour, 10)
@@ -100,6 +133,7 @@ const processEvents = (events: any[]): { items: CalendarItem[]; byDate: Record<s
         id: event.program?.id || "",
         name: event.program?.name,
         type: event.program?.type,
+        photo_url: event.program?.photo_url,
       },
     }
 
@@ -133,11 +167,18 @@ export const fetchUserEvents = createAsyncThunk("events/fetchUserEvents", async 
 // Fetch all available events for registration (public endpoint)
 export const fetchEvents = createAsyncThunk("events/fetchEvents", async (token: string, { rejectWithValue }) => {
   try {
-    // Focus on more recent past events and near-future events for better performance
-    const afterDate = dayjs().subtract(2, "weeks").format("YYYY-MM-DD")
-    const beforeDate = dayjs().add(3, "months").format("YYYY-MM-DD")
+    // Fetch events with dynamic date range based on current date
+    // 1 month before today to include recent past events, 6 months after for upcoming
+    const afterDate = dayjs().subtract(1, "month").format("YYYY-MM-DD")
+    const beforeDate = dayjs().add(6, "months").format("YYYY-MM-DD")
 
-    const response = await fetchWithRetry(`${API_URL}/events`, token, { after: afterDate, before: beforeDate })
+    // Request a high limit to ensure we get all events in the date range
+    const response = await fetchWithRetry(`${API_URL}/events`, token, {
+      after: afterDate,
+      before: beforeDate,
+      limit: 500,
+      per_page: 500,
+    })
     const { items, byDate } = processEvents(response.data)
 
     return {

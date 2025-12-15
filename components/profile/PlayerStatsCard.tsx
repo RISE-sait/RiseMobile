@@ -136,9 +136,9 @@ const PlayerStatsCard: React.FC<PlayerStatsCardProps> = ({
             {stat.value.toFixed(stat.label === "Rating" ? 0 : 1)}
           </Text>
 
-          {showTrend && (
+          {showTrend && (isImproved || isDeclined) && (
             <FontAwesomeIcon
-              icon={isImproved ? faChevronUp : isDeclined ? faChevronDown : undefined}
+              icon={isImproved ? faChevronUp : faChevronDown}
               size={12}
               color={isImproved ? "#4ade80" : "#ef4444"}
               style={{ marginLeft: 4, marginTop: 2 }}

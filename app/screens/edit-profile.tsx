@@ -5,14 +5,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   ActivityIndicator,
   StyleSheet,
   Animated,
   Dimensions,
   Platform,
   KeyboardAvoidingView,
+  Modal,
+  Pressable,
 } from "react-native"
+import { showAlert } from "@/utils/customAlert"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
@@ -25,12 +27,10 @@ import {
   faEnvelope,
   faPhone,
   faUser,
-  faShirt,
-  faList,
   faBasketball,
   faChalkboardTeacher,
-  faUserTie,
-  faChild,
+  faImage,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { Input } from "@/components/ui/input"
@@ -95,12 +95,8 @@ type User = {
   firstName: string
   lastName: string
   role: string
-  profileImage?: string
-  jerseyNumber?: string
-  position?: string
+  profileImage?: string | null
   phoneNumber?: string
-  specialties?: string[]
-  experience?: string
   countryCode?: string
 }
 
@@ -110,10 +106,8 @@ export default function EditProfileScreen() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
-  
   // ✅ Use Redux as primary data source
-  const reduxUser = useSelector((state: RootState) => state.user.data)
+  const user = useSelector((state: RootState) => state.user.data)
   const dispatch = useDispatch()
 
   // Animation values
@@ -126,17 +120,12 @@ export default function EditProfileScreen() {
   const [email, setEmail] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [profileImage, setProfileImage] = useState<string | null>(null)
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false)
 
-  // Role-specific fields
-  const [jerseyNumber, setJerseyNumber] = useState("")
-  const [position, setPosition] = useState("")
-  const [specialties, setSpecialties] = useState<string[]>([])
-  const [experience, setExperience] = useState("")
-  const [newSpecialty, setNewSpecialty] = useState("")
 
   useEffect(() => {
     loadUserData()
-  }, [reduxUser]) // ✅ Depend on reduxUser changes
+  }, [user]) // ✅ Depend on user changes
 
   useEffect(() => {
     if (!isLoading) {
@@ -161,14 +150,15 @@ export default function EditProfileScreen() {
       setIsLoading(true)
       
       // ✅ Prioritize Redux data (same pattern as other EditProfile components)
-      if (reduxUser) {
+      if (user) {
         const userData = {
-          ...reduxUser,
-          firstName: reduxUser.firstName || reduxUser.first_name || "",
-          lastName: reduxUser.lastName || reduxUser.last_name || "",
-          countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
+          ...user,
+          firstName: user.firstName || user.first_name || "",
+          lastName: user.lastName || user.last_name || "",
+          countryCode: user.countryCode || user.country_code || "US",
+          phoneNumber: user.phoneNumber || "",
         }
-        setUser(userData)
+        // Using Redux state directly, no need to set local state
         
         // Initialize common form fields
         setFirstName(userData.firstName)
@@ -178,11 +168,6 @@ export default function EditProfileScreen() {
         setPhoneNumber(formatPhoneForDisplay(userData.phoneNumber || ""))
         setProfileImage(userData.profileImage || null)
 
-        // Initialize role-specific fields
-        setJerseyNumber(userData.jerseyNumber || "")
-        setPosition(userData.position || "")
-        setSpecialties(userData.specialties || [])
-        setExperience(userData.experience || "")
         return // ✅ Redux data available, return directly
       }
 
@@ -191,7 +176,7 @@ export default function EditProfileScreen() {
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser)
-        setUser(parsedUser)
+        // Using Redux state directly, no need to set local state
 
         // Initialize common form fields
         setFirstName(parsedUser.firstName || parsedUser.first_name || "")
@@ -201,39 +186,21 @@ export default function EditProfileScreen() {
         setPhoneNumber(formatPhoneForDisplay(parsedUser.phoneNumber || ""))
         setProfileImage(parsedUser.profileImage || null)
 
-        // Initialize role-specific fields
-        setJerseyNumber(parsedUser.jerseyNumber || "")
-        setPosition(parsedUser.position || "")
-        setSpecialties(parsedUser.specialties || [])
-        setExperience(parsedUser.experience || "")
       } else {
-        Alert.alert("Error", "Unable to load user data. Please try logging in again.")
+        showAlert("Error", "Unable to load user data. Please try logging in again.", undefined, { type: 'error' })
         router.back()
       }
     } catch (error) {
-      console.error("❌ Error loading user data:", error)
-      Alert.alert("Error", "Failed to load user data")
+      showAlert("Error", "Failed to load user data", undefined, { type: 'error' })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleAddSpecialty = () => {
-    if (newSpecialty.trim() !== "" && !specialties.includes(newSpecialty.trim())) {
-      setSpecialties([...specialties, newSpecialty.trim()])
-      setNewSpecialty("")
-    }
-  }
-
-  const handleRemoveSpecialty = (index: number) => {
-    const updatedSpecialties = [...specialties]
-    updatedSpecialties.splice(index, 1)
-    setSpecialties(updatedSpecialties)
-  }
 
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      Alert.alert("Missing Information", "Please fill in all required fields")
+      showAlert("Missing Information", "Please fill in all required fields", undefined, { type: 'warning' })
       return
     }
 
@@ -241,7 +208,7 @@ export default function EditProfileScreen() {
       setIsSaving(true)
 
       if (!user?.id || !user?.token) {
-        Alert.alert("Error", "User authentication information is missing")
+        showAlert("Error", "User authentication information is missing", undefined, { type: 'error' })
         return
       }
 
@@ -282,36 +249,24 @@ export default function EditProfileScreen() {
 
       // Create updated user object with API response data
       const apiResponse = response.data
-      const updatedUser: User = {
+      const updatedUser = {
         ...user,
         firstName: apiResponse.first_name || firstName.trim(),
         lastName: apiResponse.last_name || lastName.trim(),
         email: apiResponse.email || email.trim(),
         phoneNumber: apiResponse.phone || phoneNumber?.trim(),
-        countryCode: apiResponse.country_alpha2_code || user.countryCode,
-        profileImage,
-      }
+        countryCode: apiResponse.country_alpha2_code || user.countryCode || "US",
+        ...(profileImage && { profileImage }),
+      } as User
 
-      // Add role-specific fields based on user role
-      if (user?.role === "athlete") {
-        updatedUser.jerseyNumber = jerseyNumber
-        updatedUser.position = position
-      } else if (user?.role === "instructor") {
-        updatedUser.specialties = specialties
-        updatedUser.experience = experience
-      }
 
       // ✅ Update Redux store with new user data
-      dispatch(updateProfile(updatedUser))
-      
-      // Update AsyncStorage with new data for offline access
-      await AsyncStorage.setItem("user", JSON.stringify(updatedUser))
+      // Redux Persist will automatically sync to AsyncStorage
+      dispatch(updateProfile({ ...updatedUser, profileImage: updatedUser.profileImage || undefined }))
 
       // Show success message
-      Alert.alert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }])
+      showAlert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }], { type: 'success' })
     } catch (error: any) {
-      console.error("❌ Error updating user profile:", error.response?.data || error.message)
-      
       let errorMessage = "Failed to save profile changes"
       if (error.response?.status === 401) {
         errorMessage = "Authentication failed. Please log in again."
@@ -321,7 +276,7 @@ export default function EditProfileScreen() {
         errorMessage = error.response.data.message
       }
       
-      Alert.alert("Error", errorMessage)
+      showAlert("Error", errorMessage, undefined, { type: 'error' })
     } finally {
       setIsSaving(false)
     }
@@ -333,31 +288,12 @@ export default function EditProfileScreen() {
         return faBasketball
       case "coach":
         return faChalkboardTeacher
-      case "instructor":
-        return faUserTie
-      case "parent":
-        return faChild
       default:
         return faUser
     }
   }
 
-  const getProfileImage = (role: string) => {
-    if (profileImage) return { uri: profileImage }
-
-    switch (role) {
-      case "athlete":
-        return images.headshot
-      case "coach":
-        return images.coachHeadshot
-      case "instructor":
-        return images.instructorHeadshot
-      case "parent":
-        return images.parentHeadshot
-      default:
-        return images.headshot
-    }
-  }
+  const hasProfileImage = !!profileImage
 
   // Image selection functionality
   const requestPermissions = async () => {
@@ -365,10 +301,11 @@ export default function EditProfileScreen() {
     const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     
     if (cameraStatus !== 'granted' || mediaLibraryStatus !== 'granted') {
-      Alert.alert(
+      showAlert(
         'Permissions Required',
         'Camera and photo library permissions are required to upload profile pictures.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
+        { type: 'warning' }
       )
       return false
     }
@@ -376,36 +313,14 @@ export default function EditProfileScreen() {
   }
 
   const showImagePickerOptions = () => {
-    Alert.alert(
-      'Select Profile Picture',
-      'Choose how you want to add a profile picture',
-      [
-        {
-          text: 'Camera',
-          onPress: () => {
-            openCamera()
-          },
-        },
-        {
-          text: 'Photo Library',
-          onPress: () => {
-            openImageLibrary()
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => {}
-        },
-      ]
-    )
+    setShowImagePickerModal(true)
   }
 
   // Handle two-step image upload process
   const handleImageUpload = async (imageUri: string) => {
 
     if (!user?.token) {
-      Alert.alert('Error', 'Authentication required')
+      showAlert('Error', 'Authentication required', undefined, { type: 'error' })
       return
     }
 
@@ -445,7 +360,7 @@ export default function EditProfileScreen() {
       // Step 2: Update user profile with the uploaded image URL
 
       // Use the correct endpoints based on role
-      const isCoach = user.role === 'coach' || user.role === 'staff' || user.role === 'instructor'
+      const isCoach = user.role === 'coach' || user.role === 'staff'
       const profileUpdateUrl = isCoach
         ? `https://api-461776259687.us-west2.run.app/staffs/${user.id}/profile`
         : `https://api-461776259687.us-west2.run.app/athletes/${user.id}/profile`
@@ -476,11 +391,10 @@ export default function EditProfileScreen() {
       // Update local state to display new avatar
       setProfileImage(uploadResult.url)
 
-      Alert.alert('Success', 'Profile picture updated successfully!')
+      showAlert('Success', 'Profile picture updated successfully!', undefined, { type: 'success' })
     } catch (error) {
-      console.error('❌ Image upload/update error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload and update profile picture'
-      Alert.alert('Error', errorMessage)
+      showAlert('Error', errorMessage, undefined, { type: 'error' })
     }
   }
 
@@ -501,11 +415,9 @@ export default function EditProfileScreen() {
 
       if (!result.canceled && result.assets[0]) {
         await handleImageUpload(result.assets[0].uri)
-      } else {
       }
     } catch (error) {
-      console.error('Camera error:', error)
-      Alert.alert('Error', 'Failed to open camera')
+      showAlert('Error', 'Failed to open camera', undefined, { type: 'error' })
     }
   }
 
@@ -526,24 +438,18 @@ export default function EditProfileScreen() {
 
       if (!result.canceled && result.assets[0]) {
         await handleImageUpload(result.assets[0].uri)
-      } else {
       }
     } catch (error) {
-      console.error('Photo library error:', error)
-      Alert.alert('Error', 'Failed to open photo library')
+      showAlert('Error', 'Failed to open photo library', undefined, { type: 'error' })
     }
   }
 
   const getAccentColor = (role: string) => {
     switch (role) {
       case "athlete":
-        return COLORS.primary // Gold
+        return COLORS.primary
       case "coach":
-        return COLORS.primary // Blue
-      case "instructor":
-        return COLORS.primary // Yellow/Gold
-      case "parent":
-        return COLORS.primary // Green
+        return COLORS.primary
       default:
         return COLORS.primary
     }
@@ -560,6 +466,7 @@ export default function EditProfileScreen() {
   }
 
   return (
+    <>
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
@@ -586,22 +493,28 @@ export default function EditProfileScreen() {
               <LinearGradient colors={[COLORS.background, COLORS.cardDark]} style={styles.bannerGradient} />
 
               {/* Profile Image */}
-              <View style={styles.profileImageContainer}>
-                <Image
-                  source={getProfileImage(user?.role || "")}
-                  style={[styles.profileImage, { borderColor: getAccentColor(user?.role || "") }]}
-                  resizeMode="cover"
-                />
-                <TouchableOpacity
+              <TouchableOpacity
+                style={styles.profileImageContainer}
+                onPress={showImagePickerOptions}
+                activeOpacity={0.7}
+              >
+                {hasProfileImage ? (
+                  <Image
+                    source={{ uri: profileImage! }}
+                    style={[styles.profileImage, { borderColor: getAccentColor(user?.role || "") }]}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.profileImagePlaceholder, { borderColor: getAccentColor(user?.role || "") }]}>
+                    <FontAwesomeIcon icon={faUser} color={COLORS.textSecondary} size={40} />
+                  </View>
+                )}
+                <View
                   style={[styles.cameraButton, { backgroundColor: getAccentColor(user?.role || "") }]}
-                  onPress={() => {
-                    showImagePickerOptions()
-                  }}
-                  activeOpacity={0.7}
                 >
                   <FontAwesomeIcon icon={faCamera} color="#000000" size={16} />
-                </TouchableOpacity>
-              </View>
+                </View>
+              </TouchableOpacity>
 
               <View style={styles.nameContainer}>
                 <Text style={styles.nameText}>
@@ -614,7 +527,7 @@ export default function EditProfileScreen() {
                     size={12}
                     style={styles.roleIcon}
                   />
-                  <Text style={styles.roleText}>{user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)}</Text>
+                  <Text style={styles.roleText}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'}</Text>
                 </View>
               </View>
             </View>
@@ -701,115 +614,7 @@ export default function EditProfileScreen() {
               </View>
             </View>
 
-            {/* Role-specific sections */}
-            {user?.role === "athlete" && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Athlete Information</Text>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faShirt}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Jersey Number</Text>
-                  </View>
-                  <Input
-                    value={jerseyNumber}
-                    onChangeText={setJerseyNumber}
-                    keyboardType="numeric"
-                    inputStyle={styles.input}
-                    placeholderTextColor={COLORS.textSecondary}
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faList}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Position</Text>
-                  </View>
-                  <Input
-                    value={position}
-                    onChangeText={setPosition}
-                    inputStyle={styles.input}
-                    placeholderTextColor={COLORS.textSecondary}
-                  />
-                </View>
-              </View>
-            )}
-
-            {user?.role === "instructor" && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Instructor Information</Text>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faList}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Experience</Text>
-                  </View>
-                  <Input
-                    value={experience}
-                    onChangeText={setExperience}
-                    multiline
-                    numberOfLines={3}
-                    inputStyle={[styles.input, styles.textArea]}
-                    placeholderTextColor={COLORS.textSecondary}
-                    textAlignVertical="top"
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faList}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Specialties</Text>
-                  </View>
-
-                  <View style={styles.specialtyInputContainer}>
-                    <Input
-                      value={newSpecialty}
-                      onChangeText={setNewSpecialty}
-                      placeholder="Add a specialty"
-                      inputStyle={[styles.input, { flex: 1 }]}
-                      placeholderTextColor={COLORS.textSecondary}
-                    />
-                    <TouchableOpacity
-                      onPress={handleAddSpecialty}
-                      style={[styles.addButton, { backgroundColor: getAccentColor(user.role) }]}
-                    >
-                      <Text style={styles.addButtonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.specialtiesContainer}>
-                    {specialties.map((specialty, index) => (
-                      <View key={index} style={styles.specialtyTag}>
-                        <Text style={styles.specialtyText}>{specialty}</Text>
-                        <TouchableOpacity onPress={() => handleRemoveSpecialty(index)} style={styles.removeButton}>
-                          <Text style={styles.removeButtonText}>×</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </View>
-            )}
+            {/* Role-specific sections removed - only athlete and coach roles supported */}
 
             {/* Save Button */}
             <TouchableOpacity onPress={handleSave} disabled={isSaving} style={styles.saveProfileButton}>
@@ -841,7 +646,73 @@ export default function EditProfileScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
     </SafeAreaView>
+
+    {/* Image Picker Modal */}
+    <Modal
+      visible={showImagePickerModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowImagePickerModal(false)}
+      statusBarTranslucent
+    >
+      <View style={styles.modalOverlay}>
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setShowImagePickerModal(false)}
+        />
+        <View style={styles.modalContent}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Update Profile Picture</Text>
+
+          <View style={styles.modalOptions}>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setShowImagePickerModal(false)
+                setTimeout(() => openCamera(), 300)
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.modalOptionIcon, { backgroundColor: `${getAccentColor(user?.role || "")}20` }]}>
+                <FontAwesomeIcon icon={faCamera} color={getAccentColor(user?.role || "")} size={24} />
+              </View>
+              <View style={styles.modalOptionTextContainer}>
+                <Text style={styles.modalOptionText}>Take Photo</Text>
+                <Text style={styles.modalOptionSubtext}>Use your camera</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setShowImagePickerModal(false)
+                setTimeout(() => openImageLibrary(), 300)
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.modalOptionIcon, { backgroundColor: `${getAccentColor(user?.role || "")}20` }]}>
+                <FontAwesomeIcon icon={faImage} color={getAccentColor(user?.role || "")} size={24} />
+              </View>
+              <View style={styles.modalOptionTextContainer}>
+                <Text style={styles.modalOptionText}>Choose from Library</Text>
+                <Text style={styles.modalOptionSubtext}>Select an existing photo</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.modalCancelButton}
+            onPress={() => setShowImagePickerModal(false)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.modalCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+    </>
   )
 }
 
@@ -912,6 +783,15 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
+  },
+  profileImagePlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    backgroundColor: COLORS.cardDark,
+    alignItems: "center",
+    justifyContent: "center",
   },
   cameraButton: {
     position: "absolute",
@@ -994,59 +874,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     opacity: 0.6,
   },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: "top",
-  },
-  specialtyInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  addButton: {
-    marginLeft: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonText: {
-    color: "#000000",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  specialtiesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  specialtyTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.cardDark,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-  },
-  specialtyText: {
-    color: COLORS.text,
-    fontSize: 14,
-    marginRight: 4,
-  },
-  removeButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  removeButtonText: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "bold",
-  },
   saveProfileButton: {
     marginTop: 8,
     borderRadius: 12,
@@ -1078,6 +905,81 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cancelButtonText: {
+    color: COLORS.textSecondary,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: Platform.OS === "ios" ? 40 : 24,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  modalOptions: {
+    gap: 12,
+  },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 16,
+    padding: 16,
+  },
+  modalOptionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  modalOptionTextContainer: {
+    flex: 1,
+  },
+  modalOptionText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalOptionSubtext: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  modalCancelButton: {
+    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.cardDark,
+    alignItems: "center",
+  },
+  modalCancelText: {
     color: COLORS.textSecondary,
     fontSize: 16,
     fontWeight: "600",

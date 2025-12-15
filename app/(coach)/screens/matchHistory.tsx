@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   TextInput,
   ScrollView,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FontAwesome6, Ionicons, MaterialIcons, AntDesign } from "@expo/vector-icons";
@@ -21,8 +22,10 @@ import dayjs from "dayjs";
 import BackButton from "@/components/buttons/BackButton";
 import { useAppDispatch, useAppSelector } from "../../../store/hooks";
 import { fetchMatchHistory, clearMatches } from "../../../store/slices/gamesSlice";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from 'expo-linear-gradient'
+import images from "@/constants/images";
+import { resolveImageSource } from "@/utils/imageSource";
+import { useAuth } from "@/utils/auth";
 
 
 const { width } = Dimensions.get("window");
@@ -56,7 +59,10 @@ const MatchHistory: React.FC = () => {
   const status = useAppSelector((state) => state.games.status);
   const gamesError = useAppSelector((state) => state.games.error);
   const token = useAppSelector((state) => state.user.data?.token);
-  
+  const { getValidToken, forceReLogin } = useAuth();
+  const fetchInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
+  const isMountedRef = useRef(true); // Track component mount state
+
   // Animation refs - separate animations for different purposes
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
   const modalFadeAnim = useRef(new Animated.Value(0)).current;
@@ -190,10 +196,15 @@ const MatchHistory: React.FC = () => {
   
   // Handle pull to refresh
   const handleRefresh = async () => {
+    if (!isMountedRef.current) return; // Don't refresh if component is unmounting
+
     setRefreshing(true);
     const backendFilter = activeTab === 'completed' ? 'past' : activeTab;
     await loadMatchHistory(backendFilter);
-    setRefreshing(false);
+
+    if (isMountedRef.current) {
+      setRefreshing(false);
+    }
   };
   
   // Simplified filter functions for backend filtering
@@ -225,69 +236,95 @@ const MatchHistory: React.FC = () => {
   };
 
 
-  // Header animation
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [80, 60],
-    extrapolate: 'clamp',
-  });
-
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [1, 0.9],
-    extrapolate: 'clamp',
-  });
+  // Header animation - only use opacity (Native Driver compatible)
+  // Removed height animation as Native Driver doesn't support layout properties
+  const headerOpacity = useMemo(
+    () =>
+      scrollY.interpolate({
+        inputRange: [0, 60],
+        outputRange: [1, 0.95],
+        extrapolate: 'clamp',
+      }),
+    [scrollY]
+  );
 
   // Animate content on mount and fetch data
   useEffect(() => {
-    Animated.timing(contentFadeAnim, {
+    const fadeAnimation = Animated.timing(contentFadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
-    }).start();
-    
-    // Fetch matches with current filter when component mounts
-    loadMatchHistory(activeTab === 'completed' ? 'past' : activeTab);
+    });
+    fadeAnimation.start();
+
+    fetchInteractionRef.current = InteractionManager.runAfterInteractions(() => {
+      loadMatchHistory(activeTab === 'completed' ? 'past' : activeTab);
+    })
+
+    return () => {
+      // Mark component as unmounted
+      isMountedRef.current = false;
+
+      // Force close filter modal before unmount
+      setShowFilters(false);
+
+      // Stop all animations to prevent updates during unmount
+      fadeAnimation.stop();
+      contentFadeAnim.stopAnimation();
+      modalFadeAnim.stopAnimation();
+      scrollY.stopAnimation();
+
+      fetchInteractionRef.current?.cancel();
+      fetchInteractionRef.current = null;
+    }
   }, []);
 
   // Fetch matches with backend filtering - real-time API calls
   const loadMatchHistory = async (filter?: string) => {
-    let authToken = token;
+    if (!isMountedRef.current) return; // Don't fetch if component is unmounting
 
-    if (!authToken) {
-      try {
-        const userString = await AsyncStorage.getItem("user");
-        if (userString) {
-          const userData = JSON.parse(userString);
-          authToken = userData.token;
+    try {
+      const authToken = await getValidToken();
+      if (!authToken) {
+        if (isMountedRef.current) {
+          await forceReLogin("Session expired. Please log in again.");
         }
-      } catch (err) {
-        console.error("Error getting token from AsyncStorage:", err);
+        return;
       }
-    }
 
-    if (authToken) {
-      dispatch(clearMatches());
-      dispatch(fetchMatchHistory({ token: authToken, filter }));
-    } else {
+      // Don't clear matches - let fetchMatchHistory update state directly to avoid full re-render
+      if (isMountedRef.current) {
+        dispatch(fetchMatchHistory({ token: authToken, filter }));
+      }
+    } catch (err) {
+      console.error("Error loading match history:", err);
     }
   };
 
   // Animate modal when showFilters changes
   useEffect(() => {
+    let modalAnimation: Animated.CompositeAnimation | null = null;
+
     if (showFilters) {
-      Animated.timing(modalFadeAnim, {
+      modalAnimation = Animated.timing(modalFadeAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
-      }).start();
+      });
+      modalAnimation.start();
     } else {
-      Animated.timing(modalFadeAnim, {
+      modalAnimation = Animated.timing(modalFadeAnim, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
-      }).start();
+      });
+      modalAnimation.start();
     }
+
+    return () => {
+      // Stop modal animation to prevent updates during state changes
+      modalAnimation?.stop();
+    };
   }, [showFilters]);
 
   const handleMatchPress = (id: string) => {
@@ -371,7 +408,10 @@ const getStatusIndicator = (status: string) => {
               {/* Home Team Section */}
               <View style={styles.teamSection}>
                 <View style={styles.teamLogoContainer}>
-                  <Image source={{ uri: item.homeTeamLogo }} style={styles.teamLogo} />
+                  <Image
+                    source={resolveImageSource(item.homeTeamLogo, images.teamLogo)}
+                    style={styles.teamLogo}
+                  />
                 </View>
                 <Text style={styles.teamName} numberOfLines={2} ellipsizeMode="tail">
                   {item.homeTeam}
@@ -400,7 +440,10 @@ const getStatusIndicator = (status: string) => {
               {/* Away Team Section */}
               <View style={styles.teamSection}>
                 <View style={styles.teamLogoContainer}>
-                  <Image source={{ uri: item.awayTeamLogo }} style={styles.teamLogo} />
+                  <Image
+                    source={resolveImageSource(item.awayTeamLogo, images.teamLogo)}
+                    style={styles.teamLogo}
+                  />
                 </View>
                 <Text style={styles.teamName} numberOfLines={2} ellipsizeMode="tail">
                   {item.awayTeam}
@@ -471,9 +514,10 @@ const getStatusIndicator = (status: string) => {
     if (!showFilters) {
       return null;
     }
-    
+
     return (
       <Animated.View
+        pointerEvents={showFilters ? "auto" : "none"}
         style={[
           styles.filterModal,
           {
@@ -549,7 +593,7 @@ const getStatusIndicator = (status: string) => {
     if (status === "loading") {
       return (
         <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
+          <ActivityIndicator size="large" color="#FCA311" />
           <Text style={styles.emptyText}>Loading match history...</Text>
         </View>
       );
@@ -570,7 +614,7 @@ const getStatusIndicator = (status: string) => {
     
     return (
       <View style={styles.emptyContainer}>
-        <FontAwesome6 name="history" size={50} color="#333" />
+        <FontAwesome6 name="clock-rotate-left" size={50} color="#FCA311" />
         <Text style={styles.emptyText}>No match history found</Text>
         <Text style={styles.emptySubtext}>
           {filteredMatches.length === 0 && matches.length > 0 
@@ -595,11 +639,10 @@ const getStatusIndicator = (status: string) => {
       <StatusBar translucent style="light" />
       
 
-      <Animated.View 
+      <Animated.View
         style={[
-          styles.header, 
-          { 
-            height: headerHeight,
+          styles.header,
+          {
             opacity: headerOpacity,
           }
         ]}
@@ -681,11 +724,25 @@ const getStatusIndicator = (status: string) => {
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
+            {
+              useNativeDriver: true, // Use native driver to avoid JS thread blocking
+              listener: (event: any) => {
+                // Only update if component is still mounted
+                if (fetchInteractionRef.current !== null) {
+                  // Additional scroll handling can go here if needed
+                }
+              }
+            }
           )}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           ListEmptyComponent={renderEmptyList}
+          // Performance optimizations to prevent freeze
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
+          removeClippedSubviews={true}
+          updateCellsBatchingPeriod={50}
         />
       </Animated.View>
 
@@ -732,7 +789,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
   },
   content: {
     flex: 1,
@@ -775,7 +832,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1A1A1A",
   },
   activeTab: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
   },
   tabContent: {
     flexDirection: "row",
@@ -827,7 +884,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   leagueText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontWeight: "bold",
     fontSize: 12,
   },
@@ -932,16 +989,18 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   expandedContent: {
-    marginTop: 15,
+    marginTop: 20,
     borderTopWidth: 1,
-    borderTopColor: "#333",
-    paddingTop: 15,
+    borderTopColor: "rgba(252, 163, 17, 0.3)",
+    paddingTop: 20,
   },
   matchInfoContainer: {
-    backgroundColor: "#2A2A2A",
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "rgba(252, 163, 17, 0.2)",
   },
     vsSection: {
     alignItems: "center",
@@ -965,7 +1024,7 @@ const styles = StyleSheet.create({
   },
   
   finalScoreText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 18,
     fontWeight: "bold",
     textAlign: "center",
@@ -979,13 +1038,13 @@ const styles = StyleSheet.create({
     borderTopColor: "#333",
   },
     winningScore: {
-    color: "#4CAF50", // Changed from "#FFD700"
+    color: "#4CAF50", // Changed from "#FCA311"
   },
   losingScore: {
     color: "#FF6B6B", // Changed from "#AAA"
   },
   tieScore: {
-    color: "#FFD700", // Changed from "#FFF"
+    color: "#FCA311", // Changed from "#FFF"
   },
   centerDateText: {
     color: "#AAA",
@@ -995,7 +1054,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   matchInfoTitle: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 8,
@@ -1020,7 +1079,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   infoMessageText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     marginLeft: 8,
     flex: 1,
@@ -1032,7 +1091,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   basicStatsTitle: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
@@ -1055,7 +1114,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   basicStatScore: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 4,
@@ -1090,7 +1149,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   mvpTitle: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 16,
     fontWeight: "bold",
     marginLeft: 8,
@@ -1107,7 +1166,7 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 35,
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: "#FCA311",
   },
   mvpStatsContainer: {
     flex: 1,
@@ -1124,7 +1183,7 @@ const styles = StyleSheet.create({
     minWidth: 60,
   },
   statBubbleValue: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -1214,7 +1273,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     marginTop: 5,
   },
   timelineLine: {
@@ -1230,7 +1289,7 @@ const styles = StyleSheet.create({
     marginLeft: 15,
   },
   timelineTime: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     fontWeight: "bold",
   },
@@ -1295,7 +1354,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   viewDetailsText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     fontWeight: "bold",
     marginRight: 5,
@@ -1356,7 +1415,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   filterOptionSelected: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
   },
   filterOptionText: {
     color: "#FFF",
@@ -1417,7 +1476,7 @@ const styles = StyleSheet.create({
     flex: 2,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     borderRadius: 10,
     paddingVertical: 15,
   },

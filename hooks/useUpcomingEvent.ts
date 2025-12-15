@@ -1,8 +1,21 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { InteractionManager, Alert } from "react-native"
 import { useAppSelector } from "@/store/hooks"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import dayjs from "dayjs"
+import { useAuth } from "@/utils/auth"
+
+// Helper to check if error indicates account suspension
+const isSuspensionError = (errorData: any): boolean => {
+  if (!errorData) return false
+
+  const errorMessage = typeof errorData === 'string'
+    ? errorData.toLowerCase()
+    : (errorData?.message || errorData?.error?.message || errorData?.error || '').toLowerCase()
+
+  return errorMessage.includes('suspended') || errorMessage.includes('banned')
+}
 
 interface ScheduleEvent {
   id: string
@@ -107,12 +120,14 @@ export const useUpcomingEvent = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<number | null>(null)
+  const authFailureRef = useRef(false)
+  const fetchHandleRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null)
 
   const userData = useAppSelector((state) => state.user.data)
+  const { getValidToken, forceReLogin } = useAuth()
 
   const fetchUpcomingEvent = async () => {
-    if (!userData?.token) {
-      setLoading(false)
+    if (authFailureRef.current) {
       return
     }
 
@@ -120,8 +135,18 @@ export const useUpcomingEvent = () => {
       setLoading(true)
       setError(null)
 
+      const token = await getValidToken()
+      if (!token) {
+        if (!authFailureRef.current) {
+          authFailureRef.current = true
+          setError("Session expired. Please log in again.")
+          await forceReLogin("Session expired. Please log in again.")
+        }
+        return
+      }
+
       const response = await axios.get<ScheduleResponse>(`${API_URL}/secure/schedule`, {
-        headers: { Authorization: `Bearer ${userData.token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
 
       const { events, games, practices } = response.data
@@ -212,7 +237,32 @@ export const useUpcomingEvent = () => {
         setLastFetched(Date.now())
 
     } catch (err: any) {
-      console.error("Error fetching upcoming events:", err.response?.data || err.message)
+      const status = err.response?.status
+      const errorData = err.response?.data
+
+      // Check for account suspension
+      if (status === 403 && isSuspensionError(errorData)) {
+        if (!authFailureRef.current) {
+          authFailureRef.current = true
+          setError("Your account has been suspended.")
+          Alert.alert(
+            "Account Suspended",
+            "Your account has been suspended. Please contact support for assistance.",
+            [{ text: "OK", onPress: () => forceReLogin("Your account has been suspended.") }]
+          )
+        }
+        return
+      }
+
+      if (status === 401 || status === 403 || errorData?.error?.message === "Invalid or expired token") {
+        if (!authFailureRef.current) {
+          authFailureRef.current = true
+          setError("Session expired. Please log in again.")
+          await forceReLogin("Session expired. Please log in again.")
+        }
+        return
+      }
+
       setError("Failed to load upcoming events")
     } finally {
       setLoading(false)
@@ -221,6 +271,9 @@ export const useUpcomingEvent = () => {
 
   useEffect(() => {
     const shouldFetch = () => {
+      // Stop if we already handled an auth failure
+      if (authFailureRef.current) return false;
+
       // Don't fetch if no token
       if (!userData?.token) return false;
 
@@ -237,8 +290,18 @@ export const useUpcomingEvent = () => {
       return cacheExpired;
     };
 
-    if (shouldFetch()) {
-      fetchUpcomingEvent();
+    if (!shouldFetch()) {
+      return
+    }
+
+    fetchHandleRef.current?.cancel?.()
+    fetchHandleRef.current = InteractionManager.runAfterInteractions(() => {
+      fetchUpcomingEvent()
+    })
+
+    return () => {
+      fetchHandleRef.current?.cancel?.()
+      fetchHandleRef.current = null
     }
   }, [userData?.token, upcomingEvent, lastFetched, loading])
 
@@ -247,11 +310,16 @@ export const useUpcomingEvent = () => {
     ? Math.max(0, CACHE_DURATION - (Date.now() - lastFetched))
     : 0;
 
+  useEffect(() => {
+    // reset auth failure flag whenever token changes (e.g., after relogin)
+    authFailureRef.current = false
+  }, [userData?.token])
+
   return {
     upcomingEvent,
     loading,
     error,
     refetch: fetchUpcomingEvent,
-    cacheTimeRemaining: timeUntilRefresh // milliseconds until next auto-refresh
+    cacheTimeRemaining: timeUntilRefresh,
   }
 }

@@ -3,6 +3,8 @@ import { View, ScrollView, TouchableOpacity, Text, Image, StyleSheet } from "rea
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { COLORS } from "../../constants/colors";
+import images from "@/constants/images";
+import { resolveImageSource } from "@/utils/imageSource";
 
 const PlayerSelector = ({ players, selectedPlayer }) => {
   const router = useRouter();
@@ -17,10 +19,12 @@ const PlayerSelector = ({ players, selectedPlayer }) => {
             style={[styles.item, p.id === selectedPlayer?.id && styles.itemActive]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.replace(`/screens/playerStats?id=${p.id}`);
+              // TODO: Implement player stats page at /screens/playerStats/[id].tsx
+              // router.replace(`/screens/playerStats?id=${p.id}`);
+              console.warn("Player stats page not yet implemented");
             }}
           >
-            <Image source={{ uri: p.image }} style={styles.image} resizeMode="cover" />
+            <Image source={resolveImageSource(p.image, images.headshot)} style={styles.image} resizeMode="cover" />
             <Text style={[styles.name, p.id === selectedPlayer?.id && styles.nameActive]} numberOfLines={1}>
               {p.firstName.charAt(0)}. {p.lastName}
             </Text>

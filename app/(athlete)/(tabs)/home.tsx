@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Text, View, ScrollView, ActivityIndicator } from "react-native"
+import { Text, View, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
@@ -7,10 +7,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useAppSelector } from "@/store/hooks"
 
 import images from "@/constants/images"
-import GoToCards from "../../../components/GoToCards"
+import GoToCards, { type NavigationOption } from "../../../components/GoToCards"
 import UpcomingCard from "@/components/events/UpcomingCard"
 import ProfileHeader from "@/components/profile/ProfileHeader"
-import QRCodeModal from "@/components/QRCodeModal"
+import QRCodeButton from "@/components/buttons/QRCodeButton"
 import { useUpcomingEvent } from "@/hooks/useUpcomingEvent"
 
 // Define User Type
@@ -39,8 +39,24 @@ export default function AthleteHome() {
   const { upcomingEvent, loading: eventLoading, error: eventError } = useUpcomingEvent()
 
   useEffect(() => {
+    if (__DEV__) {
+      console.log(`[Home] mounted at ${new Date().toISOString()}`)
+    }
+    return () => {
+      if (__DEV__) {
+        console.log(`[Home] unmounted at ${new Date().toISOString()}`)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     const loadUser = async () => {
       try {
+        if (__DEV__) {
+          console.log('[Home] loadUser invoked', {
+            hasReduxUser: !!reduxUser,
+          })
+        }
         // If we have user in Redux, use that
         if (reduxUser) {
           setUser(reduxUser)
@@ -69,40 +85,88 @@ export default function AthleteHome() {
   }, [reduxUser])
 
 
-  const navigationOptions = [
-    { label: "Schedule", route: "/calendar", image: images.schedules },
-    { label: "Events", route: "/screens/events", image: images.event },
-    { label: "Membership", route: "/screens/membership", image: images.memberships },
+  const navigationOptions: NavigationOption[] = [
+    {
+      label: "Schedule",
+      route: "/calendar",
+      icon: "calendar-days",
+      description: "View upcoming practices & games",
+      colors: ["#FCA311", "#C36A04"] as [string, string],
+    },
+    {
+      label: "Events",
+      route: "/screens/events",
+      icon: "ticket",
+      description: "See what's happening at RISE",
+      colors: ["#8E2DE2", "#4A00E0"] as [string, string],
+    },
+    {
+      label: "Membership",
+      route: "/screens/membership",
+      icon: "crown",
+      description: "Manage your plan & perks",
+      colors: ["#0F2027", "#2C5364"] as [string, string],
+    },
   ]
 
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] items-center justify-center">
-        <ActivityIndicator size="large" color="#FFD700" />
+        <ActivityIndicator size="large" color="#FCA311" />
         <Text className="text-white text-center mt-4">Loading user data...</Text>
       </SafeAreaView>
     )
   }
 
+  const handleNavigate = (route: string) => {
+    if (__DEV__) {
+      console.log(`[Home] navigate to ${route} at ${new Date().toISOString()}`)
+    }
+    router.push(route as any)
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
-      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+      >
         {/* QR Code Button */}
-        <QRCodeModal />
+        <View className="absolute top-8 left-10 z-50">
+          <QRCodeButton onPress={() => router.push("/modals/qr-code")} />
+        </View>
 
         {/* Header Section - Only render when user exists */}
-        <View className="w-full px-5 mt-20">
+        <View className="w-full px-5 mt-24">
           {user ? (
-            <ProfileHeader
-              firstName={user.firstName}
-              lastName={user.lastName}
-              role={user.role}
-              number={user?.jerseyNumber ? user.jerseyNumber.toString() : "0"} // Ensure it's a string
-              profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
-              countryCode={user?.countryCode} // Ensure countryCode is always defined
-              teamLogo={images.teamLogo}
-            />
+            user.profileImage ? (
+              <ProfileHeader
+                firstName={user.firstName}
+                lastName={user.lastName}
+                role={user.role}
+                profileImage={{ uri: user.profileImage }}
+                countryCode={user?.countryCode}
+                teamLogo={user?.team?.logo}
+                onPress={() => router.push("/profile")}
+              />
+            ) : (
+              <View className="bg-[#111111] border border-[#222222] rounded-2xl p-4">
+                <Text className="text-white-100 font-Oswald-Bold text-lg">Add your profile photo</Text>
+                <Text className="text-[#cccccc] text-sm mt-2">
+                  Upload a picture to personalize your account and make check-ins faster.
+                </Text>
+                <TouchableOpacity
+                  className="mt-3 px-4 py-2 rounded-lg bg-[#FCA311]"
+                  onPress={() => router.push("/screens/edit-profile")}
+                  activeOpacity={0.85}
+                >
+                  <Text className="text-black font-semibold text-sm">Upload photo</Text>
+                </TouchableOpacity>
+              </View>
+            )
           ) : (
             <Text className="text-white text-center">User data not available</Text>
           )}
@@ -112,7 +176,7 @@ export default function AthleteHome() {
         <UpcomingCard event={upcomingEvent} />
 
         {/* Navigation Buttons Section */}
-        <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />
+        <GoToCards options={navigationOptions} handleNavigate={handleNavigate} />
       </ScrollView>
     </SafeAreaView>
   )

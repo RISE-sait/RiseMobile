@@ -1,7 +1,9 @@
 import { View, Text, Image } from "react-native";
-import React from "react";
-import { Tabs } from "expo-router";
+import React, { useCallback } from "react";
+import { Tabs, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import icons from "@/constants/icons";
+import { useModalOverlayPresence } from "@/hooks/useModalOverlayTracker";
 
 const TabIcon = ({
   focused,
@@ -32,8 +34,35 @@ const TabIcon = ({
 );
 
 const TabsLayout = () => {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const hasGlobalModal = useModalOverlayPresence();
+
+  const interceptTabPress = useCallback(
+    (targetRoute: string) => ({
+      tabPress: (event: { preventDefault: () => void }) => {
+        if (__DEV__) {
+          console.log(
+            `[AthleteTabs] tabPress -> ${targetRoute} (hasGlobalModal=${hasGlobalModal})`,
+          );
+        }
+
+        if (!hasGlobalModal) {
+          return;
+        }
+
+        event.preventDefault();
+        router.back();
+        requestAnimationFrame(() => {
+          router.replace(targetRoute);
+        });
+      },
+    }),
+    [hasGlobalModal, router],
+  );
+
   return (
-  
+
     <Tabs
       screenOptions={{
         tabBarShowLabel: false,
@@ -43,6 +72,8 @@ const TabsLayout = () => {
           borderTopColor: "transparent",
           borderTopWidth: 1,
           minHeight: 70,
+          paddingBottom: insets.bottom,
+          height: 70 + insets.bottom,
         },
       }}
     >
@@ -55,6 +86,7 @@ const TabsLayout = () => {
             <TabIcon icon={icons.home} title="Home" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(athlete)/(tabs)/home")}
       />
       <Tabs.Screen
         name="matches"
@@ -65,6 +97,7 @@ const TabsLayout = () => {
             <TabIcon icon={icons.matches} title="Matches" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(athlete)/(tabs)/matches")}
       />
       <Tabs.Screen
         name="calendar"
@@ -75,6 +108,7 @@ const TabsLayout = () => {
             <TabIcon icon={icons.calendar} title="Calendar" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(athlete)/(tabs)/calendar")}
       />
       <Tabs.Screen
         name="book"
@@ -85,6 +119,7 @@ const TabsLayout = () => {
             <TabIcon icon={icons.booking} title="Book" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(athlete)/(tabs)/book")}
       />
       <Tabs.Screen
         name="profile"
@@ -95,9 +130,8 @@ const TabsLayout = () => {
             <TabIcon icon={icons.person} title="Profile" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(athlete)/(tabs)/profile")}
       />
-      <Tabs.Screen name="membership" options={{ href: null, headerShown: false }} />
-
     </Tabs>
     
     

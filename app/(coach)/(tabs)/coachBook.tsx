@@ -27,6 +27,8 @@ import { API_URL } from "@/utils/api"
 import { navigateToDetails } from "@/utils/navigation"
 import dayjs from "dayjs"
 import EmptyBookingsState from "@/components/feedback/EmptyBookingState"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
@@ -34,8 +36,8 @@ const cardWidth = width * 0.85
 
 // Define color constants
 const COLORS = {
-  primary: "#FFD700",
-  primaryDark: "#E6C200",
+  primary: "#FCA311",
+  primaryDark: "#D4890E",
   background: "#0C0B0B",
   card: "#1A1A1A",
   cardDark: "#141414",
@@ -49,17 +51,32 @@ const COLORS = {
 
 // upcomingBookings now comes from Redux API data - see useMemo below
 
-// Mock data for featured facilities
+// Featured facilities for coaches
 const featuredFacilities = [
-
   {
     id: "1",
     title: "Practice Sessions",
-    description: "Check open slots for practice sessions",
+    description: "Schedule and manage team practice sessions",
     image:
       "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
       route: "/screens/coach-booking/practiceBooking",
-    },
+  },
+  {
+    id: "2",
+    title: "Schedule Match",
+    description: "Create and manage team matches",
+    image:
+      "https://images.unsplash.com/photo-1574623452334-1e0ac2b3ccb4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+      route: "/screens/createMatch",
+  },
+  {
+    id: "3",
+    title: "RISE Courts",
+    description: "View court availability and current activities",
+    image:
+      "https://images.unsplash.com/photo-1546519638-68e109498ffc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+      route: "/screens/booking-options/Courts",
+  },
 ]
 
 // Booking options with availability status
@@ -69,8 +86,19 @@ const bookingOptions = [
     icon: "basketball-ball",
     route: "/screens/coach-booking/practiceBooking",
     color: "#FF7043",
-  }
-  
+  },
+  {
+    title: "Matches",
+    icon: "trophy",
+    route: "/screens/createMatch",
+    color: "#8E44AD",
+  },
+  {
+    title: "RISE Courts",
+    icon: "map",
+    route: "/screens/booking-options/Courts",
+    color: "#4CAF50",
+  },
 ]
 
 const CoachBook = () => {
@@ -259,7 +287,7 @@ const CoachBook = () => {
           }}
         >
           <Image
-            source={{ uri: item.image }}
+            source={resolveImageSource(item.image, images.events)}
             style={{
               width: "100%",
               height: "100%",
@@ -479,11 +507,10 @@ const CoachBook = () => {
     }}
   >
     <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Practices</Text>
-    {upcomingBookings.length > 0 && (
-      <TouchableOpacity>
-        <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
-      </TouchableOpacity>
-    )}
+    <TouchableOpacity onPress={refreshPractices} style={{ flexDirection: "row", alignItems: "center" }}>
+      <Ionicons name="refresh" size={16} color={COLORS.primary} />
+      <Text style={{ color: COLORS.primary, fontSize: 14, marginLeft: 4 }}>Refresh</Text>
+    </TouchableOpacity>
   </View>
 
   <View style={{ paddingHorizontal: 20 }}>
@@ -615,4 +642,3 @@ const CoachBook = () => {
 }
 
 export default CoachBook
-

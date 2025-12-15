@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
   View,
   Text,
@@ -17,20 +17,66 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { FontAwesome6, Ionicons, MaterialIcons, MaterialCommunityIcons, AntDesign, Feather } from "@expo/vector-icons"
-import { useRouter, useLocalSearchParams } from "expo-router"
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router"
 import * as Haptics from "expo-haptics"
 import BackButton from "@/components/buttons/BackButton"
 import { getTeamById } from "@/utils/api"
-import { TeamResponse, ApiInternalDomainsTeamDtoRosterMemberInfo } from "@/app/api/Api"
+import type { Team } from "@/types/team"
 import { useSelector } from "react-redux"
 import type { RootState } from "@/store"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
+
+// Define RosterMember interface for API response
+interface RosterMember {
+  id?: string
+  name?: string
+  points?: number
+  rebounds?: number
+  assists?: number
+  steals?: number
+  // Profile image fields - API may use different naming conventions
+  profile_image?: string
+  profileImage?: string
+  photo_url?: string  // This is what athletes use when uploading their profile pictures
+}
+
+// Define Player interface
+interface Player {
+  id: string
+  firstName: string
+  lastName: string
+  number: number
+  height: string
+  weight: number
+  age: number
+  experience: number
+  college: string
+  image: string
+  position: string
+  status: string
+  stats: {
+    ppg: number
+    rpg: number
+    apg: number
+    spg: number
+    bpg: number
+    fg: number
+    threePt: number
+    ft: number
+    mpg: number
+    topg: number
+  }
+  lastFiveGames?: any[]
+  notes?: string
+}
 
 const { width, height } = Dimensions.get("window")
 
 // Define color constants
 const COLORS = {
-  primary: "#FFD700",
-  primaryDark: "#E6C200",
+  primary: "#FCA311",
+  primaryDark: "#D4890E",
   background: "#0C0B0B",
   card: "#1A1A1A",
   cardDark: "#141414",
@@ -66,30 +112,32 @@ const POSITION_NAMES = {
 }
 
 // Helper function to map API roster data to Player interface
-const mapRosterMemberToPlayer = (member: ApiInternalDomainsTeamDtoRosterMemberInfo, index: number): Player => ({
+const mapRosterMemberToPlayer = (member: RosterMember, index: number): Player => ({
   id: member.id || `player-${index}`,
   firstName: member.name?.split(' ')[0] || "Unknown",
   lastName: member.name?.split(' ').slice(1).join(' ') || "Player",
-  number: index + 1, // Since API doesn't have jersey numbers yet
-  position: "PG" as PlayerPosition, // Default position since API doesn't have this
-  height: "6'0\"", // Default height since API doesn't have this
-  weight: 180, // Default weight since API doesn't have this
-  age: 22, // Default age since API doesn't have this
-  experience: 2, // Default experience since API doesn't have this
-  college: "Unknown", // Default college since API doesn't have this
-  image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop", // Default image
-  status: "Active" as PlayerStatus, // Default status since API doesn't have this
+  number: index + 1,
+  height: "6'0\"",
+  weight: 180,
+  age: 22,
+  experience: 2,
+  college: "Unknown",
+  // Use the member's profile image if available, otherwise use placeholder
+  // API may return photo_url (athlete upload), profile_image, or profileImage (camelCase)
+  image: member.photo_url || member.profile_image || member.profileImage || "",
+  position: "F", // Default position
+  status: "Active", // Everyone is active
   stats: {
     ppg: member.points || 0,
     rpg: member.rebounds || 0,
     apg: member.assists || 0,
     spg: member.steals || 0,
-    bpg: 0, // API doesn't have blocks
-    fg: 0.45, // Default field goal percentage
-    threePt: 0.35, // Default three-point percentage
-    ft: 0.75, // Default free throw percentage
-    mpg: 25, // Default minutes per game
-    topg: 2, // Default turnovers
+    bpg: 0,
+    fg: 0.45,
+    threePt: 0.35,
+    ft: 0.75,
+    mpg: 25,
+    topg: 2,
   },
 })
 
@@ -105,27 +153,18 @@ const TeamRoster: React.FC = () => {
   // State
   const [allPlayers, setAllPlayers] = useState<Player[]>([])
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([])
-  const [teamData, setTeamData] = useState<TeamResponse | null>(null)
+  const [teamData, setTeamData] = useState<Team | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<"all" | PlayerPosition>("all")
-  const [sortBy, setSortBy] = useState<"name" | "number" | "ppg" | "position">("name")
+  const [sortBy, setSortBy] = useState<"name">("name")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [showSortModal, setShowSortModal] = useState(false)
-  const [showFilterModal, setShowFilterModal] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<PlayerStatus | "all">("all")
-  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false)
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
-  const [showPlayerModal, setShowPlayerModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [showPositionLegend, setShowPositionLegend] = useState(false)
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current
   const sortModalAnim = useRef(new Animated.Value(0)).current
-  const filterModalAnim = useRef(new Animated.Value(0)).current
-  const playerModalAnim = useRef(new Animated.Value(0)).current
 
   // Navigation
   const router = useRouter()
@@ -133,21 +172,9 @@ const TeamRoster: React.FC = () => {
   // Team stats
   const teamStats = {
     totalPlayers: allPlayers.length,
-    activePlayers: allPlayers.filter((p) => p.status === "Active").length,
-    injuredPlayers: allPlayers.filter((p) => p.status === "Injured" || p.status === "Day-to-Day").length,
-    avgPPG: allPlayers.reduce((sum, player) => sum + player.stats.ppg, 0) / allPlayers.length,
-    avgRPG: allPlayers.reduce((sum, player) => sum + player.stats.rpg, 0) / allPlayers.length,
-    avgAPG: allPlayers.reduce((sum, player) => sum + player.stats.apg, 0) / allPlayers.length,
+    activePlayers: allPlayers.length, // Everyone is active
   }
 
-  // Position distribution
-  const positionCounts = {
-    PG: allPlayers.filter((p) => p.position === "PG").length,
-    SG: allPlayers.filter((p) => p.position === "SG").length,
-    SF: allPlayers.filter((p) => p.position === "SF").length,
-    PF: allPlayers.filter((p) => p.position === "PF").length,
-    C: allPlayers.filter((p) => p.position === "C").length,
-  }
 
   // Effects
   useEffect(() => {
@@ -162,10 +189,18 @@ const TeamRoster: React.FC = () => {
     fetchPlayers()
   }, [])
 
+  // Refresh team data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh team data when returning from manage roster screen
+      fetchPlayers()
+    }, [teamId, user?.token])
+  )
+
   useEffect(() => {
     // Apply filters and sorting whenever relevant state changes
     filterAndSortPlayers()
-  }, [allPlayers, searchQuery, activeTab, sortBy, sortDirection, statusFilter])
+  }, [allPlayers, searchQuery, sortBy, sortDirection])
 
   // Animation effects for modals
   useEffect(() => {
@@ -184,37 +219,7 @@ const TeamRoster: React.FC = () => {
     }
   }, [showSortModal])
 
-  useEffect(() => {
-    if (showFilterModal) {
-      Animated.timing(filterModalAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start()
-    } else {
-      Animated.timing(filterModalAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start()
-    }
-  }, [showFilterModal])
 
-  useEffect(() => {
-    if (showPlayerModal) {
-      Animated.timing(playerModalAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start()
-    } else {
-      Animated.timing(playerModalAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start()
-    }
-  }, [showPlayerModal])
 
   // Methods
   const fetchPlayers = async () => {
@@ -243,7 +248,6 @@ const TeamRoster: React.FC = () => {
       setAllPlayers(playersData)
 
     } catch (error) {
-      console.error("Error fetching team data:", error)
       setApiError((error as Error).message)
       // Clear data on error - no fallback to mock data
       setAllPlayers([])
@@ -262,16 +266,6 @@ const TeamRoster: React.FC = () => {
   const filterAndSortPlayers = () => {
     let result = [...allPlayers]
 
-    // Apply position filter
-    if (activeTab !== "all") {
-      result = result.filter((player) => player.position === activeTab)
-    }
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      result = result.filter((player) => player.status === statusFilter)
-    }
-
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -279,9 +273,7 @@ const TeamRoster: React.FC = () => {
         (player) =>
           player.firstName.toLowerCase().includes(query) ||
           player.lastName.toLowerCase().includes(query) ||
-          `${player.firstName} ${player.lastName}`.toLowerCase().includes(query) ||
-          player.position.toLowerCase().includes(query) ||
-          player.number.toString().includes(query),
+          `${player.firstName} ${player.lastName}`.toLowerCase().includes(query),
       )
     }
 
@@ -293,57 +285,24 @@ const TeamRoster: React.FC = () => {
         case "name":
           comparison = `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`)
           break
-        case "number":
-          comparison = a.number - b.number
-          break
-        case "ppg":
-          comparison = b.stats.ppg - a.stats.ppg // Higher PPG first by default
-          break
-        case "position":
-          // Custom position order: PG, SG, SF, PF, C
-          const posOrder = { PG: 1, SG: 2, SF: 3, PF: 4, C: 5 }
-          comparison = posOrder[a.position] - posOrder[b.position]
-          break
       }
 
-      // Apply sort direction (except for PPG which is always desc first)
-      return sortBy === "ppg" && sortDirection === "asc"
-        ? -comparison
-        : sortDirection === "desc"
-          ? -comparison
-          : comparison
+      return sortDirection === "desc" ? -comparison : comparison
     })
 
     setFilteredPlayers(result)
   }
 
-  const handlePlayerPress = (player: Player) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    setSelectedPlayer(player)
-    setShowPlayerModal(true)
-  }
 
-  const handleTabPress = (tab: "all" | PlayerPosition) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    setActiveTab(tab)
-  }
 
   const toggleSortModal = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setShowSortModal(!showSortModal)
   }
 
-  const toggleFilterModal = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    setShowFilterModal(!showFilterModal)
-  }
 
-  const toggleAddPlayerModal = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    setShowAddPlayerModal(!showAddPlayerModal)
-  }
 
-  const handleSortChange = (newSortBy: "name" | "number" | "ppg" | "position") => {
+  const handleSortChange = (newSortBy: "name") => {
     if (sortBy === newSortBy) {
       // Toggle direction if same sort field
       setSortDirection(sortDirection === "asc" ? "desc" : "asc")
@@ -354,47 +313,44 @@ const TeamRoster: React.FC = () => {
     }
   }
 
-  const handleStatusFilterChange = (status: PlayerStatus | "all") => {
-    setStatusFilter(status)
-  }
 
   const resetFilters = () => {
     setSearchQuery("")
-    setActiveTab("all")
-    setStatusFilter("all")
     setSortBy("name")
     setSortDirection("asc")
-    setShowFilterModal(false)
   }
 
-  const getStatusBadge = (status: PlayerStatus) => {
-    const color = STATUS_COLORS[status]
-    return (
-      <View style={[styles.statusBadge, { backgroundColor: color }]}>
-        <Text style={styles.statusText}>{status}</Text>
-      </View>
-    )
+
+  // Navigate to manage roster screen (admin only)
+  const handleManageRoster = () => {
+    router.push({
+      pathname: "/(admin)/screens/manage-roster",
+      params: {
+        teamId: teamId,
+        teamName: teamData?.name || teamName || "Team"
+      }
+    })
   }
+
+  // Check if user is admin or superadmin
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin"
 
   // Render methods
   const renderHeader = () => (
     <View style={styles.header}>
-
       <BackButton />
       <View style={styles.headerTitleContainer}>
         <Text style={styles.headerTitle}>
           {teamData?.name || teamName || "Team Roster"}
         </Text>
-        <TouchableOpacity style={styles.infoButton} onPress={() => setShowPositionLegend(!showPositionLegend)}>
-          <Ionicons name="information-circle-outline" size={22} color={COLORS.primary} />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.headerActions}>
-        <TouchableOpacity style={styles.iconButton} onPress={toggleFilterModal}>
-          <Ionicons name="filter" size={24} color="white" />
-          {statusFilter !== "all" && <View style={styles.filterBadge} />}
-        </TouchableOpacity>
+        {isAdmin && (
+          <TouchableOpacity style={styles.manageButton} onPress={handleManageRoster}>
+            <FontAwesome6 name="users-gear" size={16} color="#000" />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.iconButton} onPress={toggleSortModal}>
           <MaterialCommunityIcons name="sort" size={24} color="white" />
         </TouchableOpacity>
@@ -432,75 +388,11 @@ const TeamRoster: React.FC = () => {
           <Text style={styles.statValue}>{teamStats.activePlayers}</Text>
           <Text style={styles.statLabel}>Active</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{teamStats.injuredPlayers}</Text>
-          <Text style={styles.statLabel}>Injured</Text>
-        </View>
-        {/* Temporarily hidden until backend supports player stats
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{teamStats.avgPPG.toFixed(1)}</Text>
-          <Text style={styles.statLabel}>PPG</Text>
-        </View>
-        */}
       </View>
-    </View>
-  )
-
-  const renderPositionTabs = () => (
-    <View>
-      {/* Temporarily hidden until backend supports position data
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabsContainer}
-      >
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "all" && styles.activeTab]}
-          onPress={() => handleTabPress("all")}
-        >
-          <Text style={[styles.tabText, activeTab === "all" && styles.activeTabText]}>All</Text>
-        </TouchableOpacity>
-  
-        {(["PG", "SG", "SF", "PF", "C"] as PlayerPosition[]).map((position) => (
-          <TouchableOpacity
-            key={position}
-            style={[styles.tab, activeTab === position && styles.activeTab]}
-            onPress={() => handleTabPress(position)}
-          >
-            <Text style={[styles.tabText, activeTab === position && styles.activeTabText]}>
-              {position} ({positionCounts[position]})
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      */}
     </View>
   )
   
 
-  const renderPositionLegend = () => {
-    if (!showPositionLegend) return null
-
-    return (
-      <View style={styles.legendContainer}>
-        <View style={styles.legendHeader}>
-          <Text style={styles.legendTitle}>Position Guide</Text>
-          <TouchableOpacity onPress={() => setShowPositionLegend(false)}>
-            <AntDesign name="close" size={20} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        {(["PG", "SG", "SF", "PF", "C"] as PlayerPosition[]).map((pos) => (
-          <View key={pos} style={styles.legendItem}>
-            <View style={[styles.legendBadge, { backgroundColor: COLORS.primary }]}>
-              <Text style={styles.legendBadgeText}>{pos}</Text>
-            </View>
-            <Text style={styles.legendText}>{POSITION_NAMES[pos]}</Text>
-          </View>
-        ))}
-      </View>
-    )
-  }
 
   const renderPlayerItem = ({ item }: { item: Player }) => (
     <Animated.View
@@ -518,7 +410,7 @@ const TeamRoster: React.FC = () => {
         },
       ]}
     >
-      <TouchableOpacity style={styles.playerCard} activeOpacity={0.7} onPress={() => handlePlayerPress(item)}>
+      <View style={styles.playerCard}>
         <View style={styles.playerCardContent}>
           {/* Player Number */}
           <View style={styles.playerNumberContainer}>
@@ -526,68 +418,21 @@ const TeamRoster: React.FC = () => {
           </View>
 
           {/* Player Image */}
-          <Image source={{ uri: item.image }} style={styles.playerImage} resizeMode="cover" />
+          <Image
+            source={resolveImageSource(item.image, images.headshot)}
+            style={styles.playerImage}
+            resizeMode="cover"
+          />
 
           {/* Player Info */}
           <View style={styles.playerInfo}>
             <Text style={styles.playerName}>
               {item.firstName} {item.lastName}
             </Text>
-
-            <View style={styles.playerDetailRow}>
-              {/* Temporarily hidden until backend supports position data
-              <View style={styles.positionBadge}>
-                <Text style={styles.positionText}>{item.position}</Text>
-              </View>
-              */}
-              {getStatusBadge(item.status)}
-            </View>
-
-            {/* Temporarily hidden until backend supports player stats
-            <View style={styles.statsRow}>
-              <View style={styles.statColumn}>
-                <Text style={styles.statValue}>{item.stats.ppg.toFixed(1)}</Text>
-                <Text style={styles.statLabel}>PPG</Text>
-              </View>
-              <View style={styles.statColumn}>
-                <Text style={styles.statValue}>{item.stats.rpg.toFixed(1)}</Text>
-                <Text style={styles.statLabel}>RPG</Text>
-              </View>
-              <View style={styles.statColumn}>
-                <Text style={styles.statValue}>{item.stats.apg.toFixed(1)}</Text>
-                <Text style={styles.statLabel}>APG</Text>
-              </View>
-            </View>
-            */}
+            {getStatusBadge(item.status)}
           </View>
-
-          {/* Temporarily hidden until backend supports player actions
-          <View style={styles.quickActions}>
-            <TouchableOpacity
-              style={styles.quickActionButton}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                // Navigate to player details
-                router.push(`/screens/comingSoon`)
-              }}
-            >
-              <MaterialIcons name="info-outline" size={22} color={COLORS.primary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionButton}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                // Navigate to message screen
-                router.push(`/screens/comingSoon`)
-              }}
-            >
-              <Feather name="message-circle" size={22} color={COLORS.primary} />
-            </TouchableOpacity>
-          </View>
-          */}
         </View>
-      </TouchableOpacity>
+      </View>
     </Animated.View>
   )
 
@@ -683,45 +528,6 @@ const TeamRoster: React.FC = () => {
                     />
                   )}
                 </TouchableOpacity>
-
-                <TouchableOpacity style={styles.sortOption} onPress={() => handleSortChange("number")}>
-                  <Text style={styles.sortOptionText}>
-                    Jersey Number {sortBy === "number" && (sortDirection === "asc" ? "↑" : "↓")}
-                  </Text>
-                  {sortBy === "number" && (
-                    <MaterialIcons
-                      name={sortDirection === "asc" ? "arrow-upward" : "arrow-downward"}
-                      size={20}
-                      color={COLORS.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.sortOption} onPress={() => handleSortChange("ppg")}>
-                  <Text style={styles.sortOptionText}>
-                    Points Per Game {sortBy === "ppg" && (sortDirection === "asc" ? "↑" : "↓")}
-                  </Text>
-                  {sortBy === "ppg" && (
-                    <MaterialIcons
-                      name={sortDirection === "asc" ? "arrow-upward" : "arrow-downward"}
-                      size={20}
-                      color={COLORS.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.sortOption} onPress={() => handleSortChange("position")}>
-                  <Text style={styles.sortOptionText}>
-                    Position {sortBy === "position" && (sortDirection === "asc" ? "↑" : "↓")}
-                  </Text>
-                  {sortBy === "position" && (
-                    <MaterialIcons
-                      name={sortDirection === "asc" ? "arrow-upward" : "arrow-downward"}
-                      size={20}
-                      color={COLORS.primary}
-                    />
-                  )}
-                </TouchableOpacity>
               </View>
 
               <TouchableOpacity style={styles.applyButton} onPress={toggleSortModal}>
@@ -734,275 +540,13 @@ const TeamRoster: React.FC = () => {
     )
   }
 
-  const renderFilterModal = () => {
-    if (!showFilterModal) return null
+  // Helper function to get status badge
+  const getStatusBadge = (status: string) => (
+    <View style={[styles.statusBadge, { backgroundColor: COLORS.active }]}>
+      <Text style={styles.statusText}>Active</Text>
+    </View>
+  )
 
-    return (
-      <Modal transparent visible={showFilterModal} animationType="none" onRequestClose={toggleFilterModal}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={toggleFilterModal}>
-          <Animated.View
-            style={[
-              styles.filterModal,
-              {
-                opacity: filterModalAnim,
-                transform: [
-                  {
-                    translateY: filterModalAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [50, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Filter Players</Text>
-                <TouchableOpacity onPress={toggleFilterModal}>
-                  <AntDesign name="close" size={24} color="white" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.filterSection}>
-                <Text style={styles.filterSectionTitle}>Player Status</Text>
-                <View style={styles.filterOptions}>
-                  <TouchableOpacity
-                    style={[styles.filterOption, statusFilter === "all" && styles.filterOptionSelected]}
-                    onPress={() => handleStatusFilterChange("all")}
-                  >
-                    <Text style={[styles.filterOptionText, statusFilter === "all" && styles.filterOptionTextSelected]}>
-                      All
-                    </Text>
-                  </TouchableOpacity>
-
-                  {(["Active", "Injured", "Suspended", "Conditioning", "Day-to-Day"] as PlayerStatus[]).map(
-                    (status) => (
-                      <TouchableOpacity
-                        key={status}
-                        style={[styles.filterOption, statusFilter === status && styles.filterOptionSelected]}
-                        onPress={() => handleStatusFilterChange(status)}
-                      >
-                        <Text
-                          style={[styles.filterOptionText, statusFilter === status && styles.filterOptionTextSelected]}
-                        >
-                          {status}
-                        </Text>
-                      </TouchableOpacity>
-                    ),
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.filterActions}>
-                <TouchableOpacity style={styles.resetFilterButton} onPress={resetFilters}>
-                  <Text style={styles.resetFilterButtonText}>Reset All</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.applyButton} onPress={toggleFilterModal}>
-                  <Text style={styles.applyButtonText}>Apply</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        </TouchableOpacity>
-      </Modal>
-    )
-  }
-
-  const renderPlayerModal = () => {
-    if (!selectedPlayer || !showPlayerModal) return null
-
-    return (
-      <Modal
-        transparent
-        visible={showPlayerModal}
-        animationType="none"
-        onRequestClose={() => setShowPlayerModal(false)}
-      >
-        <View style={styles.playerModalContainer}>
-          <Animated.View
-            style={[
-              styles.playerModalContent,
-              {
-                opacity: playerModalAnim,
-                transform: [
-                  {
-                    translateY: playerModalAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [100, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.playerModalGradient}>
-              <View style={styles.playerModalHeader}>
-                <TouchableOpacity style={styles.closeModalButton} onPress={() => setShowPlayerModal(false)}>
-                  <AntDesign name="close" size={24} color="white" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={styles.playerModalScroll}>
-                <View style={styles.playerModalProfile}>
-                  <Image source={{ uri: selectedPlayer.image }} style={styles.playerModalImage} resizeMode="cover" />
-
-                  <View style={styles.playerModalInfo}>
-                    <Text style={styles.playerModalName}>
-                      {selectedPlayer.firstName} {selectedPlayer.lastName}
-                    </Text>
-                    <View style={styles.playerModalDetailRow}>
-                      <Text style={styles.playerModalNumber}>#{selectedPlayer.number}</Text>
-                      <View style={styles.playerModalPositionBadge}>
-                        <Text style={styles.playerModalPositionText}>{selectedPlayer.position}</Text>
-                      </View>
-                      {getStatusBadge(selectedPlayer.status)}
-                    </View>
-
-                    <View style={styles.playerModalDetails}>
-                      <View style={styles.playerModalDetail}>
-                        <Text style={styles.playerModalDetailLabel}>Height</Text>
-                        <Text style={styles.playerModalDetailValue}>{selectedPlayer.height}</Text>
-                      </View>
-                      <View style={styles.playerModalDetail}>
-                        <Text style={styles.playerModalDetailLabel}>Weight</Text>
-                        <Text style={styles.playerModalDetailValue}>{selectedPlayer.weight} lbs</Text>
-                      </View>
-                      <View style={styles.playerModalDetail}>
-                        <Text style={styles.playerModalDetailLabel}>Age</Text>
-                        <Text style={styles.playerModalDetailValue}>{selectedPlayer.age}</Text>
-                      </View>
-                      <View style={styles.playerModalDetail}>
-                        <Text style={styles.playerModalDetailLabel}>Experience</Text>
-                        <Text style={styles.playerModalDetailValue}>{selectedPlayer.experience} yrs</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Temporarily hidden until backend supports detailed player stats
-                <View style={styles.playerModalSection}>
-                  <Text style={styles.playerModalSectionTitle}>Key Stats</Text>
-                  <View style={styles.playerModalStatsGrid}>
-                    <View style={styles.playerModalStatItem}>
-                      <Text style={styles.playerModalStatValue}>{selectedPlayer.stats.ppg.toFixed(1)}</Text>
-                      <Text style={styles.playerModalStatLabel}>PPG</Text>
-                    </View>
-                    <View style={styles.playerModalStatItem}>
-                      <Text style={styles.playerModalStatValue}>{selectedPlayer.stats.rpg.toFixed(1)}</Text>
-                      <Text style={styles.playerModalStatLabel}>RPG</Text>
-                    </View>
-                    <View style={styles.playerModalStatItem}>
-                      <Text style={styles.playerModalStatValue}>{selectedPlayer.stats.apg.toFixed(1)}</Text>
-                      <Text style={styles.playerModalStatLabel}>APG</Text>
-                    </View>
-                    <View style={styles.playerModalStatItem}>
-                      <Text style={styles.playerModalStatValue}>{selectedPlayer.stats.spg.toFixed(1)}</Text>
-                      <Text style={styles.playerModalStatLabel}>SPG</Text>
-                    </View>
-                    <View style={styles.playerModalStatItem}>
-                      <Text style={styles.playerModalStatValue}>{selectedPlayer.stats.bpg.toFixed(1)}</Text>
-                      <Text style={styles.playerModalStatLabel}>BPG</Text>
-                    </View>
-                    <View style={styles.playerModalStatItem}>
-                      <Text style={styles.playerModalStatValue}>{(selectedPlayer.stats.fg * 100).toFixed(1)}%</Text>
-                      <Text style={styles.playerModalStatLabel}>FG%</Text>
-                    </View>
-                    <View style={styles.playerModalStatItem}>
-                      <Text style={styles.playerModalStatValue}>
-                        {(selectedPlayer.stats.threePt * 100).toFixed(1)}%
-                      </Text>
-                      <Text style={styles.playerModalStatLabel}>3PT%</Text>
-                    </View>
-                    <View style={styles.playerModalStatItem}>
-                      <Text style={styles.playerModalStatValue}>{(selectedPlayer.stats.ft * 100).toFixed(1)}%</Text>
-                      <Text style={styles.playerModalStatLabel}>FT%</Text>
-                    </View>
-                  </View>
-                </View>
-                */}
-
-                {selectedPlayer.lastFiveGames && (
-                  <View style={styles.playerModalSection}>
-                    <Text style={styles.playerModalSectionTitle}>Last 5 Games</Text>
-                    {selectedPlayer.lastFiveGames.map((game, index) => (
-                      <View key={index} style={styles.gameItem}>
-                        <View style={styles.gameHeader}>
-                          <Text style={styles.gameDate}>{game.date}</Text>
-                          <Text style={styles.gameOpponent}>vs {game.opponent}</Text>
-                          <Text style={[styles.gameResult, game.result === "W" ? styles.gameWin : styles.gameLoss]}>
-                            {game.result}
-                          </Text>
-                        </View>
-                        <View style={styles.gameStats}>
-                          <View style={styles.gameStat}>
-                            <Text style={styles.gameStatValue}>{game.points}</Text>
-                            <Text style={styles.gameStatLabel}>PTS</Text>
-                          </View>
-                          <View style={styles.gameStat}>
-                            <Text style={styles.gameStatValue}>{game.rebounds}</Text>
-                            <Text style={styles.gameStatLabel}>REB</Text>
-                          </View>
-                          <View style={styles.gameStat}>
-                            <Text style={styles.gameStatValue}>{game.assists}</Text>
-                            <Text style={styles.gameStatLabel}>AST</Text>
-                          </View>
-                          <View style={styles.gameStat}>
-                            <Text style={styles.gameStatValue}>{game.steals}</Text>
-                            <Text style={styles.gameStatLabel}>STL</Text>
-                          </View>
-                          <View style={styles.gameStat}>
-                            <Text style={styles.gameStatValue}>{game.blocks}</Text>
-                            <Text style={styles.gameStatLabel}>BLK</Text>
-                          </View>
-                          <View style={styles.gameStat}>
-                            <Text style={styles.gameStatValue}>{game.minutes}</Text>
-                            <Text style={styles.gameStatLabel}>MIN</Text>
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {selectedPlayer.notes && (
-                  <View style={styles.playerModalSection}>
-                    <Text style={styles.playerModalSectionTitle}>Coach's Notes</Text>
-                    <View style={styles.notesContainer}>
-                      <Text style={styles.notesText}>{selectedPlayer.notes}</Text>
-                    </View>
-                  </View>
-                )}
-
-                <View style={styles.playerModalActions}>
-                  <TouchableOpacity
-                    style={styles.playerModalActionButton}
-                    onPress={() => {
-                      setShowPlayerModal(false)
-                      router.push(`/screens/player-details?id=${selectedPlayer.id}`)
-                    }}
-                  >
-                    <Text style={styles.playerModalActionButtonText}>Full Profile</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.playerModalActionButton, styles.playerModalActionButtonSecondary]}
-                    onPress={() => {
-                      setShowPlayerModal(false)
-                      router.push(`/screens/comingSoon`)
-                    }}
-                  >
-                    <Text style={styles.playerModalActionButtonTextSecondary}>Message</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
-    )
-  }
 
 
   return (
@@ -1022,10 +566,8 @@ const TeamRoster: React.FC = () => {
             </Text>
           </View>
         )}
-        
+
         {renderTeamStats()}
-        {renderPositionTabs()}
-        {renderPositionLegend()}
 
         <FlatList
           data={filteredPlayers}
@@ -1036,12 +578,16 @@ const TeamRoster: React.FC = () => {
           ListEmptyComponent={renderEmptyList}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          // Performance optimizations to prevent freeze
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
+          removeClippedSubviews={true}
+          updateCellsBatchingPeriod={50}
         />
       </Animated.View>
 
       {renderSortModal()}
-      {renderFilterModal()}
-      {renderPlayerModal()}
     </SafeAreaView>
   )
 }
@@ -1080,6 +626,15 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  manageButton: {
+    backgroundColor: COLORS.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
   },
   iconButton: {
     padding: 8,
@@ -1723,4 +1278,3 @@ const styles = StyleSheet.create({
 })
 
 export default TeamRoster
-

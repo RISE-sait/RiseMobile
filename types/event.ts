@@ -11,6 +11,7 @@ export interface CalendarItem {
     id: string
     name?: string
     type?: string
+    photo_url?: string
   }
 }
 
@@ -31,6 +32,7 @@ export interface Event {
   updated_by?: any
   start_at?: string
   end_at?: string
+  required_membership_plan_ids?: string[]
 }
 
 export interface EventsState {

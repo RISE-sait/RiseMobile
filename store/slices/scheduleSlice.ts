@@ -11,10 +11,17 @@ export interface ScheduleItem {
   date: string
   time: string
   type: "event" | "match" | "practice"
-  location: string
+  location: string | { id: string; name?: string; address?: string }
   description: string
   created_at?: string
   updated_at?: string
+  program_type?: string
+  program?: {
+    id: string
+    name?: string
+    type?: string
+    description?: string
+  }
 }
 
 export interface ScheduleState {
@@ -34,11 +41,9 @@ const initialState: ScheduleState = {
 // Fetch schedule data from /secure/schedule endpoint
 export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (token: string, { rejectWithValue }) => {
   try {
-
     const response = await axios.get(`${API_URL}/secure/schedule`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-
 
     const responseData = response.data
     
@@ -48,18 +53,85 @@ export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (t
     // Process events
     if (responseData.events && Array.isArray(responseData.events)) {
       responseData.events.forEach((event: any) => {
-        scheduleItems.push({
+        // Parse start date
+        let startDate = event.date
+        if (!startDate && event.start_at) {
+          if (event.start_at.includes('T')) {
+            startDate = event.start_at.split('T')[0]
+          } else {
+            startDate = event.start_at.split(' ')[0]
+          }
+        }
+        if (!startDate) {
+          startDate = new Date().toISOString().split('T')[0]
+        }
+
+        // Parse end date if exists (for multi-day events)
+        let endDate = startDate // Default to same day
+        if (event.end_at) {
+          if (event.end_at.includes('T')) {
+            endDate = event.end_at.split('T')[0]
+          } else {
+            endDate = event.end_at.split(' ')[0]
+          }
+        }
+
+        // Format time
+        const formattedTime = event.time || (event.start_at ? (() => {
+          try {
+            const date = new Date(event.start_at)
+            if (!isNaN(date.getTime())) {
+              return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+            }
+            const timeStr = event.start_at.split(' ')[1]
+            if (timeStr) {
+              const [hours, minutes] = timeStr.split(':')
+              const hour12 = parseInt(hours) > 12 ? parseInt(hours) - 12 : parseInt(hours)
+              const ampm = parseInt(hours) >= 12 ? 'PM' : 'AM'
+              const displayHour = hour12 === 0 ? 12 : hour12
+              return `${displayHour}:${minutes} ${ampm}`
+            }
+            return "TBD"
+          } catch (e) {
+            return "TBD"
+          }
+        })() : "TBD")
+
+        // Create event object
+        const eventItem = {
           id: event.id,
-          name: event.name || event.title || "Event",
-          title: event.name || event.title || "Event",
-          date: event.date || (event.start_time ? event.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
-          time: event.time || (event.start_time ? new Date(event.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : "TBD"),
-          type: "event",
-          location: event.location_name || event.location || "TBD",
-          description: event.description || "Event scheduled",
+          name: event.program?.name || event.name || event.title || "Event",
+          title: event.program?.name || event.name || event.title || "Event",
+          date: startDate,
+          time: formattedTime,
+          type: event.program?.type || "event",
+          location: (typeof event.location === 'object' ? event.location?.name || event.location?.address : event.location) || event.location_name || "TBD",
+          description: event.program?.description || event.description || "Event scheduled",
           created_at: event.created_at,
           updated_at: event.updated_at,
-        })
+          program_type: event.program?.type,
+          program: event.program,
+        }
+
+        // If multi-day event, create entries for each day (for calendar view)
+        // But also mark them so we can deduplicate in list view
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+
+        if (start.getTime() !== end.getTime()) {
+          // Multi-day event - add entry for each day
+          const currentDate = new Date(start)
+          while (currentDate <= end) {
+            scheduleItems.push({
+              ...eventItem,
+              date: currentDate.toISOString().split('T')[0]
+            })
+            currentDate.setDate(currentDate.getDate() + 1)
+          }
+        } else {
+          // Single day event
+          scheduleItems.push(eventItem)
+        }
       })
     }
     
@@ -81,7 +153,7 @@ export const fetchSchedule = createAsyncThunk("schedule/fetchSchedule", async (t
         })
       })
     }
-    
+
     // Process practices
     if (responseData.practices && Array.isArray(responseData.practices)) {
       responseData.practices.forEach((practice: any) => {
@@ -128,6 +200,9 @@ const scheduleSlice = createSlice({
       state.status = "idle"
       state.error = null
     },
+    clearScheduleError: (state) => {
+      state.error = null
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -148,7 +223,7 @@ const scheduleSlice = createSlice({
   },
 })
 
-export const { clearSchedule } = scheduleSlice.actions
+export const { clearSchedule, clearScheduleError } = scheduleSlice.actions
 export default scheduleSlice.reducer
 
 // Selectors

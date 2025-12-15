@@ -1,10 +1,11 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
 import { View, Text, Image, TouchableOpacity } from "react-native"
+import { useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
-import EventDetailsModal from "./EventDetailsModal"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
 
 type UpcomingCardProps = {
   event?: {
@@ -51,7 +52,7 @@ const formatTeamName = (teamName: string) => {
 }
 
 const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
-  const [modalVisible, setModalVisible] = useState(false)
+  const router = useRouter()
 
   // If no event, show fallback UI
   if (!event) {
@@ -81,26 +82,35 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
   const defaultBgImage =
     "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
 
-  // Ensure bgImage is a string
-  const bgImageUri = typeof event.bgImage === "string" ? event.bgImage : defaultBgImage
+  const bgImageSource = resolveImageSource(event.bgImage, defaultBgImage)
+  const homeLogoSource = event.homeLogo ? resolveImageSource(event.homeLogo, images.teamLogo) : null
+  const awayLogoSource = event.awayLogo ? resolveImageSource(event.awayLogo, images.teamLogo) : null
 
   // Create a safe event object for the modal
   const safeEvent = {
     ...event,
-    bgImage: bgImageUri,
+    bgImage: typeof event.bgImage === "string" ? event.bgImage : defaultBgImage,
     // Handle homeLogo and awayLogo safely
-    homeLogo: event.homeLogo ? (typeof event.homeLogo === "string" ? event.homeLogo : event.homeLogo) : undefined,
-    awayLogo: event.awayLogo ? (typeof event.awayLogo === "string" ? event.awayLogo : event.awayLogo) : undefined,
+    homeLogo: homeLogoSource || undefined,
+    awayLogo: awayLogoSource || undefined,
   }
+
+  const handlePress = () => {
+    // ✅ Navigate to route-based modal instead of using local state
+    router.push({
+      pathname: "/modals/event-quick-view",
+      params: { event: JSON.stringify(safeEvent) },
+    });
+  };
 
   return (
     <>
-      <TouchableOpacity onPress={() => setModalVisible(true)} activeOpacity={0.8}>
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
         <View className="w-full px-10 mt-10">
           <Text className="text-white-100 font-Oswald-Bold text-2xl">UPCOMING EVENT</Text>
           <View className="bg-[#444444] h-36 rounded-xl overflow-hidden mt-3 flex justify-center items-center relative">
             <Image
-              source={{ uri: bgImageUri }}
+              source={bgImageSource}
               className="w-full h-full absolute"
               style={{ resizeMode: "cover", opacity: 0.6 }}
             />
@@ -111,12 +121,23 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
               <View className="flex-row items-center justify-between px-4 w-full">
                 {/* Home Team */}
                 <View className="flex items-center flex-1 max-w-[35%]">
-                  {event.homeLogo && (
-                    <Image
-                      source={typeof event.homeLogo === "string" ? { uri: event.homeLogo } : event.homeLogo}
-                      className="w-12 h-12 mb-1"
-                      resizeMode="contain"
-                    />
+                  {homeLogoSource && (
+                    <View style={{
+                      width: 56,
+                      height: 56,
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      borderRadius: 12,
+                      marginBottom: 4,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 4,
+                      elevation: 4,
+                    }}>
+                      <Image source={homeLogoSource} style={{ width: 40, height: 40 }} resizeMode="contain" />
+                    </View>
                   )}
                   <Text 
                     className="text-white-100 font-Oswald-Medium uppercase text-center leading-tight"
@@ -136,12 +157,23 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
 
                 {/* Away Team */}
                 <View className="flex items-center flex-1 max-w-[35%]">
-                  {event.awayLogo && (
-                    <Image
-                      source={typeof event.awayLogo === "string" ? { uri: event.awayLogo } : event.awayLogo}
-                      className="w-12 h-12 mb-1"
-                      resizeMode="contain"
-                    />
+                  {awayLogoSource && (
+                    <View style={{
+                      width: 56,
+                      height: 56,
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      borderRadius: 12,
+                      marginBottom: 4,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 4,
+                      elevation: 4,
+                    }}>
+                      <Image source={awayLogoSource} style={{ width: 40, height: 40 }} resizeMode="contain" />
+                    </View>
                   )}
                   <Text 
                     className="text-white-100 font-Oswald-Medium uppercase text-center leading-tight"
@@ -171,9 +203,6 @@ const UpcomingCard: React.FC<UpcomingCardProps> = ({ event }) => {
           </View>
         </View>
       </TouchableOpacity>
-
-      {/* 🔹 Modal Inside the Card */}
-      <EventDetailsModal isVisible={modalVisible} onClose={() => setModalVisible(false)} event={safeEvent} />
     </>
   )
 }

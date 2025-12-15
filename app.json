@@ -1,13 +1,19 @@
 {
   "expo": {
-    "name": "RISE",
+    "name": "RISE Sports Complex",
     "slug": "RiseMobile",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/rise-icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "updates": {
+      "url": "https://u.expo.dev/3ba470f8-c0f8-431f-baad-6474e2cbe4a4"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/images/riseSplash.png",
       "resizeMode": "contain",
@@ -24,7 +30,9 @@
         "tabletImage": "./assets/images/riseSplashTablet.png"
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "RISE Sports Platform needs access to your camera to take photos for your profile picture. Athletes, coaches, and other users can capture new photos to personalize their profiles and enhance their sports community experience.",
+        "NSPhotoLibraryUsageDescription": "RISE Sports Platform needs access to your photo library to select existing photos for your profile picture. Athletes, coaches, and other users can choose photos from their device to set as their profile picture and build their sports community presence."
       }
     },
     "android": {
@@ -59,6 +67,20 @@
       "@react-native-community/datetimepicker",
       "expo-router",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/rise-icon.png",
+          "color": "#000000",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-updates",
+        {
+          "username": "most45"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/riseSplash.png",
@@ -84,7 +106,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "1bde5dd0-c4d3-45e1-a396-b967024890ce"
+        "projectId": "3ba470f8-c0f8-431f-baad-6474e2cbe4a4"
       }
     }
   }

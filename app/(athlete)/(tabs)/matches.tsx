@@ -3,17 +3,17 @@
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native"
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Dimensions, Animated, InteractionManager } from "react-native"
 import dayjs from "dayjs"
 import { SafeAreaView } from "react-native-safe-area-context"
 import MatchCard from "../../../components/events/MatchCard"
 import { StatusBar } from "expo-status-bar"
-import { FontAwesome6 } from "@expo/vector-icons"
 import { useAppDispatch, useAppSelector } from "../../../store/hooks"
 import { fetchMatches, clearMatches } from "../../../store/slices/gamesSlice"
 import LoadingIndicator from "../../../components/feedback/LoadingIndicator"
 import EmptyState from "../../../components/feedback/EmptyState"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import PageTitle from "@/components/PageTitle"
+import { useAuth } from "@/utils/auth"
 
 const { width } = Dimensions.get("window")
 
@@ -33,11 +33,13 @@ const MatchesScreen: React.FC = () => {
   const status = useAppSelector((state) => state.games.status)
   const error = useAppSelector((state) => state.games.error)
   const token = useAppSelector((state) => state.user.data?.token)
+  const { getValidToken, forceReLogin } = useAuth()
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"))
   const [weekDates] = useState(() => generateWeekDates()) // Use function to ensure fresh generation
   const flatListRef = useRef<FlatList>(null)
   const fadeAnim = useRef(new Animated.Value(0)).current
+  const fetchInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null)
 
   // Center on today function
   const centerOnToday = useCallback(() => {
@@ -56,43 +58,38 @@ const MatchesScreen: React.FC = () => {
 
   // Reusable token getter with fallback logic
   const getAuthToken = useCallback(async (): Promise<string | null> => {
-    let authToken: string | null = token || null
-
-    if (!authToken) {
-      try {
-        // Try to get token from user object first
-        const userString = await AsyncStorage.getItem("user")
-        if (userString) {
-          const userData = JSON.parse(userString)
-          authToken = userData.token || null
-        }
-
-        // Fallback: try to get JWT token directly
-        if (!authToken) {
-          authToken = await AsyncStorage.getItem("jwtToken")
-        }
-      } catch (err) {
-        console.error("Error getting token from AsyncStorage:", err)
-        return null
+    try {
+      const authToken = await getValidToken()
+      if (!authToken) {
+        await forceReLogin("Session expired. Please log in again.")
       }
+      return authToken
+    } catch (err) {
+      console.error("Error obtaining auth token:", err)
+      return null
     }
-
-    return authToken
-  }, [token])
+  }, [forceReLogin, getValidToken])
 
   useEffect(() => {
-    // Fetch matches when component mounts
-    const fetchData = async () => {
+    if (fetchInteractionRef.current) {
+      fetchInteractionRef.current.cancel()
+    }
+
+    fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
       const authToken = await getAuthToken()
 
       if (authToken) {
         dispatch(clearMatches())
         dispatch(fetchMatches(authToken))
       }
-    }
+    })
 
-    fetchData()
-  }, [dispatch, token, getAuthToken])
+    return () => {
+      fetchInteractionRef.current?.cancel()
+      fetchInteractionRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -188,25 +185,22 @@ const MatchesScreen: React.FC = () => {
 
       <View className="flex-1">
         {/* Header */}
-        <View className="px-6 pb-4 border-b border-white-100/10 flex-row justify-between items-center">
-          <Text className="text-white-100 text-3xl font-bold">Matches</Text>
-          <TouchableOpacity
-            onPress={() => {
-              const fetchData = async () => {
-                const authToken = await getAuthToken()
+        <PageTitle
+          title="Matches"
+          showRefreshIcon
+          isRefreshing={status === "loading"}
+          onButtonPress={() => {
+            fetchInteractionRef.current?.cancel()
+            fetchInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+              const authToken = await getAuthToken()
 
-                if (authToken) {
-                  dispatch(clearMatches())
-                  dispatch(fetchMatches(authToken))
-                }
+              if (authToken) {
+                dispatch(clearMatches())
+                dispatch(fetchMatches(authToken))
               }
-
-              fetchData()
-            }}
-          >
-            <Text className="text-gold-100 font-semibold">Refresh</Text>
-          </TouchableOpacity>
-        </View>
+            })
+          }}
+        />
 
         {/* Horizontal Calendar */}
         <FlatList
@@ -216,15 +210,15 @@ const MatchesScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.format("YYYY-MM-DD")}
           renderItem={renderDateItem}
-          contentContainerStyle={{ paddingHorizontal: width / 2 - 35, marginVertical: 15 }}
+          contentContainerStyle={{ paddingHorizontal: 16, marginVertical: 15 }}
           getItemLayout={(_, index) => ({ length: 72, offset: 72 * index, index })}
           initialScrollIndex={6} // Start at index 6 (today, since we have 6 days before)
           onScrollToIndexFailed={(info) => {
             // Fallback: scroll to the nearest valid index
             setTimeout(() => {
-              flatListRef.current?.scrollToIndex({ 
-                index: Math.min(info.index, weekDates.length - 1), 
-                animated: true 
+              flatListRef.current?.scrollToIndex({
+                index: Math.min(info.index, weekDates.length - 1),
+                animated: true
               })
             }, 100)
           }}
@@ -232,15 +226,17 @@ const MatchesScreen: React.FC = () => {
 
         {/* Match Cards or Empty State */}
         {filteredMatches.length ? (
-          <ScrollView className="px-4">
+          <ScrollView className="px-4" contentContainerStyle={{ paddingBottom: 100, paddingTop: 8 }}>
             {filteredMatches.map((match) => <MatchCard key={match.id} match={match} />)}
           </ScrollView>
         ) : (
-          <EmptyState
-            icon="calendar-days"
-            title="No Matches Found"
-            message="You don't have any matches scheduled for this date. Check other dates or contact your coach for upcoming games."
-          />
+          <View className="flex-1 justify-center items-center px-6">
+            <EmptyState
+              icon="calendar-days"
+              title="No Matches Found"
+              message="You don't have any matches scheduled for this date. Check other dates or contact your coach for upcoming games."
+            />
+          </View>
         )}
       </View>
     </SafeAreaView>

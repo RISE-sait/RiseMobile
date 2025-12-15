@@ -1,8 +1,8 @@
-// app/(athlete)/(tabs)/calendar.tsx
+// app/(coach)/(tabs)/coachCalendar.tsx
 import SharedCalendar from "@/components/shared/SharedCalendar"
 
 export default function CoachCalendar() {
-  return <SharedCalendar userRole="coach" title="Calendar" subtitle="Refresh" />
+  return <SharedCalendar userRole="coach" title="Calendar" />
 }
 
   

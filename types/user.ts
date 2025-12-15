@@ -7,6 +7,7 @@ export interface MembershipInfo {
   plan_name: string
   start_date: string
   renewal_date: string
+  next_payment_date?: string | null
 }
 
 export interface MembershipState {
@@ -27,12 +28,18 @@ export interface User {
   profileImage?: string
   countryCode: string
   token: string
+  tokenIssuedAt?: number
   isAuthenticated?: boolean
   membership_info?: MembershipInfo
   phoneNumber?: string
   position?: string
   bio?: string
   teamLogo?: string
+  team?: {
+    id?: string
+    name?: string
+    logo?: string
+  }
   // Backend API properties (snake_case) - for compatibility
   first_name?: string
   last_name?: string

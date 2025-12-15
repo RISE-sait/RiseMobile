@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, Platform
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
+import type { SignupFormErrors } from "@/hooks/auth/useSignupForm"
 
 interface SignupStep1FormProps {
   email: string
@@ -15,8 +16,8 @@ interface SignupStep1FormProps {
   setPasswordVisible: (visible: boolean) => void
   confirmPasswordVisible: boolean
   setConfirmPasswordVisible: (visible: boolean) => void
-  errors: Record<string, string>
-  setErrors: (errors: Record<string, string>) => void
+  errors: SignupFormErrors
+  setErrors: (errors: SignupFormErrors) => void
   fadeAnim: Animated.Value
   slideAnim: Animated.Value
   onContinue: () => void
@@ -123,7 +124,7 @@ export const SignupStep1Form = ({
                         case "weak":
                           return "#FF4D4F"
                         case "medium":
-                          return "#FFA500"
+                          return "#E8920F"
                         case "good":
                           return "#2EB62C"
                         case "strong":
@@ -170,6 +171,23 @@ export const SignupStep1Form = ({
           </TouchableOpacity>
         </View>
         {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+
+        {/* Password Match Indicator */}
+        {confirmPassword.length > 0 && (
+          <View style={styles.passwordMatchContainer}>
+            <Ionicons
+              name={password === confirmPassword ? "checkmark-circle" : "close-circle"}
+              size={16}
+              color={password === confirmPassword ? "#2EB62C" : "#FF4D4F"}
+            />
+            <Text style={[
+              styles.passwordMatchText,
+              { color: password === confirmPassword ? "#2EB62C" : "#FF4D4F" }
+            ]}>
+              {password === confirmPassword ? "Passwords match" : "Passwords do not match"}
+            </Text>
+          </View>
+        )}
       </View>
 
       <TouchableOpacity
@@ -187,7 +205,7 @@ export const SignupStep1Form = ({
         }}
       >
         <LinearGradient
-          colors={["#FFD700", "#FFA500"]}
+          colors={["#FCA311", "#E8920F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradientButton}
@@ -253,6 +271,16 @@ const styles = StyleSheet.create({
   strengthTextContainer: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  passwordMatchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    marginLeft: 30,
+  },
+  passwordMatchText: {
+    fontSize: 12,
+    marginLeft: 6,
   },
   nextButton: {
     marginTop: 20,

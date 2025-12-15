@@ -5,6 +5,7 @@ import dayjs from "dayjs"
 // import { auth } from "@/firebase/firebaseConfig" // No longer needed with centralized token management
 import type { CalendarItem, PracticesState } from "@/types"
 import type { CreatePracticePayload } from "@/types/practice"
+import NotificationService from "@/app/services/notificationService"
 
 // Initial state
 const initialState: PracticesState = {
@@ -14,6 +15,7 @@ const initialState: PracticesState = {
   status: "idle",
   error: null,
   lastFetched: null,
+  isBooking: false, // Initialize booking flag
 }
 
 // Helper function to extract title
@@ -36,6 +38,45 @@ const getNextDayOccurrence = (dayName: string) => {
   const daysUntilNext = (dayIndex - todayIndex + 7) % 7
 
   return today.add(daysUntilNext, "day").format("YYYY-MM-DD")
+}
+
+// Helper function to send practice notification
+const sendPracticeNotification = async (
+  jwt: string,
+  teamId: string,
+  practiceDetails: {
+    date: string
+    time: string
+    location: string
+    isRecurring?: boolean
+  }
+) => {
+  try {
+    const notificationService = NotificationService.getInstance()
+
+    const formattedDate = dayjs(practiceDetails.date).format("MMMM D, YYYY")
+    const title = "New Practice Scheduled"
+    const body = practiceDetails.isRecurring
+      ? `Recurring practice scheduled for ${dayjs(practiceDetails.date).format("dddd")}s at ${practiceDetails.time}${practiceDetails.location ? ` at ${practiceDetails.location}` : ""}`
+      : `Practice scheduled for ${formattedDate} at ${practiceDetails.time}${practiceDetails.location ? ` at ${practiceDetails.location}` : ""}`
+
+    await notificationService.sendNotification(jwt, {
+      title,
+      body,
+      team_id: teamId,
+      type: "practice_booked",
+      data: {
+        practice_date: practiceDetails.date,
+        practice_time: practiceDetails.time,
+        location: practiceDetails.location,
+        is_recurring: practiceDetails.isRecurring || false
+      }
+    })
+
+  } catch (error) {
+    console.error("❌ Failed to send practice notification:", error)
+    // Don't throw error - notification failure shouldn't prevent practice creation
+  }
 }
 
 
@@ -121,13 +162,17 @@ export const createPracticeThunk = createAsyncThunk<
       const jwt = await refreshBackendJwt()
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
+      console.log("[createPracticeThunk] Sending payload to API:", payload);
+
       const response = await axios.post(
         `${API_URL}/practices`,
-        payload, 
+        payload,
         {
           headers: { Authorization: `Bearer ${jwt}` },
         }
       )
+
+      console.log("[createPracticeThunk] API response:", response.data);
 
       const responseData = response.data as any
       const item: CalendarItem = {
@@ -139,7 +184,16 @@ export const createPracticeThunk = createAsyncThunk<
         location: "RISE Basketball Facility",
         description: `Practice at RISE Basketball Facility`,
       }
-      
+
+      // Send notification to team members
+      if (payload.team_id) {
+        await sendPracticeNotification(jwt, payload.team_id, {
+          date: item.date,
+          time: item.time,
+          location: item.location || "RISE Basketball Facility",
+          isRecurring: false
+        })
+      }
 
       dispatch(addPractice(item))
       return item
@@ -152,13 +206,15 @@ export const createPracticeThunk = createAsyncThunk<
 export const createRecurringPracticeThunk = createAsyncThunk<
   void,
   {
+    court_id: string
     day: string
-    event_start_at: string
-    event_end_at: string
     location_id: string
-    team_id: string
-    recurrence_start_at: string
+    practice_end_at: string
+    practice_start_at: string
     recurrence_end_at: string
+    recurrence_start_at: string
+    status: string
+    team_id: string
   },
   { rejectValue: string }
 >(
@@ -169,23 +225,31 @@ export const createRecurringPracticeThunk = createAsyncThunk<
       const jwt = await refreshBackendJwt()
       if (!jwt) throw new Error("Could not retrieve backend JWT")
 
-      await axios.post(
+      console.log("[createRecurringPracticeThunk] Sending payload to API:", payload);
+
+      const response = await axios.post(
         `${API_URL}/practices/recurring`,
-        {
-          day: payload.day,
-          practice_start_at: payload.event_start_at,
-          practice_end_at: payload.event_end_at,
-          location_id: payload.location_id,
-          team_id: payload.team_id,
-          recurrence_start_at: payload.recurrence_start_at,
-          recurrence_end_at: payload.recurrence_end_at,
-          court_id: "default",
-          status: "scheduled",
-        },
+        payload,
         {
           headers: { Authorization: `Bearer ${jwt}` },
         }
       )
+
+      console.log("[createRecurringPracticeThunk] API response:", response.data);
+
+
+      // Send notification for recurring practice
+      if (payload.team_id) {
+        const startTime = dayjs(payload.practice_start_at, "HH:mm:ss+00:00").format("HH:mm")
+        const nextOccurrence = getNextDayOccurrence(payload.day)
+
+        await sendPracticeNotification(jwt, payload.team_id, {
+          date: nextOccurrence,
+          time: startTime,
+          location: "RISE Basketball Facility",
+          isRecurring: true
+        })
+      }
     } catch (err: any) {
       return rejectWithValue(err.message || "Failed to create recurring practices")
     }
@@ -232,6 +296,26 @@ const practicesSlice = createSlice({
       .addCase(fetchPractices.rejected, (state, action) => {
         state.status = "failed"
         state.error = action.payload as string
+      })
+      // Handle createPracticeThunk booking state
+      .addCase(createPracticeThunk.pending, (state) => {
+        state.isBooking = true
+      })
+      .addCase(createPracticeThunk.fulfilled, (state) => {
+        state.isBooking = false
+      })
+      .addCase(createPracticeThunk.rejected, (state) => {
+        state.isBooking = false
+      })
+      // Handle createRecurringPracticeThunk booking state
+      .addCase(createRecurringPracticeThunk.pending, (state) => {
+        state.isBooking = true
+      })
+      .addCase(createRecurringPracticeThunk.fulfilled, (state) => {
+        state.isBooking = false
+      })
+      .addCase(createRecurringPracticeThunk.rejected, (state) => {
+        state.isBooking = false
       })
   },
 })

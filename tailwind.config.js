@@ -29,8 +29,9 @@ module.exports = {
     },
     colors: {
       gold:{
-        100: "#FCA311",
-        200: "#c2b067",
+        100: "#FCA311", // Primary gold accent
+        200: "#FFB84D", // Lighter gold for hover/pressed
+        300: "#D4890E", // Darker gold for depth
       },
         black:{
           100: "#000000",
@@ -67,7 +68,7 @@ module.exports = {
           900: "#666876",
         },
         stats:{
-          100: "#FCA311",
+          100: "#FCA311", // Uses primary gold
           200: "#F0F0F0"
         },
         red:{

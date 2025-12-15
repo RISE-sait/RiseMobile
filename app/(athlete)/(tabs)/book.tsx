@@ -21,14 +21,17 @@ import { StatusBar } from "expo-status-bar"
 import { useAppSelector } from "@/store/hooks"
 import { getUpcomingBookings } from "@/utils/api"
 import EmptyBookingsState from "@/components/feedback/EmptyBookingState"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
+import Constants from "expo-constants"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
 
 // Define color constants
 const COLORS = {
-  primary: "#FFD700",
-  primaryDark: "#E6C200",
+  primary: "#FCA311",
+  primaryDark: "#D4890E",
   background: "#0C0B0B",
   card: "#1A1A1A",
   cardDark: "#141414",
@@ -40,17 +43,19 @@ const COLORS = {
   info: "#2196F3",
 }
 
+const BOOKING_TIMEZONE = "America/Edmonton"
+
 // Upcoming bookings are now loaded from API - removed unused constant
 
-// Featured facilities - filtered to show only Basketball Court and Courtside Kutz
+// Featured facilities - RISE Courts and Courtside Kutz
 const featuredFacilities = [
   {
     id: "1",
-    title: "Drop-In Sessions",
-    description: "Join open basketball sessions with other athletes",
+    title: "RISE Courts",
+    description: "Book basketball courts with real-time availability",
     image:
       "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
-    route: "/screens/booking-options/DropIn",
+    route: "/screens/booking-options/Courts",
   },
   {
     id: "2",
@@ -62,12 +67,12 @@ const featuredFacilities = [
   },
 ]
 
-// Booking options with availability status - filtered to show only Basketball Court and Courtside Kutz
+// Booking options with availability status - RISE Courts and Courtside Kutz
 const bookingOptions = [
   {
-    title: "Basketball Court",
+    title: "RISE Courts",
     icon: "basketball-ball",
-    route: "/screens/booking-options/DropIn",
+    route: "/screens/booking-options/Courts",
     availability: "High",
     color: "#FF7043",
   },
@@ -85,7 +90,7 @@ const AthleteBook = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredOptions, setFilteredOptions] = useState(bookingOptions)
   const scrollX = useRef(new Animated.Value(0)).current
-  
+
   // Real upcoming bookings state
   const [realUpcomingBookings, setRealUpcomingBookings] = useState<any[]>([])
   const [isLoadingBookings, setIsLoadingBookings] = useState(true)
@@ -94,7 +99,10 @@ const AthleteBook = () => {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(50)).current
-  
+
+  // Guard to prevent double-fetch on mount + focus
+  const hasLoadedRef = useRef(false)
+
   // Get user from Redux store
   const user = useAppSelector((state) => state.user.data)
 
@@ -104,7 +112,7 @@ const AthleteBook = () => {
       setIsLoadingBookings(false)
       return
     }
-    
+
     try {
       setIsLoadingBookings(true)
       setBookingsError(null)
@@ -131,47 +139,46 @@ const AthleteBook = () => {
       }
       
       if (allBookings.length > 0) {
-        const transformedBookings = allBookings.map((booking: any, index: number) => {
-          // Helper function to format datetime string to date and time
-          const parseDateTime = (dateTimeStr: string) => {
-            if (!dateTimeStr) return { date: "TBD", time: "TBD" }
-            
-            try {
-              // Clean the duplicate -0600 format: "2025-09-05 03:30:00 -0600 -0600"
-              let dateStr = dateTimeStr.trim()
-              if (dateStr.includes(' -0600 -0600')) {
-                dateStr = dateStr.replace(' -0600 -0600', ' -0600')
-              }
-              
-              // Parse the datetime string
-              let dateObj = new Date(dateStr)
-              
-              // Fallback to ISO format if parsing fails
-              if (isNaN(dateObj.getTime())) {
-                const isoStr = dateStr.replace(' ', 'T').replace(' -0600', '-06:00')
-                dateObj = new Date(isoStr)
-                if (isNaN(dateObj.getTime())) {
-                  return { date: "TBD", time: "TBD" }
-                }
-              }
-              
-              const date = dateObj.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric' 
-              })
-              
-              const time = dateObj.toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
-                minute: '2-digit',
-                hour12: true 
-              })
-              
-              return { date, time }
-            } catch (error) {
+        const parseDateTime = (dateTimeStr: string) => {
+          if (!dateTimeStr) return { date: "TBD", time: "TBD" }
+
+          try {
+            let normalized = dateTimeStr.trim()
+            if (normalized.includes(' -0600 -0600')) {
+              normalized = normalized.replace(' -0600 -0600', ' -0600')
+            }
+            if (normalized.includes(' ') && !normalized.includes('T')) {
+              normalized = normalized.replace(' ', 'T')
+            }
+
+            const parsedDate = new Date(normalized)
+            if (Number.isNaN(parsedDate.getTime())) {
               return { date: "TBD", time: "TBD" }
             }
+
+            const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+              month: 'short',
+              day: 'numeric',
+              timeZone: BOOKING_TIMEZONE,
+            })
+
+            const timeFormatter = new Intl.DateTimeFormat('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+              timeZone: BOOKING_TIMEZONE,
+            })
+
+            return {
+              date: dateFormatter.format(parsedDate),
+              time: timeFormatter.format(parsedDate),
+            }
+          } catch (error) {
+            return { date: "TBD", time: "TBD" }
           }
-          
+        }
+
+        const transformedBookings = allBookings.map((booking: any, index: number) => {
           const { date, time } = parseDateTime(booking.start_at)
           
           return {
@@ -201,15 +208,22 @@ const AthleteBook = () => {
     }
   }, [user?.token, user?.id])
 
-  // Fetch bookings on component mount and user changes
+  // Fetch bookings on component mount only (not on every focus)
   useEffect(() => {
-    fetchUpcomingBookings()
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true
+      fetchUpcomingBookings()
+    }
   }, [fetchUpcomingBookings])
-  
+
   // Refresh bookings when tab gains focus (user returns from booking flow)
+  // Skip the first focus event since useEffect already handles mount
   useFocusEffect(
     useCallback(() => {
-      fetchUpcomingBookings()
+      if (hasLoadedRef.current) {
+        // Only refetch if we've already loaded once (i.e., this is a return visit)
+        fetchUpcomingBookings()
+      }
     }, [fetchUpcomingBookings])
   )
 
@@ -286,7 +300,7 @@ const AthleteBook = () => {
           }}
         >
           <Image
-            source={{ uri: item.image }}
+            source={resolveImageSource(item.image, images.events)}
             style={{
               width: "100%",
               height: "100%",
@@ -612,4 +626,3 @@ const AthleteBook = () => {
 }
 
 export default AthleteBook
-

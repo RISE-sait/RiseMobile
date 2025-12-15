@@ -1,5 +1,6 @@
 import type React from "react"
 import { View, Text, FlatList } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { FontAwesome6 } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import EventListItem from "./EventListItem"
@@ -39,20 +40,36 @@ const mapTypeToValidType = (item: EventItem): "event" | "match" | "practice" | "
   // Map based on the type property
   switch (type) {
     case "match":
-      return "match"
     case "game":
       return "match"
     case "practice":
-      return "practice"
-    case "course":
-      return "course"
     case "training":
       return "practice"
+    case "course":
     case "class":
       return "course"
+    case "event":
+    case "tryouts":
+    case "tryout":
+      return "event"
   }
 
-  // If type doesn't match, check program_type
+  // If type doesn't match, check program.type
+  if (item.program?.type) {
+    const programType = item.program.type.toLowerCase()
+
+    if (programType === "match" || programType === "game") {
+      return "match"
+    }
+    if (programType === "practice" || programType === "training") {
+      return "practice"
+    }
+    if (programType === "course" || programType === "class") {
+      return "course"
+    }
+  }
+
+  // Check program_type field
   if (item.program_type) {
     const programType = item.program_type.toLowerCase()
 
@@ -67,30 +84,8 @@ const mapTypeToValidType = (item: EventItem): "event" | "match" | "practice" | "
     }
   }
 
-  // Check title for clues
-  const title = (item.title || "").toLowerCase()
-
-  if (title.includes("match") || title.includes("game") || title.includes("vs") || title.includes("versus")) {
-    return "match"
-  }
-
-  if (title.includes("practice") || title.includes("training") || title.includes("drill")) {
-    return "practice"
-  }
-
-  if (title.includes("course") || title.includes("class") || title.includes("lesson")) {
-    return "course"
-  }
-
-  // Use ID as a fallback to distribute events more evenly
-  const lastChar = item.id.charAt(item.id.length - 1)
-  const charCode = lastChar.charCodeAt(0) || 0
-
-  if (charCode % 3 === 0) return "match"
-  if (charCode % 3 === 1) return "practice"
-  if (charCode % 3 === 2) return "course"
-
-  // Default to event
+  // Default to "event" - do NOT guess based on title or ID
+  // This ensures consistent typing across all instances of the same event
   return "event"
 }
 
@@ -103,8 +98,10 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
   emptyMessage = "There are no events scheduled for this day.",
   children,
 }) => {
+  const insets = useSafeAreaInsets()
+
   return (
-    <View style={{ flex: 1, minHeight: 300 }}>
+    <View style={{ flex: 1 }}>
       <LinearGradient
         colors={["#1A1A1A", "#121212"]}
         style={{ flex: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" }}
@@ -164,7 +161,6 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               // Map the type to a valid display type
               const validType = mapTypeToValidType(item)
 
-              // Log the complete item for debugging
 
               return (
                 <EventListItem
@@ -183,6 +179,11 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               minHeight: data.length === 0 ? 200 : undefined,
             }}
             ListEmptyComponent={<EmptyState icon="calendar-xmark" title="No Events" message={emptyMessage} />}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            initialNumToRender={10}
+            removeClippedSubviews={true}
+            updateCellsBatchingPeriod={50}
           />
         )}
 
@@ -192,7 +193,7 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
             flexDirection: "row",
             justifyContent: "center",
             alignItems: "center",
-            paddingBottom: 16,
+            paddingBottom: Math.max(insets.bottom, 16),
             paddingTop: 8,
             paddingHorizontal: 20,
             borderTopWidth: 1,

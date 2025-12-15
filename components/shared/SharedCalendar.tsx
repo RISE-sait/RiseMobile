@@ -4,26 +4,27 @@
 import type React from "react"
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
-import { View, Animated } from "react-native"
+import { View, Animated, InteractionManager } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import dayjs from "dayjs"
 import { useDispatch, useSelector } from "react-redux"
 import type { RootState } from "@/store"
-import { fetchEvents } from "@/store/slices/eventsSlice"
-import { fetchMatches } from "@/store/slices/gamesSlice"
+import { fetchEvents, clearEvents } from "@/store/slices/eventsSlice"
+import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
 import type { Match } from "@/store/slices/gamesSlice"
-import { fetchSchedule, clearSchedule } from "@/store/slices/scheduleSlice"
+import { fetchSchedule, clearSchedule, clearScheduleError } from "@/store/slices/scheduleSlice"
 import PageTitle from "@/components/PageTitle"
 import CalendarCard from "@/components/calendar/CalendarCard"
 import EventListContainer from "@/components/calendar/EventListContainer"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useAuth } from "@/utils/auth"
+import Constants from "expo-constants"
 
 interface SharedCalendarProps {
   userRole: "athlete" | "coach" | "instructor" | "parent"
   title?: string
-  subtitle?: string
   childrenData?: any[]
+  embedded?: boolean // New prop to indicate it's embedded in another view
 }
 
 // Define an interface for calendar events
@@ -40,12 +41,15 @@ interface CalendarEvent {
 const SharedCalendar: React.FC<SharedCalendarProps> = ({
   userRole,
   title = "Calendar",
-  subtitle,
   childrenData = [],
+  embedded = false,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format("YYYY-MM-DD"))
   const fadeAnim = useRef(new Animated.Value(0)).current
   const dispatch = useDispatch()
+  const { getValidToken, forceReLogin } = useAuth()
+  const calendarInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null)
+  const isMountedRef = useRef(true) // Track component mount state
 
   // Get user from Redux store
   const user = useSelector((state: RootState) => state.user.data)
@@ -61,70 +65,115 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
   // Determine loading state - prioritize schedule data
   const isLoading = reduxSchedule.status === "loading" || reduxEvents.status === "loading" || reduxGames.status === "loading"
 
-  const error = reduxSchedule.error || reduxEvents.error || reduxGames.error
+  // Only show error if ALL data sources failed (schedule + fallback)
+  // If schedule failed but events/matches succeeded, don't show error
+  const hasScheduleData = reduxSchedule.items.length > 0
+  const hasFallbackData = reduxEvents.items.length > 0 || reduxGames.items.length > 0
+  const allDataSourcesFailed =
+    reduxSchedule.status === "failed" &&
+    reduxEvents.status === "failed" &&
+    reduxGames.status === "failed"
+
+  const error = allDataSourcesFailed
+    ? (reduxSchedule.error || reduxEvents.error || reduxGames.error)
+    : null
 
 
-const fetchCalendarData = useCallback(async () => {
-  try {
-    let jwt = user?.token
-    
-    // Fallback token logic similar to matches page
-    if (!jwt) {
-      try {
-        const userString = await AsyncStorage.getItem("user")
-        if (userString) {
-          const userData = JSON.parse(userString)
-          jwt = userData.token
-        }
-        
-        // Additional fallback: try direct JWT token
-        if (!jwt) {
-          jwt = await AsyncStorage.getItem("jwtToken")
-        }
-      } catch (err) {
-        console.error("Error getting token from AsyncStorage:", err)
-      }
-    }
-    
-    if (!jwt) {
-      console.error("Missing backend JWT - no token available")
+// Fetch calendar data - stable reference without dependencies
+  const fetchCalendarData = useCallback(async (forceRefresh = false) => {
+    // Only proceed if component is still mounted
+    if (!isMountedRef.current) {
       return
     }
 
-
-    // Try to fetch from unified schedule endpoint first
-    try {
-      dispatch(clearSchedule())
-      dispatch(fetchSchedule(jwt) as any)
-    } catch (scheduleErr) {
-      console.warn("Schedule endpoint failed, falling back to individual endpoints:", scheduleErr)
-      // Fallback to individual endpoints
-      dispatch(fetchEvents(jwt) as any)
-      dispatch(fetchMatches(jwt) as any)
+    if (calendarInteractionRef.current) {
+      calendarInteractionRef.current.cancel()
     }
-  } catch (err) {
-    console.error("Error fetching calendar data:", err)
-  }
-}, [dispatch, user?.token])
 
+    calendarInteractionRef.current = InteractionManager.runAfterInteractions(async () => {
+      // Check mount state again after interaction completes
+      if (!isMountedRef.current) {
+        return
+      }
 
+      try {
+        const jwt = await getValidToken()
 
-  // Memoize the refresh handler
+        if (!jwt) {
+          await forceReLogin("Session expired. Please log in again.")
+          return
+        }
+
+        // Clear existing schedule data before fetching fresh data
+        // This ensures we don't show stale data (e.g., events user is no longer enrolled in)
+        if (forceRefresh) {
+          dispatch(clearSchedule())
+        }
+
+        // Try unified schedule endpoint first
+        try {
+          await dispatch(fetchSchedule(jwt) as any).unwrap()
+        } catch (scheduleErr) {
+          // Only continue with fallback if still mounted
+          if (!isMountedRef.current) {
+            return
+          }
+          // Fallback to separate endpoints when schedule fails
+          // Clear schedule error to prevent UI lockup
+          dispatch(clearScheduleError())
+
+          // Clear events and matches data when force refreshing to remove stale entries
+          if (forceRefresh) {
+            dispatch(clearEvents())
+            dispatch(clearMatches())
+          }
+
+          dispatch(fetchEvents(jwt) as any)
+          dispatch(fetchMatches(jwt) as any)
+        }
+      } catch (err) {
+        if (isMountedRef.current) {
+          console.error("❌ Error fetching calendar data:", err)
+        }
+      }
+    })
+  }, []) // Empty deps - rely on dispatch/getValidToken/forceReLogin closure
+
+  // Memoize the refresh handler - stable reference
+  // Pass true to force refresh and clear stale data
   const handleRefresh = useCallback(() => {
-    fetchCalendarData()
-  }, [fetchCalendarData])
+    fetchCalendarData(true)
+  }, []) // Empty deps - fetchCalendarData is stable
 
   // Animation and initial data fetch - only run once
   useEffect(() => {
-    Animated.timing(fadeAnim, {
+    // Mark component as mounted
+    isMountedRef.current = true
+
+    // Start fade-in animation
+    const fadeAnimation = Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
-    }).start()
+    })
+    fadeAnimation.start()
 
     fetchCalendarData()
+
+    return () => {
+      // Mark component as unmounted
+      isMountedRef.current = false
+
+      // Stop animation to prevent updates during unmount
+      fadeAnimation.stop()
+      fadeAnim.stopAnimation()
+
+      // Cancel any pending interactions
+      calendarInteractionRef.current?.cancel()
+      calendarInteractionRef.current = null
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Empty dependency array - only run once
+  }, [])
 
   // Process matches data to organize by date
   const matchesByDate = useMemo(() => {
@@ -172,10 +221,10 @@ const fetchCalendarData = useCallback(async () => {
     return [...events, ...matches]
   }, [reduxSchedule.byDate, reduxEvents.byDate, matchesByDate, selectedDate])
 
-const combinedCalendarEvents = useMemo(() => {
-  // If we have schedule data, use it (unified data source)
-  if (reduxSchedule.items.length > 0) {
-    return reduxSchedule.byDate
+  const combinedCalendarEvents = useMemo(() => {
+    // If we have schedule data, use it (unified data source)
+    if (reduxSchedule.items.length > 0) {
+      return reduxSchedule.byDate
   }
   
   // Fallback to separate events and matches
@@ -195,6 +244,27 @@ const combinedCalendarEvents = useMemo(() => {
 
   return combined
 }, [reduxSchedule.byDate, reduxEvents.byDate, matchesByDate])
+
+  const windowedCalendarEvents = useMemo(() => {
+    const selectedMonth = dayjs(selectedDate).startOf("month")
+    const windowStart = selectedMonth.subtract(1, "month")
+    const windowEnd = selectedMonth.add(1, "month").endOf("month")
+    const filtered: Record<string, any[]> = {}
+
+    Object.entries(combinedCalendarEvents).forEach(([date, items]) => {
+      const dateObj = dayjs(date)
+      if (dateObj.isBefore(windowStart) || dateObj.isAfter(windowEnd)) {
+        return
+      }
+      filtered[date] = items
+    })
+
+    if (!filtered[selectedDate] && combinedCalendarEvents[selectedDate]) {
+      filtered[selectedDate] = combinedCalendarEvents[selectedDate]
+    }
+
+    return filtered
+  }, [combinedCalendarEvents, selectedDate])
 
 
   // Create marked dates for the calendar
@@ -241,10 +311,6 @@ const combinedCalendarEvents = useMemo(() => {
       })
     }
 
-    // Log for debugging
-    if (Object.keys(marked).length > 0) {
-    }
-
     return marked
   }, [reduxSchedule.byDate, reduxEvents.byDate, matchesByDate])
 
@@ -267,17 +333,43 @@ const combinedCalendarEvents = useMemo(() => {
     }
   }, [userRole, formattedDate])
 
+  // Render embedded version (no SafeAreaView, StatusBar, or PageTitle)
+  if (embedded) {
+    return (
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <View className="px-5 pt-2">
+          <CalendarCard
+            selectedDate={selectedDate}
+            events={windowedCalendarEvents}
+            onDayPress={(day) => setSelectedDate(day.dateString)}
+          />
+        </View>
+
+        {/* Updated EventListContainer that accepts data directly */}
+        <EventListContainer
+          date={dayjs(selectedDate).format("DD MMM YYYY")}
+          data={combinedEventsForSelectedDate}
+          isLoading={isLoading}
+          error={error}
+          onRetry={handleRefresh}
+          emptyMessage={emptyStateMessage}
+        />
+      </Animated.View>
+    )
+  }
+
+  // Render full version (original layout)
   return (
-    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">
+    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2" edges={['top', 'left', 'right']}>
       <StatusBar translucent style="light" />
 
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <PageTitle title={title} subtitle={subtitle} onButtonPress={subtitle ? handleRefresh : undefined} />
+        <PageTitle title={title} onButtonPress={handleRefresh} showRefreshIcon isRefreshing={isLoading} />
 
-        <View className="px-5 py-4">
+        <View className="px-5 py-2">
           <CalendarCard
             selectedDate={selectedDate}
-            events={combinedCalendarEvents}
+            events={windowedCalendarEvents}
             onDayPress={(day) => setSelectedDate(day.dateString)}
           />
         </View>

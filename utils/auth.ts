@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { loginUser, registerUser } from "./api" // Import API functions
+import { loginUser, registerUser, verifyEmail as apiVerifyEmail, resendVerificationEmail as apiResendVerificationEmail } from "./api" // Import API functions
 import { auth } from "@/firebase/firebaseConfig"
 import { GoogleAuthProvider, signInWithCredential, OAuthProvider, onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth"
 import * as WebBrowser from "expo-web-browser"
@@ -15,7 +15,10 @@ import type { RootState } from "@/store"
 import { setUser as setReduxUser, logout as reduxLogout } from "@/store/slices/userSlice"
 import { clearPractices } from "@/store/slices/practicesSlice"
 import { clearMatches } from "@/store/slices/gamesSlice"
+import { clearMembership } from "@/store/slices/membershipSlice"
 import { persistor } from "@/store"
+import { AppState, InteractionManager } from "react-native"
+import Constants from "expo-constants"
 
 type User = {
   id: string
@@ -31,6 +34,21 @@ type User = {
 
 WebBrowser.maybeCompleteAuthSession()
 
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs = 8000): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  return await Promise.race<T>([
+    promise,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error("Token refresh timed out")), timeoutMs)
+    }) as Promise<T>,
+  ]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+  })
+}
+
 export const useAuth = () => {
   const dispatch = useDispatch()
   const reduxUser = useSelector((state: RootState) => state.user.data)
@@ -38,7 +56,12 @@ export const useAuth = () => {
   const [isAuthLoaded, setIsAuthLoaded] = useState(false)
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
-  const [isLoadingFromStorage, setIsLoadingFromStorage] = useState(false) // 🔹 Prevent concurrent loading
+  const [hasInitialized, setHasInitialized] = useState(false) // ✅ Simplified: track if initial check is done
+  const hasLoadedOnce = useRef(false) // ✅ Track if loadUserFromStorage has been called
+  const TOKEN_TTL_MS = 55 * 60 * 1000
+  const refreshInFlight = useRef<Promise<string | null> | null>(null)
+  const firebaseReadyResolvers = useRef<Array<(user: FirebaseUser | null) => void>>([])
+  const lastDeliveredTokenRef = useRef<string | null>(null)
 
   // Use Redux user state as primary source of truth
   const user = reduxUser
@@ -50,20 +73,6 @@ export const useAuth = () => {
     }),
     scopes: ["profile", "email"],
   })
-
-  // 🔹 Verify token validity with backend
-  const verifyTokenWithBackend = async (token: string, email: string): Promise<boolean> => {
-    try {
-      // Try to get upcoming bookings as a way to verify token validity
-      await axios.get(`${API_URL}/bookings/upcoming`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      return true
-    } catch (error) {
-      console.warn("⚠️ Token verification failed:", (error as any).response?.status)
-      return false
-    }
-  }
 
   // 🔹 Refresh Firebase token and exchange for JWT
   const refreshAndExchangeToken = async (firebaseUser: FirebaseUser): Promise<string | null> => {
@@ -98,61 +107,44 @@ export const useAuth = () => {
     }
   }
 
-  // 🔹 Load user from Redux Persist only - no direct AsyncStorage access
-  const loadUserFromStorage = async () => {
+  // ✅ Simplified: Load user from Redux state immediately
+  const loadUserFromStorage = useCallback(async () => {
+    // Prevent multiple calls - only run once per hook instance
+    if (hasLoadedOnce.current) {
+      return
+    }
+    hasLoadedOnce.current = true
+
     try {
-      // 🔹 Use Redux user state as primary source, not AsyncStorage
+      // 🔹 Use Redux user state as primary source
       if (reduxUser) {
-        // If Firebase user is available, verify token validity
-        if (firebaseUser && reduxUser.token) {
-          const isTokenValid = await verifyTokenWithBackend(reduxUser.token, reduxUser.email)
-          
-          if (!isTokenValid) {
-            const newToken = await refreshAndExchangeToken(firebaseUser)
-            
-            if (newToken) {
-              const updatedUser = { ...reduxUser, token: newToken }
-              dispatch(setReduxUser(updatedUser)) // ✅ Only update Redux, no AsyncStorage
-              setAuthError(null)
-            } else {
-              console.error("❌ Failed to refresh token, user needs to re-login")
-              setAuthError("Authentication expired. Please log in again.")
-              dispatch(reduxLogout()) // ✅ Only clear Redux
-              setIsAuthLoaded(true)
-              return
-            }
-          }
+        if (reduxUser.token && !reduxUser.tokenIssuedAt) {
+          const patchedUser = { ...reduxUser, tokenIssuedAt: Date.now() }
+          dispatch(setReduxUser(patchedUser))
         }
 
-        const userToSet = {
-          ...reduxUser,
-          firstName: reduxUser.firstName || (reduxUser.displayName?.split(" ")[0] ?? ""),
-          lastName: reduxUser.lastName || (reduxUser.displayName?.split(" ")[1] ?? ""),
-        }
-        
-        // ✅ User is already in Redux from persist, just ensure it's properly set
-        if (JSON.stringify(reduxUser) !== JSON.stringify(userToSet)) {
-          dispatch(setReduxUser(userToSet))
-        }
-        
-        
         setAuthError(null)
-        setIsAuthLoaded(true)
-      } else {
-        setIsAuthLoaded(true)
       }
-    } catch (error) {
-      console.error("❌ Failed to load user data:", error)
-      setAuthError("Failed to load authentication data")
+
       setIsAuthLoaded(true)
+    } catch (error) {
+      console.error("❌ [Auth] Error in loadUserFromStorage:", error)
+      setAuthError("Failed to load authentication data")
+      setIsAuthLoaded(true) // ✅ Always set to true to prevent infinite loading
     }
-  }
+  }, []) // Empty deps - only create once, rely on closure for reduxUser/dispatch
 
   // 🔹 Save user data to Redux only - Redux Persist handles AsyncStorage
   const saveUserToRedux = async (userData: User) => {
     try {
       if (!userData.countryCode) {
           userData.countryCode = "US" // ✅ Prevent undefined values
+      }
+      if (userData.token && !userData.tokenIssuedAt) {
+        userData.tokenIssuedAt = Date.now()
+      }
+      if (!userData.tokenIssuedAt) {
+        userData.tokenIssuedAt = Date.now()
       }
 
       // ✅ Only save to Redux - Redux Persist will handle AsyncStorage automatically
@@ -170,7 +162,13 @@ export const useAuth = () => {
       dispatch(setReduxUser(userData))
       await saveUserToRedux(userData)
 
-      const userRole = userData.role.toLowerCase()
+      const userRole = userData.role?.toLowerCase()?.trim() || ""
+
+      // Debug log to see what role we're getting
+      if (__DEV__) {
+        console.log("🔍 User role from backend:", userData.role)
+        console.log("🔍 User role normalized:", userRole)
+      }
 
       // Now it's safe to navigate after login
       switch (userRole) {
@@ -180,8 +178,15 @@ export const useAuth = () => {
         case "coach":
           router.replace("/(coach)/(tabs)/coachHome")
           break
+        case "admin":
+        case "superadmin":
+        case "super_admin":
+        case "it":
+        case "receptionist":
+          router.replace("/(admin)/(tabs)/dashboard")
+          break
         default:
-          console.error("❌ Unknown role:", userRole)
+          console.error("❌ Unknown role:", userRole, "(original:", userData.role, ")")
           // Fallback to athlete for unknown roles
           router.replace("/(athlete)/(tabs)/home")
       }
@@ -206,6 +211,12 @@ export const useAuth = () => {
     dob: string, // ✅ Change from age:number → dob:string
     phoneNumber: string,
     countryCode: string,
+    athleteFields?: {
+      gender: string
+      emergencyContactName: string
+      emergencyContactPhone: string
+      emergencyContactRelationship: string
+    },
   ) => {
     setIsLoading(true)
 
@@ -220,6 +231,7 @@ export const useAuth = () => {
         dob, // ✅ Correct argument
         phoneNumber,
         countryCode,
+        athleteFields,
       )
 
       // ❌ DO NOT automatically log the user in!
@@ -326,15 +338,23 @@ export const useAuth = () => {
         await saveUserToRedux(userData)
 
         // ✅ Redirect Based on Role
-        switch (userData.role) {
+        const googleUserRole = userData.role?.toLowerCase()?.trim() || ""
+        switch (googleUserRole) {
           case "athlete":
             router.replace("/(athlete)/(tabs)/home")
             break
           case "coach":
             router.replace("/(coach)/(tabs)/coachHome")
             break
+          case "admin":
+          case "superadmin":
+          case "super_admin":
+          case "it":
+          case "receptionist":
+            router.replace("/(admin)/(tabs)/dashboard")
+            break
           default:
-            console.error("❌ Unknown role:", userData.role)
+            console.error("❌ Unknown role:", googleUserRole, "(original:", userData.role, ")")
             // Fallback to athlete for unknown roles
             router.replace("/(athlete)/(tabs)/home")
         }
@@ -419,15 +439,23 @@ export const useAuth = () => {
       await saveUserToRedux(userData)
 
       // 🔹 Redirect Based on Role
-      switch (userData.role) {
+      const appleUserRole = userData.role?.toLowerCase()?.trim() || ""
+      switch (appleUserRole) {
         case "athlete":
           router.replace("/(athlete)/(tabs)/home")
           break
         case "coach":
           router.replace("/(coach)/(tabs)/coachHome")
           break
+        case "admin":
+        case "superadmin":
+        case "super_admin":
+        case "it":
+        case "receptionist":
+          router.replace("/(admin)/(tabs)/dashboard")
+          break
         default:
-          console.error("❌ Unknown role:", userData.role)
+          console.error("❌ Unknown role:", appleUserRole, "(original:", userData.role, ")")
           // Fallback to athlete for unknown roles
           router.replace("/(athlete)/(tabs)/home")
       }
@@ -443,84 +471,180 @@ export const useAuth = () => {
   // 🔹 Force re-login when authentication fails
   const forceReLogin = async (message: string = "Please log in again") => {
     setAuthError(message)
-    
+
     try {
-      // 🔄 Multiple approaches to clear Redux Persist state
+      // ✅ Clear Redux state first
+      dispatch(reduxLogout())
+
+      // ✅ Use Redux Persist API only - avoid manual persist:* key manipulation
       persistor.pause()
       await persistor.purge()
       await persistor.flush()
-      
-      // 🔄 Direct AsyncStorage key removal for Redux Persist
-      const allKeys = await AsyncStorage.getAllKeys()
-      const persistKeys = allKeys.filter(key => key.startsWith('persist:'))
-      for (const key of persistKeys) {
-        await AsyncStorage.removeItem(key)
-      }
-      
-      // Clear Redux state
-      dispatch(reduxLogout())
-      
-      // Clear AsyncStorage items manually (redundant after purge, but kept for safety)
-      await AsyncStorage.removeItem("user")
+
+      // ✅ Only clear legacy keys if they exist (not managed by Redux Persist)
       await AsyncStorage.removeItem("authToken")
     } catch (error) {
       console.error("❌ forceReLogin: Error during clearing:", error)
     }
-    
+
     router.replace("/(auth)/login")
   }
 
-  // 🔹 Get valid token (centralized token management)
-  const getValidToken = async (): Promise<string | null> => {
-    try {
-      // Try Redux user token first
-      if (user?.token) {
-        const isValid = await verifyTokenWithBackend(user.token, user.email)
-        if (isValid) {
-          return user.token
+  const waitForFirebaseUser = useCallback(async () => {
+    if (firebaseUser || auth.currentUser) {
+      return firebaseUser || auth.currentUser
+    }
+
+    return await new Promise<FirebaseUser | null>((resolve) => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const cleanup = (resolver?: (user: FirebaseUser | null) => void) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        if (resolver) {
+          firebaseReadyResolvers.current = firebaseReadyResolvers.current.filter((r) => r !== resolver)
         }
       }
 
-      // If no valid token from Redux, try Firebase user
-      if (firebaseUser) {
-        const newToken = await refreshAndExchangeToken(firebaseUser)
-        if (newToken) {
-          const updatedUser = { ...user, token: newToken }
+      const resolver = (user: FirebaseUser | null) => {
+        cleanup(resolver)
+        resolve(user)
+      }
+
+      timeoutId = setTimeout(() => {
+        cleanup(resolver)
+        resolve(null)
+      }, 3000)
+
+      firebaseReadyResolvers.current.push(resolver)
+    })
+  }, [firebaseUser])
+
+  const refreshTokenSilently = useCallback(async (): Promise<string | null> => {
+    let sourceUser = firebaseUser || auth.currentUser
+    if (!sourceUser) {
+      sourceUser = await waitForFirebaseUser()
+      if (!sourceUser) {
+        return null
+      }
+    }
+
+    if (refreshInFlight.current) {
+      return refreshInFlight.current
+    }
+
+    const refreshPromise = (async () => {
+      try {
+        const newToken = await withTimeout(refreshAndExchangeToken(sourceUser!), 8000)
+        if (!newToken) return null
+
+        const issuedAt = Date.now()
+
+        if (user) {
+          const updatedUser = { ...user, token: newToken, tokenIssuedAt: issuedAt }
           dispatch(setReduxUser(updatedUser))
           await saveUserToRedux(updatedUser)
-          return newToken
-        }
-      }
-
-      // If still no token, check Firebase auth state
-      if (auth.currentUser) {
-        const newToken = await refreshAndExchangeToken(auth.currentUser)
-        if (newToken) {
-          // If no Redux user but Firebase user exists, create minimal user object
-          if (!user) {
-            const minimalUser = {
-              id: auth.currentUser.uid,
-              email: auth.currentUser.email || '',
-              firstName: '',
-              lastName: '',
-              role: '',
-              countryCode: 'US',
-              token: newToken
-            }
-            dispatch(setReduxUser(minimalUser))
-          } else {
-            const updatedUser = { ...user, token: newToken }
-            dispatch(setReduxUser(updatedUser))
+        } else {
+          const minimalUser = {
+            id: sourceUser.uid,
+            email: sourceUser.email || '',
+            firstName: '',
+            lastName: '',
+            role: '',
+            countryCode: 'US',
+            token: newToken,
+            tokenIssuedAt: issuedAt,
           }
-          return newToken
+          dispatch(setReduxUser(minimalUser))
         }
+
+        return newToken
+      } catch (error) {
+        console.warn("⚠️ [Auth] Silent token refresh failed", error)
+        return null
+      } finally {
+        refreshInFlight.current = null
+      }
+    })()
+
+    refreshInFlight.current = refreshPromise
+    return refreshPromise
+  }, [dispatch, firebaseUser, saveUserToRedux, user, waitForFirebaseUser])
+
+  useEffect(() => {
+    const isStandalone = Constants.appOwnership === "standalone"
+
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") {
+        refreshInFlight.current = null
+        return
       }
 
-      console.error("❌ Unable to obtain valid token")
-      return null
+      // Skip token refresh in Expo Go to prevent blocking
+      if (!isStandalone) {
+        return
+      }
+
+      const issuedAt = user?.tokenIssuedAt ?? 0
+      const age = Date.now() - issuedAt
+      if (user?.token && age > TOKEN_TTL_MS) {
+        backgroundRefresh()
+      }
+    })
+
+    return () => subscription.remove()
+  }, [backgroundRefresh, refreshTokenSilently, user?.token, user?.tokenIssuedAt])
+
+  useEffect(() => {
+    if (user?.token) {
+      lastDeliveredTokenRef.current = user.token
+    }
+  }, [user?.token])
+
+  const backgroundRefresh = useCallback(() => {
+    if (!refreshInFlight.current) {
+      InteractionManager.runAfterInteractions(() => {
+        refreshTokenSilently().catch(() => null)
+      })
+    }
+  }, [refreshTokenSilently])
+
+  // 🔹 Get valid token (centralized token management)
+  const getValidToken = async (forceRefresh = false): Promise<string | null> => {
+    try {
+      const isStandalone = Constants.appOwnership === "standalone"
+
+      if (!forceRefresh && user?.token) {
+        const issuedAt = user.tokenIssuedAt ?? 0
+        const age = Date.now() - issuedAt
+
+        // In Expo Go, be more lenient with token expiration to avoid blocking /auth calls
+        // Only trigger background refresh if token is VERY old (>24 hours) or in standalone
+        const expirationThreshold = isStandalone ? TOKEN_TTL_MS : 24 * 60 * 60 * 1000 // 24 hours for Expo Go
+
+        if (age >= expirationThreshold) {
+          backgroundRefresh()
+        }
+        lastDeliveredTokenRef.current = user.token
+        return user.token
+      }
+
+      // In Expo Go, if we have a lastDeliveredToken, use it instead of forcing refresh
+      // This avoids the blocking /auth call
+      if (!isStandalone && lastDeliveredTokenRef.current) {
+        return lastDeliveredTokenRef.current
+      }
+
+      const refreshed = await refreshTokenSilently()
+      if (refreshed) {
+        lastDeliveredTokenRef.current = refreshed
+        return refreshed
+      }
+
+      return lastDeliveredTokenRef.current
     } catch (error) {
-      console.error("❌ getValidToken failed:", error)
-      return null
+      return lastDeliveredTokenRef.current
     }
   }
 
@@ -535,10 +659,8 @@ export const useAuth = () => {
         return await auth.currentUser.getIdToken(true)
       }
 
-      console.error("❌ No Firebase user available")
       return null
     } catch (error) {
-      console.error("❌ getValidFirebaseToken failed:", error)
       return null
     }
   }
@@ -556,52 +678,84 @@ export const useAuth = () => {
       if (auth.currentUser) {
         await signOut(auth)
       }
-      
-      // 🔄 Pause persistor first to prevent rehydration
-      persistor.pause()
-      
-      // 🔄 Clear ALL Redux data FIRST while persistor is paused
+
+      // ✅ Clear ALL Redux data FIRST
       dispatch(reduxLogout())           // Clear user data
       dispatch(clearPractices())        // Clear practices cache
       dispatch(clearMatches())          // Clear match history cache
-      
-      // 🔄 Now purge the persisted data
+      dispatch(clearMembership())       // Clear membership cache
+
+      // ✅ Use Redux Persist API only - avoid manual persist:* key manipulation
+      persistor.pause()
       await persistor.purge()
-      
-      // 🔄 Force flush to ensure purge is written
       await persistor.flush()
-      
-      // 🔄 Direct AsyncStorage key removal for ALL persist keys
-      const currentKeys = await AsyncStorage.getAllKeys()
-      const persistKeys = currentKeys.filter(key => key.startsWith('persist:'))
-      for (const key of persistKeys) {
-        await AsyncStorage.removeItem(key)
-      }
-      
-      // 🔄 Clear ALL user-related keys including legacy ones
-      const userRelatedKeys = ['user', 'authToken', 'userToken', 'firebaseToken', 'jwt', 'token']
-      for (const key of userRelatedKeys) {
-        await AsyncStorage.removeItem(key)
-      }
-      
-      // 🔧 Wait a bit to ensure async operations complete
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
+
+      // ✅ Only clear legacy keys if they exist (not managed by Redux Persist)
+      await AsyncStorage.removeItem("authToken")
+
       // Clear auth error state
       setAuthError(null)
-      
-      // Navigate to login
-      router.replace("/(auth)/login")
+
+      // Navigate to login after a brief delay to ensure Root Layout is ready
+      setTimeout(() => {
+        router.replace("/(auth)/login")
+      }, 100)
     } catch (error) {
       console.error("❌ Failed to log out:", error)
     }
   }
 
+  // ✅ Wait for Redux Persist rehydration to complete before initializing auth
+  useEffect(() => {
+
+    let hasRun = false
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+    // Subscribe to Redux Persist state changes
+    const unsubscribe = persistor.subscribe(() => {
+      const state = persistor.getState()
+
+      // Only proceed once rehydration is complete
+      if (state.bootstrapped && !hasRun) {
+        hasRun = true
+        setHasInitialized(true)
+        unsubscribe() // Unsubscribe after first trigger
+      }
+    })
+
+    // Check if already bootstrapped when subscription is created
+    const currentState = persistor.getState()
+    if (currentState.bootstrapped && !hasRun) {
+      hasRun = true
+      setHasInitialized(true)
+      unsubscribe()
+    }
+
+    // Safety timeout: Force initialization after 2 seconds even if rehydration hasn't completed
+    timeoutId = setTimeout(() => {
+      if (!hasRun) {
+        hasRun = true
+        setHasInitialized(true)
+        unsubscribe()
+      }
+    }, 2000) // 2 second safety timeout
+
+    return () => {
+      unsubscribe()
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+  }, [])
+
   // 🔹 Firebase auth state listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setFirebaseUser(firebaseUser)
-      
+    const unsubscribe = onAuthStateChanged(auth, (nextFirebaseUser) => {
+      setFirebaseUser(nextFirebaseUser)
+
+      if (firebaseReadyResolvers.current.length > 0) {
+        firebaseReadyResolvers.current.forEach((resolver) => resolver(nextFirebaseUser))
+        firebaseReadyResolvers.current = []
+      }
+
       // Don't clear user data automatically when Firebase user becomes null
       // This happens during app restart and would cause the logout issue
     })
@@ -609,22 +763,48 @@ export const useAuth = () => {
     return unsubscribe
   }, [isAuthLoaded, user])
 
-  // 🔹 Load user when Firebase user is available or on app start
+  // ✅ Simplified: Load user once after initialization
   useEffect(() => {
-    if (isLoadingFromStorage) {
+    if (!hasInitialized || isAuthLoaded) {
       return
     }
-    
-    if (firebaseUser && !isAuthLoaded) {
-      setIsLoadingFromStorage(true)
-      loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
-    } else if (!firebaseUser && !isAuthLoaded) {
-      // No Firebase user, but still try to load from storage first
-      // This handles the case where Firebase takes time to initialize
-      setIsLoadingFromStorage(true)
-      loadUserFromStorage().finally(() => setIsLoadingFromStorage(false))
+
+    loadUserFromStorage()
+  }, [hasInitialized, isAuthLoaded, loadUserFromStorage])
+
+  // ✅ Safety timeout: Ensure isAuthLoaded is set after maximum time
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (!isAuthLoaded) {
+        console.warn("⚠️ [Auth] Safety timeout reached - forcing isAuthLoaded to true")
+        setIsAuthLoaded(true)
+      }
+    }, 1500) // ⚡ 1.5 second timeout - reduced since we now properly wait for rehydration
+
+    return () => clearTimeout(timeoutId)
+  }, [isAuthLoaded])
+
+  // 🔹 Verify email with token
+  const verifyEmail = async (token: string) => {
+    try {
+      const result = await apiVerifyEmail(token)
+      return result
+    } catch (error) {
+      console.error("❌ Email verification failed:", error)
+      throw error
     }
-  }, [firebaseUser, isAuthLoaded, isLoadingFromStorage])
+  }
+
+  // 🔹 Resend verification email
+  const resendVerificationEmail = async (email: string) => {
+    try {
+      const result = await apiResendVerificationEmail(email)
+      return result
+    } catch (error) {
+      console.error("❌ Resend verification failed:", error)
+      throw error
+    }
+  }
 
   return {
     user,
@@ -642,6 +822,7 @@ export const useAuth = () => {
     forceReLogin,
     getValidToken,
     getValidFirebaseToken,
+    verifyEmail,
+    resendVerificationEmail,
   }
 }
-

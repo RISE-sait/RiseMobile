@@ -26,7 +26,6 @@ import { StepIndicator } from "@/components/auth/StepIndicator"
 import { SignupFormContainer } from "@/components/auth/SignupFormContainer"
 import { RoleSelectionModal } from "@/components/auth/RoleSelectionModal"
 import { RegistrationComplete } from "@/components/auth/RegistrationComplete"
-import { SocialSignup } from "@/components/auth/SocialSignup"
 import { ModernBackground } from "@/components/auth/ModernBackground"
 import { ErrorToast } from "@/components/auth/ErrorToast"
 
@@ -38,16 +37,23 @@ const SignUpScreen = () => {
     passwordVisible,
     confirmPasswordVisible,
     phoneInputFocused,
+    emergencyPhoneInputFocused,
     roleModalVisible,
     countryPickerVisible,
+    phoneCountryPickerVisible,
+    emergencyPhoneCountryPickerVisible,
     updateFormData,
     setErrors,
     setPasswordVisible,
     setConfirmPasswordVisible,
     setPhoneInputFocused,
+    setEmergencyPhoneInputFocused,
     setRoleModalVisible,
     setCountryPickerVisible,
+    setPhoneCountryPickerVisible,
+    setEmergencyPhoneCountryPickerVisible,
     formatPhoneNumber,
+    formatEmergencyContactPhone,
     validateForm,
     validatePassword,
   } = useSignupForm()
@@ -69,7 +75,7 @@ const SignUpScreen = () => {
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
       {registrationComplete ? (
-        <RegistrationComplete email={formData.email} successAnim={successAnim} checkmarkScale={checkmarkScale} />
+        <RegistrationComplete email={formData.email} successAnim={successAnim} checkmarkScale={checkmarkScale} role={formData.role} />
       ) : (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <KeyboardAvoidingView
@@ -102,15 +108,23 @@ const SignUpScreen = () => {
                   setConfirmPasswordVisible={setConfirmPasswordVisible}
                   phoneInputFocused={phoneInputFocused}
                   setPhoneInputFocused={setPhoneInputFocused}
+                  emergencyPhoneInputFocused={emergencyPhoneInputFocused}
+                  setEmergencyPhoneInputFocused={setEmergencyPhoneInputFocused}
                   fadeAnim={fadeAnim}
                   slideAnim={slideAnim}
                   validatePassword={validatePassword}
                   onSignUp={handleSignUp}
                   onOpenRoleModal={() => setRoleModalVisible(true)}
+                  onCancelRegistration={() => router.replace("/(auth)/login")}
                   isLoading={isLoading}
                   setCountryPickerVisible={setCountryPickerVisible}
                   countryPickerVisible={countryPickerVisible}
+                  setPhoneCountryPickerVisible={setPhoneCountryPickerVisible}
+                  phoneCountryPickerVisible={phoneCountryPickerVisible}
+                  emergencyPhoneCountryPickerVisible={emergencyPhoneCountryPickerVisible}
+                  setEmergencyPhoneCountryPickerVisible={setEmergencyPhoneCountryPickerVisible}
                   formatPhoneNumber={formatPhoneNumber}
+                  formatEmergencyContactPhone={formatEmergencyContactPhone}
                   step={step}
                   setStep={setStep}
                 />
@@ -122,8 +136,6 @@ const SignUpScreen = () => {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Social Sign Up Options - Only show on step 1 */}
-                {step === 1 && <SocialSignup />}
               </LinearGradient>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -171,7 +183,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginHighlight: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontWeight: "bold",
   },
 })

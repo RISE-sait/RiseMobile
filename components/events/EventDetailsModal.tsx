@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect, useRef } from "react"
-import { View, Text, Modal, TouchableOpacity, ImageBackground, Image, Animated } from "react-native"
+import { View, Text, Modal, TouchableOpacity, ImageBackground, Image, Animated, ScrollView, Pressable } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { FontAwesome6 } from "@expo/vector-icons"
 import dayjs from "dayjs"
@@ -31,7 +31,7 @@ type EventDetailsModalProps = {
 }
 
 const statusStyles = {
-  scheduled: { label: "SCHEDULED", color: "#FFD369" },
+  scheduled: { label: "SCHEDULED", color: "#FCA311" },
   in_progress: { label: "IN PROGRESS", color: "#EF4444" },
   completed: { label: "COMPLETED", color: "#4ade80" },
   canceled: { label: "CANCELED", color: "#6b7280" },
@@ -42,8 +42,10 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
   const slideAnim = useRef(new Animated.Value(100)).current
 
   useEffect(() => {
+    let animations: Animated.CompositeAnimation | null = null
+
     if (isVisible) {
-      Animated.parallel([
+      animations = Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 400,
@@ -54,12 +56,22 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
           duration: 500,
           useNativeDriver: true,
         }),
-      ]).start()
+      ])
+      animations.start()
     } else {
       fadeAnim.setValue(0)
       slideAnim.setValue(100)
     }
-  }, [isVisible])
+
+    // ✅ Cleanup animations on unmount to prevent event loop blocking
+    return () => {
+      if (animations) {
+        animations.stop()
+      }
+      fadeAnim.stopAnimation()
+      slideAnim.stopAnimation()
+    }
+  }, [isVisible, fadeAnim, slideAnim])
 
   if (!event) return null
 
@@ -87,47 +99,62 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
   }
 
   return (
-    <Modal visible={isVisible} transparent animationType="fade">
-      <View className="flex-1 bg-black-100/60 justify-center">
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }}
-          className="mx-4 rounded-2xl overflow-hidden bg-[#1A1A1A] shadow-2xl"
-        >
-          {/* Background Image with Gradient */}
-          <ImageBackground
-            source={{
-              uri:
-                typeof event.bgImage === "string"
-                  ? event.bgImage
-                  : "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-            }}
-            resizeMode="cover"
-            className="h-[250px] w-full"
-          >
-            <LinearGradient
-              colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.2)"]}
-              className="absolute top-0 bottom-0 left-0 right-0"
-            />
-
-            {/* Status Badge */}
-            <View
-              className="absolute top-4 right-4 px-3 py-1.5 rounded-full flex-row items-center"
-              style={{ backgroundColor: `${color}20` }}
+    <Modal visible={isVisible} transparent animationType="fade" onRequestClose={onClose} onDismiss={onClose}>
+      <TouchableOpacity
+        className="flex-1 bg-black-100/60 justify-center"
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View className="mx-4 my-4">
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Animated.View
+              style={{
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }}
+              className="rounded-2xl overflow-hidden bg-[#1A1A1A] shadow-2xl"
             >
-              <FontAwesome6 name="circle-dot" size={14} color={color} />
-              <Text className="font-bold text-sm ml-1.5 uppercase" style={{ color }}>
-                {label}
-              </Text>
-            </View>
-          </ImageBackground>
+              {/* Background Image with Gradient - Much Smaller */}
+              <ImageBackground
+                source={{
+                  uri:
+                    typeof event.bgImage === "string"
+                      ? event.bgImage
+                      : "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+                }}
+                resizeMode="cover"
+                className="h-[80px] w-full"
+              >
+                <LinearGradient
+                  colors={["rgba(0,0,0,0.7)", "rgba(0,0,0,0.5)"]}
+                  className="absolute top-0 bottom-0 left-0 right-0"
+                />
 
-          {/* Event Details Content */}
-          <View className="px-6 py-8">
+                {/* Close Button */}
+                <TouchableOpacity
+                  onPress={onClose}
+                  className="absolute top-2 left-2 w-8 h-8 rounded-full bg-black/70 items-center justify-center z-10"
+                  activeOpacity={0.8}
+                >
+                  <FontAwesome6 name="xmark" size={14} color="white" />
+                </TouchableOpacity>
+
+                {/* Status Badge */}
+                <View
+                  className="absolute top-2 right-2 px-2 py-1 rounded-full flex-row items-center"
+                  style={{ backgroundColor: `${color}20` }}
+                >
+                  <FontAwesome6 name="circle-dot" size={10} color={color} />
+                  <Text className="font-bold text-xs ml-1 uppercase" style={{ color }}>
+                    {label}
+                  </Text>
+                </View>
+              </ImageBackground>
+
+              {/* Event Details Content - Much More Space */}
+              <View className="px-4 py-4">
             {/* Title and Status */}
-            <View className="flex-row justify-between items-start mb-6">
+            <View className="flex-row justify-between items-start mb-4">
               <View className="flex-1">
                 <Text className="text-white-100 text-2xl font-bold tracking-wide mb-1">
                   {event.title || (event.type === "match" ? `${event.homeTeam} vs ${event.awayTeam}` : "Event")}
@@ -147,7 +174,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
 
             {/* Different Display for Different Event Types */}
             {event.type === "match" ? (
-              <View className="flex-row items-center justify-between my-8 bg-[#222222] p-5 rounded-xl">
+              <View className="flex-row items-center justify-between my-4 bg-[#222222] p-4 rounded-xl">
                 <View className="items-center flex-1">
                   {event.homeLogo ? (
                     <Image
@@ -204,56 +231,57 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isVisible, onClos
               </View>
             ) : null}
 
-            <View className="border-t border-gray-800 my-4" />
+            <View className="border-t border-gray-800 my-3" />
 
             {/* Date, Time & Location */}
-            <View className="mb-6 space-y-5">
-              <View className="flex-row items-center gap-3 mb-5">
-                <View className="w-10 h-10 rounded-full bg-[#FCA311]/20 items-center justify-center">
-                  <FontAwesome6 name="calendar-days" size={18} color="#FCA311" />
+            <View className="mb-4 space-y-3">
+              <View className="flex-row items-center gap-3 mb-3">
+                <View className="w-8 h-8 rounded-full bg-[#FCA311]/20 items-center justify-center">
+                  <FontAwesome6 name="calendar-days" size={14} color="#FCA311" />
                 </View>
                 <View>
-                  <Text className="text-gray-200 text-base">{formattedDate}</Text>
+                  <Text className="text-gray-200 text-sm">{formattedDate}</Text>
                 </View>
               </View>
 
               {event.time && (
-                <View className="flex-row items-center gap-3 mb-5">
-                  <View className="w-10 h-10 rounded-full bg-[#FCA311]/20 items-center justify-center">
-                    <FontAwesome6 name="clock" size={18} color="#FCA311" />
+                <View className="flex-row items-center gap-3 mb-3">
+                  <View className="w-8 h-8 rounded-full bg-[#FCA311]/20 items-center justify-center">
+                    <FontAwesome6 name="clock" size={14} color="#FCA311" />
                   </View>
                   <View>
-                    <Text className="text-gray-200 text-base items">{event.time}</Text>
+                    <Text className="text-gray-200 text-sm items">{event.time}</Text>
                   </View>
                 </View>
               )}
 
               <View className="flex-row items-center gap-3">
-                <View className="w-10 h-10 rounded-full bg-[#FCA311]/20 items-center justify-center">
-                  <FontAwesome6 name="location-dot" size={18} color="#FCA311" />
+                <View className="w-8 h-8 rounded-full bg-[#FCA311]/20 items-center justify-center">
+                  <FontAwesome6 name="location-dot" size={14} color="#FCA311" />
                 </View>
                 <View>
-                  <Text className="text-gray-200 text-base">{event.location}</Text>
+                  <Text className="text-gray-200 text-sm">{event.location}</Text>
                 </View>
               </View>
             </View>
 
             {/* Description / Highlights */}
-            <View className="bg-[#222222] p-4 rounded-xl mb-6">
-              <Text className="text-white-100 text-lg font-semibold mb-2">Event Details</Text>
-              <Text className="text-gray-300 text-base leading-6">{event.description}</Text>
+            <View className="bg-[#222222] p-3 rounded-xl mb-4">
+              <Text className="text-white-100 text-base font-semibold mb-2">Event Details</Text>
+              <Text className="text-gray-300 text-sm leading-5">{event.description}</Text>
             </View>
 
             {/* Close Button */}
-            <TouchableOpacity onPress={onClose} className="mt-2 bg-[#FCA311] p-4 rounded-xl" activeOpacity={0.8}>
-              <Text className="text-white-100 text-center font-semibold">Close</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </View>
+                <TouchableOpacity onPress={onClose} className="bg-[#FCA311] p-3 rounded-xl" activeOpacity={0.8}>
+                  <Text className="text-white-100 text-center font-semibold">Close</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </Pressable>
+        </View>
+      </TouchableOpacity>
     </Modal>
   )
 }
 
 export default EventDetailsModal
-

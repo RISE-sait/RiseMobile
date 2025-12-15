@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
@@ -82,13 +82,9 @@ const CreditsScreen = () => {
         <Text className="text-[#F0F0F0] text-xl font-semibold">Credits</Text>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        className="px-5"
-        contentContainerStyle={{ paddingBottom: 80, paddingTop: 20 }}
-      >
+      <View className="flex-1 px-5 pt-5">
         {user?.token && <CreditsOverview userToken={user.token} />}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };

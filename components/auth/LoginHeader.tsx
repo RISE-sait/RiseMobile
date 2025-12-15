@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     welcomeText: {
       fontSize: 18,
       fontWeight: "700",
-      color: "#FFD700",
+      color: "#FCA311",
       letterSpacing: 1,
       marginTop: -30,
     },
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     highlightText: {
       fontSize: 24,
       fontWeight: "bold",
-      color: "#FFD700",
+      color: "#FCA311",
       textAlign: "center",
     },
   })

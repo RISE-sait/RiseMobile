@@ -23,7 +23,7 @@ const EmptyBookingsState: React.FC<EmptyBookingsStateProps> = ({
     card: '#1A1A1A',
     text: '#FFFFFF', 
     textSecondary: '#AAAAAA',
-    primary: '#FFD700'
+    primary: '#FCA311'
   }
 }) => {
   const getContent = () => {
@@ -67,7 +67,7 @@ const EmptyBookingsState: React.FC<EmptyBookingsStateProps> = ({
         alignItems: 'center' 
       }}
     >
-      <FontAwesome5 name={content.icon} size={32} color={colors.textSecondary} />
+      <FontAwesome5 name={content.icon} size={32} color={colors.primary} />
       <Text 
         style={{ 
           color: colors.text, 

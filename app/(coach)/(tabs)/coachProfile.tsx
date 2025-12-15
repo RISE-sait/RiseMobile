@@ -8,7 +8,6 @@ import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { useAuth } from "@/utils/auth";
 
-import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import AccountSection from "@/components/profile/AccountSection";
 
@@ -63,7 +62,7 @@ const CoachProfileScreen = () => {
 
         }
       } catch (error) {
-        console.error("❌ Error loading user:", error);
+        // Error loading user silently handled
       }
     };
 
@@ -94,20 +93,18 @@ const CoachProfileScreen = () => {
           firstName={user.firstName}
           lastName={user.lastName}
           role={user.role}
-          number={
-                   `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase()
-                }
-          profileImage={user.profileImage ? { uri: user.profileImage } : images.coachHeadshot}
+          profileImage={user.profileImage ? { uri: user.profileImage } : undefined}
           countryCode={user?.countryCode} // Ensure countryCode is always defined
-          teamLogo={user.teamLogo ? { uri: user.teamLogo } : images.teamLogo}
+          teamLogo={user.teamLogo ? { uri: user.teamLogo } : undefined}
         />
 
         {/* My Account Section */}
-        <AccountSection 
+        <AccountSection
           title="My Account"
           items={[
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
-            { icon: "bell", text: "Notifications", onPress: () => router.push("/screens/comingSoon") },
+            { icon: "file-contract", text: "My Waivers", onPress: () => router.push("/screens/profile-options/waivers") },
+            { icon: "bell", text: "Notifications & Security", onPress: () => router.push("/screens/profile-options/notificationSettings") },
             { icon: "arrow-right-from-bracket", text: "Logout", iconColor: "#EF4444", textColor: "#EF4444", onPress: handleLogout },
           ]}
         />

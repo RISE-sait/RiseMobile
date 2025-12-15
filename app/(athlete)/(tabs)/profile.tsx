@@ -26,6 +26,11 @@ type User = {
   overallRating?: number;
   pointsPerGame?: number;
   assistsPerGame?: number;
+  team?: {
+    id?: string;
+    name?: string;
+    logo?: string;
+  };
 };
 
 const AthleteProfileScreen = () => {
@@ -63,11 +68,9 @@ const AthleteProfileScreen = () => {
           lastName: parsedUser.lastName || parsedUser.last_name || "",
           countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
         });
-      } else {
-
       }
     } catch (error) {
-      console.error("❌ Error loading user:", error);
+      // Error loading user silently handled
     }
   };
 
@@ -102,21 +105,21 @@ const AthleteProfileScreen = () => {
           firstName={user.firstName}
           lastName={user.lastName}
           role={user.role}
-          number={user?.jerseyNumber ? user.jerseyNumber.toString() : "0"} // ✅ Ensures it's a string
-          profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
-          countryCode={user?.countryCode } // ✅ Ensure countryCode is always defined
-          teamLogo={images.teamLogo}
+          profileImage={user.profileImage ? { uri: user.profileImage } : undefined}
+          countryCode={user?.countryCode} // ✅ Ensure countryCode is always defined
+          teamLogo={user?.team?.logo} // ✅ Display team logo from user data
         />
 
-        {/* Player Stats */}
+        {/* Player Stats (Temporarily Hidden) */}
+        {/*
         <View className="mt-6">
         <PlayerStatsCard
         overallRating={user?.overallRating ?? 0}
         pointsPerGame={user?.pointsPerGame ?? 0}
         assistsPerGame={user?.assistsPerGame ?? 0}
-/>
-
+        />
         </View>
+        */}
 
 
         {/* My Account Section */}
@@ -124,8 +127,9 @@ const AthleteProfileScreen = () => {
           title="My Account"
           items={[
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
-            { icon: "star", text: "Credits", onPress: () => router.push("/screens/profile-options/credits") },
-            { icon: "bell", text: "Notifications", onPress: () => router.push("/screens/comingSoon") },
+            { icon: "crown", text: "My Membership", onPress: () => router.push("/(athlete)/screens/membership") },
+            { icon: "file-contract", text: "My Waivers", onPress: () => router.push("/screens/profile-options/waivers") },
+            { icon: "bell", text: "Notifications & Security", onPress: () => router.push("/screens/profile-options/notificationSettings") },
             { icon: "arrow-right-from-bracket", text: "Logout", iconColor: "#EF4444", textColor: "#EF4444", onPress: handleLogout },
           ]}
         />

@@ -14,9 +14,8 @@ interface StepIndicatorProps {
 }
 
 const defaultSteps: Step[] = [
-  { label: "When & Where", icon: "calendar" },
-  { label: "Team Selection", icon: "users" },
-  { label: "Finalize It", icon: "clipboard" },
+  { label: "Schedule", icon: "calendar" },
+  { label: "Team", icon: "users" },
 ]
 
 const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, steps = defaultSteps }) => {

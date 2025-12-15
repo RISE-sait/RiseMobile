@@ -6,10 +6,14 @@ import { FontAwesome6 } from "@expo/vector-icons";
 const BackButton: React.FC = () => {
   const router = useRouter();
 
+  const handleBack = () => {
+    router.back();
+  };
+
   return (
     <View className="flex items-start">
       <TouchableOpacity
-        onPress={() => router.back()}
+        onPress={handleBack}
         className="bg-black-100/40 rounded-full items-center justify-center"
         style={{ height: 40, width: 40 }}
       >

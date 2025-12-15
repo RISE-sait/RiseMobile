@@ -9,6 +9,8 @@ export interface Player {
   steals: number
   wins: number
   losses: number
+  profile_image?: string
+  profileImage?: string
 }
 
 export interface Team {
@@ -33,5 +35,4 @@ export interface TeamsState {
   ids: string[]
   loading: "idle" | "pending" | "succeeded" | "failed"
   error: string | null
-  lastFetched: number | null
 }
