@@ -15,6 +15,13 @@ import { useRouter } from "expo-router";
 import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
 import { useAuth } from "@/utils/auth";
 import { getCustomers, type Customer } from "@/utils/api/admin";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS
+} from "react-native-reanimated";
 
 // Customer Card Component - Memoized to prevent unnecessary re-renders
 const CustomerCard = memo(function CustomerCard({
@@ -272,6 +279,46 @@ export default function CustomersScreen() {
     }
   }, [fetchCustomers, searchQuery, totalPages, currentPage]);
 
+  // Swipe gesture for page navigation
+  const translateX = useSharedValue(0);
+  const SWIPE_THRESHOLD = 80; // Minimum swipe distance to trigger page change
+
+  const goToPrevPage = useCallback(() => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  }, [currentPage, goToPage]);
+
+  const goToNextPage = useCallback(() => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
+    }
+  }, [currentPage, totalPages, goToPage]);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20]) // Only activate after 20px horizontal movement
+    .failOffsetY([-20, 20]) // Fail if vertical movement exceeds 20px (allow vertical scroll)
+    .onUpdate((event) => {
+      // Limit translation to provide visual feedback
+      const maxTranslation = 100;
+      translateX.value = Math.max(-maxTranslation, Math.min(maxTranslation, event.translationX));
+    })
+    .onEnd((event) => {
+      if (event.translationX > SWIPE_THRESHOLD) {
+        // Swipe right → go to previous page (callback handles bounds check)
+        runOnJS(goToPrevPage)();
+      } else if (event.translationX < -SWIPE_THRESHOLD) {
+        // Swipe left → go to next page (callback handles bounds check)
+        runOnJS(goToNextPage)();
+      }
+      // Reset translation with spring animation
+      translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
   const handleCustomerPress = (customer: Customer) => {
     router.push({
       pathname: "/(admin)/screens/customer-details",
@@ -342,47 +389,51 @@ export default function CustomersScreen() {
         </View>
       ) : (
         <View className="flex-1">
-          <FlatList
-            data={customers}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <CustomerCard
-                customer={item}
-                onPress={() => handleCustomerPress(item)}
+          <GestureDetector gesture={panGesture}>
+            <Animated.View style={[{ flex: 1 }, animatedStyle]}>
+              <FlatList
+                data={customers}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <CustomerCard
+                    customer={item}
+                    onPress={() => handleCustomerPress(item)}
+                  />
+                )}
+                ListEmptyComponent={
+                  <View className="flex-1 items-center justify-center py-20">
+                    <View className="bg-[#2A2A2A] p-5 rounded-full mb-4">
+                      <FontAwesome6 name="users" size={48} color="#FCA311" />
+                    </View>
+                    <Text className="text-white-100 font-Oswald-Medium text-xl">
+                      {searchQuery ? "No Customers Found" : "No Customers Yet"}
+                    </Text>
+                    <Text className="text-gray-400 font-Outfit-Regular text-base text-center mt-2 px-10">
+                      {searchQuery
+                        ? "Try adjusting your search terms"
+                        : "Customers will appear here once they register"}
+                    </Text>
+                  </View>
+                }
+                contentContainerStyle={{ paddingHorizontal: 40, paddingTop: 24, paddingBottom: 20, flexGrow: 1 }}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor="#FCA311"
+                    colors={["#FCA311"]}
+                  />
+                }
+                // Performance optimizations
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={15}
+                windowSize={10}
+                initialNumToRender={15}
+                updateCellsBatchingPeriod={50}
               />
-            )}
-            ListEmptyComponent={
-              <View className="flex-1 items-center justify-center py-20">
-                <View className="bg-[#2A2A2A] p-5 rounded-full mb-4">
-                  <FontAwesome6 name="users" size={48} color="#FCA311" />
-                </View>
-                <Text className="text-white-100 font-Oswald-Medium text-xl">
-                  {searchQuery ? "No Customers Found" : "No Customers Yet"}
-                </Text>
-                <Text className="text-gray-400 font-Outfit-Regular text-base text-center mt-2 px-10">
-                  {searchQuery
-                    ? "Try adjusting your search terms"
-                    : "Customers will appear here once they register"}
-                </Text>
-              </View>
-            }
-            contentContainerStyle={{ paddingHorizontal: 40, paddingTop: 24, paddingBottom: 20, flexGrow: 1 }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor="#FCA311"
-                colors={["#FCA311"]}
-              />
-            }
-            // Performance optimizations
-            removeClippedSubviews={true}
-            maxToRenderPerBatch={15}
-            windowSize={10}
-            initialNumToRender={15}
-            updateCellsBatchingPeriod={50}
-          />
+            </Animated.View>
+          </GestureDetector>
 
           {/* Pagination Indicator at bottom */}
           <View className="bg-[#0C0B0B] px-4 pb-6">
@@ -391,10 +442,11 @@ export default function CustomersScreen() {
               totalPages={totalPages}
               onPagePress={goToPage}
             />
-            {/* Page info text */}
+            {/* Page info text and swipe hint */}
             {customers.length > 0 && (
               <Text className="text-gray-500 font-Outfit-Regular text-center text-sm">
                 Page {currentPage} of {totalPages} • {totalCustomers} total customers
+                {totalPages > 1 && "\nSwipe left/right to navigate"}
               </Text>
             )}
           </View>
