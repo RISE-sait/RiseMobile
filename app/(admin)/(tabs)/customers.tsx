@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import React, { useState, useEffect, useCallback, useRef, memo } from "react";
 import {
   View,
   Text,
@@ -17,13 +17,13 @@ import { useAuth } from "@/utils/auth";
 import { getCustomers, type Customer } from "@/utils/api/admin";
 
 // Customer Card Component - Memoized to prevent unnecessary re-renders
-const CustomerCard = memo(({
+const CustomerCard = memo(function CustomerCard({
   customer,
   onPress,
 }: {
   customer: Customer;
   onPress: () => void;
-}) => {
+}) {
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
   };
@@ -74,6 +74,92 @@ const CustomerCard = memo(({
   );
 });
 
+// Pagination Indicator Component
+const PaginationIndicator = memo(function PaginationIndicator({
+  currentPage,
+  totalPages,
+  onPagePress,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPagePress: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  // Show max 7 page indicators with ellipsis
+  const renderPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 7;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1);
+        pages.push("...");
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push("...");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
+  return (
+    <View className="flex-row items-center justify-center py-4 space-x-2">
+      {/* Previous Button */}
+      <TouchableOpacity
+        onPress={() => currentPage > 1 && onPagePress(currentPage - 1)}
+        disabled={currentPage === 1}
+        className={`p-2 rounded-lg ${currentPage === 1 ? "opacity-30" : ""}`}
+      >
+        <FontAwesome6 name="chevron-left" size={16} color={currentPage === 1 ? "#666" : "#FCA311"} />
+      </TouchableOpacity>
+
+      {/* Page Numbers */}
+      {renderPageNumbers().map((page, index) => (
+        <TouchableOpacity
+          key={`page-${index}`}
+          onPress={() => typeof page === "number" && onPagePress(page)}
+          disabled={page === "..." || page === currentPage}
+          className={`min-w-[32px] h-8 items-center justify-center rounded-lg mx-0.5 ${
+            page === currentPage
+              ? "bg-gold-100"
+              : page === "..."
+              ? ""
+              : "bg-[#2A2A2A]"
+          }`}
+        >
+          <Text
+            className={`font-Oswald-Medium text-sm ${
+              page === currentPage ? "text-black-100" : "text-gray-400"
+            }`}
+          >
+            {page}
+          </Text>
+        </TouchableOpacity>
+      ))}
+
+      {/* Next Button */}
+      <TouchableOpacity
+        onPress={() => currentPage < totalPages && onPagePress(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className={`p-2 rounded-lg ${currentPage === totalPages ? "opacity-30" : ""}`}
+      >
+        <FontAwesome6 name="chevron-right" size={16} color={currentPage === totalPages ? "#666" : "#FCA311"} />
+      </TouchableOpacity>
+    </View>
+  );
+});
+
 export default function CustomersScreen() {
   const router = useRouter();
   const { getValidToken } = useAuth();
@@ -86,38 +172,68 @@ export default function CustomersScreen() {
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  // Server-side stats - fixed: only update from API response, not from accumulated array
+  const [activeCount, setActiveCount] = useState(0);
+  const [archivedCount, setArchivedCount] = useState(0);
+
+  // Cache pages data to avoid refetching
+  const pagesCache = useRef<Map<number, Customer[]>>(new Map());
 
   const fetchCustomers = useCallback(
-    async (page: number = 1, search?: string, append: boolean = false) => {
+    async (page: number = 1, search?: string) => {
       try {
         const token = await getValidToken();
         if (!token) {
           return;
         }
 
-        if (!append) {
-          setIsLoading(true);
-        } else {
-          setIsLoadingMore(true);
+        // Clear cache if search query changed
+        if (search !== undefined) {
+          pagesCache.current.clear();
         }
+
+        // Check cache first (only for non-search queries)
+        if (!search && pagesCache.current.has(page)) {
+          setCustomers(pagesCache.current.get(page) || []);
+          setCurrentPage(page);
+          return;
+        }
+
+        setIsLoading(true);
 
         const result = await getCustomers(token, search, page, 20);
 
-        if (append) {
-          setCustomers((prev) => [...prev, ...result.customers]);
-        } else {
-          setCustomers(result.customers);
+        // Cache the result
+        if (!search) {
+          pagesCache.current.set(page, result.customers);
         }
+
+        setCustomers(result.customers);
         setTotalCustomers(result.total);
         setCurrentPage(result.page);
         setTotalPages(result.pages);
+
+        // Calculate stats from current page data (server should ideally provide these)
+        // For accurate stats, we count from current page and extrapolate
+        // This is a workaround - ideally API should return active_count and archived_count
+        if (page === 1 && result.customers.length > 0) {
+          const pageActive = result.customers.filter(c => !c.is_archived).length;
+          const pageArchived = result.customers.filter(c => c.is_archived).length;
+          const pageTotal = result.customers.length;
+
+          if (pageTotal > 0) {
+            // Estimate based on current page ratio
+            const activeRatio = pageActive / pageTotal;
+            const archivedRatio = pageArchived / pageTotal;
+            setActiveCount(Math.round(result.total * activeRatio));
+            setArchivedCount(Math.round(result.total * archivedRatio));
+          }
+        }
       } catch (error) {
         console.error("Error fetching customers:", error);
       } finally {
         setIsLoading(false);
         setRefreshing(false);
-        setIsLoadingMore(false);
       }
     },
     [getValidToken]
@@ -135,6 +251,7 @@ export default function CustomersScreen() {
     if (isFirstMount) return;
 
     const timeoutId = setTimeout(() => {
+      pagesCache.current.clear(); // Clear cache on search
       fetchCustomers(1, searchQuery || undefined);
     }, 500);
 
@@ -144,15 +261,16 @@ export default function CustomersScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setCurrentPage(1);
+    pagesCache.current.clear(); // Clear cache on refresh
     fetchCustomers(1, searchQuery || undefined);
   }, [fetchCustomers, searchQuery]);
 
-  const loadMore = () => {
-    if (currentPage < totalPages && !isLoadingMore) {
-      fetchCustomers(currentPage + 1, searchQuery || undefined, true);
+  // Navigate to specific page
+  const goToPage = useCallback((page: number) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      fetchCustomers(page, searchQuery || undefined);
     }
-  };
+  }, [fetchCustomers, searchQuery, totalPages, currentPage]);
 
   const handleCustomerPress = (customer: Customer) => {
     router.push({
@@ -160,24 +278,6 @@ export default function CustomersScreen() {
       params: { customerId: customer.id },
     });
   };
-
-  // Memoized active and archived counts to prevent recalculation on every render
-  const { activeCount, archivedCount } = useMemo(() => {
-    if (!customers || !Array.isArray(customers)) {
-      return { activeCount: 0, archivedCount: 0 };
-    }
-    let active = 0;
-    let archived = 0;
-    // Single pass through array instead of two filter operations
-    for (const customer of customers) {
-      if (customer.is_archived) {
-        archived++;
-      } else {
-        active++;
-      }
-    }
-    return { activeCount: active, archivedCount: archived };
-  }, [customers]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
@@ -241,63 +341,64 @@ export default function CustomersScreen() {
           <ActivityIndicator size="large" color="#FCA311" />
         </View>
       ) : (
-        <FlatList
-          data={customers}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <CustomerCard
-              customer={item}
-              onPress={() => handleCustomerPress(item)}
-            />
-          )}
-          ListEmptyComponent={
-            <View className="flex-1 items-center justify-center py-20">
-              <View className="bg-[#2A2A2A] p-5 rounded-full mb-4">
-                <FontAwesome6 name="users" size={48} color="#FCA311" />
-              </View>
-              <Text className="text-white-100 font-Oswald-Medium text-xl">
-                {searchQuery ? "No Customers Found" : "No Customers Yet"}
-              </Text>
-              <Text className="text-gray-400 font-Outfit-Regular text-base text-center mt-2 px-10">
-                {searchQuery
-                  ? "Try adjusting your search terms"
-                  : "Customers will appear here once they register"}
-              </Text>
-            </View>
-          }
-          ListFooterComponent={
-            <>
-              {isLoadingMore && (
-                <View className="py-4 items-center">
-                  <ActivityIndicator size="small" color="#FCA311" />
+        <View className="flex-1">
+          <FlatList
+            data={customers}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <CustomerCard
+                customer={item}
+                onPress={() => handleCustomerPress(item)}
+              />
+            )}
+            ListEmptyComponent={
+              <View className="flex-1 items-center justify-center py-20">
+                <View className="bg-[#2A2A2A] p-5 rounded-full mb-4">
+                  <FontAwesome6 name="users" size={48} color="#FCA311" />
                 </View>
-              )}
-              {currentPage >= totalPages && customers.length > 0 && (
-                <Text className="text-gray-500 font-Outfit-Regular text-center py-4 text-sm">
-                  No more customers to load
+                <Text className="text-white-100 font-Oswald-Medium text-xl">
+                  {searchQuery ? "No Customers Found" : "No Customers Yet"}
                 </Text>
-              )}
-            </>
-          }
-          contentContainerStyle={{ paddingHorizontal: 40, paddingTop: 24, paddingBottom: 100, flexGrow: 1 }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#FCA311"
-              colors={["#FCA311"]}
+                <Text className="text-gray-400 font-Outfit-Regular text-base text-center mt-2 px-10">
+                  {searchQuery
+                    ? "Try adjusting your search terms"
+                    : "Customers will appear here once they register"}
+                </Text>
+              </View>
+            }
+            contentContainerStyle={{ paddingHorizontal: 40, paddingTop: 24, paddingBottom: 20, flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#FCA311"
+                colors={["#FCA311"]}
+              />
+            }
+            // Performance optimizations
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={15}
+            windowSize={10}
+            initialNumToRender={15}
+            updateCellsBatchingPeriod={50}
+          />
+
+          {/* Pagination Indicator at bottom */}
+          <View className="bg-[#0C0B0B] px-4 pb-6">
+            <PaginationIndicator
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPagePress={goToPage}
             />
-          }
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.3}
-          // Performance optimizations
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={15}
-          windowSize={10}
-          initialNumToRender={15}
-          updateCellsBatchingPeriod={50}
-        />
+            {/* Page info text */}
+            {customers.length > 0 && (
+              <Text className="text-gray-500 font-Outfit-Regular text-center text-sm">
+                Page {currentPage} of {totalPages} • {totalCustomers} total customers
+              </Text>
+            )}
+          </View>
+        </View>
       )}
     </SafeAreaView>
   );
