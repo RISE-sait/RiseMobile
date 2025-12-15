@@ -318,6 +318,38 @@ export const getSuspendedCustomers = async (
   }
 };
 
+// Get archived customers count
+export const getArchivedCustomersCount = async (
+  jwt: string
+): Promise<{ total: number }> => {
+  try {
+    const response = await axios.get(
+      `${API_URL}/customers/archived?limit=1&offset=0`,
+      {
+        headers: { Authorization: `Bearer ${jwt}` },
+      }
+    );
+
+    const data = response.data;
+    // Handle different response formats
+    if (data.customers && typeof data.customers === 'object' && data.customers.total !== undefined) {
+      return { total: data.customers.total };
+    } else if (data.total !== undefined) {
+      return { total: data.total };
+    } else if (Array.isArray(data.customers)) {
+      // If no total provided, we need to count - but this is inefficient
+      // For now, return the array length as a fallback
+      return { total: data.customers.length };
+    } else if (Array.isArray(data)) {
+      return { total: data.length };
+    }
+    return { total: 0 };
+  } catch (error: any) {
+    console.error("Error fetching archived customers count:", error?.response?.data || error.message);
+    return { total: 0 };
+  }
+};
+
 // Staff APIs
 export const getAllStaff = async (
   jwt: string,

@@ -14,7 +14,7 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
 import { useAuth } from "@/utils/auth";
-import { getCustomers, type Customer } from "@/utils/api/admin";
+import { getCustomers, getArchivedCustomersCount, type Customer } from "@/utils/api/admin";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
@@ -179,12 +179,38 @@ export default function CustomersScreen() {
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  // Server-side stats - fixed: only update from API response, not from accumulated array
+  // Server-side stats - fetched from API, independent of pagination
   const [activeCount, setActiveCount] = useState(0);
   const [archivedCount, setArchivedCount] = useState(0);
+  const [statsLoaded, setStatsLoaded] = useState(false);
 
   // Cache pages data to avoid refetching
   const pagesCache = useRef<Map<number, Customer[]>>(new Map());
+
+  // Fetch global stats (Total, Active, Archived) - independent of pagination
+  const fetchStats = useCallback(async () => {
+    try {
+      const token = await getValidToken();
+      if (!token) return;
+
+      // Fetch total customers and archived count in parallel
+      const [customersResult, archivedResult] = await Promise.all([
+        getCustomers(token, undefined, 1, 1), // Just to get total
+        getArchivedCustomersCount(token),
+      ]);
+
+      const total = customersResult.total;
+      const archived = archivedResult.total;
+      const active = total - archived;
+
+      setTotalCustomers(total);
+      setArchivedCount(archived);
+      setActiveCount(active >= 0 ? active : 0);
+      setStatsLoaded(true);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  }, [getValidToken]);
 
   const fetchCustomers = useCallback(
     async (page: number = 1, search?: string) => {
@@ -216,26 +242,12 @@ export default function CustomersScreen() {
         }
 
         setCustomers(result.customers);
-        setTotalCustomers(result.total);
+        // Only update total from customers API if stats not loaded yet
+        if (!statsLoaded) {
+          setTotalCustomers(result.total);
+        }
         setCurrentPage(result.page);
         setTotalPages(result.pages);
-
-        // Calculate stats from current page data (server should ideally provide these)
-        // For accurate stats, we count from current page and extrapolate
-        // This is a workaround - ideally API should return active_count and archived_count
-        if (page === 1 && result.customers.length > 0) {
-          const pageActive = result.customers.filter(c => !c.is_archived).length;
-          const pageArchived = result.customers.filter(c => c.is_archived).length;
-          const pageTotal = result.customers.length;
-
-          if (pageTotal > 0) {
-            // Estimate based on current page ratio
-            const activeRatio = pageActive / pageTotal;
-            const archivedRatio = pageArchived / pageTotal;
-            setActiveCount(Math.round(result.total * activeRatio));
-            setArchivedCount(Math.round(result.total * archivedRatio));
-          }
-        }
       } catch (error) {
         console.error("Error fetching customers:", error);
       } finally {
@@ -243,12 +255,13 @@ export default function CustomersScreen() {
         setRefreshing(false);
       }
     },
-    [getValidToken]
+    [getValidToken, statsLoaded]
   );
 
   // Initial fetch - only run once on mount
   useEffect(() => {
     fetchCustomers(1);
+    fetchStats(); // Fetch global stats independent of pagination
     setIsFirstMount(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -269,8 +282,10 @@ export default function CustomersScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     pagesCache.current.clear(); // Clear cache on refresh
+    setStatsLoaded(false); // Reset stats to refetch
     fetchCustomers(1, searchQuery || undefined);
-  }, [fetchCustomers, searchQuery]);
+    fetchStats(); // Refresh global stats
+  }, [fetchCustomers, fetchStats, searchQuery]);
 
   // Navigate to specific page
   const goToPage = useCallback((page: number) => {
