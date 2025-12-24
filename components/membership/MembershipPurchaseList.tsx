@@ -26,6 +26,7 @@ interface MembershipPlan {
   price?: number | string;
   joining_fee_price?: string;
   interval?: string;
+  amt_periods?: number;
 }
 
 interface MembershipType {
@@ -445,26 +446,35 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   };
 
   // Format billing interval for display
-  // Backend values: "month", "week", "biweekly", "year", "day", "once"
-  const formatBillingInterval = (interval?: string): string => {
-    if (!interval) return "/month"; // Default fallback
-    const int = interval.toLowerCase().trim();
-    switch (int) {
-      case "month":
-        return "/month";
-      case "week":
-        return "/week";
-      case "biweekly":
-        return "/bi-weekly";
-      case "year":
-        return "/year";
-      case "day":
-        return "/day";
-      case "once":
-        return " (one-time)";
-      default:
-        return `/${int}`;
+  // Logic: interval tells us the billing frequency, amt_periods tells us total payments
+  const formatBillingDisplay = (interval?: string, amtPeriods?: number): string => {
+    // One-time purchase
+    if (interval === "once") return " (one-time)";
+
+    // Monthly billing - always show /month regardless of total payments
+    // (e.g., Winter League: 2 monthly payments for 3-month program)
+    if (interval === "month") return "/month";
+
+    // Weekly billing - check if it's actually bi-weekly (26 payments/year)
+    if (interval === "week") {
+      if (amtPeriods === 26) return "/bi-weekly";
+      return "/week";
     }
+
+    // Bi-weekly billing
+    if (interval === "biweekly") return "/bi-weekly";
+
+    // Yearly billing - use amt_periods to determine actual frequency
+    if (interval === "year" && amtPeriods) {
+      if (amtPeriods === 26) return "/bi-weekly";
+      if (amtPeriods === 12) return "/month";
+      if (amtPeriods === 1) return "/year";
+      return `× ${amtPeriods} payments/year`;
+    }
+
+    // Fallback
+    if (!interval) return "/month";
+    return `/${interval}`;
   };
 
   const renderPlanCard = ({ item }: { item: MembershipPlan }) => {
@@ -482,7 +492,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       : null;
 
     // Format billing interval for display
-    const formattedInterval = formatBillingInterval(item.interval);
+    const formattedInterval = formatBillingDisplay(item.interval, item.amt_periods);
 
     return (
       <View style={styles.accordionPlanCard}>
