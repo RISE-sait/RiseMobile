@@ -25,6 +25,7 @@ interface MembershipPlan {
   benefits: string;
   price?: number | string;
   joining_fee_price?: string;
+  interval?: string;
 }
 
 interface MembershipType {
@@ -443,6 +444,29 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     );
   };
 
+  // Format billing interval for display
+  // Backend values: "month", "week", "biweekly", "year", "day", "once"
+  const formatBillingInterval = (interval?: string): string => {
+    if (!interval) return "/month"; // Default fallback
+    const int = interval.toLowerCase().trim();
+    switch (int) {
+      case "month":
+        return "/month";
+      case "week":
+        return "/week";
+      case "biweekly":
+        return "/bi-weekly";
+      case "year":
+        return "/year";
+      case "day":
+        return "/day";
+      case "once":
+        return " (one-time)";
+      default:
+        return `/${int}`;
+    }
+  };
+
   const renderPlanCard = ({ item }: { item: MembershipPlan }) => {
     const joiningFeeRaw = item.joining_fee_price?.toString().trim() ?? "";
     const joiningFeeClean = joiningFeeRaw.replace(/[^0-9.]/g, "");
@@ -456,6 +480,9 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
     const formattedPrice = item.price
       ? (typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : item.price.toString().replace(/\$\$/g, '$'))
       : null;
+
+    // Format billing interval for display
+    const formattedInterval = formatBillingInterval(item.interval);
 
     return (
       <View style={styles.accordionPlanCard}>
@@ -479,7 +506,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
               {formattedPrice ? (
                 <>
                   <Text style={styles.priceAmount}>{formattedPrice}</Text>
-                  <Text style={styles.pricePeriod}>/bi-weekly</Text>
+                  <Text style={styles.pricePeriod}>{formattedInterval}</Text>
                 </>
               ) : (
                 <Text style={styles.priceUnavailable}>Contact for pricing</Text>
