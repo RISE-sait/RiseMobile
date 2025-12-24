@@ -446,14 +446,21 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
   };
 
   // Format billing interval for display
-  // Logic: interval tells us the billing frequency, amt_periods tells us total payments
+  // Logic based on membership descriptions:
+  // - amt_periods: 12 with month = true monthly subscription
+  // - amt_periods: 2 with month = "two installments" (not monthly)
+  // - amt_periods: 26 = biweekly (26 payments/year)
   const formatBillingDisplay = (interval?: string, amtPeriods?: number): string => {
     // One-time purchase
     if (interval === "once") return " (one-time)";
 
-    // Monthly billing - always show /month regardless of total payments
-    // (e.g., Winter League: 2 monthly payments for 3-month program)
-    if (interval === "month") return "/month";
+    // Monthly billing - check if true monthly or installment plan
+    if (interval === "month") {
+      if (amtPeriods === 12) return "/month";  // True monthly subscription
+      if (amtPeriods === 2) return " × 2 payments";  // Two installments
+      if (amtPeriods === 3) return " × 3 payments";  // Three installments
+      return "/month";  // Fallback
+    }
 
     // Weekly billing - check if it's actually bi-weekly (26 payments/year)
     if (interval === "week") {
@@ -469,7 +476,7 @@ const MembershipPurchaseList: React.FC<MembershipPurchaseListProps> = ({
       if (amtPeriods === 26) return "/bi-weekly";
       if (amtPeriods === 12) return "/month";
       if (amtPeriods === 1) return "/year";
-      return `× ${amtPeriods} payments/year`;
+      return ` × ${amtPeriods} payments/year`;
     }
 
     // Fallback
