@@ -50,109 +50,6 @@ interface Service {
 }
 
 
-// Mock data for barbers
-const barbers: Barber[] = [
-  {
-    id: "b1",
-    name: "James Wilson",
-    image: "https://media.licdn.com/dms/image/v2/D5603AQGTkkomz0jo4g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1711569544222?e=1747872000&v=beta&t=eXGPCIGMHVJJlnTEfc4Ohqthoz9gChy96fPM6BNDXqU",
-    rating: 4.9,
-    specialties: ["Fades", "Beard Styling"],
-    availability: ["9:00 AM", "10:00 AM", "11:00 AM", "1:00 PM", "2:00 PM", "3:00 PM"],
-  },
-  {
-    id: "b2",
-    name: "Michael Rodriguez",
-    image: "https://alsd.com/sites/default/files//2022-06/barber-tiki_500px.jpg",
-    rating: 4.8,
-    specialties: ["Classic Cuts", "Hot Shaves"],
-    availability: ["9:30 AM", "10:30 AM", "11:30 AM", "1:30 PM", "2:30 PM", "4:30 PM"],
-  },
-  {
-    id: "b3",
-    name: "David Thompson",
-    image: "https://images.squarespace-cdn.com/content/v1/5c4d7e227e3c3a6ec70a5ac7/1596359610389-QDVB9CXJRSWGSPPNUES6/IMG_8599.jpg",
-    rating: 4.7,
-    specialties: ["Designs", "Color"],
-    availability: ["10:00 AM", "12:00 PM", "2:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
-  },
-  {
-    id: "b4",
-    name: "Robert Johnson",
-    image: "https://images.squarespace-cdn.com/content/v1/5c4d7e227e3c3a6ec70a5ac7/1564047138008-YQA9PEBO4MURKNPW8J9W/IMG_9342.jpg",
-    rating: 4.6,
-    specialties: ["Buzz Cuts", "Line Ups"],
-    availability: ["9:00 AM", "11:00 AM", "1:00 PM", "3:00 PM", "5:00 PM"],
-  },
-]
-
-// Mock data for services
-const services: Service[] = [
-  {
-    id: "s1",
-    name: "Classic Haircut",
-    icon: "scissors",
-    price: 25,
-    duration: 30,
-    description: "Traditional haircut with scissors, includes wash and style",
-  },
-  {
-    id: "s2",
-    name: "Fade",
-    icon: "cut",
-    price: 30,
-    duration: 45,
-    description: "Gradual blend from skin to desired length, perfect for a clean look",
-  },
-  {
-    id: "s3",
-    name: "Buzz Cut",
-    icon: "user-tie",
-    price: 20,
-    duration: 20,
-    description: "Quick, uniform short cut with clippers",
-  },
-  {
-    id: "s4",
-    name: "Beard Trim",
-    icon: "scissors",
-    price: 15,
-    duration: 15,
-    description: "Shape and trim your beard to perfection",
-  },
-  {
-    id: "s5",
-    name: "Hot Shave",
-    icon: "fire",
-    price: 35,
-    duration: 30,
-    description: "Traditional hot towel straight razor shave",
-  },
-  {
-    id: "s6",
-    name: "Hair + Beard Combo",
-    icon: "user-plus",
-    price: 45,
-    duration: 60,
-    description: "Complete haircut and beard trim package",
-  },
-  {
-    id: "s7",
-    name: "Line Up",
-    icon: "border-style",
-    price: 15,
-    duration: 15,
-    description: "Clean up your hairline, neck, and beard",
-  },
-  {
-    id: "s8",
-    name: "Kids Cut",
-    icon: "child",
-    price: 20,
-    duration: 30,
-    description: "Haircut for children under 12",
-  },
-]
 
 const BarberBookingScreen = () => {
   const insets = useSafeAreaInsets()
@@ -329,20 +226,20 @@ const BarberBookingScreen = () => {
           const uniqueServices = Array.from(servicesMap.values())
           
 
-          setBarbersData(uniqueBarbers.length > 0 ? uniqueBarbers : barbers)
-          setServicesData(uniqueServices.length > 0 ? uniqueServices : services)
+          setBarbersData(uniqueBarbers)
+          setServicesData(uniqueServices)
 
         } else {
-          // Fallback to mock data if API response is unexpected
-          setBarbersData(barbers)
-          setServicesData(services)
+          // No data from API - show empty state
+          setBarbersData([])
+          setServicesData([])
         }
       } catch (error) {
         console.error("❌ Error fetching haircut data:", error)
-        setApiError("Failed to load barber services. Using demo data.")
-        // Fallback to mock data on error
-        setBarbersData(barbers)
-        setServicesData(services)
+        setApiError("Failed to load barber services. Please try again later.")
+        // Show empty state on error
+        setBarbersData([])
+        setServicesData([])
       } finally {
         setIsLoading(false)
       }
@@ -770,6 +667,19 @@ const BarberBookingScreen = () => {
       )
     }
 
+    // Empty state when no barbers or services are available
+    if (barbersData.length === 0 && servicesData.length === 0) {
+      return (
+        <View className="flex-1 justify-center items-center py-20">
+          <FontAwesome6 name="scissors" size={48} color="#666" />
+          <Text className="text-white-100 text-xl font-bold mt-6 text-center">Coming Soon</Text>
+          <Text className="text-gray-400 text-center mt-2 px-8">
+            {apiError || "Barber services are not available yet. Please check back later."}
+          </Text>
+        </View>
+      )
+    }
+
     return (
       <View className="flex-1">
         {apiError && (
@@ -777,14 +687,14 @@ const BarberBookingScreen = () => {
             <Text className="text-yellow-400 text-sm">{apiError}</Text>
           </View>
         )}
-        
+
         <Text className="text-white-100 text-xl font-bold mb-4">Choose Your Barber</Text>
         <FlatList
           data={barbersData}
           renderItem={renderBarberItem}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }} // ✅ Prevents overlap issues
+          contentContainerStyle={{ paddingBottom: 20 }}
         />
 
         <Text className="text-white-100 text-xl font-bold mb-4">Select Service</Text>
