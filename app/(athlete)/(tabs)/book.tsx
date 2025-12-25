@@ -47,7 +47,7 @@ const BOOKING_TIMEZONE = "America/Edmonton"
 
 // Upcoming bookings are now loaded from API - removed unused constant
 
-// Featured facilities - RISE Courts and Courtside Kutz
+// Featured facilities - RISE Courts (Courtside Kutz hidden until fully working)
 const featuredFacilities = [
   {
     id: "1",
@@ -57,17 +57,9 @@ const featuredFacilities = [
       "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
     route: "/screens/booking-options/Courts",
   },
-  {
-    id: "2",
-    title: "Courtside Kutz",
-    description: "Book your next haircut with our professional barbers",
-    image:
-      "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    route: "/screens/booking-options/CourtsideKutz",
-  },
 ]
 
-// Booking options with availability status - RISE Courts and Courtside Kutz
+// Booking options with availability status - RISE Courts (Courtside Kutz hidden until fully working)
 const bookingOptions = [
   {
     title: "RISE Courts",
@@ -75,13 +67,6 @@ const bookingOptions = [
     route: "/screens/booking-options/Courts",
     availability: "High",
     color: "#FF7043",
-  },
-  {
-    title: "Courtside Kutz",
-    icon: "cut",
-    route: "/screens/booking-options/CourtsideKutz",
-    availability: "High",
-    color: "#FFA726",
   },
 ]
 
