@@ -1,5 +1,5 @@
 import "../polyfills"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { Stack } from "expo-router"
 import "./globals.css"
 import { useFonts } from "expo-font"
@@ -16,9 +16,14 @@ import TouchLogger from "@/components/dev/TouchLogger"
 import ErrorBoundary from "@/components/error/ErrorBoundary"
 import AlertProvider from "@/components/feedback/AlertProvider"
 import * as SplashScreen from "expo-splash-screen"
+import { SeasonalSplash } from "@/components/SeasonalSplash"
+import { getCurrentSeasonalTheme } from "@/utils/seasonalSplash"
 
-// Minimum time to show splash screen for better UX (in ms)
-const MINIMUM_SPLASH_DISPLAY_TIME = 2000
+// Minimum time to show native splash screen (in ms)
+const MINIMUM_SPLASH_DISPLAY_TIME = 1500
+
+// Duration for seasonal splash overlay (in ms) - only shown for non-default themes
+const SEASONAL_SPLASH_DURATION = 2000
 
 // Hermes Promise Rejection Tracker - Prevent RedBox for unhandled promise rejections
 // Converts unhandled rejections to warnings instead of fatal red screens
@@ -61,6 +66,16 @@ export default function RootLayout() {
 
   // Track splash screen timing for minimum display duration
   const splashStartTime = useRef(Date.now())
+
+  // Seasonal splash state - check if we should show seasonal overlay
+  const currentTheme = useRef(getCurrentSeasonalTheme()).current
+  const showSeasonalSplash = currentTheme !== 'default'
+  const [isSeasonalSplashVisible, setIsSeasonalSplashVisible] = useState(showSeasonalSplash)
+
+  // Callback to hide seasonal splash
+  const handleSeasonalSplashHide = useCallback(() => {
+    setIsSeasonalSplashVisible(false)
+  }, [])
 
   // ✅ Delay storage cleanup until after Redux Persist rehydration completes
   useEffect(() => {
@@ -132,6 +147,12 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <AlertProvider>
             <StatusBar style="auto" />
+            {/* Seasonal splash overlay - shows themed splash for holidays/seasons */}
+            <SeasonalSplash
+              visible={isSeasonalSplashVisible}
+              onHide={handleSeasonalSplashHide}
+              displayDuration={SEASONAL_SPLASH_DURATION}
+            />
             <ErrorBoundary>
               <NotificationManager />
               {/* Disabled dev components to reduce console noise */}
