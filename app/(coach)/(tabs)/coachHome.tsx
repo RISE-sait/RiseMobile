@@ -91,6 +91,13 @@ export default function CoachHomeScreen() {
       colors: ["#8E2DE2", "#4A00E0"] as [string, string],
     },
     {
+      label: "My Events",
+      route: "/(coach)/screens/my-events",
+      icon: "calendar-day",
+      description: "Events you're registered for",
+      colors: ["#2C3E50", "#3498DB"] as [string, string],
+    },
+    {
       label: "Match History",
       route: "/(coach)/screens/matchHistory",
       icon: "trophy",

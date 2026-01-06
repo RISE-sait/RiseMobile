@@ -412,6 +412,13 @@ export default function AdminDashboard() {
       colors: ["#8E2DE2", "#4A00E0"] as [string, string],
     },
     {
+      label: "My Events",
+      route: "/(admin)/screens/my-events",
+      icon: "calendar-day",
+      description: "Events you're registered for",
+      colors: ["#2C3E50", "#3498DB"] as [string, string],
+    },
+    {
       label: "Staff",
       route: "/(admin)/(tabs)/staff",
       icon: "user-tie",

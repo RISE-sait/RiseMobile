@@ -774,7 +774,7 @@ export default function ScheduleScreen() {
       ) : (
         /* Calendar View */
         <View style={{ flex: 1 }}>
-          <SharedCalendar userRole="athlete" title="" embedded={true} />
+          <SharedCalendar userRole="admin" title="" embedded={true} />
         </View>
       )}
     </SafeAreaView>
