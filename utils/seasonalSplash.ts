@@ -204,65 +204,73 @@ export function getCurrentSeasonalTheme(): SeasonalTheme {
 
 /**
  * Get seasonal theme info for display
+ *
+ * Design Decision: All seasonal themes use BLACK background for brand consistency.
+ * Only secondaryColor (accent color) is used for:
+ * - Top/bottom accent bars
+ * - Seasonal message text
+ * - Decorative elements
+ *
+ * primaryColor is retained for potential future use (gradients, effects, etc.)
  */
 export function getSeasonalThemeInfo(theme: SeasonalTheme): {
   name: string;
   primaryColor: string;
-  secondaryColor: string;
+  secondaryColor: string; // Accent color - must be bright/visible on black background
   message?: string;
 } {
   const themeInfo: Record<SeasonalTheme, { name: string; primaryColor: string; secondaryColor: string; message?: string }> = {
     default: {
       name: 'RISE',
       primaryColor: '#000000',
-      secondaryColor: '#F5A623',
+      secondaryColor: '#F5A623', // RISE brand orange/gold
     },
     christmas: {
       name: 'Happy Holidays',
-      primaryColor: '#1B4D3E',
-      secondaryColor: '#C41E3A',
+      primaryColor: '#1B4D3E', // Reserved for future use
+      secondaryColor: '#C41E3A', // Christmas red - high contrast on black
       message: 'Season\'s Greetings from RISE!',
     },
     valentines: {
       name: "Valentine's Day",
-      primaryColor: '#8B0000',
-      secondaryColor: '#FF69B4',
+      primaryColor: '#8B0000', // Reserved for future use
+      secondaryColor: '#FF69B4', // Hot pink - high contrast on black
       message: 'Love the Game!',
     },
     stpatricks: {
       name: "St. Patrick's Day",
-      primaryColor: '#009A44',
-      secondaryColor: '#FFD700',
+      primaryColor: '#009A44', // Reserved for future use
+      secondaryColor: '#FFD700', // Gold - high contrast on black
       message: 'Lucky to Play!',
     },
     easter: {
       name: 'Easter',
-      primaryColor: '#9370DB',
-      secondaryColor: '#98FB98',
+      primaryColor: '#9370DB', // Reserved for future use
+      secondaryColor: '#98FB98', // Pale green - high contrast on black
       message: 'Spring into Action!',
     },
     summer: {
       name: 'Summer',
-      primaryColor: '#FF8C00',
-      secondaryColor: '#00CED1',
+      primaryColor: '#FF8C00', // Reserved for future use
+      secondaryColor: '#00CED1', // Dark turquoise - high contrast on black
       message: 'Summer Training!',
     },
     halloween: {
       name: 'Halloween',
-      primaryColor: '#1C1C1C',
-      secondaryColor: '#FF6600',
+      primaryColor: '#1C1C1C', // Reserved for future use
+      secondaryColor: '#FF6600', // Bright orange - high contrast on black
       message: 'Scary Good Skills!',
     },
     thanksgiving: {
       name: 'Thanksgiving',
-      primaryColor: '#8B4513',
-      secondaryColor: '#DAA520',
+      primaryColor: '#8B4513', // Reserved for future use
+      secondaryColor: '#DAA520', // Goldenrod - high contrast on black
       message: 'Grateful for the Game!',
     },
     newyear: {
       name: 'New Year',
-      primaryColor: '#000080',
-      secondaryColor: '#FFD700',
+      primaryColor: '#000080', // Reserved for future use
+      secondaryColor: '#FFD700', // Gold - high contrast on black
       message: 'New Year, New Goals!',
     },
   };
