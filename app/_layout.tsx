@@ -23,7 +23,7 @@ import { getCurrentSeasonalTheme } from "@/utils/seasonalSplash"
 const MINIMUM_SPLASH_DISPLAY_TIME = 1500
 
 // Duration for seasonal splash overlay (in ms) - only shown for non-default themes
-const SEASONAL_SPLASH_DURATION = 2000
+const SEASONAL_SPLASH_DURATION = 2000 // 2 seconds display time
 
 // Hermes Promise Rejection Tracker - Prevent RedBox for unhandled promise rejections
 // Converts unhandled rejections to warnings instead of fatal red screens
@@ -147,12 +147,6 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <AlertProvider>
             <StatusBar style="auto" />
-            {/* Seasonal splash overlay - shows themed splash for holidays/seasons */}
-            <SeasonalSplash
-              visible={isSeasonalSplashVisible}
-              onHide={handleSeasonalSplashHide}
-              displayDuration={SEASONAL_SPLASH_DURATION}
-            />
             <ErrorBoundary>
               <NotificationManager />
               {/* Disabled dev components to reduce console noise */}
@@ -189,6 +183,12 @@ export default function RootLayout() {
                 }}
               />
             </Stack>
+            {/* Seasonal splash overlay - rendered AFTER Stack to appear on top */}
+            <SeasonalSplash
+              visible={isSeasonalSplashVisible}
+              onHide={handleSeasonalSplashHide}
+              displayDuration={SEASONAL_SPLASH_DURATION}
+            />
           </AlertProvider>
         </GestureHandlerRootView>
       </PersistGate>

@@ -1,180 +1,57 @@
 /**
  * Seasonal Splash Screen Utility
- * Determines which seasonal theme to display based on current date
+ * Determines which seasonal splash image to display based on current date
+ *
+ * Seasons:
+ * - Spring: March 20 - June 20
+ * - Summer: June 21 - September 21
+ * - Fall: September 22 - December 14
+ * - Winter: December 15 - March 19 (when not holiday)
+ * - Holiday: December 15 - January 5 (overrides Winter)
  */
 
-export type SeasonalTheme =
-  | 'default'
-  | 'christmas'
-  | 'valentines'
-  | 'stpatricks'
-  | 'easter'
-  | 'summer'
-  | 'halloween'
-  | 'thanksgiving'
-  | 'newyear';
+import { Dimensions, Platform } from 'react-native';
 
-interface SeasonalConfig {
-  theme: SeasonalTheme;
-  name: string;
-  startMonth: number;
-  startDay: number;
-  endMonth: number;
-  endDay: number;
-  // For holidays that vary by year (like Easter, Thanksgiving)
-  getDynamicDates?: (year: number) => { start: Date; end: Date };
-}
+export type SeasonalTheme = 'default' | 'spring' | 'summer' | 'fall' | 'winter' | 'holiday';
 
-// Static seasonal configurations
-const SEASONAL_CONFIGS: SeasonalConfig[] = [
-  {
-    theme: 'newyear',
-    name: 'New Year',
-    startMonth: 1,
-    startDay: 1,
-    endMonth: 1,
-    endDay: 7, // New Year celebration period
-  },
-  {
-    theme: 'valentines',
-    name: "Valentine's Day",
-    startMonth: 2,
-    startDay: 10,
-    endMonth: 2,
-    endDay: 15,
-  },
-  {
-    theme: 'stpatricks',
-    name: "St. Patrick's Day",
-    startMonth: 3,
-    startDay: 14,
-    endMonth: 3,
-    endDay: 18,
-  },
-  {
-    theme: 'easter',
-    name: 'Easter',
-    startMonth: 3,
-    startDay: 20,
-    endMonth: 4,
-    endDay: 25,
-    // Easter date varies - this is a simplified range
-    getDynamicDates: (year: number) => {
-      const easterDate = calculateEasterDate(year);
-      const start = new Date(easterDate);
-      start.setDate(start.getDate() - 3);
-      const end = new Date(easterDate);
-      end.setDate(end.getDate() + 1);
-      return { start, end };
-    },
-  },
-  {
-    theme: 'summer',
-    name: 'Summer',
-    startMonth: 6,
-    startDay: 1,
-    endMonth: 8,
-    endDay: 31,
-  },
-  {
-    theme: 'halloween',
-    name: 'Halloween',
-    startMonth: 10,
-    startDay: 20,
-    endMonth: 11,
-    endDay: 1,
-  },
-  {
-    theme: 'thanksgiving',
-    name: 'Thanksgiving',
-    startMonth: 11,
-    startDay: 20,
-    endMonth: 11,
-    endDay: 30,
-    // US Thanksgiving is 4th Thursday of November
-    getDynamicDates: (year: number) => {
-      const thanksgiving = getNthWeekdayOfMonth(year, 10, 4, 4); // 4th Thursday of November (month 10 = Nov)
-      const start = new Date(thanksgiving);
-      start.setDate(start.getDate() - 3);
-      const end = new Date(thanksgiving);
-      end.setDate(end.getDate() + 3);
-      return { start, end };
-    },
-  },
-  {
-    theme: 'christmas',
-    name: 'Christmas',
-    startMonth: 12,
-    startDay: 15,
-    endMonth: 12,
-    endDay: 31,
-  },
-];
+// Phone splash images
+const PHONE_IMAGES = {
+  default: require('../assets/images/splash/riseSplash.png'),
+  spring: require('../assets/images/splash/rise_splash_spring.png'),
+  summer: require('../assets/images/splash/rise_splash_summer.png'),
+  fall: require('../assets/images/splash/rise_splash_fall.png'),
+  winter: require('../assets/images/splash/rise_splash_winter.png'),
+  holiday: require('../assets/images/splash/rise_splash_holiday.png'),
+};
+
+// Tablet splash images (default uses phone version as fallback)
+const TABLET_IMAGES = {
+  default: require('../assets/images/splash/riseSplash.png'), // No tablet version, use phone
+  spring: require('../assets/images/splash/rise_splash_spring_tablet.png'),
+  summer: require('../assets/images/splash/rise_splash_summer_tablet.png'),
+  fall: require('../assets/images/splash/rise_splash_fall_tablet.png'),
+  winter: require('../assets/images/splash/rise_splash_winter_tablet.png'),
+  holiday: require('../assets/images/splash/rise_splash_holiday_tablet.png'),
+};
 
 /**
- * Calculate Easter Sunday date using Anonymous Gregorian algorithm
+ * Check if device is a tablet based on screen dimensions
  */
-function calculateEasterDate(year: number): Date {
-  const a = year % 19;
-  const b = Math.floor(year / 100);
-  const c = year % 100;
-  const d = Math.floor(b / 4);
-  const e = b % 4;
-  const f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4);
-  const k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1; // 0-indexed month
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(year, month, day);
-}
+export function isTablet(): boolean {
+  const { width, height } = Dimensions.get('window');
+  const aspectRatio = height / width;
+  const screenSize = Math.sqrt(width * width + height * height);
 
-/**
- * Get the nth weekday of a month
- * @param year - Full year
- * @param month - 0-indexed month (0 = January, 10 = November)
- * @param weekday - Day of week (0 = Sunday, 4 = Thursday)
- * @param n - Which occurrence (1 = first, 4 = fourth)
- */
-function getNthWeekdayOfMonth(year: number, month: number, weekday: number, n: number): Date {
-  const firstDay = new Date(year, month, 1);
-  const firstWeekday = firstDay.getDay();
-  let dayOffset = weekday - firstWeekday;
-  if (dayOffset < 0) dayOffset += 7;
-  const nthDay = 1 + dayOffset + (n - 1) * 7;
-  return new Date(year, month, nthDay);
-}
-
-/**
- * Check if a date falls within a seasonal range
- */
-function isDateInRange(
-  date: Date,
-  startMonth: number,
-  startDay: number,
-  endMonth: number,
-  endDay: number
-): boolean {
-  const month = date.getMonth() + 1; // 1-indexed
-  const day = date.getDate();
-
-  // Handle year wrap (e.g., Christmas Dec 15 - Jan 3)
-  if (startMonth > endMonth) {
-    // Range wraps around year end
-    return (
-      (month > startMonth || (month === startMonth && day >= startDay)) ||
-      (month < endMonth || (month === endMonth && day <= endDay))
-    );
+  // Tablets typically have:
+  // - Larger screen size (diagonal > 900 points)
+  // - Lower aspect ratio (closer to 4:3 vs phone's 16:9)
+  if (Platform.OS === 'ios') {
+    // iPad detection: screen diagonal > 900 points or aspect ratio < 1.6
+    return screenSize > 900 || aspectRatio < 1.6;
+  } else {
+    // Android tablet detection
+    return screenSize > 900 && aspectRatio < 1.6;
   }
-
-  // Normal range within same year
-  if (month < startMonth || month > endMonth) return false;
-  if (month === startMonth && day < startDay) return false;
-  if (month === endMonth && day > endDay) return false;
-  return true;
 }
 
 /**
@@ -182,109 +59,58 @@ function isDateInRange(
  */
 export function getCurrentSeasonalTheme(): SeasonalTheme {
   const today = new Date();
-  const year = today.getFullYear();
+  const month = today.getMonth() + 1; // 1-indexed
+  const day = today.getDate();
 
-  for (const config of SEASONAL_CONFIGS) {
-    // Check dynamic dates first (for holidays like Easter, Thanksgiving)
-    if (config.getDynamicDates) {
-      const { start, end } = config.getDynamicDates(year);
-      if (today >= start && today <= end) {
-        return config.theme;
-      }
-    }
+  // Holiday period: December 15 - January 5 (overrides winter)
+  if ((month === 12 && day >= 15) || (month === 1 && day <= 5)) {
+    return 'holiday';
+  }
 
-    // Check static date ranges
-    if (isDateInRange(today, config.startMonth, config.startDay, config.endMonth, config.endDay)) {
-      return config.theme;
-    }
+  // Spring: March 20 - June 20
+  if ((month === 3 && day >= 20) || (month > 3 && month < 6) || (month === 6 && day <= 20)) {
+    return 'spring';
+  }
+
+  // Summer: June 21 - September 21
+  if ((month === 6 && day >= 21) || (month > 6 && month < 9) || (month === 9 && day <= 21)) {
+    return 'summer';
+  }
+
+  // Fall: September 22 - December 14
+  if ((month === 9 && day >= 22) || (month > 9 && month < 12) || (month === 12 && day <= 14)) {
+    return 'fall';
+  }
+
+  // Winter: December 15 - March 19 (but holiday takes priority Dec 15 - Jan 5)
+  // This covers: Jan 6 - Mar 19, Dec 15 - Dec 31 (but holiday overrides)
+  if ((month >= 1 && month < 3) || (month === 3 && day < 20) || (month === 12 && day >= 15)) {
+    return 'winter';
   }
 
   return 'default';
 }
 
 /**
- * Get seasonal theme info for display
- *
- * Design Decision: All seasonal themes use BLACK background for brand consistency.
- * Only secondaryColor (accent color) is used for:
- * - Top/bottom accent bars
- * - Seasonal message text
- * - Decorative elements
- *
- * primaryColor is retained for potential future use (gradients, effects, etc.)
+ * Get the splash image source for the current theme and device type
  */
-export function getSeasonalThemeInfo(theme: SeasonalTheme): {
-  name: string;
-  primaryColor: string;
-  secondaryColor: string; // Accent color - must be bright/visible on black background
-  message?: string;
-} {
-  const themeInfo: Record<SeasonalTheme, { name: string; primaryColor: string; secondaryColor: string; message?: string }> = {
-    default: {
-      name: 'RISE',
-      primaryColor: '#000000',
-      secondaryColor: '#F5A623', // RISE brand orange/gold
-    },
-    christmas: {
-      name: 'Happy Holidays',
-      primaryColor: '#1B4D3E', // Reserved for future use
-      secondaryColor: '#C41E3A', // Christmas red - high contrast on black
-      message: 'Hoops for the Holidays!',
-    },
-    valentines: {
-      name: "Valentine's Day",
-      primaryColor: '#8B0000', // Reserved for future use
-      secondaryColor: '#FF69B4', // Hot pink - high contrast on black
-      message: 'Love the Game!',
-    },
-    stpatricks: {
-      name: "St. Patrick's Day",
-      primaryColor: '#009A44', // Reserved for future use
-      secondaryColor: '#32CD32', // Lime green - traditional St. Patrick's color, high contrast on black
-      message: 'Lucky to Play!',
-    },
-    easter: {
-      name: 'Easter',
-      primaryColor: '#9370DB', // Reserved for future use
-      secondaryColor: '#98FB98', // Pale green - high contrast on black
-      message: 'Spring into Action!',
-    },
-    summer: {
-      name: 'Summer',
-      primaryColor: '#FF8C00', // Reserved for future use
-      secondaryColor: '#00CED1', // Dark turquoise - high contrast on black
-      message: 'Summer Training!',
-    },
-    halloween: {
-      name: 'Halloween',
-      primaryColor: '#1C1C1C', // Reserved for future use
-      secondaryColor: '#FF6600', // Bright orange - high contrast on black
-      message: 'Scary Good Skills!',
-    },
-    thanksgiving: {
-      name: 'Thanksgiving',
-      primaryColor: '#8B4513', // Reserved for future use
-      secondaryColor: '#DAA520', // Goldenrod - high contrast on black
-      message: 'Grateful for the Game!',
-    },
-    newyear: {
-      name: 'New Year',
-      primaryColor: '#000080', // Reserved for future use
-      secondaryColor: '#FFD700', // Gold - high contrast on black
-      message: 'New Year, New Goals!',
-    },
-  };
+export function getSeasonalSplashImage(theme?: SeasonalTheme): number {
+  const currentTheme = theme ?? getCurrentSeasonalTheme();
+  const useTablet = isTablet();
 
-  return themeInfo[theme];
+  if (useTablet) {
+    return TABLET_IMAGES[currentTheme];
+  }
+
+  return PHONE_IMAGES[currentTheme];
 }
 
 /**
- * Get the splash image source for a seasonal theme
- * Returns require() for static images or URI for remote images
+ * Check if we should show the seasonal splash (any theme except default)
  */
-export function getSeasonalSplashImage(theme: SeasonalTheme): number {
-  // All themes use the same base logo - we apply styling in the component
-  // This allows for a single optimized asset with dynamic theming
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  return require('../assets/images/splash-icon.png');
+export function shouldShowSeasonalSplash(): boolean {
+  const theme = getCurrentSeasonalTheme();
+  // Always show seasonal splash for non-default themes
+  // For default, we rely on the native splash screen
+  return theme !== 'default';
 }
