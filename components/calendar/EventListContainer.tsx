@@ -29,6 +29,8 @@ interface EventListContainerProps {
   error?: string | null
   onRetry?: () => void
   emptyMessage?: string
+  emptyActionLabel?: string
+  onEmptyAction?: () => void
   children?: React.ReactNode
 }
 
@@ -96,6 +98,8 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
   error = null,
   onRetry,
   emptyMessage = "There are no events scheduled for this day.",
+  emptyActionLabel,
+  onEmptyAction,
   children,
 }) => {
   const insets = useSafeAreaInsets()
@@ -178,7 +182,15 @@ const EventListContainer: React.FC<EventListContainerProps> = ({
               flexGrow: 1,
               minHeight: data.length === 0 ? 200 : undefined,
             }}
-            ListEmptyComponent={<EmptyState icon="calendar-xmark" title="No Events" message={emptyMessage} />}
+            ListEmptyComponent={
+              <EmptyState
+                icon="calendar-xmark"
+                title="No Events"
+                message={emptyMessage}
+                actionLabel={emptyActionLabel}
+                onAction={onEmptyAction}
+              />
+            }
             maxToRenderPerBatch={10}
             windowSize={5}
             initialNumToRender={10}

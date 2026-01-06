@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, Image,
   StyleSheet, RefreshControl, ActivityIndicator
@@ -7,41 +7,42 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchEvents } from "@/store/slices/eventsSlice";
+import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import dayjs from "dayjs";
 import images from "@/constants/images";
 import { resolveImageSource } from "@/utils/imageSource";
-import Constants from "expo-constants";
+import axios from "axios";
+import { API_URL } from "@/utils/api";
 
-export interface Event {
+interface MyEvent {
   id: string;
   title: string;
   date: string;
   time: string;
   location: string;
   image: string;
-  type: "game" | "match" | "practice" | "course" | "other";
-  program?: { 
+  description: string;
+  program?: {
     id: string;
+    name?: string;
+    type?: string;
     photo_url?: string;
+    description?: string;
   };
 }
 
-
-const EventsScreen: React.FC = () => {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+const MyEventsScreen: React.FC = () => {
+  const [events, setEvents] = useState<MyEvent[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<MyEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const [selectedMonth, setSelectedMonth] = useState<dayjs.Dayjs>(dayjs());
   const router = useRouter();
-  const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.user.data);
-  const reduxEvents = useSelector((state: RootState) => state.events);
+  const hasFetchedRef = useRef(false);
 
   const getToken = useCallback(async () => {
     let token = user?.token;
@@ -52,74 +53,90 @@ const EventsScreen: React.FC = () => {
     return token;
   }, [user?.token]);
 
-  const fetchData = useCallback(async () => {
-    const token = await getToken();
-    if (!token) return;
-    dispatch(fetchEvents(token) as any);
-  }, [dispatch, getToken]);
+  const fetchMyEvents = useCallback(async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
 
-  useEffect(() => {
-    setLoading(true);
-    fetchData().finally(() => {
-      setLoading(false);
-      setRefreshing(false);
-    });
-  }, [fetchData]);
-
-  useEffect(() => {
-    const allEvents: Event[] = [];
-    const seenEventIds = new Set<string>();
-
-    // Convert Redux events
-    // All items from the events API are "events" - they should navigate to event-details
-    Object.values(reduxEvents.byDate).forEach((eventGroup: any[]) => {
-      eventGroup.forEach((event) => {
-        // ✅ Validate event ID exists and is unique
-        if (event.id && !seenEventIds.has(event.id)) {
-          // ✅ Validate date before adding to prevent "Invalid Date"
-          const eventDate = dayjs(event.date);
-          if (eventDate.isValid()) {
-            seenEventIds.add(event.id);
-            allEvents.push({
-              id: event.id,
-              title: event.title || "Untitled Event",
-              date: eventDate.format("YYYY-MM-DD"),
-              time: event.time || "TBD",
-              location: event.location || "TBD",
-              image: event.program?.photo_url || "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-              // Always use "other" for events from the events API - they should go to event-details
-              // The visual "type" from the slice is just for display, not navigation
-              type: "other",
-              program: event.program?.id ? {
-                id: event.program.id,
-                photo_url: event.program.photo_url
-              } : undefined,
-            });
-          } else {
-            console.warn(`⚠️ Invalid date for event ${event.id}: ${event.date}`);
-          }
-        } else if (!event.id) {
-          console.warn(`⚠️ Event missing ID, skipping:`, event);
-        }
+      const response = await axios.get(`${API_URL}/secure/schedule`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+
+      const { events: rawEvents } = response.data;
+      const processedEvents: MyEvent[] = [];
+
+      if (rawEvents && Array.isArray(rawEvents)) {
+        rawEvents.forEach((event: any) => {
+          // Parse date from start_at
+          let eventDate = event.date;
+          if (!eventDate && event.start_at) {
+            if (event.start_at.includes('T')) {
+              eventDate = event.start_at.split('T')[0];
+            } else {
+              eventDate = event.start_at.split(' ')[0];
+            }
+          }
+
+          // Validate date
+          const parsedDate = dayjs(eventDate);
+          if (!parsedDate.isValid()) {
+            console.warn(`Invalid date for event ${event.id}: ${eventDate}`);
+            return;
+          }
+
+          // Parse time
+          let formattedTime = "TBD";
+          if (event.start_at) {
+            try {
+              const date = new Date(event.start_at);
+              if (!isNaN(date.getTime())) {
+                formattedTime = date.toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                });
+              }
+            } catch (e) {
+              formattedTime = "TBD";
+            }
+          }
+
+          processedEvents.push({
+            id: event.id,
+            title: event.program?.name || event.name || event.title || "Event",
+            date: parsedDate.format("YYYY-MM-DD"),
+            time: formattedTime,
+            location: (typeof event.location === 'object'
+              ? event.location?.name || event.location?.address
+              : event.location) || "TBD",
+            image: event.program?.photo_url || "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
+            description: event.program?.description || event.description || "",
+            program: event.program,
+          });
+        });
+      }
+
+      // Sort chronologically
+      const sortedEvents = processedEvents.sort((a, b) => {
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      });
+
+      setEvents(sortedEvents);
+    } catch (error: any) {
+      console.error("Error fetching my events:", error);
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    // Only fetch once on mount to prevent infinite loops
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
+    setLoading(true);
+    fetchMyEvents().finally(() => {
+      setLoading(false);
     });
-
-
-    // Note: Matches are NOT included here - they are viewed from the Matches tab
-    // This Events screen only shows events from the events API
-
-    // Sort events chronologically (earliest date first)
-    const sortedEvents = allEvents.sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    // Limit to 100 most recent/upcoming events for performance
-    const limitedEvents = sortedEvents.slice(0, 100);
-
-    setEvents(limitedEvents);
-  }, [reduxEvents.byDate]);
+  }, []);
 
   useEffect(() => {
     filterEvents(activeFilter, selectedMonth);
@@ -127,49 +144,7 @@ const EventsScreen: React.FC = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchData().finally(() => setRefreshing(false));
-  };
-
-  const filterEvents = (filter: string, month: dayjs.Dayjs) => {
-    let filtered = events;
-
-    // First filter by month
-    const monthStart = month.startOf("month");
-    const monthEnd = month.endOf("month");
-    filtered = events.filter(event => {
-      const eventDate = dayjs(event.date);
-      return eventDate.isAfter(monthStart.subtract(1, "day")) && eventDate.isBefore(monthEnd.add(1, "day"));
-    });
-
-    // Then apply status filter
-    if (filter === "All") {
-      // "All" shows only today and future events (no past events) for the selected month
-      filtered = filtered.filter(event => getEventStatus(event.date) !== "Past");
-    } else {
-      // Map UI filter labels to status values
-      const statusMapping: Record<string, string> = {
-        "Upcoming": "Upcoming",
-        "Today": "Today",
-        "Past": "Past"
-      };
-      const backendStatus = statusMapping[filter] || filter;
-      filtered = filtered.filter(event => getEventStatus(event.date) === backendStatus);
-    }
-
-    // Sort chronologically (earliest date first for upcoming, most recent first for past)
-    const sortedFiltered = filtered.sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-
-      if (filter === "Past") {
-        // For past events, show most recent first
-        return dateB.getTime() - dateA.getTime();
-      }
-      // For upcoming/all, show earliest first
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    setFilteredEvents(sortedFiltered);
+    fetchMyEvents().finally(() => setRefreshing(false));
   };
 
   const getEventStatus = (date: string) => {
@@ -181,6 +156,37 @@ const EventsScreen: React.FC = () => {
     return "Upcoming";
   };
 
+  const filterEvents = (filter: string, month: dayjs.Dayjs) => {
+    let filtered = events;
+
+    // Filter by month
+    const monthStart = month.startOf("month");
+    const monthEnd = month.endOf("month");
+    filtered = events.filter(event => {
+      const eventDate = dayjs(event.date);
+      return eventDate.isAfter(monthStart.subtract(1, "day")) && eventDate.isBefore(monthEnd.add(1, "day"));
+    });
+
+    // Apply status filter
+    if (filter === "All") {
+      filtered = filtered.filter(event => getEventStatus(event.date) !== "Past");
+    } else {
+      filtered = filtered.filter(event => getEventStatus(event.date) === filter);
+    }
+
+    // Sort
+    const sortedFiltered = filtered.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      if (filter === "Past") {
+        return dateB.getTime() - dateA.getTime();
+      }
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    setFilteredEvents(sortedFiltered);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Upcoming": return "#FCA311";
@@ -190,7 +196,7 @@ const EventsScreen: React.FC = () => {
     }
   };
 
-  const renderEventItem = ({ item }: { item: Event }) => {
+  const renderEventItem = ({ item }: { item: MyEvent }) => {
     const status = getEventStatus(item.date);
     const statusColor = getStatusColor(status);
 
@@ -199,17 +205,11 @@ const EventsScreen: React.FC = () => {
         style={styles.eventCard}
         activeOpacity={0.9}
         onPress={() => {
-          // All events from this screen go to event-details
-          // (Matches are viewed from the Matches tab, not here)
           router.push({
             pathname: "/screens/event-details/[id]",
-            params: {
-              id: item.id,
-              source: "homepage",
-            },
+            params: { id: item.id, source: "my-events" },
           });
         }}
-
       >
         <Image
           source={resolveImageSource(item.image || item.program?.photo_url, images.event)}
@@ -226,7 +226,7 @@ const EventsScreen: React.FC = () => {
           <View style={styles.eventInfo}>
             <View style={styles.infoRow}>
               <Ionicons name="calendar-outline" size={16} color="#FCA311" style={styles.infoIcon} />
-              <Text style={styles.infoText}>{item.date}</Text>
+              <Text style={styles.infoText}>{dayjs(item.date).format("MMM D, YYYY")}</Text>
             </View>
             <View style={styles.infoRow}>
               <Ionicons name="time-outline" size={16} color="#FCA311" style={styles.infoIcon} />
@@ -243,7 +243,7 @@ const EventsScreen: React.FC = () => {
   };
 
   const renderMonthSelector = () => {
-    const canGoBack = selectedMonth.isAfter(dayjs().subtract(1, "month"), "month");
+    const canGoBack = selectedMonth.isAfter(dayjs().subtract(3, "month"), "month");
     const canGoForward = selectedMonth.isBefore(dayjs().add(6, "months"), "month");
 
     return (
@@ -290,17 +290,18 @@ const EventsScreen: React.FC = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="calendar-outline" size={50} color="#FCA311" />
-      <Text style={styles.emptyText}>No events found</Text>
+      <Text style={styles.emptyText}>No registered events</Text>
       <Text style={styles.emptySubtext}>
         {activeFilter !== "All"
-          ? `There are no ${activeFilter.toLowerCase()} events in ${selectedMonth.format("MMMM YYYY")}`
-          : `No upcoming events in ${selectedMonth.format("MMMM YYYY")}`}
+          ? `You have no ${activeFilter.toLowerCase()} events in ${selectedMonth.format("MMMM YYYY")}`
+          : `You haven't registered for any events yet`}
       </Text>
-      {activeFilter !== "All" && (
-        <TouchableOpacity style={styles.resetButton} onPress={() => setActiveFilter("All")}>
-          <Text style={styles.resetButtonText}>Show All Events</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={styles.browseButton}
+        onPress={() => router.push("/screens/events")}
+      >
+        <Text style={styles.browseButtonText}>Browse Events</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -322,19 +323,18 @@ const EventsScreen: React.FC = () => {
           <Ionicons name="chevron-back" size={24} color="#F0F0F0" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Events</Text>
-          <Text style={styles.headerSubtitle}>Find & register for events</Text>
+          <Text style={styles.headerTitle}>My Events</Text>
+          <Text style={styles.headerSubtitle}>Events you're registered for</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
       {renderMonthSelector()}
       {renderFilterChips()}
 
-      {/* Info Section */}
       {!loading && events.length > 0 && (
         <View style={styles.infoContainer}>
-          <Text style={styles.infoText}>
-            Showing {filteredEvents.length} of {events.length} events • Sorted by date
+          <Text style={styles.countText}>
+            Showing {filteredEvents.length} of {events.length} registered events
           </Text>
         </View>
       )}
@@ -342,7 +342,7 @@ const EventsScreen: React.FC = () => {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FCA311" />
-          <Text style={styles.loadingText}>Loading events...</Text>
+          <Text style={styles.loadingText}>Loading your events...</Text>
         </View>
       ) : (
         <FlatList
@@ -365,7 +365,6 @@ const EventsScreen: React.FC = () => {
     </SafeAreaView>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -463,6 +462,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 20,
     paddingTop: 5,
+    paddingBottom: 100,
   },
   eventCard: {
     backgroundColor: "#1A1A1A",
@@ -470,10 +470,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 20,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
@@ -518,13 +515,17 @@ const styles = StyleSheet.create({
   infoIcon: {
     marginRight: 8,
   },
+  infoText: {
+    color: "#999",
+    fontSize: 14,
+  },
   infoContainer: {
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#222",
   },
-  infoText: {
+  countText: {
     color: "#999",
     fontSize: 12,
     textAlign: "center",
@@ -548,16 +549,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 24,
   },
-  resetButton: {
-    backgroundColor: "rgba(252, 163, 17, 0.2)",
+  browseButton: {
+    backgroundColor: "#FCA311",
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     borderRadius: 8,
   },
-  resetButtonText: {
-    color: "#FCA311",
+  browseButtonText: {
+    color: "#000",
     fontWeight: "bold",
+    fontSize: 14,
   },
 });
 
-export default EventsScreen;
+export default MyEventsScreen;

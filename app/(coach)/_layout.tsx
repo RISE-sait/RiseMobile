@@ -8,6 +8,7 @@ export default function CoachLayout() {
 
       {/* ✅ Coach-specific modal screens - flattened structure to prevent route group nesting */}
       {/* Only declare screens that exist in app/(coach)/screens/ directory */}
+      <Stack.Screen name="screens/my-events" options={{ headerShown: false }} />
       <Stack.Screen name="screens/createMatch" options={{ presentation: "modal" }} />
       <Stack.Screen name="screens/matchHistory" options={{ presentation: "modal" }} />
       <Stack.Screen name="screens/selectTeamForRoster" options={{ presentation: "modal" }} />

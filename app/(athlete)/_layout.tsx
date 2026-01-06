@@ -11,6 +11,7 @@ export default function AthleteLayout() {
       {/* IMPORTANT: Removed presentation: "modal" to allow detail pages to properly display */}
       {/* Modal presentation was causing Events page to stay on top even when navigating to details */}
       <Stack.Screen name="screens/events" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/my-events" options={{ headerShown: false }} />
       <Stack.Screen name="screens/membership/index" options={{ headerShown: false }} />
       <Stack.Screen name="screens/booking-options/Courts" options={{ headerShown: false }} />
       <Stack.Screen name="screens/booking-options/CourtsideKutz" options={{ headerShown: false }} />

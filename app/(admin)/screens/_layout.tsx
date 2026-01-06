@@ -9,6 +9,7 @@ export default function AdminScreensLayout() {
       <Stack.Screen name="website-content" options={{ headerShown: false }} />
       <Stack.Screen name="profile" options={{ headerShown: false }} />
       <Stack.Screen name="change-password" options={{ headerShown: false }} />
+      <Stack.Screen name="my-events" options={{ headerShown: false }} />
     </Stack>
   );
 }

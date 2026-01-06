@@ -97,8 +97,15 @@ export default function AthleteHome() {
       label: "Events",
       route: "/screens/events",
       icon: "ticket",
-      description: "See what's happening at RISE",
+      description: "Find & register for events",
       colors: ["#8E2DE2", "#4A00E0"] as [string, string],
+    },
+    {
+      label: "My Events",
+      route: "/screens/my-events",
+      icon: "calendar-check",
+      description: "Events you're registered for",
+      colors: ["#2C3E50", "#3498DB"] as [string, string],
     },
     {
       label: "Membership",
