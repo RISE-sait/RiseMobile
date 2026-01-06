@@ -72,12 +72,13 @@ export const SeasonalSplash: React.FC<SeasonalSplashProps> = ({
       style={[
         styles.container,
         {
-          backgroundColor: themeInfo.primaryColor,
+          // Always use black background for brand consistency
+          backgroundColor: '#000000',
           opacity: fadeAnim,
         },
       ]}
     >
-      {/* Decorative elements for seasonal themes */}
+      {/* Decorative elements for seasonal themes - positioned around edges */}
       {!isDefault && (
         <View style={styles.decorContainer}>
           {renderSeasonalDecorations(theme, themeInfo.secondaryColor)}
@@ -98,7 +99,7 @@ export const SeasonalSplash: React.FC<SeasonalSplashProps> = ({
           resizeMode="contain"
         />
 
-        {/* Seasonal message */}
+        {/* Seasonal message - with accent color */}
         {themeInfo.message && (
           <Text style={[styles.message, { color: themeInfo.secondaryColor }]}>
             {themeInfo.message}
@@ -106,11 +107,21 @@ export const SeasonalSplash: React.FC<SeasonalSplashProps> = ({
         )}
       </Animated.View>
 
-      {/* Bottom accent for seasonal themes */}
+      {/* Bottom accent bar for seasonal themes */}
       {!isDefault && (
         <View
           style={[
             styles.bottomAccent,
+            { backgroundColor: themeInfo.secondaryColor },
+          ]}
+        />
+      )}
+
+      {/* Top accent bar for seasonal themes */}
+      {!isDefault && (
+        <View
+          style={[
+            styles.topAccent,
             { backgroundColor: themeInfo.secondaryColor },
           ]}
         />
@@ -220,6 +231,13 @@ const styles = StyleSheet.create({
   bottomAccent: {
     position: 'absolute',
     bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+  },
+  topAccent: {
+    position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
     height: 4,
