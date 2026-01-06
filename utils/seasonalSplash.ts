@@ -229,7 +229,7 @@ export function getSeasonalThemeInfo(theme: SeasonalTheme): {
       name: 'Happy Holidays',
       primaryColor: '#1B4D3E', // Reserved for future use
       secondaryColor: '#C41E3A', // Christmas red - high contrast on black
-      message: 'Season\'s Greetings from RISE!',
+      message: 'Hoops for the Holidays!',
     },
     valentines: {
       name: "Valentine's Day",
@@ -240,7 +240,7 @@ export function getSeasonalThemeInfo(theme: SeasonalTheme): {
     stpatricks: {
       name: "St. Patrick's Day",
       primaryColor: '#009A44', // Reserved for future use
-      secondaryColor: '#FFD700', // Gold - high contrast on black
+      secondaryColor: '#32CD32', // Lime green - traditional St. Patrick's color, high contrast on black
       message: 'Lucky to Play!',
     },
     easter: {
