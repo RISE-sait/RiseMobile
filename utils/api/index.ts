@@ -10,6 +10,7 @@ export {
   resendVerificationEmail,
   registerChild,
   registerUser,
+  trackMobileSession,
 } from './auth';
 
 // Locations
