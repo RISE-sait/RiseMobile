@@ -1,5 +1,5 @@
 import "../polyfills"
-import { useEffect, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { Stack } from "expo-router"
 import "./globals.css"
 import { useFonts } from "expo-font"
@@ -16,6 +16,14 @@ import TouchLogger from "@/components/dev/TouchLogger"
 import ErrorBoundary from "@/components/error/ErrorBoundary"
 import AlertProvider from "@/components/feedback/AlertProvider"
 import * as SplashScreen from "expo-splash-screen"
+import { SeasonalSplash } from "@/components/SeasonalSplash"
+import { getCurrentSeasonalTheme } from "@/utils/seasonalSplash"
+
+// Minimum time to show native splash screen (in ms)
+const MINIMUM_SPLASH_DISPLAY_TIME = 1500
+
+// Duration for seasonal splash overlay (in ms) - only shown for non-default themes
+const SEASONAL_SPLASH_DURATION = 2000 // 2 seconds display time
 
 // Hermes Promise Rejection Tracker - Prevent RedBox for unhandled promise rejections
 // Converts unhandled rejections to warnings instead of fatal red screens
@@ -56,6 +64,19 @@ export default function RootLayout() {
     "ProtestStrike-Regular": require("../assets/fonts/ProtestStrike-Regular.ttf"),
   })
 
+  // Track splash screen timing for minimum display duration
+  const splashStartTime = useRef(Date.now())
+
+  // Seasonal splash state - check if we should show seasonal overlay
+  const currentTheme = useRef(getCurrentSeasonalTheme()).current
+  const showSeasonalSplash = currentTheme !== 'default'
+  const [isSeasonalSplashVisible, setIsSeasonalSplashVisible] = useState(showSeasonalSplash)
+
+  // Callback to hide seasonal splash
+  const handleSeasonalSplashHide = useCallback(() => {
+    setIsSeasonalSplashVisible(false)
+  }, [])
+
   // ✅ Delay storage cleanup until after Redux Persist rehydration completes
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -95,10 +116,24 @@ export default function RootLayout() {
     };
   }, []);
 
+  // Handle splash screen hide with minimum display time
   useEffect(() => {
     if (fontsLoaded) {
-      // Hide splash screen after fonts are loaded
-      SplashScreen.hideAsync().catch(() => {});
+      const hideSplash = async () => {
+        // Calculate how long splash has been showing
+        const elapsedTime = Date.now() - splashStartTime.current
+        const remainingTime = MINIMUM_SPLASH_DISPLAY_TIME - elapsedTime
+
+        // If minimum time hasn't elapsed, wait for remaining time
+        if (remainingTime > 0) {
+          await new Promise(resolve => setTimeout(resolve, remainingTime))
+        }
+
+        // Hide splash screen
+        await SplashScreen.hideAsync().catch(() => {})
+      }
+
+      hideSplash()
     }
   }, [fontsLoaded]);
 
@@ -148,6 +183,12 @@ export default function RootLayout() {
                 }}
               />
             </Stack>
+            {/* Seasonal splash overlay - rendered AFTER Stack to appear on top */}
+            <SeasonalSplash
+              visible={isSeasonalSplashVisible}
+              onHide={handleSeasonalSplashHide}
+              displayDuration={SEASONAL_SPLASH_DURATION}
+            />
           </AlertProvider>
         </GestureHandlerRootView>
       </PersistGate>

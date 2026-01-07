@@ -15,7 +15,7 @@
       "policy": "appVersion"
     },
     "splash": {
-      "image": "./assets/images/riseSplash.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -24,10 +24,9 @@
       "googleServicesFile": "./firebase/GoogleService-Info.plist",
       "supportsTablet": true,
       "splash": {
-        "image": "./assets/images/riseSplash.png",
+        "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#000000",
-        "tabletImage": "./assets/images/riseSplashTablet.png"
+        "backgroundColor": "#000000"
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -44,18 +43,9 @@
         "backgroundColor": "#000000"
       },
       "splash": {
-        "mdpi": "./assets/images/riseSplash.png",
-        "hdpi": "./assets/images/riseSplash.png",
-        "xhdpi": "./assets/images/riseSplash.png",
-        "xxhdpi": "./assets/images/riseSplash.png",
-        "xxxhdpi": "./assets/images/riseSplash.png",
+        "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#000000",
-        "tabletMdpi": "./assets/images/riseSplashTablet.png",
-        "tabletHdpi": "./assets/images/riseSplashTablet.png",
-        "tabletXhdpi": "./assets/images/riseSplashTablet.png",
-        "tabletXxhdpi": "./assets/images/riseSplashTablet.png",
-        "tabletXxxhdpi": "./assets/images/riseSplashTablet.png"
+        "backgroundColor": "#000000"
       }
     },
     "web": {
@@ -83,10 +73,20 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/riseSplash.png",
-          "tabletImage": "./assets/images/riseSplashTablet.png",
+          "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#000000",
+          "ios": {
+            "image": "./assets/images/splash-icon.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#000000"
+          },
+          "android": {
+            "image": "./assets/images/splash-icon.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#000000",
+            "imageWidth": 250
+          }
         }
       ],
       [
