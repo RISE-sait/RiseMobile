@@ -3,6 +3,23 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "fire
 import { auth } from "@/firebase/firebaseConfig";
 import { API_URL } from "./core/constants";
 
+// 🔹 **Track Mobile Session (called after login to record mobile app usage)**
+export const trackMobileSession = async (jwtToken: string): Promise<void> => {
+  try {
+    await axios.post(`${API_URL}/secure/mobile/session`, {}, {
+      headers: { Authorization: `Bearer ${jwtToken}` }
+    });
+    if (__DEV__) {
+      console.log("✅ Mobile session tracked successfully");
+    }
+  } catch (error: any) {
+    // Don't throw - this is non-critical tracking, shouldn't block login
+    if (__DEV__) {
+      console.warn("⚠️ Failed to track mobile session:", error.response?.data || error.message);
+    }
+  }
+};
+
 type User = {
   id: string;
   email: string;

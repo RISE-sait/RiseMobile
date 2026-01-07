@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { loginUser, registerUser, verifyEmail as apiVerifyEmail, resendVerificationEmail as apiResendVerificationEmail } from "./api" // Import API functions
+import { loginUser, registerUser, verifyEmail as apiVerifyEmail, resendVerificationEmail as apiResendVerificationEmail, trackMobileSession } from "./api" // Import API functions
 import { auth } from "@/firebase/firebaseConfig"
 import { GoogleAuthProvider, signInWithCredential, OAuthProvider, onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth"
 import * as WebBrowser from "expo-web-browser"
@@ -161,6 +161,11 @@ export const useAuth = () => {
       const userData = await loginUser(email, password)
       dispatch(setReduxUser(userData))
       await saveUserToRedux(userData)
+
+      // Track mobile session for analytics (non-blocking)
+      if (userData.token) {
+        trackMobileSession(userData.token)
+      }
 
       const userRole = userData.role?.toLowerCase()?.trim() || ""
 
