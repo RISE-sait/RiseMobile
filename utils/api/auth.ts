@@ -58,9 +58,9 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    // ✅ Extract JWT from the *response headers*
-    const authHeader = response.headers["authorization"];
-    const jwtToken = authHeader?.replace("Bearer ", "") || "";
+    // ✅ Extract JWT from the *response headers* (check both cases)
+    const authHeader = response.headers["authorization"] || response.headers["Authorization"];
+    const jwtToken = authHeader?.replace(/^Bearer\s+/i, "") || response.data.token || "";
 
 
     // ✅ Map team data from athlete_info if available
