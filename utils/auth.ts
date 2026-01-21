@@ -28,6 +28,7 @@ type User = {
   role: string
   countryCode: string
   token: string
+  tokenIssuedAt?: number
   profileImage?: string
   isAuthenticated?: boolean // Make this optional for Redux compatibility
 }
@@ -549,7 +550,6 @@ export const useAuth = () => {
         if (user) {
           const updatedUser = { ...user, token: newToken, tokenIssuedAt: issuedAt }
           dispatch(setReduxUser(updatedUser))
-          await saveUserToRedux(updatedUser)
         } else {
           const minimalUser = {
             id: sourceUser.uid,
@@ -575,10 +575,19 @@ export const useAuth = () => {
 
     refreshInFlight.current = refreshPromise
     return refreshPromise
-  }, [dispatch, firebaseUser, saveUserToRedux, user, waitForFirebaseUser])
+  }, [dispatch, firebaseUser, user, waitForFirebaseUser])
+
+  const backgroundRefresh = useCallback(() => {
+    if (!refreshInFlight.current) {
+      InteractionManager.runAfterInteractions(() => {
+        refreshTokenSilently().catch(() => null)
+      })
+    }
+  }, [refreshTokenSilently])
 
   useEffect(() => {
-    const isStandalone = Constants.appOwnership === "standalone"
+    // Check if running in standalone mode (not Expo Go)
+    const isStandalone = Constants.executionEnvironment === "standalone"
 
     const subscription = AppState.addEventListener("change", (state) => {
       if (state !== "active") {
@@ -599,7 +608,7 @@ export const useAuth = () => {
     })
 
     return () => subscription.remove()
-  }, [backgroundRefresh, refreshTokenSilently, user?.token, user?.tokenIssuedAt])
+  }, [backgroundRefresh, user?.token, user?.tokenIssuedAt])
 
   useEffect(() => {
     if (user?.token) {
@@ -607,18 +616,10 @@ export const useAuth = () => {
     }
   }, [user?.token])
 
-  const backgroundRefresh = useCallback(() => {
-    if (!refreshInFlight.current) {
-      InteractionManager.runAfterInteractions(() => {
-        refreshTokenSilently().catch(() => null)
-      })
-    }
-  }, [refreshTokenSilently])
-
   // 🔹 Get valid token (centralized token management)
   const getValidToken = async (forceRefresh = false): Promise<string | null> => {
     try {
-      const isStandalone = Constants.appOwnership === "standalone"
+      const isStandalone = Constants.executionEnvironment === "standalone"
 
       if (!forceRefresh && user?.token) {
         const issuedAt = user.tokenIssuedAt ?? 0
