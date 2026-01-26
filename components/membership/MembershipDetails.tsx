@@ -14,6 +14,8 @@ import {
   faCalendarAlt,
   faCheckCircle,
   faInfoCircle,
+  faChevronDown,
+  faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -32,14 +34,17 @@ interface MembershipData {
 
 interface MembershipDetailsProps {
   membership: MembershipData;
-  onRefresh: () => void;
+  showRefreshButton?: boolean;
+  onRefresh?: () => void;
 }
 
 const MembershipDetails: React.FC<MembershipDetailsProps> = ({
   membership,
+  showRefreshButton = false,
   onRefresh,
 }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [benefitsExpanded, setBenefitsExpanded] = useState(false);
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
     try {
@@ -67,25 +72,68 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
     }
   };
 
-  const renderBenefits = (benefitsString?: string) => {
-    if (!benefitsString) return null;
+  const parseBenefits = (benefitsString?: string): string[] => {
+    if (!benefitsString) return [];
 
-    const benefits = benefitsString
-      .split("•")
-      .filter((benefit) => benefit && benefit.trim())
-      .map((benefit) => benefit.trim());
+    // Try to parse as JSON array first
+    try {
+      const parsed = JSON.parse(benefitsString);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((b) => b && typeof b === 'string' && b.trim());
+      }
+    } catch {
+      // Not JSON, try bullet-point format
+      return benefitsString
+        .split("•")
+        .filter((benefit) => benefit && benefit.trim())
+        .map((benefit) => benefit.trim());
+    }
+    return [];
+  };
 
+  const renderBenefits = (benefitsString?: string, collapsible = false) => {
+    const benefits = parseBenefits(benefitsString);
     if (benefits.length === 0) return null;
 
+    // Non-collapsible version (for modal)
+    if (!collapsible) {
+      return (
+        <View style={styles.benefitsListOnly}>
+          {benefits.map((benefit, index) => (
+            <View key={index} style={styles.benefitItem}>
+              <FontAwesomeIcon icon={faCheckCircle} color="#32CD32" size={14} />
+              <Text style={styles.benefitText}>{benefit}</Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    // Collapsible version
     return (
       <View style={styles.benefitsContainer}>
-        <Text style={styles.sectionTitle}>Membership Benefits</Text>
-        {benefits.map((benefit, index) => (
-          <View key={index} style={styles.benefitItem}>
-            <FontAwesomeIcon icon={faCheckCircle} color="#32CD32" size={14} />
-            <Text style={styles.benefitText}>{benefit}</Text>
+        <TouchableOpacity
+          style={styles.benefitsHeader}
+          onPress={() => setBenefitsExpanded(!benefitsExpanded)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.benefitsTitle}>Membership Benefits ({benefits.length})</Text>
+          <FontAwesomeIcon
+            icon={benefitsExpanded ? faChevronUp : faChevronDown}
+            color="#FCA311"
+            size={14}
+          />
+        </TouchableOpacity>
+        {benefitsExpanded && (
+          <View style={styles.benefitsList}>
+            {benefits.map((benefit, index) => (
+              <View key={index} style={styles.benefitItem}>
+                <FontAwesomeIcon icon={faCheckCircle} color="#32CD32" size={14} />
+                <Text style={styles.benefitText}>{benefit}</Text>
+              </View>
+            ))}
           </View>
-        ))}
+        )}
       </View>
     );
   };
@@ -140,9 +188,16 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
 
             {/* Progress Bar */}
             <View style={styles.progressSection}>
-              <Text style={styles.daysRemainingText}>
-                {daysRemaining} days remaining
-              </Text>
+              <View style={styles.progressRow}>
+                <Text style={styles.daysRemainingText}>
+                  {daysRemaining} days remaining
+                </Text>
+                <View style={styles.statusBadgeInline}>
+                  <Text style={styles.statusTextInline}>
+                    {(membership.status || "Active").toUpperCase()}
+                  </Text>
+                </View>
+              </View>
               <View style={styles.progressBarContainer}>
                 <View
                   style={[
@@ -160,7 +215,7 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
               <View style={styles.footerItem}>
                 <FontAwesomeIcon icon={faCalendarAlt} color="#000000" size={14} />
                 <Text style={styles.footerText}>
-                  Next Payment Date: {formatDate(membership.next_payment_date)}
+                  Next Payment: {formatDate(membership.next_payment_date)}
                 </Text>
               </View>
             </View>
@@ -168,27 +223,16 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
         </LinearGradient>
       </View>
 
-      {/* Membership Status */}
-      <View style={styles.statusContainer}>
-        <View style={styles.statusHeader}>
-          <FontAwesomeIcon icon={faInfoCircle} color="#32CD32" size={16} />
-          <Text style={styles.statusTitle}>Membership Status</Text>
-        </View>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>
-            {(membership.status || "Active").toUpperCase()}
-          </Text>
-        </View>
-      </View>
-
-      {/* Benefits Section */}
+      {/* Benefits Section - Collapsible */}
       {(membership.membership_benefits || membership.benefits) &&
-        renderBenefits(membership.membership_benefits || membership.benefits)}
+        renderBenefits(membership.membership_benefits || membership.benefits, true)}
 
-        {/* Refresh Button */}
-        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-          <Text style={styles.refreshButtonText}>Refresh Membership Data</Text>
-        </TouchableOpacity>
+        {/* Refresh Button - Only shown if explicitly enabled */}
+        {showRefreshButton && onRefresh && (
+          <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+            <Text style={styles.refreshButtonText}>Refresh Membership Data</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Full Details Modal */}
@@ -278,7 +322,7 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
           {(membership.membership_benefits || membership.benefits) && (
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Benefits</Text>
-              {renderBenefits(membership.membership_benefits || membership.benefits)}
+              {renderBenefits(membership.membership_benefits || membership.benefits, false)}
             </View>
           )}
         </ScrollView>
@@ -344,11 +388,27 @@ const styles = StyleSheet.create({
   progressSection: {
     marginBottom: 8,
   },
+  progressRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   daysRemainingText: {
     color: "#000000",
     fontSize: 14,
     fontWeight: "500",
-    marginBottom: 8,
+  },
+  statusBadgeInline: {
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  statusTextInline: {
+    color: "#000000",
+    fontSize: 11,
+    fontWeight: "700",
   },
   progressBarContainer: {
     height: 8,
@@ -375,41 +435,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 8,
   },
-  statusContainer: {
-    backgroundColor: "#1A1A1A",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  statusHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statusTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  statusBadge: {
-    backgroundColor: "rgba(50, 205, 50, 0.2)",
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  statusText: {
-    color: "#32CD32",
-    fontSize: 14,
-    fontWeight: "600",
-  },
   benefitsContainer: {
     backgroundColor: "#1A1A1A",
     borderRadius: 10,
-    padding: 14,
     marginBottom: 12,
+    overflow: "hidden",
+  },
+  benefitsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 14,
+  },
+  benefitsTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  benefitsList: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+  benefitsListOnly: {
+    // For non-collapsible version in modal
   },
   sectionTitle: {
     color: "#FFFFFF",
@@ -419,14 +467,15 @@ const styles = StyleSheet.create({
   },
   benefitItem: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
+    alignItems: "flex-start",
+    marginBottom: 10,
   },
   benefitText: {
     color: "#FFFFFF",
     fontSize: 14,
     marginLeft: 8,
     flex: 1,
+    lineHeight: 20,
   },
   refreshButton: {
     backgroundColor: "#444444",
