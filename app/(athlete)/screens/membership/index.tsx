@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Modal, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, Modal, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
@@ -419,7 +419,7 @@ const MembershipScreen: React.FC = () => {
             onPurchaseSuccess={refreshMembershipData}
             onOpenPaymentWebView={handleOpenPaymentWebView}
             onPurchaseCompleted={() => loadMembershipDataWithRetry()}
-            hasExistingMembership={false}
+            hasExistingMembership={userMemberships.length > 0 && !isExpiredMembership}
             headerComponent={
               <View className="px-4 py-3">
                 {/* Show all current memberships if user has any */}
@@ -434,10 +434,16 @@ const MembershipScreen: React.FC = () => {
                       <View key={membership.id || index} style={{ marginBottom: index < userMemberships.length - 1 ? 12 : 0 }}>
                         <MembershipDetails
                           membership={membership}
-                          onRefresh={refreshMembershipData}
                         />
                       </View>
                     ))}
+                    {/* Single refresh button for all memberships */}
+                    <TouchableOpacity
+                      style={{ backgroundColor: '#333333', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', marginTop: 12 }}
+                      onPress={refreshMembershipData}
+                    >
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '500' }}>Refresh Membership Data</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
 
