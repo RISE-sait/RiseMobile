@@ -7,23 +7,25 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { View, Animated } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
+import { useRouter } from "expo-router"
 import dayjs from "dayjs"
 import { useDispatch, useSelector } from "react-redux"
 import type { RootState } from "@/store"
-import { fetchEvents } from "@/store/slices/eventsSlice"
-import { fetchMatches } from "@/store/slices/gamesSlice"
-import type { Match } from "@/store/slices/gamesSlice"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-
+import { fetchEvents, clearEvents } from "@/store/slices/eventsSlice"
+import { fetchMatches, clearMatches } from "@/store/slices/gamesSlice"
+import type { Match } from "@/store/slices/gamesSlice"
+import { fetchSchedule, clearSchedule, clearScheduleError } from "@/store/slices/scheduleSlice"
 import PageTitle from "@/components/PageTitle"
 import CalendarCard from "@/components/calendar/CalendarCard"
 import EventListContainer from "@/components/calendar/EventListContainer"
+import Constants from "expo-constants"
 
 interface SharedCalendarProps {
-  userRole: "athlete" | "coach" | "instructor" | "parent"
+  userRole: "athlete" | "coach" | "instructor" | "parent" | "admin" | "super_admin"
   title?: string
-  subtitle?: string
   childrenData?: any[]
+  embedded?: boolean // New prop to indicate it's embedded in another view
 }
 
 // Define an interface for calendar events
@@ -40,78 +42,104 @@ interface CalendarEvent {
 const SharedCalendar: React.FC<SharedCalendarProps> = ({
   userRole,
   title = "Calendar",
-  subtitle,
   childrenData = [],
+  embedded = false,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format("YYYY-MM-DD"))
   const fadeAnim = useRef(new Animated.Value(0)).current
   const dispatch = useDispatch()
+  const router = useRouter()
 
   // Get user from Redux store
   const user = useSelector((state: RootState) => state.user.data)
 
-  // Get calendar data from Redux store
-  const reduxEvents = useSelector((state: RootState) => state.events)
-  const reduxGames = useSelector((state: RootState) => state.games)
-
-  // Determine loading state
-  const isLoading = reduxEvents.status === "loading" || reduxGames.status === "loading"
-
-  const error = reduxEvents.error || reduxGames.error
-
-  // Memoize the token retrieval to avoid recreating this function on every render
+  // Get token reliably from Redux or AsyncStorage
   const getToken = useCallback(async () => {
     let token = user?.token
-
     if (!token) {
-      try {
-        const userString = await AsyncStorage.getItem("user")
-        if (userString) {
-          const userData = JSON.parse(userString)
-          token = userData.token
-        }
-      } catch (err) {
-        console.error("Error getting token from AsyncStorage:", err)
-      }
+      const userString = await AsyncStorage.getItem("user")
+      if (userString) token = JSON.parse(userString).token
     }
-
     return token
   }, [user?.token])
 
-  // Memoize the fetch function to avoid recreating it on every render
-  const fetchCalendarData = useCallback(async () => {
-    try {
-      const token = await getToken()
+  // Get calendar data from Redux store
+  const reduxEvents = useSelector((state: RootState) => state.events)
+  const reduxGames = useSelector((state: RootState) => state.games)
+  const reduxSchedule = useSelector((state: RootState) => state.schedule)
 
-      if (!token) {
-        console.error("No auth token available")
-        return
+
+
+
+  // Determine loading state - prioritize schedule data
+  const isLoading = reduxSchedule.status === "loading" || reduxEvents.status === "loading" || reduxGames.status === "loading"
+
+  // Only show error if ALL data sources failed (schedule + fallback)
+  // If schedule failed but events/matches succeeded, don't show error
+  const hasScheduleData = reduxSchedule.items.length > 0
+  const hasFallbackData = reduxEvents.items.length > 0 || reduxGames.items.length > 0
+  const allDataSourcesFailed =
+    reduxSchedule.status === "failed" &&
+    reduxEvents.status === "failed" &&
+    reduxGames.status === "failed"
+
+  const error = allDataSourcesFailed
+    ? (reduxSchedule.error || reduxEvents.error || reduxGames.error)
+    : null
+
+
+// Fetch calendar data - simplified pattern matching Events page
+  const fetchData = useCallback(async (forceRefresh = false) => {
+    const token = await getToken()
+    if (!token) return
+
+    // Clear existing data before fetching fresh data
+    if (forceRefresh) {
+      dispatch(clearSchedule())
+    }
+
+    // Try unified schedule endpoint first
+    try {
+      await dispatch(fetchSchedule(token) as any).unwrap()
+    } catch (scheduleErr) {
+      // Fallback to separate endpoints when schedule fails
+      dispatch(clearScheduleError())
+
+      if (forceRefresh) {
+        dispatch(clearEvents())
+        dispatch(clearMatches())
       }
 
-      // Dispatch the fetch actions for events and matches (from games endpoint)
       dispatch(fetchEvents(token) as any)
       dispatch(fetchMatches(token) as any)
-    } catch (err) {
-      console.error("Error fetching calendar data:", err)
     }
-  }, [dispatch, getToken])
+  }, [getToken, dispatch])
 
   // Memoize the refresh handler
   const handleRefresh = useCallback(() => {
-    fetchCalendarData()
-  }, [fetchCalendarData])
+    fetchData(true)
+  }, [fetchData])
 
-  // Animation and initial data fetch - only run once
+  // Animation effect - only run once
   useEffect(() => {
-    Animated.timing(fadeAnim, {
+    // Start fade-in animation
+    const fadeAnimation = Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
-    }).start()
+    })
+    fadeAnimation.start()
 
-    fetchCalendarData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Empty dependency array - only run once
+    return () => {
+      fadeAnimation.stop()
+      fadeAnim.stopAnimation()
+    }
+  }, [])
+
+  // Fetch data when component mounts or token changes
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   // Process matches data to organize by date
   const matchesByDate = useMemo(() => {
@@ -119,9 +147,9 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
     // Process matches from the games slice
     reduxGames.items.forEach((match: Match) => {
-      if (match.created_at) {
+      if (match.date) {
         // Parse the date string correctly
-        const dateObj = dayjs(match.created_at)
+        const dateObj = dayjs(match.date)
         if (dateObj.isValid()) {
           const dateStr = dateObj.format("YYYY-MM-DD")
 
@@ -133,9 +161,9 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
             id: match.id,
             title: match.name || `Match ${match.id.substring(0, 6)}`,
             date: dateStr,
-            time: dateObj.format("h:mm A"),
+            time: match.time || "TBD",
             type: "match",
-            location: "RISE Basketball Court",
+            location: match.location || "RISE Basketball Court",
             description: match.description || "Basketball match",
           })
         }
@@ -147,61 +175,121 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
   // Combine all events and matches for the selected date
   const combinedEventsForSelectedDate = useMemo(() => {
-    const events = reduxEvents.byDate[selectedDate] || []
-    const matches = matchesByDate[selectedDate] || []
-
-    return [...events, ...matches]
-  }, [reduxEvents.byDate, matchesByDate, selectedDate])
-
-  // Combine all events and matches for the calendar display
-  const combinedCalendarEvents = useMemo(() => {
-    const allDates = {
-      ...reduxEvents.byDate,
-      ...matchesByDate,
+    // If schedule fetch succeeded, use schedule data (even if empty)
+    // Only fall back to events/matches if schedule fetch actually FAILED
+    if (reduxSchedule.status === "succeeded") {
+      return reduxSchedule.byDate[selectedDate] || []
     }
 
-    // Create a new object with combined events for each date
-    const combined: Record<string, any[]> = {}
+    // Fallback to separate events and matches only if schedule fetch failed
+    if (reduxSchedule.status === "failed") {
+      const events = reduxEvents.byDate[selectedDate] || []
+      const matches = matchesByDate[selectedDate] || []
+      return [...events, ...matches]
+    }
 
-    Object.keys(allDates).forEach((date) => {
-      combined[date] = [...(reduxEvents.byDate[date] || []), ...(matchesByDate[date] || [])]
+    // Still loading or idle - return empty
+    return []
+  }, [reduxSchedule.status, reduxSchedule.byDate, reduxEvents.byDate, matchesByDate, selectedDate])
+
+  const combinedCalendarEvents = useMemo(() => {
+    // If schedule fetch succeeded, use schedule data (even if empty)
+    if (reduxSchedule.status === "succeeded") {
+      return reduxSchedule.byDate
+    }
+
+    // Fallback to separate events and matches only if schedule fetch failed
+    if (reduxSchedule.status === "failed") {
+      const allDates = {
+        ...reduxEvents.byDate,
+        ...matchesByDate,
+      }
+
+      const combined: Record<string, any[]> = {}
+
+      Object.keys(allDates).forEach((date) => {
+        combined[date] = [
+          ...(reduxEvents.byDate[date] || []),
+          ...(matchesByDate[date] || []),
+        ]
+      })
+
+      return combined
+    }
+
+    // Still loading or idle - return empty
+    return {}
+  }, [reduxSchedule.status, reduxSchedule.byDate, reduxEvents.byDate, matchesByDate])
+
+  const windowedCalendarEvents = useMemo(() => {
+    const selectedMonth = dayjs(selectedDate).startOf("month")
+    const windowStart = selectedMonth.subtract(1, "month")
+    const windowEnd = selectedMonth.add(1, "month").endOf("month")
+    const filtered: Record<string, any[]> = {}
+
+    Object.entries(combinedCalendarEvents).forEach(([date, items]) => {
+      const dateObj = dayjs(date)
+      if (dateObj.isBefore(windowStart) || dateObj.isAfter(windowEnd)) {
+        return
+      }
+      filtered[date] = items
     })
 
-    return combined
-  }, [reduxEvents.byDate, matchesByDate])
+    if (!filtered[selectedDate] && combinedCalendarEvents[selectedDate]) {
+      filtered[selectedDate] = combinedCalendarEvents[selectedDate]
+    }
+
+    return filtered
+  }, [combinedCalendarEvents, selectedDate])
+
 
   // Create marked dates for the calendar
   const markedDates = useMemo(() => {
     const marked: Record<string, { marked: boolean; dotColor: string }> = {}
 
-    // Add events from Redux
-    Object.keys(reduxEvents.byDate).forEach((date) => {
-      if (reduxEvents.byDate[date] && reduxEvents.byDate[date].length > 0) {
-        marked[date] = {
-          marked: true,
-          dotColor: "#4CAF50", // Green dot
-        }
-      }
-    })
+    // If schedule fetch succeeded, use schedule data (even if empty)
+    if (reduxSchedule.status === "succeeded") {
+      Object.keys(reduxSchedule.byDate).forEach((date) => {
+        const dayItems = reduxSchedule.byDate[date]
+        if (dayItems && dayItems.length > 0) {
+          // Determine color based on the type of events for this date
+          const hasMatches = dayItems.some((item) => item.type === "match")
+          const hasEvents = dayItems.some((item) => item.type === "event")
+          const hasPractices = dayItems.some((item) => item.type === "practice")
 
-    // Add matches from Redux
-    Object.keys(matchesByDate).forEach((date) => {
-      if (matchesByDate[date] && matchesByDate[date].length > 0) {
-        marked[date] = {
-          marked: true,
-          dotColor: "#4CAF50", // Green dot
+          marked[date] = {
+            marked: true,
+            // Priority: matches (orange) > practices (blue) > events (green)
+            dotColor: hasMatches ? "#FCA311" : hasPractices ? "#3B82F6" : "#4CAF50",
+          }
         }
-      }
-    })
+      })
+    } else if (reduxSchedule.status === "failed") {
+      // Fallback to separate events and matches only if schedule fetch failed
+      // Add events from Redux
+      Object.keys(reduxEvents.byDate).forEach((date) => {
+        if (reduxEvents.byDate[date] && reduxEvents.byDate[date].length > 0) {
+          marked[date] = {
+            marked: true,
+            dotColor: "#4CAF50", // Green dot
+          }
+        }
+      })
 
-    // Log for debugging
-    console.log(`Calendar has ${Object.keys(marked).length} dates with events`)
-    if (Object.keys(marked).length > 0) {
-      console.log("Sample marked date:", Object.keys(marked)[0])
+      // Add matches from Redux (overwrites events if both exist)
+      Object.keys(matchesByDate).forEach((date) => {
+        if (matchesByDate[date] && matchesByDate[date].length > 0) {
+          marked[date] = {
+            marked: true,
+            dotColor: "#FCA311", // Orange dot for matches
+          }
+        }
+      })
     }
+    // If still loading or idle, return empty marked dates
 
     return marked
-  }, [reduxEvents.byDate, matchesByDate])
+  }, [reduxSchedule.status, reduxSchedule.byDate, reduxEvents.byDate, matchesByDate])
 
   // Memoize formatted date
   const formattedDate = useMemo(() => {
@@ -214,7 +302,10 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
       case "parent":
         return `No events scheduled for your children on ${formattedDate}.`
       case "coach":
-        return `No events scheduled for your team on ${formattedDate}.`
+        return `No events on ${formattedDate}.\n\nFeel like you're missing an event? Please speak to the front desk or admin.`
+      case "admin":
+      case "super_admin":
+        return `No events on ${formattedDate}.\n\nFeel like you're missing an event? Please check with a super admin.`
       case "instructor":
         return `No classes or events scheduled for ${formattedDate}.`
       default:
@@ -222,17 +313,14 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
     }
   }, [userRole, formattedDate])
 
-  return (
-    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2">
-      <StatusBar translucent style="light" />
-
+  // Render embedded version (no SafeAreaView, StatusBar, or PageTitle)
+  if (embedded) {
+    return (
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <PageTitle title={title} subtitle={subtitle} onButtonPress={subtitle ? handleRefresh : undefined} />
-
-        <View className="px-5 py-4">
+        <View className="px-5 pt-2">
           <CalendarCard
             selectedDate={selectedDate}
-            events={combinedCalendarEvents}
+            events={windowedCalendarEvents}
             onDayPress={(day) => setSelectedDate(day.dateString)}
           />
         </View>
@@ -244,7 +332,40 @@ const SharedCalendar: React.FC<SharedCalendarProps> = ({
           isLoading={isLoading}
           error={error}
           onRetry={handleRefresh}
-          emptyMessage={emptyStateMessage}
+          emptyMessage={`${emptyStateMessage}\n\nLooking to register for an event? Browse available events to sign up.`}
+          emptyActionLabel="Browse Events"
+          onEmptyAction={() => router.push("/screens/events")}
+        />
+      </Animated.View>
+    )
+  }
+
+  // Render full version (original layout)
+  return (
+    <SafeAreaView className="flex-1 bg-[#0C0B0B] pt-2" edges={['top', 'left', 'right']}>
+      <StatusBar translucent style="light" />
+
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <PageTitle title={title} onButtonPress={handleRefresh} showRefreshIcon isRefreshing={isLoading} />
+
+        <View className="px-5 py-2">
+          <CalendarCard
+            selectedDate={selectedDate}
+            events={windowedCalendarEvents}
+            onDayPress={(day) => setSelectedDate(day.dateString)}
+          />
+        </View>
+
+        {/* Updated EventListContainer that accepts data directly */}
+        <EventListContainer
+          date={dayjs(selectedDate).format("DD MMM YYYY")}
+          data={combinedEventsForSelectedDate}
+          isLoading={isLoading}
+          error={error}
+          onRetry={handleRefresh}
+          emptyMessage={`${emptyStateMessage}\n\nLooking to register for an event? Browse available events to sign up.`}
+          emptyActionLabel="Browse Events"
+          onEmptyAction={() => router.push("/screens/events")}
         />
       </Animated.View>
     </SafeAreaView>

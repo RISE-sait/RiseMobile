@@ -4,6 +4,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
+import { useAuth } from "@/utils/auth";
 
 import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
@@ -23,20 +26,41 @@ type User = {
   overallRating?: number;
   pointsPerGame?: number;
   assistsPerGame?: number;
+  team?: {
+    id?: string;
+    name?: string;
+    logo?: string;
+  };
 };
 
 const AthleteProfileScreen = () => {
   const router = useRouter();
+  // ✅ Use Redux as primary data source
+  const reduxUser = useSelector((state: RootState) => state.user.data);
+  // ✅ Get logout function from useAuth hook
+  const { logout } = useAuth();
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
   const loadUser = async () => {
     try {
+      // ✅ Prioritize Redux data
+      if (reduxUser) {
+        setUser({
+          ...reduxUser,
+          firstName: reduxUser.firstName || reduxUser.first_name || "",
+          lastName: reduxUser.lastName || reduxUser.last_name || "",
+          countryCode: reduxUser.countryCode || reduxUser.country_code || "US",
+        });
+        return; // ✅ Redux data available, return directly
+      }
+
+      // ⚠️ Only use AsyncStorage fallback when Redux data is not available
+
       const storedUser = await AsyncStorage.getItem("user");
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        console.log("📢 Loaded user from AsyncStorage:", parsedUser);
 
         setUser({
           ...parsedUser,
@@ -44,16 +68,14 @@ const AthleteProfileScreen = () => {
           lastName: parsedUser.lastName || parsedUser.last_name || "",
           countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
         });
-      } else {
-        console.log("⚠️ No user found in AsyncStorage.");
       }
     } catch (error) {
-      console.error("❌ Error loading user:", error);
+      // Error loading user silently handled
     }
   };
 
   loadUser();
-}, []);
+}, [reduxUser]); // ✅ Depend on reduxUser changes
 
   
   
@@ -61,8 +83,8 @@ const AthleteProfileScreen = () => {
 
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem("user");
-    router.replace("/(auth)/login");
+    // ✅ Use the comprehensive logout function from auth.ts instead of simple AsyncStorage removal
+    await logout();
   };
 
   if (!user) {
@@ -83,38 +105,50 @@ const AthleteProfileScreen = () => {
           firstName={user.firstName}
           lastName={user.lastName}
           role={user.role}
-          number={user?.jerseyNumber ? user.jerseyNumber.toString() : "0"} // ✅ Ensures it's a string
-          profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
-          countryCode={user?.countryCode } // ✅ Ensure countryCode is always defined
-          teamLogo={images.teamLogo}
+          profileImage={user.profileImage ? { uri: user.profileImage } : undefined}
+          countryCode={user?.countryCode} // ✅ Ensure countryCode is always defined
+          teamLogo={user?.team?.logo} // ✅ Display team logo from user data
         />
 
-        {/* Player Stats */}
+        {/* Player Stats (Temporarily Hidden) */}
+        {/*
         <View className="mt-6">
-        <PlayerStatsCard 
+        <PlayerStatsCard
         overallRating={user?.overallRating ?? 0}
         pointsPerGame={user?.pointsPerGame ?? 0}
         assistsPerGame={user?.assistsPerGame ?? 0}
-/>
-
+        />
         </View>
+        */}
+
 
         {/* My Account Section */}
-        <AccountSection 
+        <AccountSection
           title="My Account"
           items={[
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
-            { icon: "bell", text: "Notifications", onPress: () => router.push("/screens/comingSoon") },
+            { icon: "crown", text: "My Membership", onPress: () => router.push("/(athlete)/screens/membership") },
+            { icon: "file-contract", text: "My Waivers", onPress: () => router.push("/screens/profile-options/waivers") },
+            { icon: "bell", text: "Notifications & Security", onPress: () => router.push("/screens/profile-options/notificationSettings") },
             { icon: "arrow-right-from-bracket", text: "Logout", iconColor: "#EF4444", textColor: "#EF4444", onPress: handleLogout },
           ]}
         />
 
         {/* Support Section */}
-        <AccountSection 
+        <AccountSection
           title="Support"
           items={[
             { icon: "question-circle", text: "Help Center", onPress: () => router.push("/screens/profile-options/helpCenter") },
             { icon: "envelope", text: "Contact Us", onPress: () => router.push("/screens/profile-options/contactUs") },
+          ]}
+        />
+
+        {/* Legal Section */}
+        <AccountSection
+          title="Legal"
+          items={[
+            { icon: "shield", text: "Privacy Policy", onPress: () => router.push("/screens/legal/privacy-policy") },
+            { icon: "file-text", text: "Terms of Service", onPress: () => router.push("/screens/legal/terms-of-service") },
           ]}
         />
         

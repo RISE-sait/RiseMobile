@@ -1,15 +1,89 @@
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform, Alert } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { router } from "expo-router"
+import { useState, useEffect } from "react"
+import * as Haptics from "expo-haptics"
+import { resendVerificationEmail } from "@/utils/api"
 
 interface RegistrationCompleteProps {
   email: string
   successAnim: Animated.Value
   checkmarkScale: Animated.Value
+  role?: string
 }
 
-export const RegistrationComplete = ({ email, successAnim, checkmarkScale }: RegistrationCompleteProps) => {
+export const RegistrationComplete = ({ email, successAnim, checkmarkScale, role }: RegistrationCompleteProps) => {
+  const isAthlete = role === 'athlete'
+  const [isResending, setIsResending] = useState(false)
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (cooldownSeconds > 0) {
+      const timer = setTimeout(() => {
+        setCooldownSeconds(cooldownSeconds - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [cooldownSeconds])
+
+  const messageText = isAthlete
+    ? "Please check your email to verify your account before logging in. Click the verification link we sent to complete the process."
+    : "Please check your email to verify your account. You'll also receive a separate email when your account is approved by our team."
+
+  const approvalTimeText = isAthlete
+    ? "After email verification"
+    : "1-2 hours within business hours (after verification)"
+
+  const handleResendVerification = async () => {
+    // Check if cooldown is active
+    if (cooldownSeconds > 0) {
+      if (Platform.OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      }
+      Alert.alert(
+        "Please Wait",
+        `You can resend the email in ${cooldownSeconds} seconds`,
+        [{ text: "OK" }]
+      )
+      return
+    }
+
+    try {
+      setIsResending(true)
+
+      await resendVerificationEmail(email)
+
+      setCooldownSeconds(60) // Start 60 second cooldown
+
+      if (Platform.OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      }
+
+      Alert.alert(
+        "Email Sent",
+        "A new verification email has been sent. Please check your inbox.",
+        [{ text: "OK" }]
+      )
+    } catch (error: any) {
+      console.error("❌ Resend verification error:", error)
+
+      if (Platform.OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      }
+
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || "Failed to send verification email. Please try again."
+
+      Alert.alert(
+        "Error",
+        errorMessage,
+        [{ text: "OK" }]
+      )
+    } finally {
+      setIsResending(false)
+    }
+  }
   return (
     <View style={styles.successContainer}>
       <Animated.View
@@ -21,39 +95,48 @@ export const RegistrationComplete = ({ email, successAnim, checkmarkScale }: Reg
           },
         ]}
       >
-        <Ionicons name="checkmark" size={80} color="#FFD700" />
+        <Ionicons name="checkmark" size={80} color="#FCA311" />
       </Animated.View>
 
       <Animated.Text style={[styles.successTitle, { opacity: successAnim }]}>Registration Complete!</Animated.Text>
 
       <Animated.Text style={[styles.successMessage, { opacity: successAnim }]}>
-        Your account is pending verification by our team. You'll receive an email when your account is approved and
-        ready to use.
+        {messageText}
       </Animated.Text>
 
       <Animated.View style={[styles.successInfo, { opacity: successAnim }]}>
         <View style={styles.infoItem}>
-          <Ionicons name="mail-outline" size={20} color="#FFD700" />
+          <Ionicons name="mail-outline" size={20} color="#FCA311" />
           <Text style={styles.infoText}>Verification email sent to:</Text>
         </View>
         <Text style={styles.infoValue}>{email}</Text>
 
         <View style={styles.infoItem}>
-          <Ionicons name="time-outline" size={20} color="#FFD700" />
-          <Text style={styles.infoText}>Estimated approval time:</Text>
+          <Ionicons name="time-outline" size={20} color="#FCA311" />
+          <Text style={styles.infoText}>{isAthlete ? "Access time:" : "Estimated approval time:"}</Text>
         </View>
-        <Text style={styles.infoValue}>6-12 hours</Text>
+        <Text style={styles.infoValue}>{approvalTimeText}</Text>
       </Animated.View>
 
       <TouchableOpacity style={styles.loginButton} onPress={() => router.replace("/(auth)/login")}>
         <LinearGradient
-          colors={["#FFD700", "#FFA500"]}
+          colors={["#FCA311", "#E8920F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradientButton}
         >
           <Text style={styles.buttonText}>GO TO LOGIN</Text>
         </LinearGradient>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.resendButton}
+        onPress={handleResendVerification}
+        disabled={isResending || cooldownSeconds > 0}
+      >
+        <Text style={[styles.resendButtonText, (isResending || cooldownSeconds > 0) && styles.resendButtonTextDisabled]}>
+          {isResending ? "Sending..." : cooldownSeconds > 0 ? `Resend in ${cooldownSeconds}s` : "Didn't receive the email? Resend"}
+        </Text>
       </TouchableOpacity>
     </View>
   )
@@ -130,6 +213,20 @@ const styles = StyleSheet.create({
     color: "#000",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  resendButton: {
+    marginTop: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  resendButtonText: {
+    color: "#FCA311",
+    fontSize: 14,
+    textAlign: "center",
+    textDecorationLine: "underline",
+  },
+  resendButtonTextDisabled: {
+    color: "#666",
   },
 })
 

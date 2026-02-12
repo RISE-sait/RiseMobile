@@ -2,6 +2,8 @@ import type React from "react"
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from "react-native"
 import { FontAwesome5, Ionicons } from "@expo/vector-icons"
 import { COLORS } from "@/constants/colors"
+import images from "@/constants/images"
+import { isValidRemoteImageUri, resolveImageSource } from "@/utils/imageSource"
 
 // Update the Team interface to match exactly with practiceBooking.tsx
 interface Team {
@@ -9,8 +11,14 @@ interface Team {
   name: string
   players: number
   icon: string
-  image: string // Changed from string | undefined to string to match practiceBooking.tsx
+  image: string
+  coach: {
+    id: string
+    name: string
+    email: string
+  }
 }
+
 
 // Update the props interface to accept the setState function
 interface TeamSelectorProps {
@@ -20,6 +28,8 @@ interface TeamSelectorProps {
   hasError?: boolean
   errorMessage?: string
 }
+
+
 
 const TeamSelector: React.FC<TeamSelectorProps> = ({
   teams,
@@ -38,8 +48,8 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
             style={[styles.item, selectedTeam?.id === item.id && styles.selected, hasError && styles.errorBorder]}
             onPress={() => setSelectedTeam(item)}
           >
-            {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.teamImage} />
+            {isValidRemoteImageUri(item.image) ? (
+              <Image source={resolveImageSource(item.image, images.teamLogo)} style={styles.teamImage} />
             ) : (
               <View style={styles.iconContainer}>
                 <FontAwesome5 name={item.icon} size={20} color={COLORS.primary} />
@@ -47,7 +57,17 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
             )}
             <View style={styles.teamInfo}>
               <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.players}>{item.players} Players</Text>
+              <View style={styles.detailsRow}>
+                {item.coach?.name && (
+                  <Text style={styles.details}>Coach: {item.coach.name}</Text>
+                )}
+                {/* Only show player count if it's greater than 0 (0 means roster data not available) */}
+                {item.players > 0 && (
+                  <Text style={styles.details}>
+                    {item.coach?.name ? ' • ' : ''}{item.players} {item.players === 1 ? 'Player' : 'Players'}
+                  </Text>
+                )}
+              </View>
             </View>
             {selectedTeam?.id === item.id && <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />}
           </TouchableOpacity>
@@ -82,7 +102,7 @@ const styles = StyleSheet.create({
   },
   selected: {
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.primary + '15',
   },
   errorBorder: {
     borderColor: "#ff4d4f",
@@ -110,6 +130,16 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: "bold",
   },
+  detailsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginTop: 4,
+  },
+  details: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
   players: {
     fontSize: 14,
     color: COLORS.textSecondary,
@@ -124,4 +154,3 @@ const styles = StyleSheet.create({
 })
 
 export default TeamSelector
-

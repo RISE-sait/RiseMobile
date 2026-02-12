@@ -109,13 +109,11 @@ const getDefaultLocation = (type: string, name: string): string => {
 export const fetchCourses = createAsyncThunk("courses/fetchCourses", async (token: string, { rejectWithValue }) => {
   try {
     // Log the request for debugging
-    console.log(`Fetching programs from ${API_URL}/programs with token: ${token.substring(0, 10)}...`)
 
     const response = await axios.get(`${API_URL}/programs`, {
       headers: { Authorization: `Bearer ${token}` },
     })
 
-    console.log("Programs API response:", response.data)
 
     const courses: CalendarItem[] = []
     const byDate: Record<string, CalendarItem[]> = {}

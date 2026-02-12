@@ -15,29 +15,33 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter, usePathname, useSegments } from "expo-router"
 import dayjs from "dayjs"
 import { FontAwesome6 } from "@expo/vector-icons"
 import BackButton from "@/components/buttons/BackButton"
 import EventInfoRow from "@/components/events/EventInfoRow"
 import { Image } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
+import ManagedImage from "@/components/ui/ManagedImage"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import axios from "axios"
 import { API_URL } from "@/utils/api"
 import LoadingIndicator from "@/components/feedback/LoadingIndicator"
 import { fetchTeams, selectTeamById, selectTeamsLoading } from "@/store/slices/teamsSlice"
+import { selectAllMatches, selectMatchById } from "@/store/slices/gamesSlice"
+import { resolveImageSource } from "@/utils/imageSource"
 
 const { width } = Dimensions.get("window")
 
 const statusStyles = {
-  Upcoming: { label: "Upcoming", color: "#FFD369", bgColor: "rgba(255, 211, 105, 0.15)" },
-  Finished: { label: "Final", color: "#4ade80", bgColor: "rgba(74, 222, 128, 0.15)" },
-  Live: { label: "Live", color: "#EF4444", bgColor: "rgba(239, 68, 68, 0.15)" },
+  scheduled: { label: "SCHEDULED", color: "#FCA311", bgColor: "rgba(252, 163, 17, 0.15)" },
+  in_progress: { label: "IN PROGRESS", color: "#EF4444", bgColor: "rgba(239, 68, 68, 0.15)" },
+  completed: { label: "COMPLETED", color: "#4ade80", bgColor: "rgba(74, 222, 128, 0.15)" },
+  canceled: { label: "CANCELED", color: "#6b7280", bgColor: "rgba(107, 114, 128, 0.15)" },
 }
 
-// Instagram profile URL - replace with your actual profile URL
-const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/yourprofile"
+// Instagram profile URL 
+const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/rise.basketball/?hl=en"
 
 interface GameData {
   id: string
@@ -49,6 +53,13 @@ interface GameData {
   lose_score?: number
   created_at?: string
   updated_at?: string
+  status?: string // Add status field from API
+  home_team_logo_url?: string
+  away_team_logo_url?: string
+  location?: { name: string } // Nested location object
+  location_name?: string // Flat location field
+  end_at?: string // End time field
+  end_time?: string // Alternative end time field name
 }
 
 const MatchDetailsScreen = () => {
@@ -60,10 +71,6 @@ const MatchDetailsScreen = () => {
 
   // Extract the ID from params and ensure it's a clean string
   const rawId = id
-  // Log the raw ID we received
-  console.log(`MATCH DETAILS: Raw ID from params:`, rawId)
-
-  // Clean the ID - ensure it's a string and remove any query parameters
   const programId =
     typeof rawId === "string"
       ? rawId.split("?")[0]
@@ -71,12 +78,29 @@ const MatchDetailsScreen = () => {
         ? rawId[0].split("?")[0]
         : String(rawId).split("?")[0]
 
-  // Log the cleaned ID
-  console.log(`MATCH DETAILS: Cleaned programId for API requests: ${programId}`)
+  // Get cached match from Redux store
+  const cachedMatch = useAppSelector((state) => selectMatchById(state, programId))
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!cachedMatch) // Only show loading if no cache
   const [error, setError] = useState<string | null>(null)
-  const [game, setGame] = useState<GameData | null>(null)
+  const [game, setGame] = useState<GameData | null>(
+    cachedMatch
+      ? {
+          id: cachedMatch.id,
+          name: cachedMatch.name || cachedMatch.title,
+          description: cachedMatch.description,
+          win_team: cachedMatch.home_team_name || cachedMatch.win_team,
+          lose_team: cachedMatch.away_team_name || cachedMatch.lose_team,
+          win_score: cachedMatch.home_score || cachedMatch.win_score,
+          lose_score: cachedMatch.away_score || cachedMatch.lose_score,
+          created_at: cachedMatch.start_time || cachedMatch.created_at,
+          updated_at: cachedMatch.updated_at,
+          status: cachedMatch.status || "scheduled",
+          home_team_logo_url: cachedMatch.home_team_logo_url,
+          away_team_logo_url: cachedMatch.away_team_logo_url,
+        }
+      : null
+  )
 
   // Get teams data from Redux store
   const teamsLoading = useAppSelector(selectTeamsLoading)
@@ -88,7 +112,16 @@ const MatchDetailsScreen = () => {
   const [homeTeamName, setHomeTeamName] = useState<string>("Home Team")
   const [awayTeamName, setAwayTeamName] = useState<string>("Away Team")
 
+  const pathname = usePathname()
+  const segments = useSegments()
+
   useEffect(() => {
+    if (__DEV__) console.log(`[Match ${programId}] navigation snapshot`, {
+      pathname,
+      segments: segments.join("/") || "(root)",
+      canGoBack: router.canGoBack?.() ?? null,
+    })
+
     // Start animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -108,47 +141,50 @@ const MatchDetailsScreen = () => {
       dispatch(fetchTeams(token))
     }
 
-    // Fetch game data directly from API
+    // Fetch game data directly from API using /games endpoint
     const fetchGameData = async () => {
-      setLoading(true)
+      // Only show loading if we don't have cached data
+      if (!cachedMatch) {
+        setLoading(true)
+      }
       setError(null)
 
       if (token && programId) {
         try {
-          console.log(`MATCH DETAILS: Fetching game data with programId: ${programId}`)
+          // Call the correct API endpoint for games
+          const response = await axios.get(`${API_URL}/games/${programId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
 
-          // Fetch game data with retry logic
-          let retries = 3
-          let gameData = null
-
-          while (retries > 0 && !gameData) {
-            try {
-              console.log(`MATCH DETAILS: Attempt ${4 - retries} to fetch game data`)
-              const gameResponse = await axios.get(`${API_URL}/programs/${programId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              })
-
-              if (gameResponse.data) {
-                gameData = gameResponse.data
-                console.log(`MATCH DETAILS: Successfully fetched game data:`, gameData)
-              }
-            } catch (err) {
-              console.error(`MATCH DETAILS: Error in attempt ${4 - retries}:`, err)
-              retries--
-              if (retries === 0) throw err
-              // Wait before retrying (exponential backoff)
-              await new Promise((resolve) => setTimeout(resolve, (3 - retries) * 1000))
-            }
+          // Transform API response from games endpoint to match existing GameData interface
+          const gameData = response.data
+          const transformedGame: GameData = {
+            id: gameData.id,
+            name: `${gameData.home_team_name || "Home"} vs ${gameData.away_team_name || "Away"}`,
+            description:
+              gameData.description || `Match between ${gameData.home_team_name} and ${gameData.away_team_name}`,
+            win_team: gameData.home_team_name || "Home Team",
+            lose_team: gameData.away_team_name || "Away Team",
+            win_score: gameData.home_score || 0,
+            lose_score: gameData.away_score || 0,
+            created_at: gameData.start_time || gameData.created_at,
+            updated_at: gameData.updated_at,
+            status: gameData.status || "scheduled", // Extract actual status from API
+            home_team_logo_url: gameData.home_team_logo_url,
+            away_team_logo_url: gameData.away_team_logo_url,
+            location: gameData.location,
+            location_name: gameData.location_name,
+            end_at: gameData.end_at,
+            end_time: gameData.end_time,
           }
 
-          if (gameData) {
-            setGame(gameData)
-          } else {
-            setError("Could not fetch game data after multiple attempts")
-          }
+          setGame(transformedGame)
         } catch (error) {
-          console.error("MATCH DETAILS: Error fetching game data:", error)
-          setError("Failed to load game data. Please try again.")
+          if (__DEV__) console.warn("Error fetching game data:", error)
+          // Only show error if we don't have cached data to fall back on
+          if (!cachedMatch) {
+            setError("Failed to load game data. Please try again.")
+          }
         } finally {
           setLoading(false)
         }
@@ -160,7 +196,7 @@ const MatchDetailsScreen = () => {
     }
 
     fetchGameData()
-  }, [programId, token, dispatch, teamsLoading, id])
+  }, [programId, token, dispatch, cachedMatch])
 
   // Get team selectors at the component level
   const homeTeamId = game?.win_team
@@ -184,12 +220,12 @@ const MatchDetailsScreen = () => {
         title: game.name || `${homeTeamName} vs ${awayTeamName}`,
       })
     } catch (error) {
-      console.error("Error sharing match:", error)
+      if (__DEV__) console.warn("Error sharing match:", error)
     }
   }
 
   const openInstagramProfile = () => {
-    Linking.openURL(INSTAGRAM_PROFILE_URL).catch((err) => console.error("Error opening Instagram profile:", err))
+    Linking.openURL(INSTAGRAM_PROFILE_URL).catch((err) => console.warn("Error opening Instagram profile:", err))
   }
 
   const handleRetry = () => {
@@ -236,25 +272,19 @@ const MatchDetailsScreen = () => {
     )
   }
 
-  // Default status
-  const status = "Finished" // You can determine this based on game data if available
+  // Get status dynamically from game data
+  const status = game?.status || "scheduled"
   const { color, label, bgColor } = statusStyles[status as keyof typeof statusStyles]
+  const headerImageCandidate =
+    game?.hero_image_url ||
+    game?.hero_image ||
+    game?.header_image_url ||
+    game?.image_url ||
+    game?.image ||
+    DEFAULT_HEADER_IMAGE
+  const headerImageSource = resolveImageSource(headerImageCandidate, DEFAULT_HEADER_IMAGE)
 
-  // Basketball stats (mock data - in a real app, this would come from your API)
-  const basketballStats = {
-    home: {
-      rebounds: 42,
-      assists: 23,
-      steals: 8,
-      blocks: 5,
-    },
-    away: {
-      rebounds: 38,
-      assists: 19,
-      steals: 10,
-      blocks: 3,
-    },
-  }
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -272,7 +302,7 @@ const MatchDetailsScreen = () => {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Match Image Header */}
           <ImageBackground
-            source={{ uri: "https://images.unsplash.com/photo-1504450758481-7338eba7524a" }}
+            source={headerImageSource}
             style={styles.headerImage}
             resizeMode="cover"
           >
@@ -292,7 +322,11 @@ const MatchDetailsScreen = () => {
           <View style={styles.detailsContainer}>
             {/* League Title and Status */}
             <View style={styles.headerRow}>
-              <Text style={styles.leagueTitle}>{game.name || "Basketball Match"}</Text>
+              <View style={styles.titleContainer}>
+                <Text style={styles.leagueTitle} numberOfLines={2} ellipsizeMode="tail">
+                  {game.name || "Basketball Match"}
+                </Text>
+              </View>
               <View style={[styles.statusBadge, { backgroundColor: bgColor }]}>
                 <Text style={[styles.statusText, { color }]}>{label}</Text>
               </View>
@@ -301,8 +335,8 @@ const MatchDetailsScreen = () => {
             {/* Teams and Score */}
             <View style={styles.teamsContainer}>
               <View style={styles.teamColumn}>
-                <Image
-                  source={{ uri: "https://via.placeholder.com/100" }}
+                <ManagedImage
+                  source={game?.home_team_logo_url}
                   style={styles.teamLogo}
                   resizeMode="contain"
                 />
@@ -316,8 +350,8 @@ const MatchDetailsScreen = () => {
               </View>
 
               <View style={styles.teamColumn}>
-                <Image
-                  source={{ uri: "https://via.placeholder.com/100" }}
+                <ManagedImage
+                  source={game?.away_team_logo_url}
                   style={styles.teamLogo}
                   resizeMode="contain"
                 />
@@ -332,6 +366,22 @@ const MatchDetailsScreen = () => {
                 icon="calendar"
                 text={game.created_at ? dayjs(game.created_at).format("dddd, MMMM D, YYYY") : "Date not available"}
               />
+              <EventInfoRow
+                icon="clock"
+                text={
+                  game.created_at && (game.end_at || game.end_time)
+                    ? `${dayjs(game.created_at).format("h:mm A")} - ${dayjs(game.end_at || game.end_time).format("h:mm A")}`
+                    : game.created_at
+                      ? dayjs(game.created_at).format("h:mm A")
+                      : "Time not available"
+                }
+              />
+              {(game.location?.name || game.location_name) && (
+                <EventInfoRow
+                  icon="map-marker-alt"
+                  text={game.location?.name || game.location_name || "Location not available"}
+                />
+              )}
               <EventInfoRow icon="user" text={`Teams: ${homeTeamName} vs ${awayTeamName}`} />
             </View>
 
@@ -340,46 +390,7 @@ const MatchDetailsScreen = () => {
             <Text style={styles.sectionTitle}>Match Details</Text>
             <Text style={styles.description}>{game.description || "No description available for this match."}</Text>
 
-            {/* Basketball Stats Section */}
-            <View style={styles.divider} />
-            <Text style={styles.sectionTitle}>Game Stats</Text>
-
-            <View style={styles.statsContainer}>
-              {/* Simple Basketball Stats */}
-              <View style={styles.statHeader}>
-                <Text style={styles.statHeaderTeam}>{homeTeamName}</Text>
-                <Text style={styles.statHeaderLabel}>STAT</Text>
-                <Text style={styles.statHeaderTeam}>{awayTeamName}</Text>
-              </View>
-
-              {/* Rebounds */}
-              <View style={styles.statRow}>
-                <Text style={styles.statValueHome}>{basketballStats.home.rebounds}</Text>
-                <Text style={styles.statLabel}>Rebounds</Text>
-                <Text style={styles.statValueAway}>{basketballStats.away.rebounds}</Text>
-              </View>
-
-              {/* Assists */}
-              <View style={styles.statRow}>
-                <Text style={styles.statValueHome}>{basketballStats.home.assists}</Text>
-                <Text style={styles.statLabel}>Assists</Text>
-                <Text style={styles.statValueAway}>{basketballStats.away.assists}</Text>
-              </View>
-
-              {/* Steals */}
-              <View style={styles.statRow}>
-                <Text style={styles.statValueHome}>{basketballStats.home.steals}</Text>
-                <Text style={styles.statLabel}>Steals</Text>
-                <Text style={styles.statValueAway}>{basketballStats.away.steals}</Text>
-              </View>
-
-              {/* Blocks */}
-              <View style={styles.statRow}>
-                <Text style={styles.statValueHome}>{basketballStats.home.blocks}</Text>
-                <Text style={styles.statLabel}>Blocks</Text>
-                <Text style={styles.statValueAway}>{basketballStats.away.blocks}</Text>
-              </View>
-            </View>
+           
 
             {/* Spacer for bottom buttons */}
             <View style={{ height: 100 }} />
@@ -465,17 +476,31 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start", // Changed from "center" to "flex-start"
     marginBottom: 20,
+    gap: 12, // Add gap between title and status badge
+  },
+  titleContainer: {
+    flex: 1, // Take up available space
+    marginRight: 12, // Ensure spacing from status badge
+  },
+  leagueTitle: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "bold",
+    lineHeight: 28, // Add line height for better multi-line display
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    flexShrink: 0, // Prevent shrinking
+    minWidth: 80, // Ensure minimum width
   },
   statusText: {
     fontSize: 12,
     fontWeight: "bold",
+    textAlign: "center",
   },
   detailsContainer: {
     marginTop: -50, // Increased to bring the container up more
@@ -484,11 +509,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 24,
-  },
-  leagueTitle: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "bold",
   },
   teamsContainer: {
     flexDirection: "row",
@@ -661,3 +681,5 @@ const styles = StyleSheet.create({
 })
 
 export default MatchDetailsScreen
+const DEFAULT_HEADER_IMAGE =
+  "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"

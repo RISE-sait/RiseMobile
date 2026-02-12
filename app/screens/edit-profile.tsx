@@ -5,14 +5,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   ActivityIndicator,
   StyleSheet,
   Animated,
   Dimensions,
   Platform,
   KeyboardAvoidingView,
+  Modal,
+  Pressable,
 } from "react-native"
+import { showAlert } from "@/utils/customAlert"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
@@ -25,17 +27,67 @@ import {
   faEnvelope,
   faPhone,
   faUser,
-  faShirt,
-  faList,
   faBasketball,
   faChalkboardTeacher,
-  faUserTie,
-  faChild,
+  faImage,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { Input } from "@/components/ui/input"
 import images from "@/constants/images"
 import { COLORS } from "@/constants/colors"
+import { useSelector, useDispatch } from "react-redux"
+import type { RootState } from "@/store"
+import { updateProfile } from "@/store/slices/userSlice"
+import { API_URL } from "@/utils/api"
+import axios from "axios"
+import * as ImagePicker from 'expo-image-picker'
+
+// 📱 Phone number utility functions
+const formatPhoneForDisplay = (phone: string): string => {
+  if (!phone) return ""
+  
+  // Remove all non-digits
+  const cleaned = phone.replace(/\D/g, "")
+  
+  // For 10-digit numbers, format as (xxx) xxx-xxxx
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
+  }
+  // For 11-digit numbers starting with 1, format as (xxx) xxx-xxxx
+  else if (cleaned.length === 11 && cleaned.startsWith("1")) {
+    return `(${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`
+  }
+  
+  return phone // Return original if format is unusual
+}
+
+const handlePhoneChange = (text: string, setPhoneNumber: (value: string) => void) => {
+  // Format as user types for better UX
+  const formatted = formatPhoneForDisplay(text)
+  setPhoneNumber(formatted)
+}
+
+const formatPhoneForStorage = (phone: string): string => {
+  if (!phone) return ""
+  
+  const cleaned = phone.replace(/\D/g, "") // Remove all non-digits
+  
+  // For Canadian/US numbers (10 digits), add +1 prefix
+  if (cleaned.length === 10) {
+    return `+1${cleaned}`
+  }
+  // For 11-digit numbers starting with 1, add + prefix
+  else if (cleaned.length === 11 && cleaned.startsWith("1")) {
+    return `+${cleaned}`
+  }
+  // If already has + prefix, return as is
+  else if (phone.startsWith("+")) {
+    return phone
+  }
+  
+  return phone // Return original if format is unusual
+}
 
 type User = {
   id: string
@@ -43,12 +95,8 @@ type User = {
   firstName: string
   lastName: string
   role: string
-  profileImage?: string
-  jerseyNumber?: string
-  position?: string
+  profileImage?: string | null
   phoneNumber?: string
-  specialties?: string[]
-  experience?: string
   countryCode?: string
 }
 
@@ -58,7 +106,9 @@ export default function EditProfileScreen() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
+  // ✅ Use Redux as primary data source
+  const user = useSelector((state: RootState) => state.user.data)
+  const dispatch = useDispatch()
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -70,17 +120,12 @@ export default function EditProfileScreen() {
   const [email, setEmail] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [profileImage, setProfileImage] = useState<string | null>(null)
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false)
 
-  // Role-specific fields
-  const [jerseyNumber, setJerseyNumber] = useState("")
-  const [position, setPosition] = useState("")
-  const [specialties, setSpecialties] = useState<string[]>([])
-  const [experience, setExperience] = useState("")
-  const [newSpecialty, setNewSpecialty] = useState("")
 
   useEffect(() => {
     loadUserData()
-  }, [])
+  }, [user]) // ✅ Depend on user changes
 
   useEffect(() => {
     if (!isLoading) {
@@ -103,90 +148,135 @@ export default function EditProfileScreen() {
   const loadUserData = async () => {
     try {
       setIsLoading(true)
+      
+      // ✅ Prioritize Redux data (same pattern as other EditProfile components)
+      if (user) {
+        const userData = {
+          ...user,
+          firstName: user.firstName || user.first_name || "",
+          lastName: user.lastName || user.last_name || "",
+          countryCode: user.countryCode || user.country_code || "US",
+          phoneNumber: user.phoneNumber || "",
+        }
+        // Using Redux state directly, no need to set local state
+        
+        // Initialize common form fields
+        setFirstName(userData.firstName)
+        setLastName(userData.lastName)
+        setEmail(userData.email || "")
+        // ✅ Format phone for user-friendly display
+        setPhoneNumber(formatPhoneForDisplay(userData.phoneNumber || ""))
+        setProfileImage(userData.profileImage || null)
 
-      // In a real app, you would fetch from your API
-      // For now, we'll use AsyncStorage as a mock
+        return // ✅ Redux data available, return directly
+      }
+
+      // ⚠️ Only use AsyncStorage fallback when Redux data is not available
       const storedUser = await AsyncStorage.getItem("user")
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser)
-        setUser(parsedUser)
+        // Using Redux state directly, no need to set local state
 
         // Initialize common form fields
-        setFirstName(parsedUser.firstName || "")
-        setLastName(parsedUser.lastName || "")
+        setFirstName(parsedUser.firstName || parsedUser.first_name || "")
+        setLastName(parsedUser.lastName || parsedUser.last_name || "")
         setEmail(parsedUser.email || "")
-        setPhoneNumber(parsedUser.phoneNumber || "")
+        // ✅ Format phone for user-friendly display
+        setPhoneNumber(formatPhoneForDisplay(parsedUser.phoneNumber || ""))
         setProfileImage(parsedUser.profileImage || null)
 
-        // Initialize role-specific fields
-        setJerseyNumber(parsedUser.jerseyNumber || "")
-        setPosition(parsedUser.position || "")
-        setSpecialties(parsedUser.specialties || [])
-        setExperience(parsedUser.experience || "")
       } else {
-        // If no user data, redirect back
-        Alert.alert("Error", "User data not found")
+        showAlert("Error", "Unable to load user data. Please try logging in again.", undefined, { type: 'error' })
         router.back()
       }
     } catch (error) {
-      console.error("Error loading user data:", error)
-      Alert.alert("Error", "Failed to load user data")
+      showAlert("Error", "Failed to load user data", undefined, { type: 'error' })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleAddSpecialty = () => {
-    if (newSpecialty.trim() !== "" && !specialties.includes(newSpecialty.trim())) {
-      setSpecialties([...specialties, newSpecialty.trim()])
-      setNewSpecialty("")
-    }
-  }
-
-  const handleRemoveSpecialty = (index: number) => {
-    const updatedSpecialties = [...specialties]
-    updatedSpecialties.splice(index, 1)
-    setSpecialties(updatedSpecialties)
-  }
 
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      Alert.alert("Missing Information", "Please fill in all required fields")
+      showAlert("Missing Information", "Please fill in all required fields", undefined, { type: 'warning' })
       return
     }
 
     try {
       setIsSaving(true)
 
-      // Create base updated user object with common fields
-      const updatedUser: User = {
-        ...user!,
-        firstName,
-        lastName,
-        email,
-        phoneNumber,
-        profileImage,
+      if (!user?.id || !user?.token) {
+        showAlert("Error", "User authentication information is missing", undefined, { type: 'error' })
+        return
       }
 
-      // Add role-specific fields based on user role
-      if (user?.role === "athlete") {
-        updatedUser.jerseyNumber = jerseyNumber
-        updatedUser.position = position
-      } else if (user?.role === "instructor") {
-        updatedUser.specialties = specialties
-        updatedUser.experience = experience
+      // ✅ Call backend API to update user profile
+      
+      // ✅ Format phone number for storage (international format)
+      const formattedPhone = formatPhoneForStorage(phoneNumber)
+
+      // Prepare API request payload according to user.UpdateRequestDto schema
+      const updatePayload: any = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim(),
+        country_alpha2_code: user.countryCode || "US",
+        // Required fields with defaults
+        dob: "2000-01-01",
+        has_marketing_email_consent: false,
+        has_sms_consent: false,
       }
 
-      // In a real app, you would send this to your API
-      // For now, we'll just save to AsyncStorage
-      await AsyncStorage.setItem("user", JSON.stringify(updatedUser))
+      // ✅ Only include phone if it's provided and formatted correctly
+      if (formattedPhone) {
+        updatePayload.phone = formattedPhone
+      }
+
+
+      const response = await axios.put(
+        `${API_URL}/users/${user.id}`,
+        updatePayload,
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+
+
+      // Create updated user object with API response data
+      const apiResponse = response.data
+      const updatedUser = {
+        ...user,
+        firstName: apiResponse.first_name || firstName.trim(),
+        lastName: apiResponse.last_name || lastName.trim(),
+        email: apiResponse.email || email.trim(),
+        phoneNumber: apiResponse.phone || phoneNumber?.trim(),
+        countryCode: apiResponse.country_alpha2_code || user.countryCode || "US",
+        ...(profileImage && { profileImage }),
+      } as User
+
+
+      // ✅ Update Redux store with new user data
+      // Redux Persist will automatically sync to AsyncStorage
+      dispatch(updateProfile({ ...updatedUser, profileImage: updatedUser.profileImage || undefined }))
 
       // Show success message
-      Alert.alert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }])
-    } catch (error) {
-      console.error("Error saving user data:", error)
-      Alert.alert("Error", "Failed to save profile changes")
+      showAlert("Success", "Profile updated successfully", [{ text: "OK", onPress: () => router.back() }], { type: 'success' })
+    } catch (error: any) {
+      let errorMessage = "Failed to save profile changes"
+      if (error.response?.status === 401) {
+        errorMessage = "Authentication failed. Please log in again."
+      } else if (error.response?.status === 400) {
+        errorMessage = "Invalid profile data. Please check your information."
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      }
+      
+      showAlert("Error", errorMessage, undefined, { type: 'error' })
     } finally {
       setIsSaving(false)
     }
@@ -198,42 +288,168 @@ export default function EditProfileScreen() {
         return faBasketball
       case "coach":
         return faChalkboardTeacher
-      case "instructor":
-        return faUserTie
-      case "parent":
-        return faChild
       default:
         return faUser
     }
   }
 
-  const getProfileImage = (role: string) => {
-    if (profileImage) return { uri: profileImage }
+  const hasProfileImage = !!profileImage
 
-    switch (role) {
-      case "athlete":
-        return images.headshot
-      case "coach":
-        return images.coachHeadshot
-      case "instructor":
-        return images.instructorHeadshot
-      case "parent":
-        return images.parentHeadshot
-      default:
-        return images.headshot
+  // Image selection functionality
+  const requestPermissions = async () => {
+    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync()
+    const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    
+    if (cameraStatus !== 'granted' || mediaLibraryStatus !== 'granted') {
+      showAlert(
+        'Permissions Required',
+        'Camera and photo library permissions are required to upload profile pictures.',
+        [{ text: 'OK' }],
+        { type: 'warning' }
+      )
+      return false
+    }
+    return true
+  }
+
+  const showImagePickerOptions = () => {
+    setShowImagePickerModal(true)
+  }
+
+  // Handle two-step image upload process
+  const handleImageUpload = async (imageUri: string) => {
+
+    if (!user?.token) {
+      showAlert('Error', 'Authentication required', undefined, { type: 'error' })
+      return
+    }
+
+
+    try {
+      // Step 1: Upload image to cloud storage
+      const formData = new FormData()
+      const filename = imageUri.split('/').pop() || 'profile.jpg'
+      const match = /\.(.+)$/.exec(filename)
+      const type = match ? `image/${match[1]}` : 'image/jpeg'
+
+      formData.append('image', {
+        uri: imageUri,
+        name: filename,
+        type,
+      } as any)
+
+      const uploadResponse = await fetch('https://api-461776259687.us-west2.run.app/upload/image?folder=profiles', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+        },
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text()
+        throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`)
+      }
+
+      const uploadResult = await uploadResponse.json()
+
+      if (!uploadResult.url) {
+        throw new Error('No URL returned from upload')
+      }
+
+      // Step 2: Update user profile with the uploaded image URL
+
+      // Use the correct endpoints based on role
+      const isCoach = user.role === 'coach' || user.role === 'staff'
+      const profileUpdateUrl = isCoach
+        ? `https://api-461776259687.us-west2.run.app/staffs/${user.id}/profile`
+        : `https://api-461776259687.us-west2.run.app/athletes/${user.id}/profile`
+
+
+      // Prepare headers
+      const headers = {
+        'Authorization': `Bearer ${user.token}`,
+        'Content-Type': 'application/json',
+      }
+
+
+      const profileUpdateResponse = await fetch(profileUpdateUrl, {
+        method: 'PATCH',
+        headers: headers,
+        body: JSON.stringify({
+          photo_url: uploadResult.url
+        }),
+      })
+
+
+      if (!profileUpdateResponse.ok) {
+        const errorText = await profileUpdateResponse.text()
+        throw new Error(`Profile update failed: ${profileUpdateResponse.status} - ${errorText}`)
+      }
+
+
+      // Update local state to display new avatar
+      setProfileImage(uploadResult.url)
+
+      showAlert('Success', 'Profile picture updated successfully!', undefined, { type: 'success' })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload and update profile picture'
+      showAlert('Error', errorMessage, undefined, { type: 'error' })
+    }
+  }
+
+  const openCamera = async () => {
+    const hasPermission = await requestPermissions()
+    if (!hasPermission) {
+      return
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: 'images' as any,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+
+
+      if (!result.canceled && result.assets[0]) {
+        await handleImageUpload(result.assets[0].uri)
+      }
+    } catch (error) {
+      showAlert('Error', 'Failed to open camera', undefined, { type: 'error' })
+    }
+  }
+
+  const openImageLibrary = async () => {
+    const hasPermission = await requestPermissions()
+    if (!hasPermission) {
+      return
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images' as any,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+
+
+      if (!result.canceled && result.assets[0]) {
+        await handleImageUpload(result.assets[0].uri)
+      }
+    } catch (error) {
+      showAlert('Error', 'Failed to open photo library', undefined, { type: 'error' })
     }
   }
 
   const getAccentColor = (role: string) => {
     switch (role) {
       case "athlete":
-        return COLORS.primary // Gold
+        return COLORS.primary
       case "coach":
-        return COLORS.primary // Blue
-      case "instructor":
-        return COLORS.primary // Yellow/Gold
-      case "parent":
-        return COLORS.primary // Green
+        return COLORS.primary
       default:
         return COLORS.primary
     }
@@ -250,6 +466,7 @@ export default function EditProfileScreen() {
   }
 
   return (
+    <>
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
@@ -276,16 +493,28 @@ export default function EditProfileScreen() {
               <LinearGradient colors={[COLORS.background, COLORS.cardDark]} style={styles.bannerGradient} />
 
               {/* Profile Image */}
-              <View style={styles.profileImageContainer}>
-                <Image
-                  source={getProfileImage(user?.role || "")}
-                  style={[styles.profileImage, { borderColor: getAccentColor(user?.role || "") }]}
-                  resizeMode="cover"
-                />
-                <TouchableOpacity style={[styles.cameraButton, { backgroundColor: getAccentColor(user?.role || "") }]}>
+              <TouchableOpacity
+                style={styles.profileImageContainer}
+                onPress={showImagePickerOptions}
+                activeOpacity={0.7}
+              >
+                {hasProfileImage ? (
+                  <Image
+                    source={{ uri: profileImage! }}
+                    style={[styles.profileImage, { borderColor: getAccentColor(user?.role || "") }]}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.profileImagePlaceholder, { borderColor: getAccentColor(user?.role || "") }]}>
+                    <FontAwesomeIcon icon={faUser} color={COLORS.textSecondary} size={40} />
+                  </View>
+                )}
+                <View
+                  style={[styles.cameraButton, { backgroundColor: getAccentColor(user?.role || "") }]}
+                >
                   <FontAwesomeIcon icon={faCamera} color="#000000" size={16} />
-                </TouchableOpacity>
-              </View>
+                </View>
+              </TouchableOpacity>
 
               <View style={styles.nameContainer}>
                 <Text style={styles.nameText}>
@@ -298,7 +527,7 @@ export default function EditProfileScreen() {
                     size={12}
                     style={styles.roleIcon}
                   />
-                  <Text style={styles.roleText}>{user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)}</Text>
+                  <Text style={styles.roleText}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'}</Text>
                 </View>
               </View>
             </View>
@@ -358,8 +587,9 @@ export default function EditProfileScreen() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  inputStyle={styles.input}
+                  inputStyle={[styles.input, styles.disabledInput]}
                   placeholderTextColor={COLORS.textSecondary}
+                  editable={false}
                 />
               </View>
 
@@ -375,123 +605,16 @@ export default function EditProfileScreen() {
                 </View>
                 <Input
                   value={phoneNumber}
-                  onChangeText={setPhoneNumber}
+                  onChangeText={(text) => handlePhoneChange(text, setPhoneNumber)}
                   keyboardType="phone-pad"
                   inputStyle={styles.input}
                   placeholderTextColor={COLORS.textSecondary}
+                  placeholder="(604) 123-4567"
                 />
               </View>
             </View>
 
-            {/* Role-specific sections */}
-            {user?.role === "athlete" && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Athlete Information</Text>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faShirt}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Jersey Number</Text>
-                  </View>
-                  <Input
-                    value={jerseyNumber}
-                    onChangeText={setJerseyNumber}
-                    keyboardType="numeric"
-                    inputStyle={styles.input}
-                    placeholderTextColor={COLORS.textSecondary}
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faList}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Position</Text>
-                  </View>
-                  <Input
-                    value={position}
-                    onChangeText={setPosition}
-                    inputStyle={styles.input}
-                    placeholderTextColor={COLORS.textSecondary}
-                  />
-                </View>
-              </View>
-            )}
-
-            {user?.role === "instructor" && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Instructor Information</Text>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faList}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Experience</Text>
-                  </View>
-                  <Input
-                    value={experience}
-                    onChangeText={setExperience}
-                    multiline
-                    numberOfLines={3}
-                    inputStyle={[styles.input, styles.textArea]}
-                    placeholderTextColor={COLORS.textSecondary}
-                    textAlignVertical="top"
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <FontAwesomeIcon
-                      icon={faList}
-                      color={getAccentColor(user.role)}
-                      size={14}
-                      style={styles.inputIcon}
-                    />
-                    <Text style={styles.inputLabel}>Specialties</Text>
-                  </View>
-
-                  <View style={styles.specialtyInputContainer}>
-                    <Input
-                      value={newSpecialty}
-                      onChangeText={setNewSpecialty}
-                      placeholder="Add a specialty"
-                      inputStyle={[styles.input, { flex: 1 }]}
-                      placeholderTextColor={COLORS.textSecondary}
-                    />
-                    <TouchableOpacity
-                      onPress={handleAddSpecialty}
-                      style={[styles.addButton, { backgroundColor: getAccentColor(user.role) }]}
-                    >
-                      <Text style={styles.addButtonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.specialtiesContainer}>
-                    {specialties.map((specialty, index) => (
-                      <View key={index} style={styles.specialtyTag}>
-                        <Text style={styles.specialtyText}>{specialty}</Text>
-                        <TouchableOpacity onPress={() => handleRemoveSpecialty(index)} style={styles.removeButton}>
-                          <Text style={styles.removeButtonText}>×</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </View>
-            )}
+            {/* Role-specific sections removed - only athlete and coach roles supported */}
 
             {/* Save Button */}
             <TouchableOpacity onPress={handleSave} disabled={isSaving} style={styles.saveProfileButton}>
@@ -523,7 +646,73 @@ export default function EditProfileScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
     </SafeAreaView>
+
+    {/* Image Picker Modal */}
+    <Modal
+      visible={showImagePickerModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowImagePickerModal(false)}
+      statusBarTranslucent
+    >
+      <View style={styles.modalOverlay}>
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setShowImagePickerModal(false)}
+        />
+        <View style={styles.modalContent}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Update Profile Picture</Text>
+
+          <View style={styles.modalOptions}>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setShowImagePickerModal(false)
+                setTimeout(() => openCamera(), 300)
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.modalOptionIcon, { backgroundColor: `${getAccentColor(user?.role || "")}20` }]}>
+                <FontAwesomeIcon icon={faCamera} color={getAccentColor(user?.role || "")} size={24} />
+              </View>
+              <View style={styles.modalOptionTextContainer}>
+                <Text style={styles.modalOptionText}>Take Photo</Text>
+                <Text style={styles.modalOptionSubtext}>Use your camera</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setShowImagePickerModal(false)
+                setTimeout(() => openImageLibrary(), 300)
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.modalOptionIcon, { backgroundColor: `${getAccentColor(user?.role || "")}20` }]}>
+                <FontAwesomeIcon icon={faImage} color={getAccentColor(user?.role || "")} size={24} />
+              </View>
+              <View style={styles.modalOptionTextContainer}>
+                <Text style={styles.modalOptionText}>Choose from Library</Text>
+                <Text style={styles.modalOptionSubtext}>Select an existing photo</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.modalCancelButton}
+            onPress={() => setShowImagePickerModal(false)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.modalCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+    </>
   )
 }
 
@@ -594,6 +783,15 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
+  },
+  profileImagePlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    backgroundColor: COLORS.cardDark,
+    alignItems: "center",
+    justifyContent: "center",
   },
   cameraButton: {
     position: "absolute",
@@ -671,58 +869,10 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
   },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: "top",
-  },
-  specialtyInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  addButton: {
-    marginLeft: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonText: {
-    color: "#000000",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  specialtiesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  specialtyTag: {
-    flexDirection: "row",
-    alignItems: "center",
+  disabledInput: {
     backgroundColor: COLORS.cardDark,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-  },
-  specialtyText: {
-    color: COLORS.text,
-    fontSize: 14,
-    marginRight: 4,
-  },
-  removeButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  removeButtonText: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "bold",
+    color: COLORS.textSecondary,
+    opacity: 0.6,
   },
   saveProfileButton: {
     marginTop: 8,
@@ -755,6 +905,81 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cancelButtonText: {
+    color: COLORS.textSecondary,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: Platform.OS === "ios" ? 40 : 24,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  modalOptions: {
+    gap: 12,
+  },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.cardDark,
+    borderRadius: 16,
+    padding: 16,
+  },
+  modalOptionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  modalOptionTextContainer: {
+    flex: 1,
+  },
+  modalOptionText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalOptionSubtext: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  modalCancelButton: {
+    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.cardDark,
+    alignItems: "center",
+  },
+  modalCancelText: {
     color: COLORS.textSecondary,
     fontSize: 16,
     fontWeight: "600",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,19 +11,58 @@ import {
   ActivityIndicator,
   TextInput,
   ScrollView,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FontAwesome6, Ionicons, MaterialIcons, AntDesign } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import dayjs from "dayjs";
-import mockMatches from "../data/matches";
-import { useMatchFilters } from '../../../hooks/useMatchFIlters';
+// Removed useMatchFilters - now using real-time backend API calls
 import BackButton from "@/components/buttons/BackButton";
+import { useAppDispatch, useAppSelector } from "../../../store/hooks";
+import { fetchMatchHistory, clearMatches } from "../../../store/slices/gamesSlice";
+import { LinearGradient } from 'expo-linear-gradient'
+import images from "@/constants/images";
+import { resolveImageSource } from "@/utils/imageSource";
+import { useAuth } from "@/utils/auth";
+
 
 const { width } = Dimensions.get("window");
 
+// API Response Type for Games from /secure/games
+interface ApiGameResponse {
+  id: string;
+  away_score: number;
+  away_team_id: string;
+  away_team_logo_url: string;
+  away_team_name: string;
+  court_id: string;
+  court_name: string;
+  created_at: string;
+  end_time: string;
+  home_score: number;
+  home_team_id: string;
+  home_team_logo_url: string;
+  home_team_name: string;
+  location_id: string;
+  location_name: string;
+  start_time: string;
+  status: string;
+  updated_at: string;
+}
+
 const MatchHistory: React.FC = () => {
+  // Redux state
+  const dispatch = useAppDispatch();
+  const matches = useAppSelector((state) => state.games.items);
+  const status = useAppSelector((state) => state.games.status);
+  const gamesError = useAppSelector((state) => state.games.error);
+  const token = useAppSelector((state) => state.user.data?.token);
+  const { getValidToken, forceReLogin } = useAuth();
+  const fetchInteractionRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
+  const isMountedRef = useRef(true); // Track component mount state
+
   // Animation refs - separate animations for different purposes
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
   const modalFadeAnim = useRef(new Animated.Value(0)).current;
@@ -31,104 +70,286 @@ const MatchHistory: React.FC = () => {
   
   // Local state
   const [selectedMatch, setSelectedMatch] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   
-  // Use our custom hook for filtering
-  const {
-    showFilters,
-    activeTab,
-    searchQuery,
-    filterOptions,
-    filteredMatches,
-    setSearchQuery,
-    toggleFilters,
-    handleTabChange,
-    applyFilters,
-    resetFilters,
-    toggleLeagueFilter,
-    updateTeamFilter,
-  } = useMatchFilters(mockMatches);
+  // transformedMatches will be defined after activeTab state
 
-  // Header animation
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [80, 60],
-    extrapolate: 'clamp',
+  // Get match details from the existing list data (no need for extra API call)
+  const getMatchDetails = (matchId: string) => {
+    const transformedMatch = transformedMatches.find(m => m.id === matchId);
+    if (!transformedMatch?.originalData) return null;
+
+    const originalMatch = transformedMatch.originalData as any;
+    
+    // Check if this has the new API structure
+    const hasNewStructure = 'home_team_name' in originalMatch || 'away_team_name' in originalMatch;
+    
+    if (hasNewStructure) {
+      // Use the new API structure
+      return {
+        id: originalMatch.id,
+        homeTeamName: originalMatch.home_team_name || "Home Team",
+        awayTeamName: originalMatch.away_team_name || "Away Team",
+        homeScore: originalMatch.home_score || 0,
+        awayScore: originalMatch.away_score || 0,
+        locationName: originalMatch.location_name,
+        courtName: originalMatch.court_name,
+        startTime: originalMatch.start_time,
+        endTime: originalMatch.end_time,
+        status: originalMatch.status,
+        createdAt: originalMatch.created_at,
+        updatedAt: originalMatch.updated_at,
+        homeTeamLogoUrl: originalMatch.home_team_logo_url,
+        awayTeamLogoUrl: originalMatch.away_team_logo_url,
+        mvpAvailable: false, // MVP data not available from this API
+        hasDetailedStats: false // Detailed stats not available
+      };
+    } else {
+      // Legacy structure fallback
+      return {
+        id: originalMatch.id,
+        homeTeamName: originalMatch.name || "Home Team",
+        awayTeamName: "Away Team",
+        homeScore: originalMatch.win_score || 0,
+        awayScore: originalMatch.lose_score || 0,
+        locationName: originalMatch.location,
+        startTime: originalMatch.created_at,
+        status: "completed",
+        mvpAvailable: false,
+        hasDetailedStats: false
+      };
+    }
+  };
+
+  // Backend filtering - real-time API calls instead of client-side filtering
+  const [activeTab, setActiveTab] = useState<'all' | 'scheduled' | 'in_progress' | 'completed' | 'canceled'>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Simplified filter options for backend filtering
+  const [filterOptions, setFilterOptions] = useState({
+    league: null as string | null,
+    team: null as string | null,
+    dateRange: { start: null as string | null, end: null as string | null }
   });
+  
+  // Transform Redux matches for display - backend already filtered
+  const transformedMatches = useMemo(() => {
+    
+    const transformed = matches.map(match => {
+      // Check if this match has the new API structure or old structure
+      const hasNewStructure = 'home_team_name' in match || 'away_team_name' in match;
+      
+      return {
+        id: match.id,
+        date: match.date || dayjs().format("YYYY-MM-DD"),
+        homeTeam: match.home_team_name || (hasNewStructure ? "Home Team" : "Team A"),
+        awayTeam: match.away_team_name || (hasNewStructure ? "Away Team" : "Team B"),
+        homeTeamLogo: match.home_team_logo_url || "https://via.placeholder.com/40x40?text=H",
+        awayTeamLogo: match.away_team_logo_url || "https://via.placeholder.com/40x40?text=A",
+        // Use real scores from API
+        homeScore: match.home_score || match.win_score || 0,
+        awayScore: match.away_score || match.lose_score || 0,
+        // Use backend status directly - no conversion needed
+        status: match.status || "scheduled",
+        venue: hasNewStructure ? (match as any).location_name || "RISE Basketball Facility" : match.location || "RISE Basketball Facility",
+        league: "Basketball League",
+        // Store the original match data for expanded view
+        originalData: match,
+        location: match.location || "Main Arena",
+        court: hasNewStructure ? (match as any).court_name || "Court 1" : "Court 1",
+        time: match.time || "TBD",
+      };
+    });
+    
+    // Log status breakdown for debugging (removed canceled)
+    const statusCounts = {
+      scheduled: transformed.filter(m => m.status === "scheduled").length,
+      in_progress: transformed.filter(m => m.status === "in_progress").length,
+      completed: transformed.filter(m => m.status === "completed").length
+    };
+    return transformed;
+  }, [matches, activeTab]);
 
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [1, 0.9],
-    extrapolate: 'clamp',
-  });
+  
+  // Display matches filtered by active tab
+  const filteredMatches = useMemo(() => {
+    if (activeTab === 'all') {
+      return transformedMatches;
+    }
+    return transformedMatches.filter(match => match.status === activeTab);
+  }, [transformedMatches, activeTab]);
+  
+  // Handle tab changes with real-time API calls
+  const handleTabChange = (tab: 'all' | 'scheduled' | 'in_progress' | 'completed') => {
+    setActiveTab(tab);
+    
+    // Use tab directly as backend filter
+    const backendFilter = tab === 'completed' ? 'past' : tab;
+    loadMatchHistory(backendFilter);
+  };
+  
+  // Toggle filters modal
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+  
+  // Handle pull to refresh
+  const handleRefresh = async () => {
+    if (!isMountedRef.current) return; // Don't refresh if component is unmounting
 
-  // Animate content on mount
+    setRefreshing(true);
+    const backendFilter = activeTab === 'completed' ? 'past' : activeTab;
+    await loadMatchHistory(backendFilter);
+
+    if (isMountedRef.current) {
+      setRefreshing(false);
+    }
+  };
+  
+  // Simplified filter functions for backend filtering
+  const toggleLeagueFilter = (league: string) => {
+    setFilterOptions(prev => ({
+      ...prev,
+      league: prev.league === league ? null : league
+    }));
+  };
+  
+  const updateTeamFilter = (team: string | null) => {
+    setFilterOptions(prev => ({
+      ...prev,
+      team
+    }));
+  };
+  
+  const resetFilters = () => {
+    setFilterOptions({
+      league: null,
+      team: null,
+      dateRange: { start: null, end: null }
+    });
+  };
+  
+  const applyFilters = () => {
+    // For now, just close the modal - advanced filtering can be added later
+    toggleFilters();
+  };
+
+
+  // Header animation - only use opacity (Native Driver compatible)
+  // Removed height animation as Native Driver doesn't support layout properties
+  const headerOpacity = useMemo(
+    () =>
+      scrollY.interpolate({
+        inputRange: [0, 60],
+        outputRange: [1, 0.95],
+        extrapolate: 'clamp',
+      }),
+    [scrollY]
+  );
+
+  // Animate content on mount and fetch data
   useEffect(() => {
-    Animated.timing(contentFadeAnim, {
+    const fadeAnimation = Animated.timing(contentFadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
-    }).start();
-    
-    // Simulate fetching data
-    fetchMatches();
+    });
+    fadeAnimation.start();
+
+    fetchInteractionRef.current = InteractionManager.runAfterInteractions(() => {
+      loadMatchHistory(activeTab === 'completed' ? 'past' : activeTab);
+    })
+
+    return () => {
+      // Mark component as unmounted
+      isMountedRef.current = false;
+
+      // Force close filter modal before unmount
+      setShowFilters(false);
+
+      // Stop all animations to prevent updates during unmount
+      fadeAnimation.stop();
+      contentFadeAnim.stopAnimation();
+      modalFadeAnim.stopAnimation();
+      scrollY.stopAnimation();
+
+      fetchInteractionRef.current?.cancel();
+      fetchInteractionRef.current = null;
+    }
   }, []);
+
+  // Fetch matches with backend filtering - real-time API calls
+  const loadMatchHistory = async (filter?: string) => {
+    if (!isMountedRef.current) return; // Don't fetch if component is unmounting
+
+    try {
+      const authToken = await getValidToken();
+      if (!authToken) {
+        if (isMountedRef.current) {
+          await forceReLogin("Session expired. Please log in again.");
+        }
+        return;
+      }
+
+      // Don't clear matches - let fetchMatchHistory update state directly to avoid full re-render
+      if (isMountedRef.current) {
+        dispatch(fetchMatchHistory({ token: authToken, filter }));
+      }
+    } catch (err) {
+      console.error("Error loading match history:", err);
+    }
+  };
 
   // Animate modal when showFilters changes
   useEffect(() => {
+    let modalAnimation: Animated.CompositeAnimation | null = null;
+
     if (showFilters) {
-      Animated.timing(modalFadeAnim, {
+      modalAnimation = Animated.timing(modalFadeAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
-      }).start();
+      });
+      modalAnimation.start();
     } else {
-      Animated.timing(modalFadeAnim, {
+      modalAnimation = Animated.timing(modalFadeAnim, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
-      }).start();
+      });
+      modalAnimation.start();
     }
+
+    return () => {
+      // Stop modal animation to prevent updates during state changes
+      modalAnimation?.stop();
+    };
   }, [showFilters]);
-
-  const fetchMatches = async () => {
-    setLoading(true);
-    // In a real app, you would fetch from an API
-    // For now, we'll simulate a delay
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    // Simulate refreshing data
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
-  };
 
   const handleMatchPress = (id: string) => {
     setSelectedMatch(selectedMatch === id ? null : id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    // No need to fetch details - we use the existing data
   };
 
-  const getStatusIndicator = (status: string) => {
-    switch (status) {
-      case 'live':
-        return (
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
-          </View>
-        );
-      case 'upcoming':
-        return <Text style={styles.upcomingText}>UPCOMING</Text>;
-      default:
-        return null;
-    }
-  };
+const getStatusIndicator = (status: string) => {
+  switch (status) {
+    case 'in_progress':
+      return (
+        <View style={styles.liveIndicator}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>IN PROGRESS</Text>
+        </View>
+      );
+    case 'scheduled':
+      return <Text style={styles.upcomingText}>SCHEDULED</Text>;
+    case 'completed':
+      return <Text style={styles.completedText}>COMPLETED</Text>;
+      return null;
+  }
+};
 
   const getScoreStyle = (homeScore: number, awayScore: number) => {
     if (homeScore > awayScore) {
@@ -139,7 +360,7 @@ const MatchHistory: React.FC = () => {
     return { homeStyle: styles.tieScore, awayStyle: styles.tieScore };
   };
 
-  const renderMatchItem = ({ item }) => {
+  const renderMatchItem = ({ item }: { item: any }) => {
     const isExpanded = selectedMatch === item.id;
     const scoreStyles = getScoreStyle(item.homeScore, item.awayScore);
 
@@ -163,183 +384,140 @@ const MatchHistory: React.FC = () => {
           onPress={() => handleMatchPress(item.id)}
           activeOpacity={0.8}
           style={[
-            styles.matchCard,
-            isExpanded && styles.matchCardExpanded,
-            item.status === 'live' && styles.liveMatchCard,
+            styles.matchCardTouchable, // Updated style name
+            item.status === 'in_progress' && styles.liveMatchCard,
           ]}
         >
-          {/* League & Date Banner */}
-          <View style={styles.leagueBanner}>
-            <Text style={styles.leagueText}>{item.league}</Text>
-            <Text style={styles.dateText}>
-              {item.status === 'upcoming' 
-                ? `${dayjs(item.date).format("ddd, MMM DD")} • ${dayjs(item.date).format("h:mm A")}`
-                : dayjs(item.date).format("DD MMM YYYY")}
-            </Text>
-            {getStatusIndicator(item.status)}
-          </View>
-
-          {/* Match Header */}
-          <View style={styles.matchHeader}>
-            <View style={styles.teamContainer}>
-              <Image source={{ uri: item.homeTeamLogo }} style={styles.teamLogo} />
-              <Text style={styles.teamName}>{item.homeTeam}</Text>
+          <LinearGradient
+            colors={isExpanded 
+              ? ['rgba(252, 163, 17, 0.25)', 'rgba(252, 163, 17, 0.15)', '#1A1A1A'] 
+              : ['rgba(252, 163, 17, 0.18)', 'rgba(252, 163, 17, 0.08)', '#151515']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.matchCardGradient}
+          >
+            {/* League & Status Banner (removed date from here) */}
+            <View style={styles.leagueBanner}>
+              <Text style={styles.leagueText}>{item.league}</Text>
+              {getStatusIndicator(item.status)}
             </View>
-            
-            {/* Score Container */}
-            <View style={styles.scoreContainer}>
-              <Text style={[styles.score, scoreStyles.homeStyle]}>{item.homeScore}</Text>
-              <Text style={styles.vsText}>-</Text>
-              <Text style={[styles.score, scoreStyles.awayStyle]}>{item.awayScore}</Text>
-            </View>
-            
-            <View style={[styles.teamContainer, styles.awayTeamContainer]}>
-              <Text style={styles.teamName}>{item.awayTeam}</Text>
-              <Image source={{ uri: item.awayTeamLogo }} style={styles.teamLogo} />
-            </View>
-          </View>
 
-          {/* Venue */}
-          <Text style={styles.venueText}>{item.venue}</Text>
-
-          {/* Expandable Content */}
-          {isExpanded && (
-            <View style={styles.expandedContent}>
-              {/* MVP of the Match */}
-              {item.status === 'completed' && (
-                <View style={styles.mvpContainer}>
-                  <View style={styles.mvpHeader}>
-                    <FontAwesome6 name="trophy" size={16} color="#FFD700" />
-                    <Text style={styles.mvpTitle}>MVP: {item.mvp.name}</Text>
-                  </View>
-                  <View style={styles.mvpContent}>
-                    <Image source={{ uri: item.mvp.image }} style={styles.mvpImage} />
-                    <View style={styles.mvpStatsContainer}>
-                      <View style={styles.statBubble}>
-                        <Text style={styles.statBubbleValue}>{item.mvp.points}</Text>
-                        <Text style={styles.statBubbleLabel}>PTS</Text>
-                      </View>
-                      <View style={styles.statBubble}>
-                        <Text style={styles.statBubbleValue}>{item.mvp.assists}</Text>
-                        <Text style={styles.statBubbleLabel}>AST</Text>
-                      </View>
-                      <View style={styles.statBubble}>
-                        <Text style={styles.statBubbleValue}>{item.mvp.rebounds}</Text>
-                        <Text style={styles.statBubbleLabel}>REB</Text>
-                      </View>
-                    </View>
-                  </View>
+            {/* Match Header Layout */}
+            <View style={styles.matchHeader}>
+              {/* Home Team Section */}
+              <View style={styles.teamSection}>
+                <View style={styles.teamLogoContainer}>
+                  <Image
+                    source={resolveImageSource(item.homeTeamLogo, images.teamLogo)}
+                    style={styles.teamLogo}
+                  />
                 </View>
-              )}
-
-              {/* Match Stats */}
-              <View style={styles.statsContainer}>
-                <Text style={styles.statsTitle}>Match Stats</Text>
-                <View style={styles.statsGrid}>
-                  <View style={styles.statRow}>
-                    <Text style={styles.homeStatValue}>{item.homeFG}%</Text>
-                    <View style={styles.statBarContainer}>
-                      <View style={styles.statLabelContainer}>
-                        <Text style={styles.statLabel}>Field Goals</Text>
-                      </View>
-                      <View style={styles.statBarWrapper}>
-                        <View style={[styles.statBar, styles.homeStatBar, { width: `${item.homeFG}%` }]} />
-                        <View style={[styles.statBar, styles.awayStatBar, { width: `${item.awayFG}%` }]} />
-                      </View>
-                    </View>
-                    <Text style={styles.awayStatValue}>{item.awayFG}%</Text>
-                  </View>
-                  
-                  <View style={styles.statRow}>
-                    <Text style={styles.homeStatValue}>{item.homeRebounds}</Text>
-                    <View style={styles.statBarContainer}>
-                      <View style={styles.statLabelContainer}>
-                        <Text style={styles.statLabel}>Rebounds</Text>
-                      </View>
-                      <View style={styles.statBarWrapper}>
-                        <View 
-                          style={[
-                            styles.statBar, 
-                            styles.homeStatBar, 
-                            { width: `${(item.homeRebounds / (item.homeRebounds + item.awayRebounds)) * 100}%` }
-                          ]} 
-                        />
-                        <View 
-                          style={[
-                            styles.statBar, 
-                            styles.awayStatBar, 
-                            { width: `${(item.awayRebounds / (item.homeRebounds + item.awayRebounds)) * 100}%` }
-                          ]} 
-                        />
-                      </View>
-                    </View>
-                    <Text style={styles.awayStatValue}>{item.awayRebounds}</Text>
-                  </View>
-                  
-                  <View style={styles.statRow}>
-                    <Text style={styles.homeStatValue}>{item.homeAssists}</Text>
-                    <View style={styles.statBarContainer}>
-                      <View style={styles.statLabelContainer}>
-                        <Text style={styles.statLabel}>Assists</Text>
-                      </View>
-                      <View style={styles.statBarWrapper}>
-                        <View 
-                          style={[
-                            styles.statBar, 
-                            styles.homeStatBar, 
-                            { width: `${(item.homeAssists / (item.homeAssists + item.awayAssists)) * 100}%` }
-                          ]} 
-                        />
-                        <View 
-                          style={[
-                            styles.statBar, 
-                            styles.awayStatBar, 
-                            { width: `${(item.awayAssists / (item.homeAssists + item.awayAssists)) * 100}%` }
-                          ]} 
-                        />
-                      </View>
-                    </View>
-                    <Text style={styles.awayStatValue}>{item.awayAssists}</Text>
-                  </View>
-                </View>
+                <Text style={styles.teamName} numberOfLines={2} ellipsizeMode="tail">
+                  {item.homeTeam}
+                </Text>
+                <Text style={[styles.teamScore, scoreStyles.homeStyle]}>
+                  {item.homeScore}
+                </Text>
               </View>
-
-              {/* Highlights */}
-              {item.highlights && item.highlights.length > 0 && (
-                <View style={styles.highlightsContainer}>
-                  <Text style={styles.highlightsTitle}>Highlights</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.highlightsScroll}>
-                    {item.highlights.map((highlight, index) => (
-                      <TouchableOpacity key={index} style={styles.highlightThumbnail}>
-                        <Image source={{ uri: highlight }} style={styles.highlightImage} />
-                        <View style={styles.playIconContainer}>
-                          <FontAwesome6 name="play" size={16} color="#FFF" />
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+              
+              {/* VS Divider with Date */}
+              <View style={styles.vsSection}>
+                <View style={styles.vsContainer}>
+                  <Text style={styles.vsText}>VS</Text>
                 </View>
-              )}
-
-              {/* View Full Details Button */}
-              <TouchableOpacity style={styles.viewDetailsButton}>
-                <Text style={styles.viewDetailsText}>View Full Match Details</Text>
-                <MaterialIcons name="arrow-forward-ios" size={16} color="#FFD700" />
-              </TouchableOpacity>
+                <Text style={styles.finalScoreText}>
+                  {item.homeScore} - {item.awayScore}
+                </Text>
+                {/* Add centered date here */}
+                <Text style={styles.centerDateText}>
+                  {item.status === 'scheduled' 
+                    ? `${dayjs(item.date).format("MMM DD")} • ${dayjs(item.date).format("h:mm A")}`
+                    : dayjs(item.date).format("MMM DD, YYYY")}
+                </Text>
+              </View>
+              
+              {/* Away Team Section */}
+              <View style={styles.teamSection}>
+                <View style={styles.teamLogoContainer}>
+                  <Image
+                    source={resolveImageSource(item.awayTeamLogo, images.teamLogo)}
+                    style={styles.teamLogo}
+                  />
+                </View>
+                <Text style={styles.teamName} numberOfLines={2} ellipsizeMode="tail">
+                  {item.awayTeam}
+                </Text>
+                <Text style={[styles.teamScore, scoreStyles.awayStyle]}>
+                  {item.awayScore}
+                </Text>
+              </View>
             </View>
-          )}
+
+            {/* Venue */}
+            <View style={styles.venueContainer}>
+              <Text style={styles.venueText}>{item.venue}</Text>
+            </View>
+
+            {/* Expanded content if needed */}
+            {isExpanded && (() => {
+              const matchDetails = getMatchDetails(item.id);
+              return (
+                <View style={styles.expandedContent}>
+                  {matchDetails && (
+                    <View style={styles.matchInfoContainer}>
+                      <Text style={styles.matchInfoTitle}>Match Information</Text>
+                      <View style={styles.matchInfoContent}>
+                        <Text style={styles.matchInfoLabel}>
+                          Home Team: <Text style={styles.matchInfoValue}>{matchDetails.homeTeamName}</Text>
+                        </Text>
+                        <Text style={styles.matchInfoLabel}>
+                          Away Team: <Text style={styles.matchInfoValue}>{matchDetails.awayTeamName}</Text>
+                        </Text>
+                        <Text style={styles.matchInfoLabel}>
+                          Final Score: <Text style={styles.matchInfoValue}>{matchDetails.homeScore} - {matchDetails.awayScore}</Text>
+                        </Text>
+                        {matchDetails.locationName && (
+                          <Text style={styles.matchInfoLabel}>
+                            Location: <Text style={styles.matchInfoValue}>{matchDetails.locationName}</Text>
+                          </Text>
+                        )}
+                        {matchDetails.courtName && (
+                          <Text style={styles.matchInfoLabel}>
+                            Court: <Text style={styles.matchInfoValue}>{matchDetails.courtName}</Text>
+                          </Text>
+                        )}
+                        {matchDetails.startTime && (
+                          <Text style={styles.matchInfoLabel}>
+                            Start Time: <Text style={styles.matchInfoValue}>{dayjs(matchDetails.startTime).format("MMM DD, YYYY h:mm A")}</Text>
+                          </Text>
+                        )}
+                        {matchDetails.status && (
+                          <Text style={styles.matchInfoLabel}>
+                            Status: <Text style={styles.matchInfoValue}>{matchDetails.status.toUpperCase()}</Text>
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
+          </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
     );
   };
 
+
   const renderFilterModal = () => {
     if (!showFilters) {
       return null;
     }
-    
+
     return (
       <Animated.View
+        pointerEvents={showFilters ? "auto" : "none"}
         style={[
           styles.filterModal,
           {
@@ -358,28 +536,7 @@ const MatchHistory: React.FC = () => {
           </TouchableOpacity>
         </View>
         
-        <View style={styles.filterContent}>
-          {/* League Filter */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>League</Text>
-            <View style={styles.filterOptions}>
-              {['NBA', 'EuroLeague', 'NCAA', 'FIBA'].map(league => (
-                <TouchableOpacity 
-                  key={league}
-                  style={[
-                    styles.filterOption,
-                    filterOptions.league === league && styles.filterOptionSelected
-                  ]}
-                  onPress={() => toggleLeagueFilter(league)}
-                >
-                  <Text style={[
-                    styles.filterOptionText,
-                    filterOptions.league === league && styles.filterOptionTextSelected
-                  ]}>{league}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+        <View style={styles.filterContent}>          
           
           {/* Date Range Filter */}
           <View style={styles.filterSection}>
@@ -433,23 +590,46 @@ const MatchHistory: React.FC = () => {
   };
 
   const renderEmptyList = () => {
-    if (loading) {
+    if (status === "loading") {
       return (
         <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
-          <Text style={styles.emptyText}>Loading matches...</Text>
+          <ActivityIndicator size="large" color="#FCA311" />
+          <Text style={styles.emptyText}>Loading match history...</Text>
+        </View>
+      );
+    }
+
+    if (status === "failed" && gamesError) {
+      return (
+        <View style={styles.emptyContainer}>
+          <FontAwesome6 name="exclamation-circle" size={50} color="#FF4444" />
+          <Text style={styles.emptyText}>Error Loading Match History</Text>
+          <Text style={styles.emptySubtext}>{gamesError}</Text>
+          <TouchableOpacity style={styles.resetFiltersButton} onPress={handleRefresh}>
+            <Text style={styles.resetFiltersText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       );
     }
     
     return (
       <View style={styles.emptyContainer}>
-        <FontAwesome6 name="trophy" size={50} color="#333" />
-        <Text style={styles.emptyText}>No matches found</Text>
-        <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
-        <TouchableOpacity style={styles.resetFiltersButton} onPress={resetFilters}>
-          <Text style={styles.resetFiltersText}>Reset Filters</Text>
-        </TouchableOpacity>
+        <FontAwesome6 name="clock-rotate-left" size={50} color="#FCA311" />
+        <Text style={styles.emptyText}>No match history found</Text>
+        <Text style={styles.emptySubtext}>
+          {filteredMatches.length === 0 && matches.length > 0 
+            ? "Try adjusting your filters" 
+            : "You don't have any completed matches yet"}
+        </Text>
+        {filteredMatches.length === 0 && matches.length > 0 ? (
+          <TouchableOpacity style={styles.resetFiltersButton} onPress={resetFilters}>
+            <Text style={styles.resetFiltersText}>Reset Filters</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.resetFiltersButton} onPress={handleRefresh}>
+            <Text style={styles.resetFiltersText}>Refresh</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -459,11 +639,10 @@ const MatchHistory: React.FC = () => {
       <StatusBar translucent style="light" />
       
 
-      <Animated.View 
+      <Animated.View
         style={[
-          styles.header, 
-          { 
-            height: headerHeight,
+          styles.header,
+          {
             opacity: headerOpacity,
           }
         ]}
@@ -513,25 +692,25 @@ const MatchHistory: React.FC = () => {
               <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>All</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.tab, activeTab === 'live' && styles.activeTab]} 
-              onPress={() => handleTabChange('live')}
+              style={[styles.tab, activeTab === 'in_progress' && styles.activeTab]} 
+              onPress={() => handleTabChange('in_progress')}
             >
               <View style={styles.tabContent}>
                 <View style={styles.liveDotSmall} />
-                <Text style={[styles.tabText, activeTab === 'live' && styles.activeTabText]}>Live</Text>
+                <Text style={[styles.tabText, activeTab === 'in_progress' && styles.activeTabText]}>IN PROGRESS</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]} 
-              onPress={() => handleTabChange('upcoming')}
+              style={[styles.tab, activeTab === 'scheduled' && styles.activeTab]} 
+              onPress={() => handleTabChange('scheduled')}
             >
-              <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>Upcoming</Text>
+              <Text style={[styles.tabText, activeTab === 'scheduled' && styles.activeTabText]}>SCHEDULED</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.tab, activeTab === 'completed' && styles.activeTab]} 
               onPress={() => handleTabChange('completed')}
             >
-              <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>Completed</Text>
+              <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>COMPLETED</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -545,11 +724,25 @@ const MatchHistory: React.FC = () => {
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
+            {
+              useNativeDriver: true, // Use native driver to avoid JS thread blocking
+              listener: (event: any) => {
+                // Only update if component is still mounted
+                if (fetchInteractionRef.current !== null) {
+                  // Additional scroll handling can go here if needed
+                }
+              }
+            }
           )}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           ListEmptyComponent={renderEmptyList}
+          // Performance optimizations to prevent freeze
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
+          removeClippedSubviews={true}
+          updateCellsBatchingPeriod={50}
         />
       </Animated.View>
 
@@ -596,7 +789,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
   },
   content: {
     flex: 1,
@@ -639,7 +832,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1A1A1A",
   },
   activeTab: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
   },
   tabContent: {
     flexDirection: "row",
@@ -665,18 +858,20 @@ const styles = StyleSheet.create({
   matchCardContainer: {
     marginBottom: 15,
   },
-  matchCard: {
-    backgroundColor: "#1A1A1A",
+  matchCardTouchable: {
     borderRadius: 15,
-    padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
+    overflow: 'hidden', 
   },
-  matchCardExpanded: {
-    backgroundColor: "#222",
+    matchCardGradient: {
+    flex: 1, // Important: makes gradient fill container
+    padding: 16,
+    borderRadius: 15,
+    minHeight: 120, // Ensures consistent height
   },
   liveMatchCard: {
     borderLeftWidth: 3,
@@ -689,7 +884,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   leagueText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontWeight: "bold",
     fontSize: 12,
   },
@@ -722,55 +917,70 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "bold",
   },
+  completedText: {
+    color: "#9E9E9E",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
   matchHeader: {
     flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    marginVertical: 16,
+    paddingHorizontal: 8,
+  },
+  teamSection: {
+    flex: 1,
     alignItems: "center",
-    marginVertical: 10,
+    paddingHorizontal: 8,
   },
   teamContainer: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+    minWidth: 0, // Allow shrinking
   },
   awayTeamContainer: {
     justifyContent: "flex-end",
+    flexDirection: "row-reverse", // Logo on the right for away team
+  },
+  teamLogoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#2A2A2A",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "#3A3A3A",
   },
   teamLogo: {
     width: 40,
     height: 40,
-    resizeMode: "contain",
+    borderRadius: 20,
   },
   teamName: {
     color: "#FFF",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginHorizontal: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 8,
+    minHeight: 36,
+    lineHeight: 18,
   },
   scoreContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
+    minWidth: 80, // Fixed minimum width for score area
+    maxWidth: 100, // Maximum width to prevent expansion
   },
-  score: {
+  teamScore: {
     fontSize: 24,
     fontWeight: "bold",
-    marginHorizontal: 5,
-  },
-  winningScore: {
-    color: "#FFD700",
-  },
-  losingScore: {
-    color: "#AAA",
-  },
-  tieScore: {
-    color: "#FFF",
-  },
-  vsText: {
-    color: "#AAA",
-    fontSize: 18,
-    fontWeight: "bold",
+    textAlign: "center",
   },
   venueText: {
     color: "#AAA",
@@ -779,10 +989,156 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   expandedContent: {
-    marginTop: 15,
+    marginTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(252, 163, 17, 0.3)",
+    paddingTop: 20,
+  },
+  matchInfoContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "rgba(252, 163, 17, 0.2)",
+  },
+    vsSection: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    minWidth: 80,
+  },
+  
+  vsContainer: {
+    backgroundColor: "#2A2A2A",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  
+  vsText: {
+    color: "#AAA",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  
+  finalScoreText: {
+    color: "#FCA311",
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  
+  venueContainer: {
+    alignItems: "center",
+    marginTop: 8,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: "#333",
-    paddingTop: 15,
+  },
+    winningScore: {
+    color: "#4CAF50", // Changed from "#FCA311"
+  },
+  losingScore: {
+    color: "#FF6B6B", // Changed from "#AAA"
+  },
+  tieScore: {
+    color: "#FCA311", // Changed from "#FFF"
+  },
+  centerDateText: {
+    color: "#AAA",
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+  matchInfoTitle: {
+    color: "#FCA311",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  matchInfoContent: {
+    gap: 4,
+  },
+  matchInfoLabel: {
+    color: "#AAA",
+    fontSize: 14,
+  },
+  matchInfoValue: {
+    color: "#FFF",
+    fontWeight: "600",
+  },
+  infoMessageContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 215, 0, 0.1)",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+  },
+  infoMessageText: {
+    color: "#FCA311",
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
+  },
+  basicStatsContainer: {
+    backgroundColor: "#1F1F1F",
+    borderRadius: 8,
+    padding: 15,
+    marginTop: 10,
+  },
+  basicStatsTitle: {
+    color: "#FCA311",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  basicStatsContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  basicStatItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  basicStatTeam: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  basicStatScore: {
+    color: "#FCA311",
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  basicStatLabel: {
+    color: "#AAA",
+    fontSize: 12,
+  },
+  basicStatVs: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 10,
+  },
+  basicStatVsText: {
+    color: "#666",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  statPlaceholder: {
+    color: "#AAA",
+    fontSize: 14,
+    textAlign: "center",
+    fontStyle: "italic",
+    paddingVertical: 20,
   },
   mvpContainer: {
     marginBottom: 20,
@@ -793,7 +1149,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   mvpTitle: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 16,
     fontWeight: "bold",
     marginLeft: 8,
@@ -810,7 +1166,7 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 35,
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: "#FCA311",
   },
   mvpStatsContainer: {
     flex: 1,
@@ -827,7 +1183,7 @@ const styles = StyleSheet.create({
     minWidth: 60,
   },
   statBubbleValue: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -917,7 +1273,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     marginTop: 5,
   },
   timelineLine: {
@@ -933,7 +1289,7 @@ const styles = StyleSheet.create({
     marginLeft: 15,
   },
   timelineTime: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     fontWeight: "bold",
   },
@@ -998,7 +1354,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   viewDetailsText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
     fontWeight: "bold",
     marginRight: 5,
@@ -1059,7 +1415,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   filterOptionSelected: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
   },
   filterOptionText: {
     color: "#FFF",
@@ -1120,7 +1476,7 @@ const styles = StyleSheet.create({
     flex: 2,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     borderRadius: 10,
     paddingVertical: 15,
   },

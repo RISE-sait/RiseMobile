@@ -41,16 +41,11 @@ export const useSignupSubmission = (
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       }
 
-      console.log("📡 Sending Sign-Up Request:", {
-        email: formData.email,
-        password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        role: formData.role,
-        age,
-        fullPhoneNumber,
-        country: formData.country.cca2,
-      })
+
+      // Format emergency contact phone with country code
+      const fullEmergencyPhone = formData.role === "athlete"
+        ? `+${formData.emergencyContactPhoneCountry.callingCode?.[0] || "1"}${formData.emergencyContactPhone}`
+        : ""
 
       // Send request to your register function
       const response = await register(
@@ -59,12 +54,18 @@ export const useSignupSubmission = (
         formData.firstName,
         formData.lastName,
         formData.role,
-        age,
+        formData.dateOfBirth,
         fullPhoneNumber,
         formData.country.cca2,
+        // Additional fields for athletes
+        formData.role === "athlete" ? {
+          gender: formData.gender,
+          emergencyContactName: formData.emergencyContactName,
+          emergencyContactPhone: fullEmergencyPhone,
+          emergencyContactRelationship: formData.emergencyContactRelationship,
+        } : undefined,
       )
 
-      console.log("✅ Registration Successful:", response)
 
       // Show verification pending screen
       setRegistrationComplete(true)

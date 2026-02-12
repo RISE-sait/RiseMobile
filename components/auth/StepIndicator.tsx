@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#333",
   },
   activeStepDot: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FCA311",
     width: 12,
     height: 12,
     borderRadius: 6,

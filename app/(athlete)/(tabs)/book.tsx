@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import {
   ScrollView,
   View,
@@ -11,20 +11,27 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  ActivityIndicator,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
+import { useRouter, useFocusEffect } from "expo-router"
 import { FontAwesome5, Ionicons, Feather, AntDesign } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 import { StatusBar } from "expo-status-bar"
+import { useAppSelector } from "@/store/hooks"
+import { getUpcomingBookings } from "@/utils/api"
+import EmptyBookingsState from "@/components/feedback/EmptyBookingState"
+import images from "@/constants/images"
+import { resolveImageSource } from "@/utils/imageSource"
+import Constants from "expo-constants"
 
 const { width } = Dimensions.get("window")
 const cardWidth = width * 0.85
 
 // Define color constants
 const COLORS = {
-  primary: "#FFD700",
-  primaryDark: "#E6C200",
+  primary: "#FCA311",
+  primaryDark: "#D4890E",
   background: "#0C0B0B",
   card: "#1A1A1A",
   cardDark: "#141414",
@@ -36,108 +43,30 @@ const COLORS = {
   info: "#2196F3",
 }
 
-// Mock data for upcoming bookings
-const upcomingBookings = [
-  {
-    id: "1",
-    type: "Drop-In",
-    location: "Main Basketball Court",
-    date: "Today",
-    time: "7:00 PM - 9:00 PM",
-    status: "Confirmed",
-    icon: "basketball-ball",
-  },
-  {
-    id: "2",
-    type: "Haircut",
-    location: "Courtside Kutz",
-    date: "Tomorrow",
-    time: "2:30 PM - 3:15 PM",
-    status: "Pending",
-    icon: "cut",
-  },
-  {
-    id: "3",
-    type: "Recovery",
-    location: "Recovery Room",
-    date: "Sat, Jun 15",
-    time: "11:00 AM - 12:00 PM",
-    status: "Confirmed",
-    icon: "bed",
-  },
-]
+const BOOKING_TIMEZONE = "America/Edmonton"
 
-// Mock data for featured facilities
+// Upcoming bookings are now loaded from API - removed unused constant
+
+// Featured facilities - RISE Courts (Courtside Kutz hidden until fully working)
 const featuredFacilities = [
   {
     id: "1",
-    title: "Drop-In Sessions",
-    description: "Join open basketball sessions with other athletes",
+    title: "RISE Courts",
+    description: "Book basketball courts with real-time availability",
     image:
       "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
-    route: "/screens/booking-options/DropIn",
-  },
-  {
-    id: "2",
-    title: "Courtside Kutz",
-    description: "Book your next haircut with our professional barbers",
-    image:
-      "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    route: "/screens/booking-options/CourtsideKutz",
-  },
-  {
-    id: "3",
-    title: "Recovery Room",
-    description: "State-of-the-art recovery equipment now available",
-    image:
-      "https://images.unsplash.com/photo-1570691079236-4bca6c45d440?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    route: "/screens/booking-options/RecoveryRoom",
+    route: "/screens/booking-options/Courts",
   },
 ]
 
-// Booking options with availability status
+// Booking options with availability status - RISE Courts (Courtside Kutz hidden until fully working)
 const bookingOptions = [
   {
-    title: "Basketball Court",
+    title: "RISE Courts",
     icon: "basketball-ball",
-    route: "/screens/booking-options/DropIn",
+    route: "/screens/booking-options/Courts",
     availability: "High",
     color: "#FF7043",
-  },
-  {
-    title: "Gym",
-    icon: "dumbbell",
-    route: "/screens/comingSoon",
-    availability: "Medium",
-    color: "#66BB6A",
-  },
-  {
-    title: "Recovery Room",
-    icon: "bed",
-    route: "/screens/comingSoon",
-    availability: "Low",
-    color: "#42A5F5",
-  },
-  {
-    title: "Physiotherapy",
-    icon: "user-md",
-    route: "/screens/comingSoon",
-    availability: "Medium",
-    color: "#AB47BC",
-  },
-  {
-    title: "Courtside Kutz",
-    icon: "cut",
-    route: "/screens/booking-options/CourtsideKutz",
-    availability: "High",
-    color: "#FFA726",
-  },
-  {
-    title: "Training Sessions",
-    icon: "running",
-    route: "/screens/comingSoon",
-    availability: "High",
-    color: "#EC407A",
   },
 ]
 
@@ -147,9 +76,141 @@ const AthleteBook = () => {
   const [filteredOptions, setFilteredOptions] = useState(bookingOptions)
   const scrollX = useRef(new Animated.Value(0)).current
 
+  // Real upcoming bookings state
+  const [realUpcomingBookings, setRealUpcomingBookings] = useState<any[]>([])
+  const [isLoadingBookings, setIsLoadingBookings] = useState(true)
+  const [bookingsError, setBookingsError] = useState<string | null>(null)
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(50)).current
+
+  // Guard to prevent double-fetch on mount + focus
+  const hasLoadedRef = useRef(false)
+
+  // Get user from Redux store
+  const user = useAppSelector((state) => state.user.data)
+
+  // Fetch real upcoming bookings function
+  const fetchUpcomingBookings = useCallback(async () => {
+    if (!user?.token || !user?.id) {
+      setIsLoadingBookings(false)
+      return
+    }
+
+    try {
+      setIsLoadingBookings(true)
+      setBookingsError(null)
+      
+      const bookings = await getUpcomingBookings(user.token)
+      
+      // Transform API data to match the expected format
+      // API returns: { haircuts: [...], playground: [...] }
+      let allBookings: any[] = []
+      
+      if (bookings && typeof bookings === 'object') {
+        // Extract haircut bookings
+        if (Array.isArray(bookings.haircuts)) {
+          allBookings = [...allBookings, ...bookings.haircuts]
+        }
+        
+        // Extract playground bookings  
+        if (Array.isArray(bookings.playground)) {
+          allBookings = [...allBookings, ...bookings.playground]
+        }
+      } else if (Array.isArray(bookings)) {
+        // Fallback for array format
+        allBookings = bookings
+      }
+      
+      if (allBookings.length > 0) {
+        const parseDateTime = (dateTimeStr: string) => {
+          if (!dateTimeStr) return { date: "TBD", time: "TBD" }
+
+          try {
+            let normalized = dateTimeStr.trim()
+            if (normalized.includes(' -0600 -0600')) {
+              normalized = normalized.replace(' -0600 -0600', ' -0600')
+            }
+            if (normalized.includes(' ') && !normalized.includes('T')) {
+              normalized = normalized.replace(' ', 'T')
+            }
+
+            const parsedDate = new Date(normalized)
+            if (Number.isNaN(parsedDate.getTime())) {
+              return { date: "TBD", time: "TBD" }
+            }
+
+            const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+              month: 'short',
+              day: 'numeric',
+              timeZone: BOOKING_TIMEZONE,
+            })
+
+            const timeFormatter = new Intl.DateTimeFormat('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+              timeZone: BOOKING_TIMEZONE,
+            })
+
+            return {
+              date: dateFormatter.format(parsedDate),
+              time: timeFormatter.format(parsedDate),
+            }
+          } catch (error) {
+            return { date: "TBD", time: "TBD" }
+          }
+        }
+
+        const transformedBookings = allBookings.map((booking: any, index: number) => {
+          const { date, time } = parseDateTime(booking.start_at)
+          
+          return {
+            id: booking.id || `booking-${index}`,
+            type: booking.barber_name ? "Haircut" : booking.service_name || booking.type || "Appointment",
+            location: booking.location || "Courtside Kutz", 
+            date: date,
+            time: time,
+            status: booking.status || "Confirmed",
+            icon: booking.barber_name || booking.service_name?.toLowerCase().includes('haircut') || booking.service_name?.toLowerCase().includes('cut') 
+                  ? "cut" 
+                  : booking.type?.toLowerCase().includes('basketball')
+                  ? "basketball-ball"
+                  : "calendar"
+          }
+        })
+        
+        setRealUpcomingBookings(transformedBookings)
+      } else {
+        setRealUpcomingBookings([])
+      }
+    } catch (error) {
+      setBookingsError("Failed to load upcoming bookings")
+      setRealUpcomingBookings([])
+    } finally {
+      setIsLoadingBookings(false)
+    }
+  }, [user?.token, user?.id])
+
+  // Fetch bookings on component mount only (not on every focus)
+  useEffect(() => {
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true
+      fetchUpcomingBookings()
+    }
+  }, [fetchUpcomingBookings])
+
+  // Refresh bookings when tab gains focus (user returns from booking flow)
+  // Skip the first focus event since useEffect already handles mount
+  useFocusEffect(
+    useCallback(() => {
+      if (hasLoadedRef.current) {
+        // Only refetch if we've already loaded once (i.e., this is a return visit)
+        fetchUpcomingBookings()
+      }
+    }, [fetchUpcomingBookings])
+  )
 
   useEffect(() => {
     // Start animations when component mounts
@@ -175,14 +236,14 @@ const AthleteBook = () => {
     }
   }, [searchQuery])
 
-  const handleOptionPress = (route) => {
+  const handleOptionPress = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     if (route) {
-      router.push(route)
+      router.push(route as any)
     }
   }
 
-  const getAvailabilityColor = (availability) => {
+  const getAvailabilityColor = (availability: string) => {
     switch (availability) {
       case "High":
         return COLORS.success
@@ -195,7 +256,7 @@ const AthleteBook = () => {
     }
   }
 
-  const renderFeaturedItem = ({ item, index }) => {
+  const renderFeaturedItem = ({ item, index }: { item: any; index: number }) => {
     const inputRange = [(index - 1) * cardWidth, index * cardWidth, (index + 1) * cardWidth]
 
     const opacity = scrollX.interpolate({
@@ -224,7 +285,7 @@ const AthleteBook = () => {
           }}
         >
           <Image
-            source={{ uri: item.image }}
+            source={resolveImageSource(item.image, images.events)}
             style={{
               width: "100%",
               height: "100%",
@@ -250,7 +311,7 @@ const AthleteBook = () => {
     )
   }
 
-  const renderUpcomingBooking = ({ item }) => {
+  const renderUpcomingBooking = ({ item }: { item: any }) => {
     const statusColor = item.status === "Confirmed" ? COLORS.success : COLORS.warning
 
     return (
@@ -400,33 +461,69 @@ const AthleteBook = () => {
           </View>
 
           {/* Upcoming Bookings */}
-          {upcomingBookings.length > 0 && (
-            <View style={{ marginBottom: 24 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  paddingHorizontal: 20,
-                  marginBottom: 12,
-                }}
-              >
-                <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Bookings</Text>
+          <View style={{ marginBottom: 24 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingHorizontal: 20,
+                marginBottom: 12,
+              }}
+            >
+              <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "bold" }}>Upcoming Bookings</Text>
+              {realUpcomingBookings.length > 0 && (
                 <TouchableOpacity>
                   <Text style={{ color: COLORS.primary, fontSize: 14 }}>View All</Text>
                 </TouchableOpacity>
-              </View>
+              )}
+            </View>
 
-              <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ paddingHorizontal: 20 }}>
+              {isLoadingBookings ? (
+                <View style={{ 
+                  backgroundColor: COLORS.card, 
+                  borderRadius: 12, 
+                  padding: 20, 
+                  alignItems: 'center' 
+                }}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={{ color: COLORS.textSecondary, marginTop: 8 }}>Loading your bookings...</Text>
+                </View>
+              ) : bookingsError ? (
+                <View style={{ 
+                  backgroundColor: COLORS.card, 
+                  borderRadius: 12, 
+                  padding: 20, 
+                  alignItems: 'center' 
+                }}>
+                  <FontAwesome5 name="exclamation-triangle" size={24} color={COLORS.warning} />
+                  <Text style={{ color: COLORS.textSecondary, marginTop: 8, textAlign: 'center' }}>
+                    {bookingsError}
+                  </Text>
+                </View>
+              ) : realUpcomingBookings.length > 0 ? (
                 <FlatList
-                  data={upcomingBookings}
+                  data={realUpcomingBookings}
                   renderItem={renderUpcomingBooking}
                   keyExtractor={(item) => item.id}
                   scrollEnabled={false}
                 />
-              </View>
+              ) : (
+                <EmptyBookingsState 
+                  userType="athlete" 
+                  onRefresh={fetchUpcomingBookings}
+                  isRefreshing={isLoadingBookings}
+                  colors={{
+                    card: COLORS.card,
+                    text: COLORS.text,
+                    textSecondary: COLORS.textSecondary,
+                    primary: COLORS.primary
+                  }}
+                />
+              )}
             </View>
-          )}
+          </View>
 
           {/* All Booking Options */}
           <View style={{ marginBottom: 24 }}>
@@ -514,4 +611,3 @@ const AthleteBook = () => {
 }
 
 export default AthleteBook
-

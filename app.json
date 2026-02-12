@@ -1,15 +1,21 @@
 {
   "expo": {
-    "name": "RISE",
+    "name": "RISE Sports Complex",
     "slug": "RiseMobile",
-    "version": "1.0.0",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/rise-icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "updates": {
+      "url": "https://u.expo.dev/3ba470f8-c0f8-431f-baad-6474e2cbe4a4"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
-      "image": "./assets/images/riseSplash.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -18,13 +24,14 @@
       "googleServicesFile": "./firebase/GoogleService-Info.plist",
       "supportsTablet": true,
       "splash": {
-        "image": "./assets/images/riseSplash.png",
+        "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#000000",
-        "tabletImage": "./assets/images/riseSplashTablet.png"
+        "backgroundColor": "#000000"
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "RISE Sports Platform needs access to your camera to take photos for your profile picture. Athletes, coaches, and other users can capture new photos to personalize their profiles and enhance their sports community experience.",
+        "NSPhotoLibraryUsageDescription": "RISE Sports Platform needs access to your photo library to select existing photos for your profile picture. Athletes, coaches, and other users can choose photos from their device to set as their profile picture and build their sports community presence."
       }
     },
     "android": {
@@ -36,18 +43,9 @@
         "backgroundColor": "#000000"
       },
       "splash": {
-        "mdpi": "./assets/images/riseSplash.png",
-        "hdpi": "./assets/images/riseSplash.png",
-        "xhdpi": "./assets/images/riseSplash.png",
-        "xxhdpi": "./assets/images/riseSplash.png",
-        "xxxhdpi": "./assets/images/riseSplash.png",
+        "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#000000",
-        "tabletMdpi": "./assets/images/riseSplashTablet.png",
-        "tabletHdpi": "./assets/images/riseSplashTablet.png",
-        "tabletXhdpi": "./assets/images/riseSplashTablet.png",
-        "tabletXxhdpi": "./assets/images/riseSplashTablet.png",
-        "tabletXxxhdpi": "./assets/images/riseSplashTablet.png"
+        "backgroundColor": "#000000"
       }
     },
     "web": {
@@ -56,14 +54,39 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "@react-native-community/datetimepicker",
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/rise-icon.png",
+          "color": "#000000",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-updates",
+        {
+          "username": "most45"
+        }
+      ],
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/riseSplash.png",
-          "tabletImage": "./assets/images/riseSplashTablet.png",
+          "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#000000",
+          "ios": {
+            "image": "./assets/images/splash-icon.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#000000"
+          },
+          "android": {
+            "image": "./assets/images/splash-icon.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#000000",
+            "imageWidth": 250
+          }
         }
       ],
       [
@@ -83,7 +106,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "1bde5dd0-c4d3-45e1-a396-b967024890ce"
+        "projectId": "3ba470f8-c0f8-431f-baad-6474e2cbe4a4"
       }
     }
   }

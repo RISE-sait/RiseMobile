@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Text, View, ScrollView, ActivityIndicator } from "react-native";
+import { Text, View, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
@@ -7,10 +7,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import UpcomingCard from "@/components/events/UpcomingCard";
-import QRCodeModal from "@/components/QRCodeModal";
-import GoToCards from "../../../components/GoToCards";
-import dayjs from "dayjs";
-import { mockMatches } from '@/app/(athlete)/screens/matchesData';
+import GoToCards, { type NavigationOption } from "../../../components/GoToCards";
+import { useAppSelector } from "@/store/hooks";
+import { useUpcomingEvent } from "@/hooks/useUpcomingEvent";
+import useScreenFocusLogger from "@/hooks/useScreenFocusLogger";
+
+
 
 type User = {
   id: string;
@@ -23,60 +25,91 @@ type User = {
   token: string;
   teamLogo?: string;
   phoneNumber?: string;
-  jerseyNumber?: number;};
+  jerseyNumber?: string | number;  // Support both string and number
+};
 
 
 
 export default function CoachHomeScreen() {
   const router = useRouter();
+  useScreenFocusLogger("CoachHome");
+  const reduxUser = useAppSelector((state) => state.user.data);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  
+  // Use the new hook to get upcoming events from /secure/schedule
+  const { upcomingEvent, loading: eventLoading, error: eventError } = useUpcomingEvent();
+
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const storedUser = await AsyncStorage.getItem("user");
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          console.log("📢 Loaded user from AsyncStorage:", parsedUser);
-          setUser(parsedUser);
+        // If we have user in Redux, use that
+        if (reduxUser) {
+          setUser(reduxUser);
+        } else {
+          // Otherwise try to load from AsyncStorage (backward compatibility)
+          const storedUser = await AsyncStorage.getItem("user");
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+          }
         }
       } catch (error) {
-        console.error("❌ Error loading user data:", error);
+        // Error loading user data silently handled
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchUser();
-  }, []);
+  }, [reduxUser]);
+  
 
   const toggleModal = () => {
     setModalVisible(!modalVisible);
   };
 
-  // Get today's date
-  const today = dayjs().format("YYYY-MM-DD");
-
-  // Filter upcoming matches/practices **only in the future**
-  const upcomingEvent = mockMatches
-    .filter((match) => ["match", "practice"].includes(match.type) && dayjs(match.date).isAfter(today))
-    .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())[0];
 
 
-  const navigationOptions = [
-    { label: "Team Roster", route: "/screens/teamRoster", image: images.teamRoster },
-    { label: "Training Schedule", route: "/coachCalendar", image: images.schedules },
-    { label: "Match History", route: "/screens/matchHistory", image: images.matchHistory },
-    { label: "Player Stats", route: "/screens/playerStats", image: images.playerStats },
+
+  const navigationOptions: NavigationOption[] = [
+    {
+      label: "Team Roster",
+      route: "/(coach)/screens/selectTeamForRoster",
+      icon: "users",
+      description: "Manage players & assignments",
+      colors: ["#FCA311", "#C36A04"] as [string, string],
+    },
+    {
+      label: "Training Schedule",
+      route: "/(coach)/(tabs)/coachCalendar",
+      icon: "calendar-check",
+      description: "Plan upcoming practices",
+      colors: ["#8E2DE2", "#4A00E0"] as [string, string],
+    },
+    {
+      label: "My Events",
+      route: "/(coach)/screens/my-events",
+      icon: "calendar-day",
+      description: "Events you're registered for",
+      colors: ["#2C3E50", "#3498DB"] as [string, string],
+    },
+    {
+      label: "Match History",
+      route: "/(coach)/screens/matchHistory",
+      icon: "trophy",
+      description: "Review results & stats",
+      colors: ["#0F2027", "#2C5364"] as [string, string],
+    },
   ];
 
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] items-center justify-center">
-        <ActivityIndicator size="large" color="#FFD700" />
+        <ActivityIndicator size="large" color="#FCA311" />
       </SafeAreaView>
     );
   }
@@ -84,30 +117,44 @@ export default function CoachHomeScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
-      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         
-        {/* QR Code Button */}
-        <QRCodeModal />
 
         {/* Header Section - Load user data dynamically */}
         <View className="w-full px-5 mt-20">
           {user ? (
-            <ProfileHeader 
-              firstName={user.firstName}
-              lastName={user.lastName}
-              role={user.role}
-              number={user?.role === "Player" && user.jerseyNumber ? user.jerseyNumber.toString() : "CJ"} // ✅ Only for players
-              profileImage={user.profileImage ? { uri: user.profileImage } : images.coachHeadshot}
-              countryCode={user?.countryCode || "US"} // ✅ Ensure countryCode is always defined
-              teamLogo={images.teamLogo}
-            />
+            user.profileImage ? (
+              <ProfileHeader 
+                firstName={user.firstName}
+                lastName={user.lastName}
+                role={user.role}
+                profileImage={{ uri: user.profileImage }}
+                countryCode={user?.countryCode || "US"} // ✅ Ensure countryCode is always defined
+                teamLogo={images.teamLogo}
+              />
+            ) : (
+              <View className="bg-[#111111] border border-[#222222] rounded-2xl p-4">
+                <Text className="text-white-100 font-Oswald-Bold text-lg">Add your profile photo</Text>
+                <Text className="text-[#cccccc] text-sm mt-2">
+                  Upload a picture to personalize your account and help your athletes recognize you.
+                </Text>
+                <TouchableOpacity
+                  className="mt-3 px-4 py-2 rounded-lg bg-[#FCA311]"
+                  onPress={() => router.push("/screens/edit-profile")}
+                  activeOpacity={0.85}
+                >
+                  <Text className="text-black font-semibold text-sm">Upload photo</Text>
+                </TouchableOpacity>
+              </View>
+            )
           ) : (
             <Text className="text-white text-center">User data not available</Text>
           )}
         </View>
+        
 
-        {/* Upcoming Game Section */}
-        {upcomingEvent && <UpcomingCard event={upcomingEvent} />}
+        {/* Upcoming Event Section - Using new /secure/schedule API */}
+        <UpcomingCard event={upcomingEvent} />
 
         {/* Navigation Buttons Section */}
         <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />

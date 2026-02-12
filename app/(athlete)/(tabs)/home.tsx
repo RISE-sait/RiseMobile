@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react"
-import { Text, View, ScrollView, ActivityIndicator } from "react-native"
+import { Text, View, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import dayjs from "dayjs"
 import { useAppSelector } from "@/store/hooks"
 
 import images from "@/constants/images"
-import GoToCards from "../../../components/GoToCards"
+import GoToCards, { type NavigationOption } from "../../../components/GoToCards"
 import UpcomingCard from "@/components/events/UpcomingCard"
 import ProfileHeader from "@/components/profile/ProfileHeader"
-import QRCodeModal from "@/components/QRCodeModal"
-import { mockMatches } from "../screens/matchesData"
+import QRCodeButton from "@/components/buttons/QRCodeButton"
+import { useUpcomingEvent } from "@/hooks/useUpcomingEvent"
 
 // Define User Type
 type User = {
@@ -27,16 +26,6 @@ type User = {
   token: string
 }
 
-// Define a common event interface to ensure type safety
-interface CommonEvent {
-  id: string
-  title: string
-  date: string
-  time: string
-  type: string
-  location?: string
-  description?: string
-}
 
 export default function AthleteHome() {
   const router = useRouter()
@@ -46,40 +35,47 @@ export default function AthleteHome() {
   const reduxUser = useAppSelector((state) => state.user.data)
   const [user, setUser] = useState<User | null>(null)
 
-  // Get events from Redux store
-  const events = useAppSelector((state) => state.events.items) || []
-  const games = useAppSelector((state) => state.games.items) || []
-  const practices = useAppSelector((state) => state.practices.items) || []
-  const courses = useAppSelector((state) => state.courses.items) || []
+  // Use the new hook to get upcoming events from /secure/schedule
+  const { upcomingEvent, loading: eventLoading, error: eventError } = useUpcomingEvent()
 
-  const [upcomingEvent, setUpcomingEvent] = useState<any>(null)
+  useEffect(() => {
+    if (__DEV__) {
+      console.log(`[Home] mounted at ${new Date().toISOString()}`)
+    }
+    return () => {
+      if (__DEV__) {
+        console.log(`[Home] unmounted at ${new Date().toISOString()}`)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const loadUser = async () => {
       try {
+        if (__DEV__) {
+          console.log('[Home] loadUser invoked', {
+            hasReduxUser: !!reduxUser,
+          })
+        }
         // If we have user in Redux, use that
         if (reduxUser) {
-          console.log("📢 Using user from Redux:", reduxUser)
           setUser(reduxUser)
         } else {
           // Otherwise try to load from AsyncStorage (backward compatibility)
           const storedUser = await AsyncStorage.getItem("user")
           if (storedUser) {
             const parsedUser = JSON.parse(storedUser)
-            console.log("📢 Loaded user from AsyncStorage:", parsedUser)
 
             setUser({
               ...parsedUser,
               firstName: parsedUser.firstName || parsedUser.first_name || "",
               lastName: parsedUser.lastName || parsedUser.last_name || "",
-              countryCode: parsedUser.countryCode || parsedUser.country_code || "US", // Ensure correct key
+              countryCode: parsedUser.countryCode || parsedUser.country_code || "US",
             })
-          } else {
-            console.log("⚠️ No user found in AsyncStorage.")
           }
         }
       } catch (error) {
-        console.error("❌ Error loading user:", error)
+        // Error loading user data
       } finally {
         setIsLoading(false)
       }
@@ -88,174 +84,106 @@ export default function AthleteHome() {
     loadUser()
   }, [reduxUser])
 
-  useEffect(() => {
-    const findUpcomingEvent = () => {
-      try {
-        // Safely map each event type to a common structure
-        const mapToCommonEvent = (item: any, type: string): CommonEvent => {
-          return {
-            id: item.id || "",
-            title: item.title || item.name || "Event",
-            date: item.date || dayjs().format("YYYY-MM-DD"),
-            time: item.time || "TBD",
-            type: type,
-            location: item.location || "RISE Basketball Facility",
-            description: item.description || "",
-          }
-        }
 
-        // Combine all event types from Redux with proper type checking
-        const allEvents: CommonEvent[] = [
-          ...(Array.isArray(events) ? events.map((event) => mapToCommonEvent(event, "event")) : []),
-          ...(Array.isArray(games) ? games.map((game) => mapToCommonEvent(game, "match")) : []),
-          ...(Array.isArray(practices) ? practices.map((practice) => mapToCommonEvent(practice, "practice")) : []),
-          ...(Array.isArray(courses) ? courses.map((course) => mapToCommonEvent(course, "course")) : []),
-        ]
-
-        // If we have events in Redux, use those
-        if (allEvents.length > 0) {
-          // Get today's date
-          const today = dayjs().format("YYYY-MM-DD")
-
-          // Filter upcoming events
-          const upcoming = allEvents
-            .filter((event) => {
-              try {
-                return dayjs(event.date).isAfter(today) || dayjs(event.date).isSame(today)
-              } catch (e) {
-                console.error("Invalid date format:", event.date, e)
-                return false
-              }
-            })
-            .sort((a, b) => {
-              try {
-                // First sort by date
-                const dateComparison = dayjs(a.date).unix() - dayjs(b.date).unix()
-                if (dateComparison !== 0) return dateComparison
-
-                // If same date, sort by time
-                return (a.time || "").localeCompare(b.time || "")
-              } catch (e) {
-                console.error("Error sorting events:", e)
-                return 0
-              }
-            })
-
-          if (upcoming.length > 0) {
-            const nextEvent = upcoming[0]
-            console.log("📢 Next upcoming event:", nextEvent)
-
-            // Convert to the format expected by UpcomingCard
-            setUpcomingEvent({
-              id: nextEvent.id,
-              date: nextEvent.date,
-              time: nextEvent.time,
-              title: nextEvent.title,
-              homeTeam: nextEvent.type === "match" ? "Home Team" : undefined,
-              awayTeam: nextEvent.type === "match" ? "Away Team" : undefined,
-              status: "Upcoming",
-              location: nextEvent.location || "RISE Basketball Facility",
-              description: nextEvent.title || nextEvent.description || "Upcoming Event",
-              // Use string URLs for images
-              homeLogo: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-              awayLogo: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-              bgImage:
-                "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-              type: nextEvent.type,
-            })
-            return
-          }
-        }
-
-        // Fall back to mock data if no events in Redux
-        fallbackToMockData()
-      } catch (error) {
-        console.error("❌ Error finding upcoming event:", error)
-        fallbackToMockData()
-      }
-    }
-
-    findUpcomingEvent()
-  }, [events, games, practices, courses])
-
-  // Fallback to mock data if needed
-  const fallbackToMockData = () => {
-    try {
-      // Get today's date
-      const today = dayjs().format("YYYY-MM-DD")
-
-      // Filter upcoming matches/practices **only in the future**
-      const filteredMatches = mockMatches
-        .filter((match) => ["match", "practice"].includes(match.type) && dayjs(match.date).isAfter(today))
-        .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())
-
-      if (filteredMatches.length > 0) {
-        const nextEvent = filteredMatches[0]
-
-        // Ensure we're setting proper string values for image URIs
-        setUpcomingEvent({
-          ...nextEvent,
-          title: nextEvent.description,
-          // Use string URLs for images
-          homeLogo: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-          awayLogo: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1780&auto=format&fit=crop",
-          bgImage:
-            "https://images.unsplash.com/photo-1504450758481-7338eba7524a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80",
-        })
-      } else {
-        setUpcomingEvent(null)
-      }
-    } catch (error) {
-      console.error("❌ Error in fallbackToMockData:", error)
-      setUpcomingEvent(null)
-    }
-  }
-
-  const navigationOptions = [
-    { label: "Schedule", route: "/calendar", image: images.schedules },
-    { label: "Events", route: "/screens/events", image: images.event },
-    { label: "Membership", route: "/screens/membership", image: images.memberships },
-    { label: "Store", route: "/screens/store/store", image: images.stores },
+  const navigationOptions: NavigationOption[] = [
+    {
+      label: "Schedule",
+      route: "/calendar",
+      icon: "calendar-days",
+      description: "View upcoming practices & games",
+      colors: ["#FCA311", "#C36A04"] as [string, string],
+    },
+    {
+      label: "Events",
+      route: "/screens/events",
+      icon: "ticket",
+      description: "Find & register for events",
+      colors: ["#8E2DE2", "#4A00E0"] as [string, string],
+    },
+    {
+      label: "My Events",
+      route: "/screens/my-events",
+      icon: "calendar-check",
+      description: "Events you're registered for",
+      colors: ["#2C3E50", "#3498DB"] as [string, string],
+    },
+    {
+      label: "Membership",
+      route: "/screens/membership",
+      icon: "crown",
+      description: "Manage your plan & perks",
+      colors: ["#0F2027", "#2C5364"] as [string, string],
+    },
   ]
 
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-[#0C0B0B] items-center justify-center">
-        <ActivityIndicator size="large" color="#FFD700" />
+        <ActivityIndicator size="large" color="#FCA311" />
         <Text className="text-white text-center mt-4">Loading user data...</Text>
       </SafeAreaView>
     )
   }
 
+  const handleNavigate = (route: string) => {
+    if (__DEV__) {
+      console.log(`[Home] navigate to ${route} at ${new Date().toISOString()}`)
+    }
+    router.push(route as any)
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0C0B0B" }}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
-      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+      >
         {/* QR Code Button */}
-        <QRCodeModal />
+        <View className="absolute top-8 left-10 z-50">
+          <QRCodeButton onPress={() => router.push("/modals/qr-code")} />
+        </View>
 
         {/* Header Section - Only render when user exists */}
-        <View className="w-full px-5 mt-20">
+        <View className="w-full px-5 mt-24">
           {user ? (
-            <ProfileHeader
-              firstName={user.firstName}
-              lastName={user.lastName}
-              role={user.role}
-              number={user?.jerseyNumber ? user.jerseyNumber.toString() : "0"} // Ensure it's a string
-              profileImage={user.profileImage ? { uri: user.profileImage } : images.headshot}
-              countryCode={user?.countryCode} // Ensure countryCode is always defined
-              teamLogo={images.teamLogo}
-            />
+            user.profileImage ? (
+              <ProfileHeader
+                firstName={user.firstName}
+                lastName={user.lastName}
+                role={user.role}
+                profileImage={{ uri: user.profileImage }}
+                countryCode={user?.countryCode}
+                teamLogo={user?.team?.logo}
+                onPress={() => router.push("/profile")}
+              />
+            ) : (
+              <View className="bg-[#111111] border border-[#222222] rounded-2xl p-4">
+                <Text className="text-white-100 font-Oswald-Bold text-lg">Add your profile photo</Text>
+                <Text className="text-[#cccccc] text-sm mt-2">
+                  Upload a picture to personalize your account and make check-ins faster.
+                </Text>
+                <TouchableOpacity
+                  className="mt-3 px-4 py-2 rounded-lg bg-[#FCA311]"
+                  onPress={() => router.push("/screens/edit-profile")}
+                  activeOpacity={0.85}
+                >
+                  <Text className="text-black font-semibold text-sm">Upload photo</Text>
+                </TouchableOpacity>
+              </View>
+            )
           ) : (
             <Text className="text-white text-center">User data not available</Text>
           )}
         </View>
 
-        {/* Upcoming Game Section */}
-        {upcomingEvent && <UpcomingCard event={upcomingEvent} />}
+        {/* Upcoming Event Section - Using new /secure/schedule API */}
+        <UpcomingCard event={upcomingEvent} />
 
         {/* Navigation Buttons Section */}
-        <GoToCards options={navigationOptions} handleNavigate={(route) => router.push(route as any)} />
+        <GoToCards options={navigationOptions} handleNavigate={handleNavigate} />
       </ScrollView>
     </SafeAreaView>
   )

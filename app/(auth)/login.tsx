@@ -6,9 +6,9 @@ import {
   Animated,
   Dimensions,
   StyleSheet,
-  TouchableWithoutFeedback,
-  Keyboard,
+  Alert,
 } from "react-native"
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useRouter } from "expo-router"
@@ -17,6 +17,17 @@ import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
 import { useDispatch } from "react-redux"
 import { setUser } from "@/store/slices/userSlice"
+import { setMembership } from "@/store/slices/membershipSlice"
+import type { User } from "@/types"
+import {
+  saveBiometricCredentials,
+  checkBiometricCapability,
+  isBiometricLoginEnabled,
+  getBiometricDisplayName,
+  type BiometricCredentials
+} from "@/utils/biometricAuth"
+
+
 
 // Components
 import { AnimatedLogo } from "@/components/auth/AnimatedLogo"
@@ -25,6 +36,7 @@ import { LoginForm } from "@/components/auth/LoginForm"
 import { SocialLogin } from "@/components/auth/SocialLogin"
 import { SignupLink } from "@/components/auth/SignupLink"
 import { ErrorToast } from "@/components/auth/ErrorToast"
+import BiometricLogin from "@/components/auth/BiometricLogin"
 
 const { height } = Dimensions.get("window")
 
@@ -37,6 +49,7 @@ interface ErrorState {
 const LoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<ErrorState>({})
+  const [lastLoginEmail, setLastLoginEmail] = useState<string>("")
   const { login, loginWithGoogle } = useAuth()
   const router = useRouter()
   const dispatch = useDispatch()
@@ -72,7 +85,6 @@ const LoginScreen = () => {
       }
 
       const user = await loginWithGoogle()
-      console.log("Google login successful:", user)
 
       // Store user in Redux
       if (user) {
@@ -97,85 +109,208 @@ const LoginScreen = () => {
   }
 
   // Email/Password Login Handler
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      setIsLoading(true)
+const handleLogin = async (email: string, password: string, saveForBiometric?: boolean) => {
+  try {
+    setIsLoading(true)
 
-      // Using the existing login function from useAuth
-      const user = await login(email, password)
+    const user = await login(email, password) as User;
 
-      console.log("User logged in:", user)
-
-      // Store user in Redux
-      if (user) {
-        dispatch(
-          setUser({
-            ...user,
-            isAuthenticated: true, // Add isAuthenticated property
-          }),
-        )
+    if (user) {
+      dispatch(setUser({ ...user, isAuthenticated: true }))
+      if (user.membership_info) {
+        dispatch(setMembership(user.membership_info))
       }
 
-      // Note: Navigation is already handled in the login function in auth.ts
-    } catch (error) {
-      console.error("Failed to login:", error)
+      // Save email for potential biometric setup
+      setLastLoginEmail(email)
+
+      // Save credentials for biometric login if requested
+      if (saveForBiometric) {
+        await saveBiometricCredentials({ email, password })
+      } else {
+        // Check and offer biometric setup after successful login (with a small delay for UX)
+        setTimeout(() => {
+          checkAndOfferBiometricSetup(email, password)
+        }, 1500)
+      }
+    }
+
+  } catch (error: any) {
+    // Handle different error codes with specific messages
+    if (error.code === "EMAIL_NOT_VERIFIED") {
+      Alert.alert(
+        "Email Not Verified",
+        "Please verify your email address before logging in. Check your inbox for the verification link.",
+        [
+          {
+            text: "Resend Email",
+            onPress: () => router.push(`/(auth)/resend-verification?email=${encodeURIComponent(email)}`),
+          },
+          {
+            text: "OK",
+            style: "cancel",
+          },
+        ]
+      )
+    } else if (error.code === "ACCOUNT_SUSPENDED") {
+      setErrors({
+        general: error.message || "Your account has been suspended. Please contact support for assistance."
+      })
+    } else if (error.code === "ACCOUNT_BANNED") {
+      setErrors({
+        general: error.message || "Your account has been banned. Please contact support for assistance."
+      })
+    } else if (error.code === "PERMISSION_DENIED") {
+      setErrors({
+        general: error.message || "Access denied. Please check your account status or contact support."
+      })
+    } else {
       setErrors({ general: "Invalid email or password. Please try again." })
-      // Trigger haptic feedback for error
-      if (Platform.OS === "ios") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      }
-    } finally {
-      setIsLoading(false)
+    }
+
+    if (Platform.OS === "ios") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+    }
+  } finally {
+    setIsLoading(false)
+  }
+}
+
+// Handle biometric login
+const handleBiometricLogin = async (credentials: BiometricCredentials) => {
+  await handleLogin(credentials.email, credentials.password)
+}
+
+// Check and offer biometric setup after successful login
+const checkAndOfferBiometricSetup = async (email: string, password: string) => {
+  try {
+    // Check if device supports biometrics
+    const capability = await checkBiometricCapability()
+    if (!capability.isAvailable) return
+
+    // Check if biometric login is already enabled
+    const isAlreadyEnabled = await isBiometricLoginEnabled()
+    if (isAlreadyEnabled) return
+
+    // Offer biometric setup
+    const biometricName = getBiometricDisplayName(capability.biometricType)
+
+    Alert.alert(
+      `Enable ${biometricName} Login?`,
+      `Would you like to use ${biometricName} for faster and more secure sign-ins?`,
+      [
+        {
+          text: "Not Now",
+          style: "cancel",
+        },
+        {
+          text: "Enable",
+          style: "default",
+          onPress: async () => {
+            const success = await saveBiometricCredentials({ email, password })
+            if (success) {
+              Alert.alert(
+                "Success!",
+                `${biometricName} login has been enabled. You can now use ${biometricName} to sign in.`,
+                [{ text: "OK", style: "default" }]
+              )
+              // Success haptic feedback
+              if (Platform.OS === "ios") {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+              }
+            } else {
+              Alert.alert(
+                "Setup Failed",
+                `Unable to set up ${biometricName} login. Please try again later.`,
+                [{ text: "OK", style: "default" }]
+              )
+            }
+          },
+        },
+      ]
+    )
+  } catch (error) {
+    // Biometric setup check failed silently
+  }
+}
+
+// Handle enabling biometric login after successful password login
+const handleEnableBiometric = async (email: string, password: string) => {
+  const success = await saveBiometricCredentials({ email, password })
+  if (success) {
+    // Show success feedback
+    if (Platform.OS === "ios") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     }
   }
+}
+
 
   return (
     <View style={styles.outerContainer}>
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
       <SafeAreaView style={styles.container} edges={["top"]}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={styles.keyboardAvoidView}
-          >
-            <View style={styles.fullScreenBackground}>
-              <LinearGradient
-                colors={["#000", "#000", "rgba(0,0,0,0.9)", "#121212"]}
-                style={[styles.gradientBackground, Platform.OS === "android" && styles.androidGradient]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.keyboardAvoidView}
+          keyboardVerticalOffset={0}
+        >
+          <View style={styles.fullScreenBackground}>
+            <LinearGradient
+              colors={["#000", "#000", "rgba(0,0,0,0.9)", "#121212"]}
+              style={styles.gradientBackground}
+            >
+              <KeyboardAwareScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                enableOnAndroid={true}
+                enableAutomaticScroll={true}
+                extraScrollHeight={20}
+                extraHeight={Platform.OS === "android" ? 120 : 80}
+                keyboardOpeningTime={250}
+                scrollEnabled={true}
               >
-                {/* Logo */}
-                <AnimatedLogo fadeAnim={fadeAnim} />
+                  {/* Logo */}
+                  <AnimatedLogo fadeAnim={fadeAnim} />
 
-                {/* Header */}
-                <LoginHeader fadeAnim={fadeAnim} slideAnim={slideAnim} />
+                  {/* Header */}
+                  <LoginHeader fadeAnim={fadeAnim} slideAnim={slideAnim} />
 
-                {/* Form Container */}
-                <Animated.View
-                  style={[
-                    styles.formContainer,
-                    {
-                      opacity: fadeAnim,
-                      transform: [{ translateY: slideAnim }],
-                    },
-                  ]}
-                >
-                  {/* Login Form */}
-                  <LoginForm onLogin={handleLogin} isLoading={isLoading} errors={errors} setErrors={setErrors} />
+                  {/* Form Container */}
+                  <Animated.View
+                    style={[
+                      styles.formContainer,
+                      {
+                        opacity: fadeAnim,
+                        transform: [{ translateY: slideAnim }],
+                      },
+                    ]}
+                  >
+                    {/* Login Form */}
+                    <LoginForm onLogin={handleLogin} isLoading={isLoading} errors={errors} setErrors={setErrors} />
 
-                  {/* Sign Up Link */}
-                  <SignupLink onPress={() => router.push("/(auth)/signup")} />
+                    {/* Biometric Login */}
+                    <BiometricLogin
+                      onBiometricLogin={handleBiometricLogin}
+                      onEnableBiometric={handleEnableBiometric}
+                      isLoading={isLoading}
+                      lastLoginEmail={lastLoginEmail}
+                    />
 
-                  {/* Social Login Options */}
-                  <SocialLogin onGoogleLogin={handleGoogleLogin} />
+                    {/* Sign Up Link */}
+                    <SignupLink onPress={() => router.push("/(auth)/signup")} />
 
-                  {/* Add bottom padding */}
-                  <View style={styles.bottomPadding} />
-                </Animated.View>
-              </LinearGradient>
-            </View>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
+                    {/* Add bottom padding */}
+                    <View style={styles.bottomPadding} />
+                  </Animated.View>
+              </KeyboardAwareScrollView>
+            </LinearGradient>
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
 
       {/* Error message */}
@@ -208,17 +343,23 @@ const styles = StyleSheet.create({
   gradientBackground: {
     flex: 1,
     width: "100%",
-    height: "100%",
   },
-  androidGradient: {
-    height: height + 100, // Extra height for Android
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    minHeight: height, // Ensure minimum height for proper centering
+    paddingBottom: Platform.OS === "android" ? 120 : 80, // Extra bottom padding for keyboard
+    justifyContent: 'center',
   },
   formContainer: {
     paddingHorizontal: 30,
     flex: 1,
+    justifyContent: 'center',
   },
   bottomPadding: {
-    height: Platform.OS === "android" ? 100 : 50, // Extra padding for Android
+    height: Platform.OS === "android" ? 60 : 40, // Reduced padding since ScrollView handles it
   },
 })
 

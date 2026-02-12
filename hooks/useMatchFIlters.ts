@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import dayjs from 'dayjs';
 
-// Define types
-export type MatchStatus = 'upcoming' | 'live' | 'completed';
+// Define types - unified with backend API
+export type MatchStatus = 'scheduled' | 'in_progress' | 'completed' | 'canceled';
 export type FilterTab = 'all' | MatchStatus;
 
 export interface FilterOptions {
@@ -53,16 +53,16 @@ export interface Match {
   highlights?: string[];
 }
 
-export const useMatchFilters = (allMatches: Match[]) => {
+export const useMatchFilters = (allMatches: Match[], defaultTab: FilterTab = 'all') => {
   // State for filter UI
   const [showFilters, setShowFilters] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [activeTab, setActiveTab] = useState<FilterTab>(defaultTab);
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   // State for filter options
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     league: null,
-    status: 'all',
+    status: defaultTab,
     team: null,
     dateRange: {
       start: null,
@@ -134,8 +134,8 @@ export const useMatchFilters = (allMatches: Match[]) => {
 
   // Filter matches based on all criteria
   const filteredMatches = useMemo(() => {
-    console.log('Filtering matches with status:', activeTab);
-    console.log('Current matches:', allMatches.map(m => ({ id: m.id, status: m.status })));
+
+
     
     return allMatches.filter(match => {
       // Filter by tab/status

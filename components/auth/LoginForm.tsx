@@ -7,11 +7,16 @@ import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
 import { router } from "expo-router"
 
+interface LoginFormErrors {
+  email?: string | null
+  password?: string | null
+}
+
 interface LoginFormProps {
   onLogin: (email: string, password: string) => Promise<void>
   isLoading: boolean
-  errors: any
-  setErrors: (errors: any) => void
+  errors: LoginFormErrors
+  setErrors: (errors: LoginFormErrors) => void
 }
 
 export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormProps) => {
@@ -21,10 +26,10 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
   const [emailFocused, setEmailFocused] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
 
-  const passwordRef = useRef(null)
+  const passwordRef = useRef<TextInput>(null)
 
   const handleSubmit = async () => {
-    const newErrors = {}
+    const newErrors: LoginFormErrors = {}
 
     if (!email) newErrors.email = "Email is required"
     if (!password) newErrors.password = "Password is required"
@@ -46,7 +51,6 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
 
       await onLogin(email, password)
     } catch (error) {
-      console.error("Form submission error:", error)
     }
   }
 
@@ -64,7 +68,7 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
           <Ionicons
             name="mail-outline"
             size={20}
-            color={emailFocused ? "#FFD700" : "#9EA0A4"}
+            color={emailFocused ? "#FCA311" : "#9EA0A4"}
             style={styles.inputIcon}
           />
           <TextInput
@@ -98,7 +102,7 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
           <Ionicons
             name="lock-closed-outline"
             size={20}
-            color={passwordFocused ? "#FFD700" : "#9EA0A4"}
+            color={passwordFocused ? "#FCA311" : "#9EA0A4"}
             style={styles.inputIcon}
           />
           <TextInput
@@ -130,7 +134,7 @@ export const LoginForm = ({ onLogin, isLoading, errors, setErrors }: LoginFormPr
 
       <TouchableOpacity style={styles.loginButton} onPress={handleSubmit} disabled={isLoading}>
         <LinearGradient
-          colors={["#FFD700", "#FFA500"]}
+          colors={["#FCA311", "#E8920F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradientButton}
@@ -161,7 +165,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   inputWrapperFocused: {
-    borderBottomColor: "#FFD700",
+    borderBottomColor: "#FCA311",
   },
   inputIcon: {
     marginRight: 10,
@@ -189,7 +193,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   forgotPasswordText: {
-    color: "#FFD700",
+    color: "#FCA311",
     fontSize: 14,
   },
   loginButton: {

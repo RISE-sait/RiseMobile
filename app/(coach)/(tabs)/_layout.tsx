@@ -1,7 +1,13 @@
 import { View, Text, Image } from "react-native";
-import React from "react";
-import { Tabs } from "expo-router";
+import React, { useCallback, useEffect } from "react";
+import { Tabs, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import icons from "@/constants/icons";
+import { useModalOverlayPresence } from "@/hooks/useModalOverlayTracker";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchTeams } from "@/store/slices/teamsSlice";
+import { fetchCourts } from "@/store/slices/courtsSlice";
+import { useAuth } from "@/utils/auth";
 
 const TabIcon = ({
   focused,
@@ -20,11 +26,10 @@ const TabIcon = ({
       className="w-6 h-6"
     />
     <Text
-      className={`${
-        focused
+      className={`${focused
           ? "text-gold-100 font-rubik-medium"
           : "text-gray-900 font-rubik"
-      } text-xs w-full text-center mt-1`}
+        } text-xs w-full text-center mt-1`}
     >
       {title}
     </Text>
@@ -32,8 +37,68 @@ const TabIcon = ({
 );
 
 const CoachTabsLayout = () => {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const hasGlobalModal = useModalOverlayPresence();
+  const dispatch = useAppDispatch();
+  const { getValidToken } = useAuth();
+  const user = useAppSelector((state) => state.user.data);
+
+  // Fetch initial data when coach tabs load
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const token = await getValidToken();
+        if (token && user?.id) {
+          console.log("[CoachTabs] Fetching teams and courts...");
+          dispatch(fetchTeams(token));
+          dispatch(fetchCourts(token));
+        }
+      } catch (error) {
+        console.error("[CoachTabs] Failed to fetch initial data:", error);
+      }
+    };
+
+    fetchInitialData();
+  }, [dispatch, user?.id]);
+
+  useEffect(() => {
+    if (__DEV__) {
+      console.log(`[CoachTabs] hasGlobalModal changed -> ${hasGlobalModal}`);
+    }
+  }, [hasGlobalModal]);
+
+  const interceptTabPress = useCallback(
+    (targetRoute: string) => ({
+      tabPress: (event: { preventDefault: () => void }) => {
+        if (__DEV__) {
+          console.log(
+            `[CoachTabs] tabPress -> ${targetRoute} (hasGlobalModal=${hasGlobalModal})`,
+          );
+        }
+
+        if (!hasGlobalModal) {
+          if (__DEV__) {
+            console.log(`[CoachTabs] allowing navigation to ${targetRoute}`);
+          }
+          return;
+        }
+
+        event.preventDefault();
+        if (__DEV__) {
+          console.log(`[CoachTabs] preventing default navigation, manually replacing route`);
+        }
+        router.back();
+        requestAnimationFrame(() => {
+          router.replace(targetRoute);
+        });
+      },
+    }),
+    [hasGlobalModal, router],
+  );
+
   return (
-  
+
     <Tabs
       screenOptions={{
         tabBarShowLabel: false,
@@ -43,6 +108,8 @@ const CoachTabsLayout = () => {
           borderTopColor: "transparent",
           borderTopWidth: 1,
           minHeight: 70,
+          paddingBottom: insets.bottom,
+          height: 70 + insets.bottom,
         },
       }}
     >
@@ -55,6 +122,7 @@ const CoachTabsLayout = () => {
             <TabIcon icon={icons.home} title="Home" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(coach)/(tabs)/coachHome")}
       />
       <Tabs.Screen
         name="coachMatches"
@@ -65,6 +133,7 @@ const CoachTabsLayout = () => {
             <TabIcon icon={icons.matches} title="Matches" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(coach)/(tabs)/coachMatches")}
       />
       <Tabs.Screen
         name="coachCalendar"
@@ -75,6 +144,7 @@ const CoachTabsLayout = () => {
             <TabIcon icon={icons.calendar} title="Calendar" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(coach)/(tabs)/coachCalendar")}
       />
       <Tabs.Screen
         name="coachBook"
@@ -85,6 +155,7 @@ const CoachTabsLayout = () => {
             <TabIcon icon={icons.booking} title="Book" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(coach)/(tabs)/coachBook")}
       />
       <Tabs.Screen
         name="coachProfile"
@@ -95,12 +166,11 @@ const CoachTabsLayout = () => {
             <TabIcon icon={icons.person} title="Profile" focused={focused} />
           ),
         }}
+        listeners={interceptTabPress("/(coach)/(tabs)/coachProfile")}
       />
-      <Tabs.Screen name="membership" options={{ href: null, headerShown: false }} />
-
     </Tabs>
-    
-    
+
+
   );
 };
 

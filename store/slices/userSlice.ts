@@ -1,25 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit"
 import { loginUser } from "@/utils/api"
-
-// Define types
-export interface User {
-  id: string
-  email: string
-  firstName: string
-  lastName: string
-  role: string
-  jerseyNumber?: string
-  profileImage?: string
-  countryCode: string
-  token: string
-  isAuthenticated?: boolean // Make this optional
-}
-
-interface UserState {
-  data: User | null
-  status: "idle" | "loading" | "succeeded" | "failed"
-  error: string | null
-}
+import type { User, UserState } from "@/types"
 
 // Initial state
 const initialState: UserState = {

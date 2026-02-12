@@ -17,6 +17,8 @@ interface EventListItemProps {
    name?: string
    type?: string
  }
+ source?: "calendar" | "homepage" // Add source to determine endpoint
+ dataSource?: "events" | "matches" | "practices" // Which API the data came from
 }
 
 const getEventIcon = (title: string, type: string): keyof typeof FontAwesome6.glyphMap => {
@@ -45,21 +47,25 @@ const EventListItem: React.FC<EventListItemProps> = ({
  type = "event",
  location,
  program,
+ source = "calendar", // Default to calendar (secure endpoint)
+ dataSource = "events", // Default to events API
 }) => {
  const router = useRouter()
  const iconName = getEventIcon(title, type)
- const isMatch = type.toLowerCase() === "match" || type.toLowerCase() === "game"
 
  const handlePress = () => {
-  if (isMatch && program?.id) {
-    // Navigate to match details with program ID
-    router.push(`/screens/match-details/${program.id}?type=match`)
+  // Route based on the actual data source, not the display type
+  // This ensures items from the events API always go to event-details
+  if (dataSource === "matches") {
+    router.push(`/screens/match-details/${eventId}`)
+  } else if (dataSource === "practices") {
+    router.push(`/screens/practice-details/${eventId}`)
   } else {
-    // Fallback to event details
-    const idToUse = program?.id || eventId
-    router.push(`/screens/event-details/${idToUse}?type=${type}`)
+    // All items from the events API go to event-details
+    router.push(`/screens/event-details/${eventId}?source=${source}`)
   }
 }
+
 
 
  // Determine background and text colors based on type
@@ -119,7 +125,9 @@ const EventListItem: React.FC<EventListItemProps> = ({
          {location && (
            <View className="flex-row items-center ml-2">
              <FontAwesome6 name="location-dot" size={12} color="#a0a0a0" style={{ marginRight: 4 }} />
-             <Text className="text-gray-400 text-sm">{location}</Text>
+             <Text className="text-gray-400 text-sm">
+               {typeof location === 'string' ? location : (location as any)?.name || (location as any)?.address || 'Location TBD'}
+             </Text>
            </View>
          )}
        </View>

@@ -1,17 +1,11 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit"
 import axios from "axios"
-import { API_URL } from "@/utils/api"
+import { API_URL, refreshBackendJwt } from "@/utils/api"
 import dayjs from "dayjs"
-import type { CalendarItem } from "./eventsSlice"
-
-interface PracticesState {
-  items: CalendarItem[]
-  byDate: Record<string, CalendarItem[]>
-  byId: Record<string, CalendarItem>
-  status: "idle" | "loading" | "succeeded" | "failed"
-  error: string | null
-  lastFetched: string | null
-}
+// import { auth } from "@/firebase/firebaseConfig" // No longer needed with centralized token management
+import type { CalendarItem, PracticesState } from "@/types"
+import type { CreatePracticePayload } from "@/types/practice"
+import NotificationService from "@/app/services/notificationService"
 
 // Initial state
 const initialState: PracticesState = {
@@ -21,6 +15,7 @@ const initialState: PracticesState = {
   status: "idle",
   error: null,
   lastFetched: null,
+  isBooking: false, // Initialize booking flag
 }
 
 // Helper function to extract title
@@ -37,117 +32,114 @@ const getNextDayOccurrence = (dayName: string) => {
   const today = dayjs()
   const dayIndex = days.indexOf(dayName.toUpperCase())
 
-  if (dayIndex === -1) return today.format("YYYY-MM-DD") // Invalid day name
+  if (dayIndex === -1) return today.format("YYYY-MM-DD")
 
-  const todayIndex = today.day() // 0 is Sunday, 1 is Monday, etc.
+  const todayIndex = today.day()
   const daysUntilNext = (dayIndex - todayIndex + 7) % 7
 
   return today.add(daysUntilNext, "day").format("YYYY-MM-DD")
 }
 
-// Async thunk to fetch practices
+// Helper function to send practice notification
+const sendPracticeNotification = async (
+  jwt: string,
+  teamId: string,
+  practiceDetails: {
+    date: string
+    time: string
+    location: string
+    isRecurring?: boolean
+  }
+) => {
+  try {
+    const notificationService = NotificationService.getInstance()
+
+    const formattedDate = dayjs(practiceDetails.date).format("MMMM D, YYYY")
+    const title = "New Practice Scheduled"
+    const body = practiceDetails.isRecurring
+      ? `Recurring practice scheduled for ${dayjs(practiceDetails.date).format("dddd")}s at ${practiceDetails.time}${practiceDetails.location ? ` at ${practiceDetails.location}` : ""}`
+      : `Practice scheduled for ${formattedDate} at ${practiceDetails.time}${practiceDetails.location ? ` at ${practiceDetails.location}` : ""}`
+
+    await notificationService.sendNotification(jwt, {
+      title,
+      body,
+      team_id: teamId,
+      type: "practice_booked",
+      data: {
+        practice_date: practiceDetails.date,
+        practice_time: practiceDetails.time,
+        location: practiceDetails.location,
+        is_recurring: practiceDetails.isRecurring || false
+      }
+    })
+
+  } catch (error) {
+    console.error("❌ Failed to send practice notification:", error)
+    // Don't throw error - notification failure shouldn't prevent practice creation
+  }
+}
+
+
 export const fetchPractices = createAsyncThunk(
   "practices/fetchPractices",
-  async (token: string, { rejectWithValue }) => {
+  async (
+    {
+      token,
+      after,
+      before,
+    }: {
+      token: string
+      after: string
+      before: string
+    },
+    { rejectWithValue }
+  ) => {
+
     try {
-      const response = await axios.get(`${API_URL}/practices`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const params = new URLSearchParams({
+        after,
+        before,
+        program_type: "practice",
+        response_type: "date",
       })
 
-      const practices: CalendarItem[] = []
+      const response = await axios.get(`${API_URL}/secure/schedule?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      
+      // Extract only practices data from the schedule response
+      const responseData = response.data as any
+      const practicesData = responseData.practices || []
+
+
+
+
+      const items: CalendarItem[] = []
       const byDate: Record<string, CalendarItem[]> = {}
       const byId: Record<string, CalendarItem> = {}
 
-      if (response.data && Array.isArray(response.data)) {
-        response.data.forEach((practice: any) => {
-          // Extract day information from the name if possible
-          let dayOfWeek = null
-          const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+      for (const practice of practicesData)  {
+        const startDate = dayjs(practice.start_time).format("YYYY-MM-DD")
+        const time = dayjs(practice.start_time).format("HH:mm")
 
-          for (const day of dayNames) {
-            if (practice.name && practice.name.includes(day)) {
-              dayOfWeek = day.toUpperCase()
-              break
-            }
-          }
+        const item: CalendarItem = {
+          id: practice.id,
+          title: practice.team_name || extractTitle(practice),
+          date: startDate,
+          time,
+          type: "practice",
+          location: practice.location_name || practice.location?.name || "TBD",
+          description: `${practice.team_name || extractTitle(practice)} practice${practice.location_name ? ' at ' + practice.location_name : ''}`,
+        }
 
-          const title = extractTitle(practice)
-
-          if (dayOfWeek) {
-            // Get the next occurrence of this day
-            const practiceDate = getNextDayOccurrence(dayOfWeek)
-
-            const calendarItem: CalendarItem = {
-              id: practice.id || `practice-${Math.random().toString(36).substr(2, 9)}`,
-              title: title,
-              date: practiceDate,
-              time: practice.time || "TBD",
-              type: "practice",
-              location: practice.location || "RISE Basketball Facility",
-              description: practice.description || `${title} at ${practice.location || "RISE Basketball Facility"}`,
-            }
-
-            practices.push(calendarItem)
-            byId[calendarItem.id] = calendarItem
-
-            if (!byDate[practiceDate]) {
-              byDate[practiceDate] = []
-            }
-            byDate[practiceDate].push(calendarItem)
-
-            // Also add recurring practices
-            for (let i = 1; i <= 8; i++) {
-              const futureDate = dayjs(practiceDate)
-                .add(i * 7, "day")
-                .format("YYYY-MM-DD")
-
-              const recurringItem: CalendarItem = {
-                id: `${practice.id}-${i}` || `practice-${Math.random().toString(36).substr(2, 9)}-${i}`,
-                title: title,
-                date: futureDate,
-                time: practice.time || "TBD",
-                type: "practice",
-                location: practice.location || "RISE Basketball Facility",
-                description: practice.description || `${title} at ${practice.location || "RISE Basketball Facility"}`,
-              }
-
-              practices.push(recurringItem)
-              byId[recurringItem.id] = recurringItem
-
-              if (!byDate[futureDate]) {
-                byDate[futureDate] = []
-              }
-              byDate[futureDate].push(recurringItem)
-            }
-          }
-          // If we can't determine the day, add it to a random day in the next week
-          else {
-            const randomDays = Math.floor(Math.random() * 7)
-            const practiceDate = dayjs().add(randomDays, "day").format("YYYY-MM-DD")
-
-            const calendarItem: CalendarItem = {
-              id: practice.id || `practice-${Math.random().toString(36).substr(2, 9)}`,
-              title: title,
-              date: practiceDate,
-              time: practice.time || "TBD",
-              type: "practice",
-              location: practice.location || "RISE Basketball Facility",
-              description: practice.description || `${title} at ${practice.location || "RISE Basketball Facility"}`,
-            }
-
-            practices.push(calendarItem)
-            byId[calendarItem.id] = calendarItem
-
-            if (!byDate[practiceDate]) {
-              byDate[practiceDate] = []
-            }
-            byDate[practiceDate].push(calendarItem)
-          }
-        })
+        items.push(item)
+        byId[item.id] = item
+        if (!byDate[startDate]) byDate[startDate] = []
+        byDate[startDate].push(item)
       }
 
       return {
-        items: practices,
+        items,
         byDate,
         byId,
         lastFetched: new Date().toISOString(),
@@ -155,10 +147,115 @@ export const fetchPractices = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to fetch practices")
     }
-  },
+  }
 )
 
-// Create slice
+export const createPracticeThunk = createAsyncThunk<
+  CalendarItem,
+  CreatePracticePayload,
+  { rejectValue: string }
+>(
+  "practices/createPractice",
+  async (payload, { rejectWithValue, dispatch }) => {
+    try {
+      // Use centralized JWT refresh instead of manual token exchange
+      const jwt = await refreshBackendJwt()
+      if (!jwt) throw new Error("Could not retrieve backend JWT")
+
+      console.log("[createPracticeThunk] Sending payload to API:", payload);
+
+      const response = await axios.post(
+        `${API_URL}/practices`,
+        payload,
+        {
+          headers: { Authorization: `Bearer ${jwt}` },
+        }
+      )
+
+      console.log("[createPracticeThunk] API response:", response.data);
+
+      const responseData = response.data as any
+      const item: CalendarItem = {
+        id: responseData.id, // no fallback
+        title: "Practice", // fallback title
+        date: dayjs(payload.start_time).format("YYYY-MM-DD"),
+        time: dayjs(payload.start_time).format("HH:mm"),
+        type: "practice",
+        location: "RISE Basketball Facility",
+        description: `Practice at RISE Basketball Facility`,
+      }
+
+      // Send notification to team members
+      if (payload.team_id) {
+        await sendPracticeNotification(jwt, payload.team_id, {
+          date: item.date,
+          time: item.time,
+          location: item.location || "RISE Basketball Facility",
+          isRecurring: false
+        })
+      }
+
+      dispatch(addPractice(item))
+      return item
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to create practice")
+    }
+  }
+)
+
+export const createRecurringPracticeThunk = createAsyncThunk<
+  void,
+  {
+    court_id: string
+    day: string
+    location_id: string
+    practice_end_at: string
+    practice_start_at: string
+    recurrence_end_at: string
+    recurrence_start_at: string
+    status: string
+    team_id: string
+  },
+  { rejectValue: string }
+>(
+  "practices/createRecurringPractice",
+  async (payload, { rejectWithValue }) => {
+    try {
+      // Use centralized JWT refresh instead of manual token exchange
+      const jwt = await refreshBackendJwt()
+      if (!jwt) throw new Error("Could not retrieve backend JWT")
+
+      console.log("[createRecurringPracticeThunk] Sending payload to API:", payload);
+
+      const response = await axios.post(
+        `${API_URL}/practices/recurring`,
+        payload,
+        {
+          headers: { Authorization: `Bearer ${jwt}` },
+        }
+      )
+
+      console.log("[createRecurringPracticeThunk] API response:", response.data);
+
+
+      // Send notification for recurring practice
+      if (payload.team_id) {
+        const startTime = dayjs(payload.practice_start_at, "HH:mm:ss+00:00").format("HH:mm")
+        const nextOccurrence = getNextDayOccurrence(payload.day)
+
+        await sendPracticeNotification(jwt, payload.team_id, {
+          date: nextOccurrence,
+          time: startTime,
+          location: "RISE Basketball Facility",
+          isRecurring: true
+        })
+      }
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to create recurring practices")
+    }
+  }
+)
+
 const practicesSlice = createSlice({
   name: "practices",
   initialState,
@@ -200,10 +297,28 @@ const practicesSlice = createSlice({
         state.status = "failed"
         state.error = action.payload as string
       })
+      // Handle createPracticeThunk booking state
+      .addCase(createPracticeThunk.pending, (state) => {
+        state.isBooking = true
+      })
+      .addCase(createPracticeThunk.fulfilled, (state) => {
+        state.isBooking = false
+      })
+      .addCase(createPracticeThunk.rejected, (state) => {
+        state.isBooking = false
+      })
+      // Handle createRecurringPracticeThunk booking state
+      .addCase(createRecurringPracticeThunk.pending, (state) => {
+        state.isBooking = true
+      })
+      .addCase(createRecurringPracticeThunk.fulfilled, (state) => {
+        state.isBooking = false
+      })
+      .addCase(createRecurringPracticeThunk.rejected, (state) => {
+        state.isBooking = false
+      })
   },
 })
 
-// Export actions and reducer
 export const { clearPractices, addPractice } = practicesSlice.actions
 export default practicesSlice.reducer
-

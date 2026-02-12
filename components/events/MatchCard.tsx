@@ -1,13 +1,14 @@
 "use client"
 
 import type React from "react"
-import { TouchableOpacity, View, Text, Image, Platform } from "react-native"
+import { TouchableOpacity, View, Text, Platform } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { FontAwesome6 } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useEffect } from "react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchTeams, selectTeamById, selectTeamsLoading } from "@/store/slices/teamsSlice"
+import ManagedImage from "@/components/ui/ManagedImage"
 
 interface MatchProps {
   match: {
@@ -17,18 +18,35 @@ interface MatchProps {
     lose_team?: string
     win_score?: number
     lose_score?: number
-    status?: "Upcoming" | "Finished" | "Live"
+    status?: "scheduled" | "in_progress" | "completed" | "canceled"
     league?: string
+    // API team fields for proper display
+    home_team_name?: string
+    away_team_name?: string
+    home_score?: number
+    away_score?: number
+    // Team logo URLs from API
+    home_team_logo_url?: string
+    away_team_logo_url?: string
+    // Additional fields for edit/delete
+    home_team_id?: string
+    away_team_id?: string
+    location_id?: string
+    start_time?: string
   }
+  onEdit?: (match: any) => void
+  onDelete?: (match: any) => void
+  showActions?: boolean
 }
 
 const statusStyles = {
-  Upcoming: { color: "#FFA500", label: "Upcoming", icon: "clock" },
-  Finished: { color: "#22C55E", label: "Finished", icon: "check-circle" },
-  Live: { color: "#EF4444", label: "Live", icon: "circle-dot" },
+  scheduled: { color: "#E8920F", label: "SCHEDULED", icon: "clock" },
+  in_progress: { color: "#EF4444", label: "IN PROGRESS", icon: "circle-dot" },
+  completed: { color: "#22C55E", label: "COMPLETED", icon: "check-circle" },
+  canceled: { color: "#9CA3AF", label: "CANCELED", icon: "x-circle" },
 }
 
-const MatchCard: React.FC<MatchProps> = ({ match }) => {
+const MatchCard: React.FC<MatchProps> = ({ match, onEdit, onDelete, showActions = false }) => {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const userData = useAppSelector((state) => state.user.data)
@@ -40,7 +58,7 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
   const teamsLoading = useAppSelector(selectTeamsLoading)
 
   // Default status if not provided
-  const status = match.status || "Upcoming"
+  const status = match.status || "scheduled"
   const { color, label, icon } = statusStyles[status]
 
   // Fetch teams data if not already loaded
@@ -50,21 +68,32 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
     }
   }, [dispatch, token, teamsLoading])
 
-  // Get team names from Redux store
-  const homeTeamName = homeTeam ? homeTeam.name : match.win_team || "Home Team"
-  const awayTeamName = awayTeam ? awayTeam.name : match.lose_team || "Away Team"
-
-  // Use placeholder logos
-  const homeLogo = "https://via.placeholder.com/100"
-  const awayLogo = "https://via.placeholder.com/100"
+  // Get team names - prioritize API team name fields, fallback to Redux store
+  const homeTeamName = match.home_team_name || (homeTeam ? homeTeam.name : match.win_team) || "Home Team"
+  const awayTeamName = match.away_team_name || (awayTeam ? awayTeam.name : match.lose_team) || "Away Team"
 
   const handlePress = () => {
-    router.push(`/screens/match-details/${match.id}?type=game`)
+    // Navigate to match details - calls GET /games/{id}
+    router.push(`/screens/match-details/${match.id}`)
   }
-  
+
+  const handleEdit = (e: any) => {
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(match);
+    }
+  };
+
+  const handleDelete = (e: any) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(match);
+    }
+  };
 
   return (
-    <TouchableOpacity activeOpacity={0.8} onPress={handlePress} className="mb-4">
+    <View className="mb-4">
+      <TouchableOpacity activeOpacity={0.8} onPress={handlePress}>
       <LinearGradient
         colors={["rgba(255,255,255,0.15)", "rgba(255,255,255,0.03)"]}
         className="shadow-lg shadow-black overflow-hidden"
@@ -103,27 +132,50 @@ const MatchCard: React.FC<MatchProps> = ({ match }) => {
         <View className="flex-row items-center justify-between">
           {/* Home Team */}
           <View className="items-center flex-1">
-            <Image source={{ uri: homeLogo }} className="w-12 h-12 mb-2" resizeMode="contain" />
+            <ManagedImage source={match.home_team_logo_url || undefined} style={{ width: 48, height: 48, marginBottom: 8 }} resizeMode="contain" />
             <Text className="text-white-100 font-semibold text-center text-sm">{homeTeamName}</Text>
           </View>
 
           {/* Scores */}
           <View className="mx-3 bg-gold-100/20 px-3 py-1 rounded-full">
             <Text className="text-white-100 font-extrabold text-xl tracking-wide">
-              {match.win_score || 0} - {match.lose_score || 0}
+              {match.home_score ?? match.win_score ?? 0} - {match.away_score ?? match.lose_score ?? 0}
             </Text>
           </View>
 
           {/* Away Team */}
           <View className="items-center flex-1">
-            <Image source={{ uri: awayLogo }} className="w-12 h-12 mb-2" resizeMode="contain" />
+            <ManagedImage source={match.away_team_logo_url || undefined} style={{ width: 48, height: 48, marginBottom: 8 }} resizeMode="contain" />
             <Text className="text-white-100 font-semibold text-center text-sm">{awayTeamName}</Text>
           </View>
         </View>
       </LinearGradient>
     </TouchableOpacity>
+
+    {/* Edit and Delete buttons - only shown for coaches */}
+    {showActions && (status === "scheduled" || status === "in_progress") && (
+      <View className="flex-row justify-around mt-2 px-2">
+        <TouchableOpacity
+          onPress={handleEdit}
+          className="flex-1 bg-gold-100/20 py-2 px-4 rounded-lg mr-2 flex-row items-center justify-center"
+          activeOpacity={0.7}
+        >
+          <FontAwesome6 name="edit" size={14} color="#FCA311" />
+          <Text className="text-gold-100 font-semibold ml-2 text-sm">Edit</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleDelete}
+          className="flex-1 bg-red-500/20 py-2 px-4 rounded-lg ml-2 flex-row items-center justify-center"
+          activeOpacity={0.7}
+        >
+          <FontAwesome6 name="trash" size={14} color="#EF4444" />
+          <Text className="text-red-500 font-semibold ml-2 text-sm">Delete</Text>
+        </TouchableOpacity>
+      </View>
+    )}
+    </View>
   )
 }
 
 export default MatchCard
-
