@@ -16,6 +16,11 @@ export default function AthleteLayout() {
       <Stack.Screen name="screens/booking-options/Courts" options={{ headerShown: false }} />
       <Stack.Screen name="screens/booking-options/CourtsideKutz" options={{ headerShown: false }} />
 
+      {/* Family screens (parent-child linkage) */}
+      <Stack.Screen name="screens/family/child-dashboard" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/family/link-request" options={{ headerShown: false }} />
+      <Stack.Screen name="screens/family/pending-requests" options={{ headerShown: false }} />
+
       {/* ⚠️ Detail pages are NOT registered here - they use the shared screens stack from root layout */}
       {/* Navigation to /screens/event-details/[id] will use app/screens/event-details/[id].tsx */}
       {/* This prevents route duplication and ensures single source of truth */}

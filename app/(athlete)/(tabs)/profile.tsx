@@ -12,6 +12,7 @@ import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import PlayerStatsCard from "@/components/profile/PlayerStatsCard";
 import AccountSection from "@/components/profile/AccountSection";
+import FamilyCard from "@/components/family/FamilyCard";
 
 type User = {
   id: string;
@@ -109,6 +110,9 @@ const AthleteProfileScreen = () => {
           countryCode={user?.countryCode} // ✅ Ensure countryCode is always defined
           teamLogo={user?.team?.logo} // ✅ Display team logo from user data
         />
+
+        {/* Family Card - self-manages visibility based on /family/children data */}
+        <FamilyCard />
 
         {/* Player Stats (Temporarily Hidden) */}
         {/*
