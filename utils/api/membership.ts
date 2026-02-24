@@ -1033,3 +1033,223 @@ export const getUserSubsidyUsage = async (): Promise<APIResponse<any>> => {
     };
   }
 }
+
+// Get all subscriptions for the authenticated customer
+export const getSubscriptions = async (): Promise<APIResponse<any>> => {
+  try {
+    let jwtToken = await AsyncStorage.getItem("authToken");
+
+    if (!jwtToken) {
+      try {
+        jwtToken = await refreshBackendJwt();
+      } catch (refreshError) {
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401,
+            type: 'auth',
+            userMessage: "Session expired. Please log in again."
+          }
+        };
+      }
+    }
+
+    const response = await fetch(`${API_URL}/subscriptions`, {
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      if (response.status === 401 || response.status === 403) {
+        try {
+          jwtToken = await refreshBackendJwt();
+          const retryResponse = await fetch(`${API_URL}/subscriptions`, {
+            headers: { "Authorization": `Bearer ${jwtToken}` },
+          });
+
+          if (!retryResponse.ok) {
+            return {
+              data: null,
+              error: {
+                message: `Failed to fetch subscriptions: ${retryResponse.status}`,
+                status: retryResponse.status,
+                type: retryResponse.status === 401 ? 'auth' : 'unknown',
+                userMessage: "Unable to load subscription information."
+              }
+            };
+          }
+
+          const retryData = await retryResponse.json();
+          return { data: retryData, error: null };
+        } catch (refreshError) {
+          return {
+            data: null,
+            error: {
+              message: "Token refresh failed",
+              status: 401,
+              type: 'auth',
+              userMessage: "Session expired. Please log in again."
+            }
+          };
+        }
+      }
+
+      return {
+        data: null,
+        error: {
+          message: `Failed to fetch subscriptions: ${response.status} ${errorText}`,
+          status: response.status,
+          type: response.status >= 500 ? 'server' : 'unknown',
+          userMessage: "Unable to load subscription information. Please try again."
+        }
+      };
+    }
+
+    const data = await response.json();
+    return { data, error: null };
+  } catch (error) {
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || "Failed to fetch subscriptions",
+        status: 500,
+        type: 'network',
+        userMessage: "Network error. Please check your connection and try again."
+      }
+    };
+  }
+}
+
+// Upgrade a subscription to a more expensive plan
+export const upgradeSubscription = async (subscriptionId: string, newPlanId: string): Promise<APIResponse<any>> => {
+  try {
+    let jwtToken = await AsyncStorage.getItem("authToken");
+
+    if (!jwtToken) {
+      try {
+        jwtToken = await refreshBackendJwt();
+      } catch (refreshError) {
+        return {
+          data: null,
+          error: {
+            message: "Unable to authenticate with backend",
+            status: 401,
+            type: 'auth',
+            userMessage: "Session expired. Please log in again."
+          }
+        };
+      }
+    }
+
+    const response = await fetch(`${API_URL}/subscriptions/${subscriptionId}/upgrade`, {
+      method: 'POST',
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ new_plan_id: newPlanId }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = errorText;
+
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorText;
+      } catch { /* keep raw text */ }
+
+      if (response.status === 401 || response.status === 403) {
+        try {
+          jwtToken = await refreshBackendJwt();
+          const retryResponse = await fetch(`${API_URL}/subscriptions/${subscriptionId}/upgrade`, {
+            method: 'POST',
+            headers: {
+              "Authorization": `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ new_plan_id: newPlanId }),
+          });
+
+          if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            let retryMsg = retryErrorText;
+            try {
+              const retryJson = JSON.parse(retryErrorText);
+              retryMsg = retryJson.message || retryJson.error || retryErrorText;
+            } catch { /* keep raw text */ }
+
+            return {
+              data: null,
+              error: {
+                message: retryMsg,
+                status: retryResponse.status,
+                type: retryResponse.status === 400 ? 'validation' : retryResponse.status === 409 ? 'conflict' : 'unknown',
+                userMessage: retryResponse.status === 400
+                  ? "You can only upgrade to a more expensive plan."
+                  : retryResponse.status === 404
+                  ? "Plan not found. Please try again."
+                  : retryResponse.status === 409
+                  ? "Your subscription is not active."
+                  : "Unable to upgrade subscription."
+              }
+            };
+          }
+
+          const retryData = await retryResponse.json();
+          return { data: retryData, error: null };
+        } catch (refreshError) {
+          return {
+            data: null,
+            error: {
+              message: "Token refresh failed",
+              status: 401,
+              type: 'auth',
+              userMessage: "Session expired. Please log in again."
+            }
+          };
+        }
+      }
+
+      const errorType: APIErrorType =
+        response.status === 400 ? 'validation' :
+        response.status === 404 ? 'not_found' :
+        response.status === 409 ? 'conflict' :
+        response.status >= 500 ? 'server' : 'unknown';
+
+      const userMessage =
+        response.status === 400 ? "You can only upgrade to a more expensive plan."
+        : response.status === 404 ? "Plan not found. Please try again."
+        : response.status === 409 ? "Your subscription is not active."
+        : response.status >= 500 ? "Server error. Please try again later."
+        : errorMessage;
+
+      return {
+        data: null,
+        error: {
+          message: errorMessage,
+          status: response.status,
+          type: errorType,
+          userMessage
+        }
+      };
+    }
+
+    const data = await response.json();
+    return { data, error: null };
+  } catch (error) {
+    return {
+      data: null,
+      error: {
+        message: (error as Error).message || "Failed to upgrade subscription",
+        status: 500,
+        type: 'network',
+        userMessage: "Network error. Please check your connection and try again."
+      }
+    };
+  }
+}

@@ -16,6 +16,7 @@ import {
   faInfoCircle,
   faChevronDown,
   faChevronUp,
+  faArrowUp,
 } from "@fortawesome/free-solid-svg-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -36,12 +37,14 @@ interface MembershipDetailsProps {
   membership: MembershipData;
   showRefreshButton?: boolean;
   onRefresh?: () => void;
+  onUpgrade?: () => void;
 }
 
 const MembershipDetails: React.FC<MembershipDetailsProps> = ({
   membership,
   showRefreshButton = false,
   onRefresh,
+  onUpgrade,
 }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [benefitsExpanded, setBenefitsExpanded] = useState(false);
@@ -222,6 +225,14 @@ const MembershipDetails: React.FC<MembershipDetailsProps> = ({
           )}
         </LinearGradient>
       </View>
+
+      {/* Upgrade Plan Button */}
+      {onUpgrade && membership.status?.toLowerCase() === "active" && (
+        <TouchableOpacity style={styles.upgradeButton} onPress={onUpgrade} activeOpacity={0.8}>
+          <FontAwesomeIcon icon={faArrowUp} color="#000000" size={14} />
+          <Text style={styles.upgradeButtonText}>Upgrade Plan</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Benefits Section - Collapsible */}
       {(membership.membership_benefits || membership.benefits) &&
@@ -476,6 +487,22 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
     lineHeight: 20,
+  },
+  upgradeButton: {
+    backgroundColor: "#FCA311",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  upgradeButtonText: {
+    color: "#000000",
+    fontSize: 15,
+    fontWeight: "700",
+    marginLeft: 8,
   },
   refreshButton: {
     backgroundColor: "#444444",

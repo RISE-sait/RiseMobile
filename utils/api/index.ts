@@ -81,6 +81,8 @@ export {
   getUserSubsidies,
   getUserSubsidyBalance,
   getUserSubsidyUsage,
+  getSubscriptions,
+  upgradeSubscription,
 } from './membership';
 
 // Family

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Modal, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, Modal, TouchableOpacity, ActivityIndicator, ScrollView, Alert, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
 import { useSelector, useDispatch } from "react-redux";
 import BackButton from "@/components/buttons/BackButton";
-import { getUserMemberships, type APIErrorType } from "@/utils/api";
+import { getUserMemberships, getSubscriptions, upgradeSubscription, getAllMembershipPlans, getPlansForMembership, type APIErrorType } from "@/utils/api";
 import { router } from "expo-router";
 import MembershipDetails from "@/components/membership/MembershipDetails";
 import MembershipPurchaseList from "@/components/membership/MembershipPurchaseList";
@@ -14,6 +14,10 @@ import SubsidyOverview from "@/components/subsidy/SubsidyOverview";
 import { setMembership, clearMembership } from "@/store/slices/membershipSlice";
 import type { RootState } from "@/store";
 import { showAlert } from "@/utils/customAlert";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import { faCrown, faCheck, faArrowUp } from "@fortawesome/free-solid-svg-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const MembershipScreen: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
@@ -29,6 +33,13 @@ const MembershipScreen: React.FC = () => {
   const cachedMembership = useSelector((state: RootState) => state.membership.data);
   const userToken = useSelector((state: RootState) => state.user.data?.token);
 
+  // Upgrade state
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradePlans, setUpgradePlans] = useState<any[]>([]);
+  const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
+  const [upgradePlansLoading, setUpgradePlansLoading] = useState(false);
+
   const loadMembershipData = async (showLoading = false) => {
     // Only show loading state if explicitly requested (e.g., first load without cache)
     if (showLoading) {
@@ -38,6 +49,22 @@ const MembershipScreen: React.FC = () => {
     try {
       // Call GET /secure/customers/memberships with unified response format
       const result = await getUserMemberships();
+
+      if (__DEV__) {
+        console.log("🔍 Membership API result:", JSON.stringify(result, null, 2));
+
+        // Debug: decode JWT to show the database user_id being sent to the backend
+        try {
+          const jwtToken = await AsyncStorage.getItem("authToken");
+          if (jwtToken) {
+            const payload = JSON.parse(atob(jwtToken.split('.')[1]));
+            console.log("🔍 JWT user_id (database UUID):", payload.user_id);
+            console.log("🔍 JWT role:", payload.role);
+          }
+        } catch (decodeErr) {
+          console.log("🔍 Could not decode JWT:", decodeErr);
+        }
+      }
 
       if (result.error) {
         console.error("❌ Error loading membership info:", result.error);
@@ -130,12 +157,117 @@ const MembershipScreen: React.FC = () => {
       // No cached data, show loading state while fetching
       loadMembershipData(true);
     }
+    // Also fetch subscription data for upgrade functionality
+    loadSubscriptionData();
   }, []);
 
+
+  // Fetch subscription IDs from Stripe
+  const loadSubscriptionData = async () => {
+    try {
+      const result = await getSubscriptions();
+      if (result.data?.data && result.data.data.length > 0) {
+        // Find the first active subscription
+        const activeSub = result.data.data.find((sub: any) => sub.status === 'active') || result.data.data[0];
+        setSubscriptionId(activeSub.id);
+      }
+    } catch (e) {
+      // Non-blocking — upgrade button just won't show
+      console.warn("Could not fetch subscription data:", e);
+    }
+  };
 
   // Function to refresh membership data after successful payment
   const refreshMembershipData = async () => {
     await loadMembershipDataWithRetry();
+    // Also refresh subscription data
+    await loadSubscriptionData();
+  };
+
+  // Load available plans for upgrade modal
+  const loadUpgradePlans = async () => {
+    setUpgradePlansLoading(true);
+    try {
+      const typesResult = await getAllMembershipPlans();
+      if (typesResult.error || !typesResult.data) {
+        setUpgradePlans([]);
+        return;
+      }
+
+      const allPlans: any[] = [];
+      for (const membershipType of typesResult.data) {
+        const plansResult = await getPlansForMembership(membershipType.id);
+        if (plansResult.data && Array.isArray(plansResult.data)) {
+          for (const plan of plansResult.data) {
+            allPlans.push({
+              ...plan,
+              membership_type_name: membershipType.name,
+            });
+          }
+        }
+      }
+      setUpgradePlans(allPlans);
+    } catch (e) {
+      console.warn("Could not load upgrade plans:", e);
+      setUpgradePlans([]);
+    } finally {
+      setUpgradePlansLoading(false);
+    }
+  };
+
+  // Handle upgrade button on membership card
+  const handleOpenUpgradeModal = () => {
+    setShowUpgradeModal(true);
+    loadUpgradePlans();
+  };
+
+  // Handle selecting a plan to upgrade to
+  const handleUpgrade = (planId: string, planName: string) => {
+    if (!subscriptionId) return;
+
+    Alert.alert(
+      "Upgrade Plan",
+      `Upgrade to ${planName}? Stripe will prorate the cost — you'll be credited for unused time on your current plan.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Upgrade",
+          onPress: async () => {
+            setUpgradeLoading(planId);
+            try {
+              const result = await upgradeSubscription(subscriptionId, planId);
+
+              if (result.error) {
+                showAlert(
+                  "Upgrade Failed",
+                  result.error.userMessage || result.error.message,
+                  [{ text: "OK" }],
+                  { type: "error" }
+                );
+                return;
+              }
+
+              setShowUpgradeModal(false);
+              showAlert(
+                "Upgrade Successful",
+                "Your membership has been upgraded! Proration has been applied to your billing.",
+                [{ text: "OK", onPress: () => refreshMembershipData() }],
+                { type: "success" }
+              );
+            } catch (e) {
+              showAlert(
+                "Upgrade Failed",
+                "An unexpected error occurred. Please try again.",
+                [{ text: "OK" }],
+                { type: "error" }
+              );
+            } finally {
+              setUpgradeLoading(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const currentMembership = userMemberships[0];
@@ -434,6 +566,7 @@ const MembershipScreen: React.FC = () => {
                       <View key={membership.id || index} style={{ marginBottom: index < userMemberships.length - 1 ? 12 : 0 }}>
                         <MembershipDetails
                           membership={membership}
+                          onUpgrade={subscriptionId ? handleOpenUpgradeModal : undefined}
                         />
                       </View>
                     ))}
@@ -534,8 +667,303 @@ const MembershipScreen: React.FC = () => {
 
         </SafeAreaView>
       </Modal>
+
+      {/* Upgrade Plan Modal */}
+      <Modal
+        visible={showUpgradeModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowUpgradeModal(false)}
+      >
+        <SafeAreaView style={upgradeStyles.modalContainer}>
+          {/* Modal Header */}
+          <View style={upgradeStyles.modalHeader}>
+            <Text style={upgradeStyles.modalTitle}>Upgrade Your Plan</Text>
+            <TouchableOpacity onPress={() => setShowUpgradeModal(false)}>
+              <Text style={upgradeStyles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Current plan info */}
+          {currentMembership && (
+            <View style={upgradeStyles.currentPlanBanner}>
+              <Text style={upgradeStyles.currentPlanLabel}>Current Plan</Text>
+              <Text style={upgradeStyles.currentPlanName}>
+                {currentMembership.membership_plan_name || currentMembership.membership_name || "Your Plan"}
+              </Text>
+              {currentMembership.price && (
+                <Text style={upgradeStyles.currentPlanPrice}>{currentMembership.price}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Plans list */}
+          <ScrollView style={upgradeStyles.plansList} contentContainerStyle={{ paddingBottom: 40 }}>
+            {upgradePlansLoading ? (
+              <View style={upgradeStyles.loadingContainer}>
+                <ActivityIndicator size="small" color="#FCA311" />
+                <Text style={upgradeStyles.loadingText}>Loading available plans...</Text>
+              </View>
+            ) : upgradePlans.length === 0 ? (
+              <View style={upgradeStyles.emptyContainer}>
+                <Text style={upgradeStyles.emptyText}>No upgrade plans available at this time.</Text>
+              </View>
+            ) : (
+              upgradePlans.map((plan) => {
+                const formattedPrice = plan.price
+                  ? (typeof plan.price === 'number' ? `$${plan.price.toFixed(2)}` : plan.price.toString().replace(/\$\$/g, '$'))
+                  : null;
+
+                const formatInterval = (interval?: string, amtPeriods?: number): string => {
+                  if (interval === "once") return " (one-time)";
+                  if (interval === "month") return "/month";
+                  if (interval === "week") {
+                    if (amtPeriods === 26) return "/bi-weekly";
+                    return "/week";
+                  }
+                  if (interval === "biweekly") return "/bi-weekly";
+                  if (interval === "year" && amtPeriods) {
+                    if (amtPeriods === 12) return "/month";
+                    if (amtPeriods === 1) return "/year";
+                    return `/${interval}`;
+                  }
+                  if (!interval) return "/month";
+                  return `/${interval}`;
+                };
+
+                const benefits = plan.benefits
+                  ? plan.benefits.split("•").filter((b: string) => b && b.trim()).map((b: string) => b.trim())
+                  : [];
+
+                return (
+                  <View key={plan.id} style={upgradeStyles.planCard}>
+                    <LinearGradient
+                      colors={["#1C1C1E", "#2C2C2E"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                      style={upgradeStyles.planCardGradient}
+                    >
+                      {plan.membership_type_name && (
+                        <Text style={upgradeStyles.planTypeName}>{plan.membership_type_name}</Text>
+                      )}
+
+                      <View style={upgradeStyles.planTitleRow}>
+                        <FontAwesomeIcon icon={faCrown} color="#FCA311" size={16} />
+                        <Text style={upgradeStyles.planName}>{plan.name}</Text>
+                      </View>
+
+                      {formattedPrice && (
+                        <View style={upgradeStyles.priceRow}>
+                          <Text style={upgradeStyles.priceAmount}>{formattedPrice}</Text>
+                          <Text style={upgradeStyles.pricePeriod}>{formatInterval(plan.interval, plan.amt_periods)}</Text>
+                        </View>
+                      )}
+
+                      {plan.description ? (
+                        <Text style={upgradeStyles.planDescription}>{plan.description}</Text>
+                      ) : null}
+
+                      {benefits.length > 0 && (
+                        <View style={upgradeStyles.benefitsContainer}>
+                          {benefits.map((benefit: string, idx: number) => (
+                            <View key={idx} style={upgradeStyles.benefitItem}>
+                              <FontAwesomeIcon icon={faCheck} color="#32CD32" size={12} />
+                              <Text style={upgradeStyles.benefitText}>{benefit}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      <TouchableOpacity
+                        style={[
+                          upgradeStyles.upgradeButton,
+                          upgradeLoading === plan.id && upgradeStyles.upgradeButtonDisabled,
+                        ]}
+                        onPress={() => handleUpgrade(plan.id, plan.name)}
+                        disabled={upgradeLoading === plan.id}
+                        activeOpacity={0.8}
+                      >
+                        {upgradeLoading === plan.id ? (
+                          <View style={upgradeStyles.buttonLoadingRow}>
+                            <ActivityIndicator size="small" color="#000000" />
+                            <Text style={[upgradeStyles.upgradeButtonText, { marginLeft: 8 }]}>Upgrading...</Text>
+                          </View>
+                        ) : (
+                          <View style={upgradeStyles.buttonLoadingRow}>
+                            <FontAwesomeIcon icon={faArrowUp} color="#000000" size={14} />
+                            <Text style={[upgradeStyles.upgradeButtonText, { marginLeft: 8 }]}>Upgrade to This Plan</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    </LinearGradient>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
+
+const upgradeStyles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#0C0B0B",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222222",
+  },
+  modalTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  closeButtonText: {
+    color: "#FCA311",
+    fontSize: 16,
+  },
+  currentPlanBanner: {
+    backgroundColor: "#1A1A1A",
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#333333",
+  },
+  currentPlanLabel: {
+    color: "#999999",
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  currentPlanName: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  currentPlanPrice: {
+    color: "#FCA311",
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  plansList: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    color: "#999999",
+    marginLeft: 12,
+    fontSize: 14,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    color: "#999999",
+    fontSize: 14,
+  },
+  planCard: {
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  planCardGradient: {
+    padding: 16,
+    borderRadius: 12,
+  },
+  planTypeName: {
+    color: "#999999",
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  planTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  planName: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginBottom: 12,
+  },
+  priceAmount: {
+    color: "#FCA311",
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  pricePeriod: {
+    color: "#999999",
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  planDescription: {
+    color: "#CCCCCC",
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  benefitsContainer: {
+    marginBottom: 16,
+  },
+  benefitItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  benefitText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 18,
+  },
+  upgradeButton: {
+    backgroundColor: "#FCA311",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  upgradeButtonDisabled: {
+    opacity: 0.6,
+  },
+  upgradeButtonText: {
+    color: "#000000",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  buttonLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
 
 export default MembershipScreen;
