@@ -1,6 +1,6 @@
 import axios from "axios";
 import { API_URL } from "./core/constants";
-import type { Child, LinkRequest } from "@/types/family";
+import type { Child, Parent, Sibling, LinkRequest } from "@/types/family";
 
 // Get all children linked to the authenticated parent
 export const getChildren = async (token: string): Promise<Child[]> => {
@@ -11,6 +11,36 @@ export const getChildren = async (token: string): Promise<Child[]> => {
     return response.data;
   } catch (error: any) {
     console.error("Failed to get children:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// Get parent information for the authenticated child user
+export const getParent = async (token: string): Promise<Parent | null> => {
+  try {
+    const response = await axios.get(`${API_URL}/family/parent`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error: any) {
+    // 404 means no parent link - return null instead of throwing
+    if (error.response?.status === 404) {
+      return null;
+    }
+    console.error("Failed to get parent:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// Get siblings for the authenticated child user
+export const getSiblings = async (token: string): Promise<Sibling[]> => {
+  try {
+    const response = await axios.get(`${API_URL}/family/siblings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to get siblings:", error.response?.data || error.message);
     throw error;
   }
 };

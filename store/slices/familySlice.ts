@@ -1,8 +1,10 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
-import type { Child, LinkRequest, FamilyState } from "@/types/family"
+import type { Child, Parent, Sibling, LinkRequest, FamilyState } from "@/types/family"
 
 const initialState: FamilyState = {
   children: [],
+  parent: null,
+  siblings: [],
   linkRequests: [],
   loading: "idle",
   error: null,
@@ -16,6 +18,12 @@ const familySlice = createSlice({
       state.children = action.payload
       state.loading = "succeeded"
       state.error = null
+    },
+    setParent: (state, action: PayloadAction<Parent | null>) => {
+      state.parent = action.payload
+    },
+    setSiblings: (state, action: PayloadAction<Sibling[]>) => {
+      state.siblings = action.payload
     },
     setLinkRequests: (state, action: PayloadAction<LinkRequest[]>) => {
       state.linkRequests = action.payload
@@ -40,6 +48,8 @@ const familySlice = createSlice({
 
 export const {
   setChildren,
+  setParent,
+  setSiblings,
   setLinkRequests,
   addChild,
   removeChild,
