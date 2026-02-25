@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,28 +14,89 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useAuth } from "@/utils/auth";
-import { requestLink, confirmLink } from "@/utils/api/family";
-import { useDispatch } from "react-redux";
-import { getChildren } from "@/utils/api/family";
-import { setChildren } from "@/store/slices/familySlice";
-
-type Step = "request" | "confirm";
+import { requestLink, getLinkRequests, cancelLinkRequest } from "@/utils/api/family";
+import type { LinkRequest } from "@/types/family";
 
 const LinkRequestScreen = () => {
   const router = useRouter();
-  const dispatch = useDispatch();
   const { getValidToken } = useAuth();
 
-  const [step, setStep] = useState<Step>("request");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Request form fields
   const [childEmail, setChildEmail] = useState("");
+  const [pendingRequest, setPendingRequest] = useState<LinkRequest | null>(null);
+  const [checkingPending, setCheckingPending] = useState(true);
 
-  // Confirm form fields
-  const [verificationCode, setVerificationCode] = useState("");
+  // Check for pending requests on mount
+  useEffect(() => {
+    const checkPendingRequests = async () => {
+      try {
+        const token = await getValidToken();
+        if (!token) {
+          setCheckingPending(false);
+          return;
+        }
+
+        console.log("🔍 Checking for pending link requests...");
+        const requests = await getLinkRequests(token);
+        console.log("📋 Link requests:", requests);
+
+        // Find pending request where current user is the initiator (parent)
+        // API returns requests without explicit "status" field - if it exists in the list, it's pending
+        const myPendingRequest = requests.find(
+          (r) => r.initiated_by === "parent"
+        );
+
+        console.log("🔎 Filtered pending request:", myPendingRequest);
+
+        if (myPendingRequest) {
+          console.log("⏳ Found pending request:", myPendingRequest);
+          setPendingRequest(myPendingRequest);
+        } else {
+          console.log("✅ No pending requests found");
+        }
+      } catch (err: any) {
+        console.error("❌ Error checking pending requests:", err.response?.data || err.message);
+      } finally {
+        setCheckingPending(false);
+      }
+    };
+
+    checkPendingRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
+  const handleCancelRequest = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = await getValidToken();
+      if (!token) {
+        setError("Authentication failed. Please try again.");
+        return;
+      }
+
+      console.log("🗑️ Canceling link request...");
+      await cancelLinkRequest(token);
+      console.log("✅ Link request canceled");
+
+      setPendingRequest(null);
+      setSuccess("Request canceled. You can now send a new link request.");
+      setTimeout(() => setSuccess(null), 2000);
+    } catch (err: any) {
+      console.error("❌ Cancel request error:", err.response?.data || err.message);
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error?.message ||
+        err.message ||
+        "Failed to cancel request";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRequestLink = async () => {
     if (!childEmail.trim()) {
@@ -53,51 +114,20 @@ const LinkRequestScreen = () => {
         return;
       }
 
-      await requestLink(token, { child_email: childEmail.trim() });
-      setSuccess("Link request sent! A verification code has been sent via email.");
-      setStep("confirm");
+      console.log("🔗 Sending link request for:", childEmail.trim());
+      const response = await requestLink(token, { target_email: childEmail.trim() });
+      console.log("✅ Link request response:", response);
+
+      // Show success and go back - child will accept on their end
+      setSuccess("Link request sent! Your child will receive a verification code to accept.");
+      setTimeout(() => router.back(), 2000);
     } catch (err: any) {
+      console.error("❌ Link request error:", err.response?.data || err.message);
       const message =
         err.response?.data?.message ||
-        err.response?.data?.error ||
+        err.response?.data?.error?.message ||
         err.message ||
         "Failed to send link request";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConfirmLink = async () => {
-    if (!verificationCode.trim()) {
-      setError("Please enter the verification code");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const token = await getValidToken();
-      if (!token) {
-        setError("Authentication failed. Please try again.");
-        return;
-      }
-
-      await confirmLink(token, { code: verificationCode.trim() });
-
-      // Refresh children list after successful link
-      const childrenData = await getChildren(token).catch(() => []);
-      dispatch(setChildren(Array.isArray(childrenData) ? childrenData : []));
-
-      setSuccess("Child linked successfully!");
-      setTimeout(() => router.back(), 1500);
-    } catch (err: any) {
-      const message =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        "Failed to confirm link";
       setError(message);
     } finally {
       setLoading(false);
@@ -109,11 +139,15 @@ const LinkRequestScreen = () => {
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
       {/* Header */}
-      <View className="flex-row items-center px-5 py-4">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4">
-          <FontAwesome6 name="arrow-left" size={20} color="#FFF" />
+      <View className="flex-row items-center px-5 py-3">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="mr-3 py-2"
+          activeOpacity={0.6}
+        >
+          <FontAwesome6 name="arrow-left" size={18} color="#FFF" />
         </TouchableOpacity>
-        <Text className="text-white text-xl font-Outfit-SemiBold">Link a Child</Text>
+        <Text className="text-white-100 text-lg font-Outfit-SemiBold">Link a Child</Text>
       </View>
 
       <KeyboardAvoidingView
@@ -121,153 +155,132 @@ const LinkRequestScreen = () => {
         className="flex-1"
       >
         <ScrollView
-          className="flex-1 px-5"
+          className="flex-1"
           contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Step indicator */}
-          <View className="flex-row items-center mb-6 mt-2">
-            <View
-              className={`w-8 h-8 rounded-full items-center justify-center ${
-                step === "request" ? "bg-[#FCA311]" : "bg-green-600"
-              }`}
-            >
-              {step === "confirm" ? (
-                <FontAwesome6 name="check" size={14} color="#FFF" />
-              ) : (
-                <Text className="text-black text-sm font-Outfit-Bold">1</Text>
-              )}
-            </View>
-            <View className="h-0.5 flex-1 bg-gray-700 mx-2" />
-            <View
-              className={`w-8 h-8 rounded-full items-center justify-center ${
-                step === "confirm" ? "bg-[#FCA311]" : "bg-gray-700"
-              }`}
-            >
-              <Text
-                className={`text-sm font-Outfit-Bold ${
-                  step === "confirm" ? "text-black" : "text-gray-400"
-                }`}
-              >
-                2
-              </Text>
-            </View>
+
+          <View className="px-5 pt-6" style={{ minHeight: 500 }}>
+            {checkingPending ? (
+              // Loading state while checking for pending requests
+              <View className="py-10 items-center">
+                <ActivityIndicator size="small" color="#FCA311" />
+                <Text className="text-gray-400 text-sm font-Outfit-Regular mt-3">
+                  Checking for pending requests...
+                </Text>
+              </View>
+            ) : pendingRequest ? (
+              // Pending request view
+              <>
+                <View className="mb-8">
+                  <Text className="text-white-100 text-2xl font-Outfit-Bold mb-2">
+                    Pending Link Request
+                  </Text>
+                  <Text className="text-gray-400 text-sm font-Outfit-Regular leading-5">
+                    You have a pending link request. Cancel it to send a new one.
+                  </Text>
+                </View>
+
+                <View className="mb-10 bg-[#1A1A1A] p-4 rounded-xl border border-[#2A2A2A]">
+                  <View className="flex-row items-center mb-2">
+                    <FontAwesome6 name="clock" size={14} color="#FCA311" />
+                    <Text className="text-gray-400 text-xs font-Outfit-SemiBold ml-2 uppercase tracking-wide">
+                      Pending Request
+                    </Text>
+                  </View>
+                  <Text className="text-white-100 text-base font-Outfit-Medium">
+                    {pendingRequest.child_name}
+                  </Text>
+                  <Text className="text-gray-400 text-sm font-Outfit-Regular mt-1">
+                    {pendingRequest.child_email}
+                  </Text>
+                  <Text className="text-gray-500 text-xs font-Outfit-Regular mt-1">
+                    Sent on {new Date(pendingRequest.created_at).toLocaleDateString()}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleCancelRequest}
+                  disabled={loading}
+                  className={`py-4 rounded-xl items-center ${
+                    loading ? "bg-[#2A2A2A]" : "bg-red-500"
+                  }`}
+                  activeOpacity={0.8}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                  ) : (
+                    <Text className="text-white-100 text-base font-Outfit-Bold">
+                      Cancel Request
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              // Normal email input view
+              <>
+                <View className="mb-8">
+                  <Text className="text-white-100 text-2xl font-Outfit-Bold mb-2">
+                    Link Your Child
+                  </Text>
+                  <Text className="text-gray-400 text-sm font-Outfit-Regular leading-5">
+                    Enter your child's email address. We'll send them a verification code to confirm the link.
+                  </Text>
+                </View>
+
+                <View className="mb-10">
+                  <Text className="text-gray-400 text-xs font-Outfit-SemiBold mb-6 uppercase tracking-wide">
+                    Child's Email Address
+                  </Text>
+                  <TextInput
+                    value={childEmail}
+                    onChangeText={(text) => {
+                      setChildEmail(text);
+                      setError(null);
+                    }}
+                    placeholder="child@example.com"
+                    placeholderTextColor="#555"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    className="bg-[#1A1A1A] text-white-100 text-base font-Outfit-Regular px-4 py-3.5 rounded-xl border border-[#2A2A2A]"
+                  />
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleRequestLink}
+                  disabled={loading || !childEmail.trim()}
+                  className={`py-4 rounded-xl items-center ${
+                    loading || !childEmail.trim() ? "bg-[#2A2A2A]" : "bg-[#FCA311]"
+                  }`}
+                  activeOpacity={0.8}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#FCA311" />
+                  ) : (
+                    <Text className={`text-base font-Outfit-Bold ${
+                      !childEmail.trim() ? "text-gray-500" : "text-black"
+                    }`}>
+                      Continue
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
-          {step === "request" && (
-            <View>
-              <Text className="text-white text-lg font-Outfit-SemiBold mb-2">
-                Enter Child's Email
-              </Text>
-              <Text className="text-gray-400 text-sm font-Outfit-Regular mb-6">
-                Enter the email address associated with your child's account. A verification code
-                will be sent to confirm the link.
-              </Text>
-
-              <Text className="text-gray-400 text-xs font-Outfit-Medium mb-2 uppercase tracking-wide">
-                Child's Email
-              </Text>
-              <TextInput
-                value={childEmail}
-                onChangeText={(text) => {
-                  setChildEmail(text);
-                  setError(null);
-                }}
-                placeholder="child@example.com"
-                placeholderTextColor="#555"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                className="bg-[#1A1A1A] text-white text-base font-Outfit-Regular p-4 rounded-xl mb-6"
-              />
-
-              <TouchableOpacity
-                onPress={handleRequestLink}
-                disabled={loading}
-                className={`py-4 rounded-xl items-center ${
-                  loading ? "bg-gray-700" : "bg-[#FCA311]"
-                }`}
-                activeOpacity={0.8}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Text className="text-black text-base font-Outfit-SemiBold">
-                    Send Link Request
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {step === "confirm" && (
-            <View>
-              <Text className="text-white text-lg font-Outfit-SemiBold mb-2">
-                Enter Verification Code
-              </Text>
-              <Text className="text-gray-400 text-sm font-Outfit-Regular mb-6">
-                A verification code has been sent via email. Enter the code below to confirm the
-                link.
-              </Text>
-
-              <Text className="text-gray-400 text-xs font-Outfit-Medium mb-2 uppercase tracking-wide">
-                Verification Code
-              </Text>
-              <TextInput
-                value={verificationCode}
-                onChangeText={(text) => {
-                  setVerificationCode(text);
-                  setError(null);
-                }}
-                placeholder="Enter code"
-                placeholderTextColor="#555"
-                autoCapitalize="none"
-                autoCorrect={false}
-                className="bg-[#1A1A1A] text-white text-base font-Outfit-Regular p-4 rounded-xl mb-6"
-              />
-
-              <TouchableOpacity
-                onPress={handleConfirmLink}
-                disabled={loading}
-                className={`py-4 rounded-xl items-center ${
-                  loading ? "bg-gray-700" : "bg-[#FCA311]"
-                }`}
-                activeOpacity={0.8}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Text className="text-black text-base font-Outfit-SemiBold">Confirm Link</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  setStep("request");
-                  setVerificationCode("");
-                  setError(null);
-                  setSuccess(null);
-                }}
-                className="mt-4 py-3 items-center"
-              >
-                <Text className="text-gray-400 text-sm font-Outfit-Regular">
-                  Go back and try a different email
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
 
           {/* Error message */}
           {error && (
-            <View className="mt-4 bg-red-900/30 p-4 rounded-xl">
-              <Text className="text-red-400 text-sm font-Outfit-Regular">{error}</Text>
+            <View className="mx-5 mb-4 bg-red-500/10 px-4 py-3 rounded-xl border border-red-500/20">
+              <Text className="text-red-400 text-sm font-Outfit-Regular text-center">{error}</Text>
             </View>
           )}
 
           {/* Success message */}
           {success && (
-            <View className="mt-4 bg-green-900/30 p-4 rounded-xl">
-              <Text className="text-green-400 text-sm font-Outfit-Regular">{success}</Text>
+            <View className="mx-5 mb-4 bg-green-500/10 px-4 py-3 rounded-xl border border-green-500/20">
+              <Text className="text-green-400 text-sm font-Outfit-Regular text-center">{success}</Text>
             </View>
           )}
         </ScrollView>
