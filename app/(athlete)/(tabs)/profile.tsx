@@ -12,7 +12,6 @@ import images from "@/constants/images";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import PlayerStatsCard from "@/components/profile/PlayerStatsCard";
 import AccountSection from "@/components/profile/AccountSection";
-import FamilyCard from "@/components/family/FamilyCard";
 
 type User = {
   id: string;
@@ -111,9 +110,6 @@ const AthleteProfileScreen = () => {
           teamLogo={user?.team?.logo} // ✅ Display team logo from user data
         />
 
-        {/* Family Card - self-manages visibility based on /family/children data */}
-        <FamilyCard />
-
         {/* Player Stats (Temporarily Hidden) */}
         {/*
         <View className="mt-6">
@@ -130,6 +126,7 @@ const AthleteProfileScreen = () => {
         <AccountSection
           title="My Account"
           items={[
+            { icon: "people-group", text: "Family", onPress: () => router.push("/(athlete)/screens/family") },
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
             { icon: "crown", text: "My Membership", onPress: () => router.push("/(athlete)/screens/membership") },
             { icon: "file-contract", text: "My Waivers", onPress: () => router.push("/screens/profile-options/waivers") },
