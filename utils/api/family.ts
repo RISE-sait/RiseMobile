@@ -109,6 +109,19 @@ export const getLinkRequests = async (token: string): Promise<LinkRequest[]> => 
   }
 };
 
+// Get schedule for a specific child
+export const getChildSchedule = async (token: string, childId: string) => {
+  try {
+    const response = await axios.get(`${API_URL}/secure/schedule`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { child_id: childId },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
 // Admin only: removes the parent-child link for a user
 export const adminRemoveLink = async (token: string, id: string): Promise<any> => {
   try {

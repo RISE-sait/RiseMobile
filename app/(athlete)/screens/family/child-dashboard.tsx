@@ -184,6 +184,12 @@ const ChildDashboard = () => {
           <TouchableOpacity
             className="bg-[#1A1A1A] rounded-xl p-4 border border-[#2A2A2A]/50 flex-row items-center justify-between"
             activeOpacity={0.7}
+            onPress={() =>
+              router.push({
+                pathname: "/(athlete)/screens/family/child-schedule",
+                params: { childId: child.id, childName: `${child.first_name} ${child.last_name}` },
+              })
+            }
           >
             <View className="flex-row items-center">
               <View className="w-10 h-10 rounded-full bg-[#FCA311]/10 items-center justify-center mr-3">
