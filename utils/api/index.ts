@@ -81,7 +81,19 @@ export {
   getUserSubsidies,
   getUserSubsidyBalance,
   getUserSubsidyUsage,
+  getSubscriptions,
+  upgradeSubscription,
 } from './membership';
+
+// Family
+export {
+  getChildren,
+  requestLink,
+  confirmLink,
+  cancelLinkRequest,
+  getLinkRequests,
+  adminRemoveLink,
+} from './family';
 
 // Users / waivers
 export {

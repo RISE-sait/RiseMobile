@@ -22,7 +22,7 @@ import EventListContainer from "@/components/calendar/EventListContainer"
 import Constants from "expo-constants"
 
 interface SharedCalendarProps {
-  userRole: "athlete" | "coach" | "instructor" | "parent" | "admin" | "super_admin"
+  userRole: "athlete" | "coach" | "instructor" | "admin" | "super_admin"
   title?: string
   childrenData?: any[]
   embedded?: boolean // New prop to indicate it's embedded in another view

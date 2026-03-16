@@ -126,6 +126,7 @@ const AthleteProfileScreen = () => {
         <AccountSection
           title="My Account"
           items={[
+            { icon: "people-group", text: "Family", onPress: () => router.push("/(athlete)/screens/family") },
             { icon: "pen-to-square", text: "Edit Profile", onPress: () => router.push("/screens/edit-profile") },
             { icon: "crown", text: "My Membership", onPress: () => router.push("/(athlete)/screens/membership") },
             { icon: "file-contract", text: "My Waivers", onPress: () => router.push("/screens/profile-options/waivers") },

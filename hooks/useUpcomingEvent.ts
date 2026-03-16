@@ -254,12 +254,18 @@ export const useUpcomingEvent = () => {
         return
       }
 
-      if (status === 401 || status === 403 || errorData?.error?.message === "Invalid or expired token") {
+      if (status === 401 || errorData?.error?.message === "Invalid or expired token") {
         if (!authFailureRef.current) {
           authFailureRef.current = true
           setError("Session expired. Please log in again.")
           await forceReLogin("Session expired. Please log in again.")
         }
+        return
+      }
+
+      // 403 without suspension info = not authorized for this endpoint
+      if (status === 403) {
+        setError(null)
         return
       }
 

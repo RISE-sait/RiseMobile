@@ -16,6 +16,7 @@ import { setUser as setReduxUser, logout as reduxLogout } from "@/store/slices/u
 import { clearPractices } from "@/store/slices/practicesSlice"
 import { clearMatches } from "@/store/slices/gamesSlice"
 import { clearMembership } from "@/store/slices/membershipSlice"
+import { clearFamily } from "@/store/slices/familySlice"
 import { persistor } from "@/store"
 import { AppState, InteractionManager } from "react-native"
 import Constants from "expo-constants"
@@ -690,6 +691,7 @@ export const useAuth = () => {
       dispatch(clearPractices())        // Clear practices cache
       dispatch(clearMatches())          // Clear match history cache
       dispatch(clearMembership())       // Clear membership cache
+      dispatch(clearFamily())           // Clear family/children cache
 
       // ✅ Use Redux Persist API only - avoid manual persist:* key manipulation
       persistor.pause()

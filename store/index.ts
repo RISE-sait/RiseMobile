@@ -15,6 +15,7 @@ import membershipReducer from "./slices/membershipSlice"
 import scheduleReducer from "./slices/scheduleSlice"
 import courtsReducer from "./slices/courtsSlice"
 import subsidyReducer from "./slices/subsidySlice"
+import familyReducer from "./slices/familySlice"
 
 
 // Define the root state type
@@ -29,6 +30,7 @@ export interface RootState {
   schedule: ReturnType<typeof scheduleReducer>
   courts: ReturnType<typeof courtsReducer>
   subsidy: ReturnType<typeof subsidyReducer>
+  family: ReturnType<typeof familyReducer>
 }
 
 // Combine all reducers
@@ -43,6 +45,7 @@ const rootReducer = combineReducers({
   schedule: scheduleReducer,
   courts: courtsReducer,
   subsidy: subsidyReducer,
+  family: familyReducer,
 })
 
 // Transform to filter user data - prevent image bloat
@@ -127,7 +130,7 @@ const persistConfig = {
   storage: AsyncStorage,
   whitelist: ["user"], // ONLY persist user data (auth + profile)
   // Blacklist everything else - fetch from API on demand
-  blacklist: ["events", "practices", "courses", "teams", "schedule", "courts", "games", "membership", "subsidy"],
+  blacklist: ["events", "practices", "courses", "teams", "schedule", "courts", "games", "membership", "subsidy", "family"],
   // Add transforms to filter user data (remove base64 images)
   transforms: [userTransform],
   // Add debug and timeout settings to prevent property update errors

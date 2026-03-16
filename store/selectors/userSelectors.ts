@@ -58,9 +58,11 @@ export const selectIsInstructor = createSelector(
   (role) => role === 'instructor'
 )
 
+// Parent is determined by having linked children, not by role
+// Use family state from Redux (populated by GET /family/children)
 export const selectIsParent = createSelector(
-  [selectUserRole],
-  (role) => role === 'parent'
+  [(state: RootState) => state.family?.children],
+  (children) => Array.isArray(children) && children.length > 0
 )
 
 export const selectIsBarber = createSelector(
