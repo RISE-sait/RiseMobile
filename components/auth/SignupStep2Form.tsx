@@ -203,8 +203,6 @@ export const SignupStep2Form: React.FC<SignupStep2FormProps> = ({
         return <FontAwesome5 name="basketball-ball" size={18} color="#FCA311" />
       case "coach":
         return <FontAwesome5 name="chalkboard-teacher" size={18} color="#FCA311" />
-      case "parent":
-        return <Ionicons name="people" size={18} color="#FCA311" />
       case "instructor":
         return <MaterialCommunityIcons name="whistle" size={18} color="#FCA311" />
       case "barber":

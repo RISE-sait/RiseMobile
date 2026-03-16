@@ -53,18 +53,6 @@ export const RoleSelectionModal = ({ visible, onClose, onSelectRole, currentRole
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.roleOption} onPress={() => handleRoleSelect("parent")}>
-                <View style={styles.roleIconContainer}>
-                  <FontAwesome5 name="user-friends" size={24} color="#FCA311" />
-                </View>
-                <View style={styles.roleTextContainer}>
-                  <Text style={styles.roleTitle}>Parent</Text>
-                  <Text style={styles.roleDescription}>Manage your child's activities</Text>
-                </View>
-                {currentRole === "parent" && (
-                  <Ionicons name="checkmark-circle" size={24} color="#FCA311" style={styles.checkIcon} />
-                )}
-              </TouchableOpacity>
 
               <TouchableOpacity style={styles.closeModalButton} onPress={onClose}>
                 <Text style={styles.closeModalButtonText}>CLOSE</Text>
