@@ -2,6 +2,19 @@ import axios from "axios";
 import { API_URL } from "./core/constants";
 import type { Child, Parent, Sibling, LinkRequest } from "@/types/family";
 
+// Get detailed profile for a specific child
+export const getChild = async (token: string, childId: string): Promise<Child> => {
+  try {
+    const response = await axios.get(`${API_URL}/family/children/${childId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to get child:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
 // Get all children linked to the authenticated parent
 export const getChildren = async (token: string): Promise<Child[]> => {
   try {

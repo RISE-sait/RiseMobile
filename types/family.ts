@@ -5,6 +5,11 @@ export interface Child {
   dob: string
   country_code: string
   photo_url?: string
+  email?: string
+  team_id?: string
+  team_name?: string
+  programs?: any[]
+  linked_at?: string
 }
 
 export interface Parent {
