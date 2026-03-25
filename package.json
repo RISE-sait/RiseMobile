@@ -8,8 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "jest --watchAll",
-    "lint": "expo lint",
+"lint": "expo lint",
     "swagger": "npx swagger-typescript-api generate -p app/api/docs/swagger.json -o app/api",
     "android:check": "bash scripts/android-debug.sh check",
     "android:deploy": "bash scripts/android-debug.sh deploy",
@@ -22,10 +21,7 @@
     "android:debug": "bash scripts/android-debug.sh deploy && bash scripts/android-debug.sh logs",
     "android:check-sdk": "bash scripts/check-android-sdk.sh"
   },
-  "jest": {
-    "preset": "jest-expo"
-  },
-  "dependencies": {
+"dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.2",
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
@@ -103,15 +99,11 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@types/jest": "^29.5.12",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
-    "@types/react-test-renderer": "^18.3.0",
     "baseline-browser-mapping": "^2.10.8",
     "eslint": "^8.57.0",
     "eslint-config-expo": "~10.0.0",
-    "jest-expo": "~54.0.11",
-    "react-test-renderer": "18.3.1",
     "swagger-typescript-api": "^13.0.23",
     "tailwindcss": "^3.3.2",
     "typescript": "^5.9.2"
